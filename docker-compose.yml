@@ -9,6 +9,9 @@ services:
       - '3000:3000'
     depends_on:
       - db
+    volumes:
+      - .:/usr/src/app
+    command: npm run start:dev
 
   db:
     image: postgres:15
@@ -19,9 +22,10 @@ services:
       POSTGRES_USER: ${DATABASE_USER}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: ${DATABASE_NAME}
+      NODE_ENV: development
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - .:/user/src/app
 
 volumes:
   postgres_data:

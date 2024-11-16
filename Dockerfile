@@ -2,7 +2,7 @@
 FROM node:18
 
 # Set working directory
-WORKDIR /app
+WORKDIR /usr/src/app
 
 # Copy package.json and install dependencies
 COPY package.json ./
@@ -21,6 +21,6 @@ COPY . .
 EXPOSE 3000
 
 # Command to start the application
-CMD ["ts-node-dev", "--respawn", "--transpileOnly", "src/main.ts"]
+#CMD ["ts-node-dev", "--respawn", "--transpileOnly", "src/main.ts"]
 
-#CMD ["yarn", "start:prod"]
+CMD ["npm", "run", "start:dev"]
