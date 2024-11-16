@@ -36,7 +36,7 @@ export class ConfigService {
       autoLoadEntities: true,
       synchronize: true, // 개발 환경에서만 사용
     };
-    Logger.log(this.dbConfig);
+    //Logger.log(this.dbConfig);
   }
 
   getBotInviteLink(permissions = '1075305537'): string {
