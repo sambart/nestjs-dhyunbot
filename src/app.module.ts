@@ -5,14 +5,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiscordModule } from './discord/discord.module';
 import { ConfigService } from './config/config.service';
 import { ConfigModule } from './config/config.module';
+import { CommandsModule } from './commands/commands.module';
 
 const config = new ConfigService();
 @Module({
-  imports: [
-    ConfigModule,
-    TypeOrmModule.forRoot(config.dbConfig),
-    DiscordModule,
-  ],
+  imports: [ConfigModule, TypeOrmModule.forRoot(config.dbConfig), DiscordModule, CommandsModule],
   controllers: [AppController],
   providers: [AppService],
 })

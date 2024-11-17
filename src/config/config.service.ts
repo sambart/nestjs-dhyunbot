@@ -36,6 +36,8 @@ export class ConfigService {
       autoLoadEntities: true,
       synchronize: true, // 개발 환경에서만 사용
     };
+    this.adminPrefix = process.env.ADMIN_PREIFX || 'admin';
+    this.defaultPrefix = process.env.DEFAULT_PREFIX || '!';
     //Logger.log(this.dbConfig);
   }
 
