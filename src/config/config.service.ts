@@ -20,7 +20,7 @@ export class ConfigService {
 
   constructor() {
     config();
-    this.port = parseInt(process.env.PORT) || 5000;
+    this.port = parseInt(process.env.PORT) || 3000;
     this.discordToken = process.env.DISCORD_API_TOKEN || '';
     this.discordClientId = process.env.DISCORD_CLIENT_ID || '';
     this.adminPrefix = process.env.ADMIN_PREIFX || 'admin';
@@ -29,7 +29,7 @@ export class ConfigService {
     this.dbConfig = {
       type: 'postgres',
       host: process.env.DATABASE_HOST,
-      port: parseInt(process.env.DATABASE_PORT, 5432),
+      port: parseInt(process.env.DATABASE_PORT) || 5432,
       username: process.env.DATABASE_USER,
       password: process.env.DATABASE_PASSWORD,
       database: process.env.DATABASE_NAME,

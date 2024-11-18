@@ -12,7 +12,7 @@ async function bootstrap() {
   const discordService = app.get(DiscordService);
   const commandService = app.get(CommandsService);
 
-  await app.listen(config.port, async () => {
+  await app.listen(config.port ?? 3000, async () => {
     Logger.log(`Server listening on port ${config.port}`);
     Logger.log(`Bot invite link: ${config.getBotInviteLink()}`);
     const client = await discordService.connect();
