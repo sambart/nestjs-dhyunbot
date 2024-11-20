@@ -122,6 +122,16 @@ export class ChannelService {
     }
   }
 
+  async setChannelName(channelId: string, name: string): Promise<void> {
+    const channel = this.createdChannels.get(channelId);
+    if (channel) {
+      await channel.setName(name);
+      this.logger.log(`Changed channel name to ${name}`);
+    } else {
+      this.logger.warn(`Channel with ID ${channelId} not found in created channels.`);
+    }
+  }
+
   // 채널을 ID로 조회
   getChannelById(channelId: string): VoiceChannel | undefined {
     return this.createdChannels.get(channelId);
