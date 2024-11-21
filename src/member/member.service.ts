@@ -14,9 +14,9 @@ export class MemberService {
     return await this.memberRepository.find();
   }
 
-  async findOne(discordUserId: string): Promise<Member> {
+  async findOne(discordMemberId: string): Promise<Member> {
     const member = await this.memberRepository.findOne({
-      where: { discordUserId },
+      where: { discordMemberId },
     });
 
     if (!member) {
@@ -32,9 +32,9 @@ export class MemberService {
     return await this.memberRepository.save(newMember);
   }
 
-  async update(discordUserId: string, member: Partial<Member>): Promise<Member> {
-    await this.memberRepository.update(discordUserId, member);
-    return await this.findOne(discordUserId);
+  async update(discordMemberId: string, member: Partial<Member>): Promise<Member> {
+    await this.memberRepository.update(discordMemberId, member);
+    return await this.findOne(discordMemberId);
   }
 
   async delete(id: number): Promise<void> {

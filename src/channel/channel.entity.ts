@@ -6,20 +6,23 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { VoiceChannelHistory } from '../channel/voice-channel/voice-channel-history.entity';
+import { VoiceChannelHistory } from './voice-channel/voice-channel-history.entity';
 
 @Entity()
-export class Member {
+export class Channel {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ unique: true })
-  discordMemberId: string;
+  discordChannelId: string;
 
   @Column()
-  nickName: string;
+  channelName: string;
 
-  @OneToMany(() => VoiceChannelHistory, (history) => history.member)
+  @Column()
+  channelType: string;
+
+  @OneToMany(() => VoiceChannelHistory, (history) => history.channel)
   voiceHistories: VoiceChannelHistory[];
 
   @CreateDateColumn()
