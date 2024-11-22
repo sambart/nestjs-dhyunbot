@@ -11,9 +11,14 @@ import {
   GuildMember,
   GuildChannel,
 } from 'discord.js';
-import { Channel, VoiceState } from 'discord.js';
+import { VoiceState } from 'discord.js';
 import { Member } from 'src/member/member.entity';
+import { VoiceChannelHistory } from 'src/channel/voice-channel/voice-channel-history.entity';
 import { CONSTANTS } from '../../config/constants';
+import { MemberService } from 'src/member/member.service';
+import { VoiceChannelHistoryService } from 'src/channel/voice-channel/voice-channel-history.service';
+import { ChannelService } from 'src/channel/channel.service';
+import { Channel } from 'src/channel/channel.entity';
 
 @Injectable()
 export class VoiceChannelService {
@@ -21,6 +26,9 @@ export class VoiceChannelService {
   private readonly channelActions: Record<string, (state: VoiceState) => void>;
   // 생성된 채널들을 저장할 Map
   private readonly createdChannels: Map<string, VoiceChannel> = new Map();
+  private readonly memberService: MemberService;
+  private readonly channelService: ChannelService;
+  private readonly voiceChannelHistoryService: VoiceChannelHistoryService;
 
   constructor(
     @InjectDiscordClient()
@@ -39,6 +47,18 @@ export class VoiceChannelService {
     } else {
       this.logger.log(`No specific action for channel ${newState.channel?.name}`);
     }
+
+    const member: Member = await this.memberService.findOrCreateMember(
+      newState.member.id,
+      newState.member.nickname,
+    );
+
+    const channel: Channel = await this.channelService.findOrCreateChannel(
+      newState.channelId,
+      newState.channel.name,
+    );
+
+    await this.voiceChannelHistoryService.logJoin(member, channel);
   }
 
   async handleUserLeave(oldState: VoiceState): Promise<void> {
@@ -50,6 +70,18 @@ export class VoiceChannelService {
       await this.deleteChannel(channel.id);
       this.logger.log(`Deleted empty channel: ${channel.name}`);
     }
+
+    const member: Member = await this.memberService.findOrCreateMember(
+      oldState.member.id,
+      oldState.member.nickname,
+    );
+
+    const eChannel: Channel = await this.channelService.findOrCreateChannel(
+      oldState.channelId,
+      oldState.channel.name,
+    );
+
+    await this.voiceChannelHistoryService.logJoin(member, eChannel);
   }
 
   // 생성채널에 대한 동작

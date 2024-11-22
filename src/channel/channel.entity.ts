@@ -8,6 +8,11 @@ import {
 } from 'typeorm';
 import { VoiceChannelHistory } from './voice-channel/voice-channel-history.entity';
 
+export enum ChannelStatus {
+  ACTIVE = 'ACTIVE',
+  DELETED = 'DELETED',
+}
+
 @Entity()
 export class Channel {
   @PrimaryGeneratedColumn()
@@ -21,6 +26,13 @@ export class Channel {
 
   @Column()
   channelType: string;
+
+  @Column({
+    type: 'enum',
+    enum: ChannelStatus,
+    default: ChannelStatus.ACTIVE,
+  })
+  status: ChannelStatus;
 
   @OneToMany(() => VoiceChannelHistory, (history) => history.channel)
   voiceHistories: VoiceChannelHistory[];

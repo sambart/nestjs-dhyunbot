@@ -40,4 +40,20 @@ export class MemberService {
   async delete(id: number): Promise<void> {
     await this.memberRepository.delete(id);
   }
+
+  async findOrCreateMember(memberId: string, a_nickName: string): Promise<Member> {
+    let member = await this.memberRepository.findOne({
+      where: { discordMemberId: memberId }, // 필요한 조건
+    });
+
+    if (!member) {
+      member = this.memberRepository.create({
+        discordMemberId: memberId,
+        nickName: a_nickName,
+      }); // 생성
+      member = await this.memberRepository.save(member); // 저장
+    }
+
+    return member;
+  }
 }
