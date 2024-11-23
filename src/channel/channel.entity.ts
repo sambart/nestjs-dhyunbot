@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { VoiceChannelHistory } from './voice-channel/voice-channel-history.entity';
+import { VoiceChannelHistory } from '../voice-channel/voice-channel-history.entity';
 
 export enum ChannelStatus {
   ACTIVE = 'ACTIVE',
@@ -23,9 +23,6 @@ export class Channel {
 
   @Column()
   channelName: string;
-
-  @Column()
-  channelType: string;
 
   @Column({
     type: 'enum',

@@ -13,10 +13,10 @@ import {
 } from 'discord.js';
 import { VoiceState } from 'discord.js';
 import { Member } from 'src/member/member.entity';
-import { VoiceChannelHistory } from 'src/channel/voice-channel/voice-channel-history.entity';
-import { CONSTANTS } from '../../config/constants';
+import { VoiceChannelHistory } from 'src/voice-channel/voice-channel-history.entity';
+import { CONSTANTS } from '../config/constants';
 import { MemberService } from 'src/member/member.service';
-import { VoiceChannelHistoryService } from 'src/channel/voice-channel/voice-channel-history.service';
+import { VoiceChannelHistoryService } from 'src/voice-channel/voice-channel-history.service';
 import { ChannelService } from 'src/channel/channel.service';
 import { Channel } from 'src/channel/channel.entity';
 
@@ -26,14 +26,14 @@ export class VoiceChannelService {
   private readonly channelActions: Record<string, (state: VoiceState) => void>;
   // 생성된 채널들을 저장할 Map
   private readonly createdChannels: Map<string, VoiceChannel> = new Map();
-  private readonly memberService: MemberService;
-  private readonly channelService: ChannelService;
-  private readonly voiceChannelHistoryService: VoiceChannelHistoryService;
 
   constructor(
     @InjectDiscordClient()
     private readonly client: Client,
     private readonly discordProvider: DiscordClientProvider,
+    private readonly memberService: MemberService,
+    private readonly channelService: ChannelService,
+    private readonly voiceChannelHistoryService: VoiceChannelHistoryService,
   ) {
     this.channelActions = {
       [CONSTANTS.CREATE_CHANNEL_ID]: this.handleCreateTypeChannel.bind(this),
@@ -64,24 +64,24 @@ export class VoiceChannelService {
   async handleUserLeave(oldState: VoiceState): Promise<void> {
     const channel = oldState.channel;
 
-    // 생성된 임시 채널인지 확인 (예: 이름으로 구분)
-    const createdChannel = this.getChannelById(oldState.channelId);
-    if (channel.members.size === 0 && createdChannel) {
-      await this.deleteChannel(channel.id);
-      this.logger.log(`Deleted empty channel: ${channel.name}`);
-    }
-
     const member: Member = await this.memberService.findOrCreateMember(
       oldState.member.id,
       oldState.member.nickname,
     );
 
     const eChannel: Channel = await this.channelService.findOrCreateChannel(
-      oldState.channelId,
-      oldState.channel.name,
+      channel.id,
+      channel.name,
     );
 
-    await this.voiceChannelHistoryService.logJoin(member, eChannel);
+    await this.voiceChannelHistoryService.logLeave(member, eChannel);
+
+    // 생성된 임시 채널인지 확인 (예: 이름으로 구분)
+    const createdChannel = this.getChannelById(oldState.channelId);
+    if (channel.members.size === 0 && createdChannel) {
+      await this.deleteChannel(channel.id);
+      this.logger.log(`Deleted empty channel: ${channel.name}`);
+    }
   }
 
   // 생성채널에 대한 동작

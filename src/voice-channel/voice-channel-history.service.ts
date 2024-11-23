@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { VoiceChannelHistory } from './voice-channel-history.entity';
 import { Member } from 'src/member/member.entity';
-import { Channel } from '../channel.entity';
+import { Channel } from '../channel/channel.entity';
 
 @Injectable()
 export class VoiceChannelHistoryService {
@@ -27,12 +27,14 @@ export class VoiceChannelHistoryService {
       const log = await manager
         .createQueryBuilder()
         .select('id')
-        .from(VoiceChannelHistory, 'id')
+        .from(VoiceChannelHistory, 'log')
         .where('log.memberId = :memberId', { memberId: member.id })
         .andWhere('log.channelId = :channelId', { channelId: channel.id })
-        .orderBy('log.joinedAt', 'DESC')
+        .orderBy('log.joinAt', 'DESC')
         .limit(1)
-        .getOne();
+        .getRawOne();
+
+      console.log(log);
 
       if (log) {
         await manager.update(VoiceChannelHistory, { id: log.id }, { leftAt: new Date() });

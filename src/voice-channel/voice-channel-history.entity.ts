@@ -8,7 +8,7 @@ import {
   JoinColumn,
   ManyToOne,
 } from 'typeorm';
-import { Channel } from '../channel.entity';
+import { Channel } from '../channel/channel.entity';
 import { Member } from 'src/member/member.entity';
 
 @Entity()

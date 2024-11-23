@@ -21,10 +21,11 @@ import { Channel } from './channel.entity';
 export class ChannelService {
   private readonly logger = new Logger(ChannelService.name);
   constructor(
-    @InjectDiscordClient()
     @InjectRepository(Channel)
     private readonly channelRepository: Repository<Channel>,
-  ) {}
+  ) {
+    //console.log('ChannelRepository:', this.channelRepository);
+  }
 
   async findOrCreateChannel(channelId: string, a_channelName: string): Promise<Channel> {
     // 1. 채널이 존재하는지 확인
