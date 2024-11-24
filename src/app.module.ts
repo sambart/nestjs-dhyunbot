@@ -13,6 +13,7 @@ import { VoiceChannelModule } from './voice-channel/voice-channel.module';
 import { Member } from './member/member.entity';
 import { VoiceChannelHistory } from './voice-channel/voice-channel-history.entity';
 import { Channel } from './channel/channel.entity';
+import { MusicModule } from './music/music.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { Channel } from './channel/channel.entity';
     TypeOrmModule.forRootAsync(TypeORMConfig),
     ChannelModule,
     VoiceChannelModule,
+    MusicModule,
   ],
   controllers: [AppController],
   providers: [AppService],

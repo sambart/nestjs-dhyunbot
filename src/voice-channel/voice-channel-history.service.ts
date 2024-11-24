@@ -34,8 +34,6 @@ export class VoiceChannelHistoryService {
         .limit(1)
         .getRawOne();
 
-      console.log(log);
-
       if (log) {
         await manager.update(VoiceChannelHistory, { id: log.id }, { leftAt: new Date() });
       }
