@@ -12,8 +12,10 @@ export const TypeORMConfig: TypeOrmModuleAsyncOptions = {
     username: configService.get('DATABASE_USER'),
     password: configService.get('DATABASE_PASSWORD'),
     database: configService.get('DATABASE_NAME'),
-    entities: ['dist/**/*.entity.{ts,js}'],
-    synchronize: 'prod' !== process.env.NODE_ENV,
+    entities: [__dirname + '/../src/**/*.entity{.ts,.js}'],
+    autoLoadEntities: true,
+    synchronize: true, // 데이터베이스 자동 동기화
+    logging: true, // 쿼리 로깅 활성화
   }),
   inject: [ConfigService],
 };

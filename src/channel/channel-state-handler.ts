@@ -4,35 +4,13 @@ import { Client, VoiceState, Channel } from 'discord.js';
 import { ChannelService } from './channel.service';
 
 @Injectable()
-export class VoiceStateHandler {
-  private readonly logger = new Logger(VoiceStateHandler.name);
+export class ChannelStateHandler {
+  private readonly logger = new Logger(ChannelStateHandler.name);
 
   constructor(
     @InjectDiscordClient() private readonly client: Client,
     private readonly channelService: ChannelService,
-  ) {
-    this.registerListeners();
-  }
-
-  private registerListeners(): void {
-    this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
-  }
-
-  private async handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState): Promise<void> {
-    // 사용자가 음성 채널에 새로 접속했을 경우
-    if (!oldState.channelId && newState.channelId) {
-      this.logger.log(`User ${newState.member?.user.tag} joined channel ${newState.channel?.name}`);
-
-      await this.channelService.handleUserJoin(newState);
-    }
-
-    // 사용자가 음성 채널에서 나갔을 경우
-    if (oldState.channelId && !newState.channelId) {
-      this.logger.log(`User ${oldState.member?.user.tag} left channel ${oldState.channel?.name}`);
-
-      await this.channelService.handleUserLeave(oldState);
-    }
-  }
+  ) {}
 
   @On('channelCreate')
   handleChannelCreate(channel: Channel): void {

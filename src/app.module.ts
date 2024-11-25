@@ -9,6 +9,11 @@ import { DiscordConfig } from './config/discord.config';
 import { BaseConfig } from './config/base.config';
 import { ChannelModule } from './channel/channel.module';
 import { Logger } from '@nestjs/common';
+import { VoiceChannelModule } from './voice-channel/voice-channel.module';
+import { Member } from './member/member.entity';
+import { VoiceChannelHistory } from './voice-channel/voice-channel-history.entity';
+import { Channel } from './channel/channel.entity';
+import { MusicModule } from './music/music.module';
 
 @Module({
   imports: [
@@ -16,6 +21,8 @@ import { Logger } from '@nestjs/common';
     DiscordModule.forRootAsync(DiscordConfig),
     TypeOrmModule.forRootAsync(TypeORMConfig),
     ChannelModule,
+    VoiceChannelModule,
+    MusicModule,
   ],
   controllers: [AppController],
   providers: [AppService],

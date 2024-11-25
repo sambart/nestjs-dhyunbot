@@ -8,9 +8,6 @@ WORKDIR /usr/src/app
 COPY package.json ./
 RUN npm install
 
-# ts-node-dev 설치
-RUN npm install -g ts-node-dev
-
 # Copy application code
 COPY . .
 
@@ -23,4 +20,4 @@ EXPOSE 3000
 # Command to start the application
 #CMD ["ts-node-dev", "--respawn", "--transpileOnly", "src/main.ts"]
 
-CMD ["npm", "run", "start:dev"]
+CMD ["npm", "run", "start"]

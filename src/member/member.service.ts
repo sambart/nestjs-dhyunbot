@@ -14,9 +14,9 @@ export class MemberService {
     return await this.memberRepository.find();
   }
 
-  async findOne(discordUserId: string): Promise<Member> {
+  async findOne(discordMemberId: string): Promise<Member> {
     const member = await this.memberRepository.findOne({
-      where: { discordUserId },
+      where: { discordMemberId },
     });
 
     if (!member) {
@@ -32,12 +32,28 @@ export class MemberService {
     return await this.memberRepository.save(newMember);
   }
 
-  async update(discordUserId: string, member: Partial<Member>): Promise<Member> {
-    await this.memberRepository.update(discordUserId, member);
-    return await this.findOne(discordUserId);
+  async update(discordMemberId: string, member: Partial<Member>): Promise<Member> {
+    await this.memberRepository.update(discordMemberId, member);
+    return await this.findOne(discordMemberId);
   }
 
   async delete(id: number): Promise<void> {
     await this.memberRepository.delete(id);
+  }
+
+  async findOrCreateMember(memberId: string, a_nickName: string): Promise<Member> {
+    let member = await this.memberRepository.findOne({
+      where: { discordMemberId: memberId }, // 필요한 조건
+    });
+
+    if (!member) {
+      member = this.memberRepository.create({
+        discordMemberId: memberId,
+        nickName: a_nickName || 'unknown',
+      }); // 생성
+      member = await this.memberRepository.save(member); // 저장
+    }
+
+    return member;
   }
 }
