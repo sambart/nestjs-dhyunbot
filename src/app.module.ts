@@ -14,12 +14,19 @@ import { Member } from './member/member.entity';
 import { VoiceChannelHistory } from './voice-channel/voice-channel-history.entity';
 import { Channel } from './channel/channel.entity';
 import { MusicModule } from './music/music.module';
+import { GraphQLModule } from '@nestjs/graphql';
+import { GraphQLConfig } from './config/graphql.config';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 
 @Module({
   imports: [
     ConfigModule.forRoot(BaseConfig),
     DiscordModule.forRootAsync(DiscordConfig),
     TypeOrmModule.forRootAsync(TypeORMConfig),
+    GraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver, // Apollo 드라이버 설정
+      autoSchemaFile: true, // 스키마 자동 생성
+    }),
     ChannelModule,
     VoiceChannelModule,
     MusicModule,

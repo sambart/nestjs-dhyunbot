@@ -8,6 +8,7 @@ import { VoiceChannelModule } from '../voice-channel/voice-channel.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Channel } from './channel.entity';
 import { MemberModule } from '../member/member.module';
+import { ChannelResolver } from './channel.resolver';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { MemberModule } from '../member/member.module';
     DiscordModule.forFeature(),
     TypeOrmModule.forFeature([Channel]),
   ],
-  providers: [ChannelService, ChannelStateHandler],
+  providers: [ChannelService, ChannelStateHandler, ChannelResolver],
   exports: [ChannelService],
 })
 export class ChannelModule {}

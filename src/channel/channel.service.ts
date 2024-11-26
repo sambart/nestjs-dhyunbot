@@ -44,4 +44,8 @@ export class ChannelService {
 
     return channel;
   }
+
+  async getAllChannels(): Promise<Channel[]> {
+    return this.channelRepository.find();
+  }
 }
