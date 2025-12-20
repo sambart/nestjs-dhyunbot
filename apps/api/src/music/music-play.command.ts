@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Command, Handler, InteractionEvent, EventParams } from '@discord-nestjs/core';
 import { MusicService } from './music.service';
-import { PlayDto } from './play.dto';
 import {
   CommandInteraction,
   GuildMember,
@@ -9,6 +8,7 @@ import {
   ChatInputCommandInteraction,
 } from 'discord.js';
 import { SlashCommandPipe } from '@discord-nestjs/common';
+import { PlayDto } from './play.dto';
 
 @Injectable()
 @Command({

@@ -1,18 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectDiscordClient, Once, On, DiscordClientProvider } from '@discord-nestjs/core';
-import {
-  Client,
-  Message,
-  EmbedBuilder,
-  ChannelType,
-  Guild,
-  CategoryChannel,
-  VoiceChannel,
-  GuildMember,
-  GuildChannel,
-} from 'discord.js';
-import { Member } from '../member/member.entity';
-import { CONSTANTS } from '../config/constants';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Channel } from './channel.entity';

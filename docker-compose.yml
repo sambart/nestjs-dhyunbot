@@ -1,28 +1,46 @@
-version: '3.8'
-
 services:
-  app:
+  api:
+    container_name: nest-api
+    image: nest-dhyunbot-api
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: apps/api/Dockerfile
     ports:
-      - '3000:3000'
-    depends_on:
-      - db
+      - "3000:3000"
+    env_file:
+      - .env
     volumes:
-      - .:/usr/src/app
-    command: npm run start
+      - ./apps/api:/app # 소스코드 실시간 반영
+      - /app/node_modules # node_modules 충돌 방지
+    restart: unless-stopped
+
+  web:
+    container_name: next-web
+    image: nest-dhyunbot-web
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3001:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    depends_on:
+      - api
+    restart: unless-stopped
 
   db:
     image: postgres:15
     container_name: postgres
     ports:
-      - '5432:5432'
+      - "5432:5432"
     environment:
       POSTGRES_USER: ${DATABASE_USER}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: ${DATABASE_NAME}
-      NODE_ENV: development
+      NODE_ENV: production
 
     volumes:
       - postgres_data:/var/lib/postgresql/data

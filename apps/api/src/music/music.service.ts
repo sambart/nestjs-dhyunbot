@@ -1,12 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import {
-  joinVoiceChannel,
-  createAudioPlayer,
-  createAudioResource,
-  AudioPlayerStatus,
-  NoSubscriberBehavior,
-  StreamType,
-} from '@discordjs/voice';
 import { Player, QueryType, useQueue } from 'discord-player';
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import {
@@ -16,67 +8,80 @@ import {
   ChatInputCommandInteraction,
   GuildMember,
 } from 'discord.js';
+import * as ytSearch from 'yt-search';
+import { DefaultExtractors } from '@discord-player/extractor';
 
 @Injectable()
 export class MusicService {
+  private player: Player;
+  private initialized = false;
+
   constructor(@InjectDiscordClient() private readonly client: Client) {
-    const player = new Player(client);
-    player.extractors.loadDefault().then((r) => console.log('Extractors loaded successfully'));
+    this.player = new Player(client);
+  }
+
+  async init() {
+    if (this.initialized) return;
+    await this.player.extractors.loadMulti(DefaultExtractors);
+    this.initialized = true;
+    console.log('✅ Extractors loaded');
+
+    this.player.events.on('playerStart', (queue, track) => {
+      console.log(`Now playing: ${track.title}`);
+    });
+
+    this.player.events.on('emptyQueue', (queue) => {
+      console.log('Queue ended');
+    });
+
+    this.player.events.on('playerError', (queue, error) => {
+      console.log(error);
+    });
+
+    this.player.events.on('error', (queue, error) => {
+      console.log(error);
+    });
   }
 
   async playMusic(url: string, interaction: ChatInputCommandInteraction<CacheType>): Promise<void> {
     console.log('playMusic', url);
-
-    await interaction.deferReply();
+    await this.init(); // extractor 로드 보장
 
     const member = interaction.member as GuildMember;
 
-    const player = new Player(this.client);
-
-    const track = await player.search(url, {
+    const searchResult = await this.player.search(url, {
       requestedBy: interaction.user,
-      searchEngine: QueryType.YOUTUBE_SEARCH,
+      searchEngine: QueryType.AUTO,
     });
 
-    if (!track.hasTracks()) {
-      throw new Error('Track not found');
-    }
-
-    console.log('playMusic', track);
-
-    await player.play(member.voice.channelId, track, {
-      nodeOptions: {
-        metadata: {
-          channel: member.voice.channelId,
-          client: interaction.guild?.members.me,
-          requestedBy: interaction.user.username,
+    if (!searchResult || !searchResult.tracks.length) {
+      console.log('SearchResult:', searchResult.tracks);
+      const newSearch = await ytSearch(url);
+      if (!newSearch || !newSearch.videos.length) throw new Error('Track not found');
+      console.log('NEWSEARCH', newSearch);
+      await this.player.play(member.voice.channel, newSearch.videos[0].url, {
+        requestedBy: interaction.user,
+      });
+    } else {
+      console.log(searchResult.tracks);
+      const trackToPlay = searchResult.tracks[0];
+      await interaction.reply(`재생 시작: ${trackToPlay.title}`);
+      await this.player.play(member.voice.channelId, trackToPlay, {
+        nodeOptions: {
+          metadata: {
+            channel: member.voice.channelId,
+            client: interaction.guild?.members.me,
+            requestedBy: interaction.user.username,
+          },
+          leaveOnEmptyCooldown: 300000,
+          leaveOnEmpty: true,
+          leaveOnEnd: false,
+          bufferingTimeout: 0,
+          volume: 10,
+          //defaultFFmpegFilters: ['lofi', 'bassboost', 'normalizer']
         },
-        leaveOnEmptyCooldown: 300000,
-        leaveOnEmpty: true,
-        leaveOnEnd: false,
-        bufferingTimeout: 0,
-        volume: 10,
-        //defaultFFmpegFilters: ['lofi', 'bassboost', 'normalizer']
-      },
-    });
-
-    player.events.on('playerStart', async (queue, track) => {
-      await interaction.followUp({
-        content: `${track.url}`,
       });
-      console.log(`The current track changed to ${track.title}`);
-      // 트랙이 변경될 때 처리할 로직 추가
-    });
-
-    player.events.on('emptyQueue', async (queue) => {
-      queue.delete();
-      await interaction.followUp({
-        content: '🎶 | 노래가 끝났습니다.',
-      });
-    });
-  }
-  catch(error) {
-    console.error('음악 재생 오류:', error);
+    }
   }
 
   async stop(interaction: ChatInputCommandInteraction<CacheType>): Promise<void> {
