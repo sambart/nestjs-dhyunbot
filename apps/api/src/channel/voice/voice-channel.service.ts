@@ -12,13 +12,13 @@ import {
   GuildChannel,
 } from 'discord.js';
 import { VoiceState } from 'discord.js';
-import { Member } from 'src/member/member.entity';
-import { VoiceChannelHistory } from 'src/voice-channel/voice-channel-history.entity';
-import { CONSTANTS } from '../config/constants';
-import { MemberService } from 'src/member/member.service';
-import { VoiceChannelHistoryService } from 'src/voice-channel/voice-channel-history.service';
-import { ChannelService } from 'src/channel/channel.service';
-import { Channel } from 'src/channel/channel.entity';
+import { Member } from '../../member/member.entity';
+import { VoiceChannelHistory } from '../voice/voice-channel-history.entity';
+import { CONSTANTS } from '../../config/constants';
+import { MemberService } from '../../member/member.service';
+import { VoiceChannelHistoryService } from '../voice/voice-channel-history.service';
+import { ChannelService } from '../channel.service';
+import { Channel } from '../channel.entity';
 
 @Injectable()
 export class VoiceChannelService {

@@ -2,13 +2,12 @@ import { Module } from '@nestjs/common';
 import { DiscordModule } from '@discord-nestjs/core';
 import { DiscordConfig } from '../config/discord.config';
 import { ChannelService } from './channel.service';
-import { VoiceChannelService } from '../voice-channel/voice-channel.service';
-import { ChannelStateHandler } from './channel-state-handler';
-import { VoiceChannelModule } from '../voice-channel/voice-channel.module';
+import { VoiceChannelService } from './voice/voice-channel.service';
+import { ChannelStateHandler } from './channel-state.handler';
+import { VoiceChannelModule } from './voice/voice-channel.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Channel } from './channel.entity';
 import { MemberModule } from '../member/member.module';
-import { ChannelResolver } from './channel.resolver';
 
 @Module({
   imports: [
@@ -16,7 +15,7 @@ import { ChannelResolver } from './channel.resolver';
     DiscordModule.forFeature(),
     TypeOrmModule.forFeature([Channel]),
   ],
-  providers: [ChannelService, ChannelStateHandler, ChannelResolver],
+  providers: [ChannelService, ChannelStateHandler],
   exports: [ChannelService],
 })
 export class ChannelModule {}

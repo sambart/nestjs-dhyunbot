@@ -8,8 +8,8 @@ import {
   JoinColumn,
   ManyToOne,
 } from 'typeorm';
-import { Channel } from '../channel/channel.entity';
-import { Member } from 'src/member/member.entity';
+import { Channel } from '../channel.entity';
+import { Member } from '../../member/member.entity';
 
 @Entity()
 export class VoiceChannelHistory {

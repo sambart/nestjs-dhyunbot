@@ -1,9 +1,9 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GatewayIntentBits } from 'discord.js';
-import { MusicPlayCommand } from 'src/music/music-play.command';
+import { MusicPlayCommand } from '../music/music-play.command';
 import { SlashCommandPipe } from '@discord-nestjs/common';
-import { MusicStopCommand } from 'src/music/music-stop.command';
-import { MusicSkipCommand } from 'src/music/music-skip.command';
+import { MusicStopCommand } from '../music/music-stop.command';
+import { MusicSkipCommand } from '../music/music-skip.command';
 
 export const DiscordConfig = {
   imports: [ConfigModule],

@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { VoiceChannelHistory } from '../voice-channel/voice-channel-history.entity';
+import { VoiceChannelHistory } from '../channel/voice/voice-channel-history.entity';
 
 @Entity()
 export class Member {

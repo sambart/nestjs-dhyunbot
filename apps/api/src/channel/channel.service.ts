@@ -11,7 +11,7 @@ import {
   GuildMember,
   GuildChannel,
 } from 'discord.js';
-import { Member } from 'src/member/member.entity';
+import { Member } from '../member/member.entity';
 import { CONSTANTS } from '../config/constants';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
