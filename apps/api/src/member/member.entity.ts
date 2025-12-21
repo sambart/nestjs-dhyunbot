@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { VoiceChannelHistory } from '../channel/voice/voice-channel-history.entity';
 
-@Entity()
+@Entity({ schema: 'public' })
 export class Member {
   @PrimaryGeneratedColumn()
   id: number;

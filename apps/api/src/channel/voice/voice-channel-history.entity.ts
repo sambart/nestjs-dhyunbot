@@ -11,7 +11,7 @@ import {
 import { Channel } from '../channel.entity';
 import { Member } from '../../member/member.entity';
 
-@Entity()
+@Entity({ schema: 'public' })
 export class VoiceChannelHistory {
   @PrimaryGeneratedColumn()
   id: number;

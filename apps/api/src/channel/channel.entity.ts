@@ -13,7 +13,7 @@ export enum ChannelStatus {
   DELETED = 'DELETED',
 }
 
-@Entity()
+@Entity({ schema: 'public' })
 export class Channel {
   @PrimaryGeneratedColumn()
   id: number;
