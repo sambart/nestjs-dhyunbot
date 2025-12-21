@@ -1,4 +1,4 @@
-# 🎵 Discord Multifunction Bot
+# Discord Multifunction Bot
 
 NestJS 기반으로 개발된 **멀티 기능 디스코드 봇**입니다.  
 노래 재생, 음성/텍스트 채널 자동 관리, 서버 로그 기록을 지원하며  
