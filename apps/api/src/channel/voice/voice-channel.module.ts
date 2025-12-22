@@ -1,15 +1,16 @@
 import { Module } from '@nestjs/common';
 import { DiscordModule } from '@discord-nestjs/core';
 import { DiscordConfig } from '../../config/discord.config';
-import { VoiceStateHandler } from './voice-state.handler';
-import { VoiceChannelService } from './voice-channel.service';
+import { VoiceChannelService } from './application/voice-channel.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-//import { VoiceChannelHistory } from './voice-channel-history.entity';
-import { Channel } from '../channel.entity';
-import { VoiceChannelHistory } from './voice-channel-history.entity';
-import { VoiceChannelHistoryService } from './voice-channel-history.service';
+import { VoiceChannelHistory } from './domain/voice-channel-history.entity';
+import { VoiceChannelHistoryService } from './application/voice-channel-history.service';
 import { ChannelModule } from '../channel.module';
 import { MemberModule } from '../../member/member.module';
+import { VoiceChannelPolicy } from './application/voice-channel.policy';
+import { DiscordVoiceGateway } from './infrastructure/discord-voice.gateway';
+import { RedisTempChannelStore } from './infrastructure/redis-temp-channel-store';
+import { RedisService } from 'src/redis/redis.service';
 
 @Module({
   imports: [
@@ -19,7 +20,17 @@ import { MemberModule } from '../../member/member.module';
     MemberModule,
     ChannelModule,
   ],
-  providers: [VoiceChannelService, VoiceStateHandler, VoiceChannelHistoryService],
-  exports: [VoiceChannelService, VoiceStateHandler, TypeOrmModule],
+  providers: [
+    VoiceChannelService,
+    VoiceChannelHistoryService,
+    VoiceChannelPolicy,
+    DiscordVoiceGateway,
+    RedisService,
+    {
+      provide: 'TempChannelStore',
+      useClass: RedisTempChannelStore,
+    },
+  ],
+  exports: [VoiceChannelService, TypeOrmModule],
 })
 export class VoiceChannelModule {}

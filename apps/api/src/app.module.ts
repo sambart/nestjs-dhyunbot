@@ -11,9 +11,11 @@ import { ChannelModule } from './channel/channel.module';
 import { Logger } from '@nestjs/common';
 import { VoiceChannelModule } from './channel/voice/voice-channel.module';
 import { Member } from './member/member.entity';
-import { VoiceChannelHistory } from './channel/voice/voice-channel-history.entity';
+import { VoiceChannelHistory } from './channel/voice/domain/voice-channel-history.entity';
 import { Channel } from './channel/channel.entity';
 import { MusicModule } from './music/music.module';
+import { DiscordEventsModule } from './event/discord-events.module';
+import { RedisModule } from './redis/redis.module';
 @Module({
   imports: [
     ConfigModule.forRoot(BaseConfig),
@@ -22,6 +24,8 @@ import { MusicModule } from './music/music.module';
     ChannelModule,
     VoiceChannelModule,
     MusicModule,
+    DiscordEventsModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [AppService],
