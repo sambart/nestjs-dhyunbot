@@ -28,6 +28,7 @@ export class VoiceChannelService {
   ) {
     this.discord = new DiscordVoiceGateway(this.client);
   }
+
   async onUserJoined(cmd: VoiceCommand) {
     await this.handleVoiceStateUpdate(cmd);
     if (this.policy.shouldCreateTempChannel(cmd.channelId)) {
@@ -42,15 +43,45 @@ export class VoiceChannelService {
       await this.discord.moveUserToChannel(cmd.guildId, cmd.userId, tempChannelId);
     }
   }
+
   async onUserLeave(cmd: VoiceCommand) {
-    await this.handleVoiceStateUpdate(cmd);
+    const guildId = cmd.guildId;
+    const userId = cmd.userId;
+    const now = Date.now();
+
+    const session = await this.voiceRedisRepository.getSession(guildId, userId);
+    if (!session) return;
+
+    // 1️⃣ leave 직전까지 누적
+    await this.voiceRedisRepository.accumulateDuration(guildId, userId, session, now);
+
+    // ⭐ 날짜 변경 감지 → flush
+    //if (session.date !== today) {
+    await this.voiceDailyFlushService.flushDate(guildId, userId, session.date);
+
+    // 세션 리셋
+    /*
+        session = {
+      ...session,
+      lastUpdatedAt: Date.now(),
+      date: today,
+    };*/
+
+    //}
+
+    // 2️⃣ 채널 OUT 상태 확정
+    session.channelId = null;
+    session.alone = false;
+    session.lastUpdatedAt = now;
+
+    // 3️⃣ 세션 저장
+    await this.voiceRedisRepository.setSession(guildId, userId, session);
+
+    // 4️⃣ 이후 채널 삭제 정책 처리
     if (await this.policy.shouldDeleteChannel(cmd.guildId, cmd.channelId)) {
-      this.logger.log(`삭제 동작`);
       await this.tempChannelStore.removeMember(cmd.channelId, cmd.userId);
       await this.tempChannelStore.unregisterTempChannel(cmd.guildId, cmd.channelId);
       await this.discord.deleteChannel(cmd.channelId);
-    } else {
-      this.logger.log(`삭제 정책 실패`);
     }
   }
 
@@ -76,7 +107,7 @@ export class VoiceChannelService {
 
     const today = getKSTDateString();
 
-    let session: VoiceSession = (await this.voiceRedisRepository.getSession(guildId, userId)) ?? {
+    const session: VoiceSession = (await this.voiceRedisRepository.getSession(guildId, userId)) ?? {
       channelId: cmd.channelId,
       joinedAt: Date.now(),
       mic: cmd.micOn,
@@ -84,18 +115,6 @@ export class VoiceChannelService {
       lastUpdatedAt: Date.now(),
       date: today,
     };
-
-    // ⭐ 날짜 변경 감지 → flush
-    //if (session.date !== today) {
-    await this.voiceDailyFlushService.flushDate(guildId, userId, session.date);
-
-    // 세션 리셋
-    session = {
-      ...session,
-      lastUpdatedAt: Date.now(),
-      date: today,
-    };
-    //}
 
     // duration 누적
     await this.voiceRedisRepository.accumulateDuration(guildId, userId, session);
