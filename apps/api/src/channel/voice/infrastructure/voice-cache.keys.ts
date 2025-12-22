@@ -1,12 +1,12 @@
-// voice.keys.ts
 export const VoiceKeys = {
-  session: (g: string, u: string) => `voice:session:${g}:${u}`,
+  session: (guild: string, user: string) => `voice:session:${guild}:${user}`,
 
-  channelDuration: (g: string, u: string, date: string, channel: string) =>
-    `voice:duration:channel:${g}:${u}:${date}:${channel}`,
+  channelDuration: (guild: string, user: string, date: string, channel: string) =>
+    `voice:duration:channel:${guild}:${user}:${date}:${channel}`,
 
-  micDuration: (g: string, u: string, date: string, state: 'on' | 'off') =>
-    `voice:duration:mic:${g}:${u}:${date}:${state}`,
+  micDuration: (guild: string, user: string, date: string, state: 'on' | 'off') =>
+    `voice:duration:mic:${guild}:${user}:${date}:${state}`,
 
-  aloneDuration: (g: string, u: string, date: string) => `voice:duration:alone:${g}:${u}:${date}`,
+  aloneDuration: (guild: string, user: string, date: string) =>
+    `voice:duration:alone:${guild}:${user}:${date}`,
 };

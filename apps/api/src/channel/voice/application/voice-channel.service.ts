@@ -7,6 +7,11 @@ import { DiscordVoiceGateway } from '../infrastructure/discord-voice.gateway';
 import { JoinCommand } from 'src/commands/join.command';
 import { LeaveCommand } from 'src/commands/leave.command';
 import { TempChannelStore } from '../infrastructure/temp-channel-store';
+import { VoiceRedisRepository } from '../infrastructure/voice.redis.repository';
+import { MicToggleCommand } from 'src/commands/mic-toggle.comman';
+import { VoiceCommand } from 'src/commands/voice.command';
+import { VoiceDailyFlushService } from './voice-daily-flush-service';
+import { getKSTDateString, todayYYYYMMDD } from 'src/common/helper';
 
 @Injectable()
 export class VoiceChannelService {
@@ -18,10 +23,13 @@ export class VoiceChannelService {
     private readonly client: Client,
     @Inject('TempChannelStore') private readonly tempChannelStore: TempChannelStore,
     private readonly policy: VoiceChannelPolicy, // DI
+    private readonly voiceRedisRepository: VoiceRedisRepository,
+    private readonly voiceDailyFlushService: VoiceDailyFlushService,
   ) {
     this.discord = new DiscordVoiceGateway(this.client);
   }
-  async onUserJoined(cmd: JoinCommand) {
+  async onUserJoined(cmd: VoiceCommand) {
+    await this.handleVoiceStateUpdate(cmd);
     if (this.policy.shouldCreateTempChannel(cmd.channelId)) {
       const tempChannelId = await this.discord.createVoiceChannel({
         guildId: cmd.guildId,
@@ -34,7 +42,8 @@ export class VoiceChannelService {
       await this.discord.moveUserToChannel(cmd.guildId, cmd.userId, tempChannelId);
     }
   }
-  async onUserLeave(cmd: LeaveCommand) {
+  async onUserLeave(cmd: VoiceCommand) {
+    await this.handleVoiceStateUpdate(cmd);
     if (await this.policy.shouldDeleteChannel(cmd.guildId, cmd.channelId)) {
       this.logger.log(`삭제 동작`);
       await this.tempChannelStore.removeMember(cmd.channelId, cmd.userId);
@@ -43,6 +52,10 @@ export class VoiceChannelService {
     } else {
       this.logger.log(`삭제 정책 실패`);
     }
+  }
+
+  async onUserMicToggle(cmd: VoiceCommand) {
+    await this.handleVoiceStateUpdate(cmd);
   }
 
   async moveUserToChannel(voiceState: VoiceState, channelId: string): Promise<void> {
@@ -55,5 +68,43 @@ export class VoiceChannelService {
     } catch (error) {
       this.logger.error(`Error moving user to channel: ${error.message}`, error);
     }
+  }
+
+  async handleVoiceStateUpdate(cmd: VoiceCommand) {
+    const guildId = cmd.guildId;
+    const userId = cmd.userId;
+
+    const today = getKSTDateString();
+
+    let session: VoiceSession = (await this.voiceRedisRepository.getSession(guildId, userId)) ?? {
+      channelId: cmd.channelId,
+      joinedAt: Date.now(),
+      mic: cmd.micOn,
+      alone: false,
+      lastUpdatedAt: Date.now(),
+      date: today,
+    };
+
+    // ⭐ 날짜 변경 감지 → flush
+    //if (session.date !== today) {
+    await this.voiceDailyFlushService.flushDate(guildId, userId, session.date);
+
+    // 세션 리셋
+    session = {
+      ...session,
+      lastUpdatedAt: Date.now(),
+      date: today,
+    };
+    //}
+
+    // duration 누적
+    await this.voiceRedisRepository.accumulateDuration(guildId, userId, session);
+
+    // 세션 갱신
+    session.channelId = cmd.channelId ?? session.channelId;
+    session.mic = cmd.micOn;
+    session.alone = cmd.alone;
+
+    await this.voiceRedisRepository.setSession(guildId, userId, session);
   }
 }

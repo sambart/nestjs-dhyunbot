@@ -8,6 +8,7 @@ import { VoiceStateDispatcher } from './voice/voice-state.dispatcher';
 import { VoiceJoinHandler } from './voice/voice-join.handler';
 import { VoiceLeaveHandler } from './voice/voice-leave.handler';
 import { VoiceMoveHandler } from './voice/voice-move.handler';
+import { MicToggleHandler } from './voice/voice-mic-toggle.handler';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { VoiceMoveHandler } from './voice/voice-move.handler';
     VoiceJoinHandler,
     VoiceLeaveHandler,
     VoiceMoveHandler,
+    MicToggleHandler,
   ],
 })
 export class DiscordEventsModule {}

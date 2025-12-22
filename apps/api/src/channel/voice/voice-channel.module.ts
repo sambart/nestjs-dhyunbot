@@ -11,12 +11,16 @@ import { VoiceChannelPolicy } from './application/voice-channel.policy';
 import { DiscordVoiceGateway } from './infrastructure/discord-voice.gateway';
 import { RedisTempChannelStore } from './infrastructure/redis-temp-channel-store';
 import { RedisService } from 'src/redis/redis.service';
+import { VoiceRedisRepository } from './infrastructure/voice.redis.repository';
+import { VoiceDailyFlushService } from './application/voice-daily-flush-service';
+import { VoiceDailyEntity } from './domain/voice-daily-entity';
 
 @Module({
   imports: [
     DiscordModule.forRootAsync(DiscordConfig),
     DiscordModule.forFeature(),
     TypeOrmModule.forFeature([VoiceChannelHistory]),
+    TypeOrmModule.forFeature([VoiceDailyEntity]),
     MemberModule,
     ChannelModule,
   ],
@@ -30,6 +34,8 @@ import { RedisService } from 'src/redis/redis.service';
       provide: 'TempChannelStore',
       useClass: RedisTempChannelStore,
     },
+    VoiceRedisRepository,
+    VoiceDailyFlushService,
   ],
   exports: [VoiceChannelService, TypeOrmModule],
 })

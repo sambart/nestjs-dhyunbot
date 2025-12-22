@@ -33,6 +33,7 @@
     "@nestjs/platform-express": "^10.4.20",
     "@nestjs/swagger": "^7.4.2",
     "@nestjs/typeorm": "^10.0.2",
+    "date-fns-tz": "^3.2.0",
     "discord-player": "^7.1.0",
     "discord.js": "^14.16.3",
     "ffmpeg": "^0.0.4",
