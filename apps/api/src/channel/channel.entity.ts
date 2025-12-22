@@ -1,0 +1,42 @@
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+} from 'typeorm';
+import { VoiceChannelHistory } from './voice/domain/voice-channel-history.entity';
+
+export enum ChannelStatus {
+  ACTIVE = 'ACTIVE',
+  DELETED = 'DELETED',
+}
+
+@Entity({ schema: 'public' })
+export class Channel {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ unique: true })
+  discordChannelId: string;
+
+  @Column()
+  channelName: string;
+
+  @Column({
+    type: 'enum',
+    enum: ChannelStatus,
+    default: ChannelStatus.ACTIVE,
+  })
+  status: ChannelStatus;
+
+  @OneToMany(() => VoiceChannelHistory, (history) => history.channel)
+  voiceHistories: VoiceChannelHistory[];
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}

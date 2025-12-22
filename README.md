@@ -1,26 +1,49 @@
-NestJS 기반 음성 채널 자동 관리 및 사용자 활동 추적 봇
+# Discord Multifunction Bot
+
+NestJS 기반으로 개발된 **멀티 기능 디스코드 봇**입니다.  
+노래 재생, 음성/텍스트 채널 자동 관리, 서버 로그 기록을 지원하며  
+향후 **AI 기반 서버 통계 분석**과 **웹 대시보드**를 제공하는 것을 목표로 합니다.
 
 ---
 
-## 🛠 Tech Stack
+## ✨ 주요 기능
 
-- **Backend**: NestJS, TypeORM
-- **Database**: PostgreSQL
-- **Deployment**: Docker, Docker Compose
+### 🎶 노래 봇
+- YouTube 등 외부 소스를 통한 음악 재생
+- 재생 / 정지 / 스킵 / 큐 관리
+- 음성 채널 자동 입장 및 퇴장
+
+### 🏗️ 채널 자동 생성
+- 사용자가 음성 채널 입장 시 **전용 채널 자동 생성**
+- 사용자가 모두 퇴장하면 **채널 자동 삭제**
+- 서버별 설정 분리 지원
+
+### 📊 AI 기반 서버 통계 (제작 중)
+- OpenAI API 연동
+- 서버 활동 로그 기반 요약 및 분석
+- 유저 활동 패턴 통계 제공 예정
+
+### 🌐 웹 인터페이스 (제작 중)
+- 서버별 봇 설정 관리
+- 통계 시각화 대시보드
+- 관리자 전용 페이지 제공 예정
+
+### 🗂️ 채널별 로그 기록
+- 채널 단위 메시지 / 이벤트 로그 저장
+- PostgreSQL 기반 영속 저장
+- 추후 통계 및 AI 분석에 활용
 
 ---
 
-## 📌 Features
+## 🛠️ 기술 스택
 
-### 🔁 Channel Automation
-- 사용자 진입 시 음성 채널 자동 생성
-- 무인 채널 자동 제거
-- 웹 인터페이스를 통한 동작 설정
+### Backend
+- NestJS
+- PostgreSQL
+- Redis
 
-### 📈 User Activity Logging
-- 음성 채널 이용 시간, 채널명, 입퇴장 시각 DB 기록
-- 텍스트 채널 채팅 로그 수집
+### Frontend
+- Next.js
 
-### 🎵 Music Playback
-- YouTube 연동 실시간 음악 재생
-- 기본 큐 및 컨트롤 기능 지원
+### Infra
+- Docker
