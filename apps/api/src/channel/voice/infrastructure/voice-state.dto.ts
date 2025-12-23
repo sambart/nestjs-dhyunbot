@@ -1,6 +1,6 @@
 import { VoiceState } from 'discord.js';
 
-export class VoiceCommand {
+export class VoiceStateDTO {
   constructor(
     public readonly guildId: string,
     public readonly userId: string,
@@ -10,12 +10,12 @@ export class VoiceCommand {
     public readonly alone: boolean,
   ) {}
 
-  static fromVoiceState(state: VoiceState): VoiceCommand {
+  static fromVoiceState(state: VoiceState): VoiceStateDTO {
     if (!state.guild || !state.member || !state.channelId || !state.channel.parentId) {
       throw new Error('Invalid VoiceState for JoinCommand');
     }
 
-    return new VoiceCommand(
+    return new VoiceStateDTO(
       state.guild.id,
       state.member.id,
       state.channelId,

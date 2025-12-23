@@ -4,12 +4,9 @@ import { Client, GuildMember } from 'discord.js';
 import { VoiceState } from 'discord.js';
 import { VoiceChannelPolicy } from './voice-channel.policy';
 import { DiscordVoiceGateway } from '../infrastructure/discord-voice.gateway';
-import { JoinCommand } from 'src/commands/join.command';
-import { LeaveCommand } from 'src/commands/leave.command';
 import { TempChannelStore } from '../infrastructure/temp-channel-store';
 import { VoiceRedisRepository } from '../infrastructure/voice.redis.repository';
-import { MicToggleCommand } from 'src/commands/mic-toggle.comman';
-import { VoiceCommand } from 'src/commands/voice.command';
+import { VoiceStateDTO } from 'src/channel/voice/infrastructure/voice-state.dto';
 import { VoiceDailyFlushService } from './voice-daily-flush-service';
 import { getKSTDateString, todayYYYYMMDD } from 'src/common/helper';
 
@@ -29,7 +26,7 @@ export class VoiceChannelService {
     this.discord = new DiscordVoiceGateway(this.client);
   }
 
-  async onUserJoined(cmd: VoiceCommand) {
+  async onUserJoined(cmd: VoiceStateDTO) {
     await this.handleVoiceStateUpdate(cmd);
     if (this.policy.shouldCreateTempChannel(cmd.channelId)) {
       const tempChannelId = await this.discord.createVoiceChannel({
@@ -44,7 +41,7 @@ export class VoiceChannelService {
     }
   }
 
-  async onUserLeave(cmd: VoiceCommand) {
+  async onUserLeave(cmd: VoiceStateDTO) {
     const guildId = cmd.guildId;
     const userId = cmd.userId;
     const now = Date.now();
@@ -85,7 +82,7 @@ export class VoiceChannelService {
     }
   }
 
-  async onUserMicToggle(cmd: VoiceCommand) {
+  async onUserMicToggle(cmd: VoiceStateDTO) {
     await this.handleVoiceStateUpdate(cmd);
   }
 
@@ -101,7 +98,7 @@ export class VoiceChannelService {
     }
   }
 
-  async handleVoiceStateUpdate(cmd: VoiceCommand) {
+  async handleVoiceStateUpdate(cmd: VoiceStateDTO) {
     const guildId = cmd.guildId;
     const userId = cmd.userId;
 
