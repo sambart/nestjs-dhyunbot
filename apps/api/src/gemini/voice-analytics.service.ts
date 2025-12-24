@@ -1,16 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThanOrEqual } from 'typeorm';
-import { InjectDiscordClient } from '@discord-nestjs/core';
-import { Client, Guild } from 'discord.js';
 import { VoiceDailyEntity } from 'src/channel/voice/domain/voice-daily-entity';
+import { VoiceRedisRepository } from 'src/channel/voice/infrastructure/voice.redis.repository';
+import { DiscordGateway } from 'src/gateway/discord.gateway';
+import { Repository, Between, Not } from 'typeorm';
 
 export interface VoiceActivityData {
   guildId: string;
   guildName: string;
   timeRange: {
-    start: string; // YYYYMMDD
-    end: string; // YYYYMMDD
+    start: string;
+    end: string;
   };
   totalStats: {
     totalUsers: number;
@@ -32,7 +32,7 @@ export interface VoiceActivityData {
     }>;
     activeDays: number;
     avgDailyVoiceTime: number;
-    micUsageRate: number; // 마이크 사용 비율 (%)
+    micUsageRate: number;
   }>;
   channelStats: Array<{
     channelId: string;
@@ -56,51 +56,67 @@ export class VoiceAnalyticsService {
   constructor(
     @InjectRepository(VoiceDailyEntity)
     private voiceDailyRepo: Repository<VoiceDailyEntity>,
-    @InjectDiscordClient()
-    private readonly client: Client,
+    private discordGateway: DiscordGateway,
+    private voiceRedis: VoiceRedisRepository,
   ) {}
 
   /**
-   * 서버의 음성 활동 데이터를 수집하여 Gemini에 전달할 JSON 형식으로 변환
+   * 서버의 음성 활동 데이터를 수집
+   * 1. DB에서 데이터 조회
+   * 2. Redis 캐시에서 이름 조회
+   * 3. 없으면 Discord API → Redis 저장
    */
   async collectVoiceActivityData(
     guildId: string,
-    startDate: string, // YYYYMMDD
-    endDate: string, // YYYYMMDD
+    startDate: string,
+    endDate: string,
   ): Promise<VoiceActivityData> {
     try {
       this.logger.log(`Collecting voice data for guild ${guildId} from ${startDate} to ${endDate}`);
 
-      // 1. 기간 내 모든 음성 데이터 조회
-      const voiceData = await this.voiceDailyRepo.find({
+      // 1. GLOBAL 데이터 조회 (전체 집계)
+      const globalData = await this.voiceDailyRepo.find({
         where: {
           guildId,
+          channelId: 'GLOBAL',
           date: Between(startDate, endDate),
         },
-        order: {
-          date: 'ASC',
-        },
+        order: { date: 'ASC' },
       });
 
-      if (voiceData.length === 0) {
+      // 2. 개별 채널 데이터 조회
+      const channelData = await this.voiceDailyRepo.find({
+        where: {
+          guildId,
+          channelId: Not('GLOBAL'),
+          date: Between(startDate, endDate),
+        },
+        order: { date: 'ASC' },
+      });
+
+      if (globalData.length === 0 && channelData.length === 0) {
         this.logger.warn(`No voice data found for guild ${guildId}`);
         return this.createEmptyResponse(guildId, startDate, endDate);
       }
 
-      // 2. 전체 통계 계산
-      const totalStats = this.calculateTotalStats(voiceData, startDate, endDate);
+      // 3. 전체 통계 계산 (GLOBAL + 개별 채널 데이터 모두 필요)
+      const totalStats = this.calculateTotalStatsFromGlobal(globalData);
 
-      // 3. 유저별 활동 집계
-      const userActivities = await this.aggregateUserActivities(guildId, voiceData);
+      // 4. 유저별 활동 집계
+      const userActivities = await this.aggregateUserActivitiesWithRedis(
+        guildId,
+        globalData,
+        channelData,
+      );
 
-      // 4. 채널별 통계 집계
-      const channelStats = await this.aggregateChannelStats(guildId, voiceData);
+      // 5. 채널별 통계 집계
+      const channelStats = await this.aggregateChannelStatsWithRedis(guildId, channelData);
 
-      // 5. 일별 트렌드 집계
-      const dailyTrends = this.aggregateDailyTrends(voiceData);
+      // 6. 일별 트렌드 집계
+      const dailyTrends = this.aggregateDailyTrendsFromGlobal(globalData, channelData);
 
-      // 6. 길드 이름 가져오기 (Discord.js Client에서)
-      const guildName = await this.getGuildName(guildId);
+      // 7. 길드 이름 가져오기
+      const guildName = await this.discordGateway.getGuildName(guildId);
 
       return {
         guildId,
@@ -118,25 +134,30 @@ export class VoiceAnalyticsService {
   }
 
   /**
-   * 전체 통계 계산
+   * GLOBAL 데이터로 전체 통계 계산
    */
-  private calculateTotalStats(voiceData: VoiceDailyEntity[], startDate: string, endDate: string) {
-    const uniqueUsers = new Set(voiceData.map((v) => v.userId));
-    const totalVoiceTime = voiceData.reduce((sum, v) => sum + v.channelDurationSec, 0);
-    const totalMicOnTime = voiceData.reduce((sum, v) => sum + v.micOnSec, 0);
-
-    // 일별 활성 유저 수 계산
+  private calculateTotalStatsFromGlobal(globalData: VoiceDailyEntity[]) {
+    const uniqueUsers = new Set<string>();
+    let totalVoiceTime = 0;
+    let totalMicOnTime = 0;
     const dailyActiveUsers = new Map<string, Set<string>>();
-    voiceData.forEach((v) => {
-      if (!dailyActiveUsers.has(v.date)) {
-        dailyActiveUsers.set(v.date, new Set());
+
+    globalData.forEach((record) => {
+      uniqueUsers.add(record.userId);
+      totalVoiceTime += record.channelDurationSec;
+      totalMicOnTime += record.micOnSec;
+
+      if (!dailyActiveUsers.has(record.date)) {
+        dailyActiveUsers.set(record.date, new Set());
       }
-      dailyActiveUsers.get(v.date).add(v.userId);
+      dailyActiveUsers.get(record.date).add(record.userId);
     });
 
     const avgDailyActiveUsers =
-      Array.from(dailyActiveUsers.values()).reduce((sum, users) => sum + users.size, 0) /
-      dailyActiveUsers.size;
+      dailyActiveUsers.size > 0
+        ? Array.from(dailyActiveUsers.values()).reduce((sum, users) => sum + users.size, 0) /
+          dailyActiveUsers.size
+        : 0;
 
     return {
       totalUsers: uniqueUsers.size,
@@ -147,57 +168,95 @@ export class VoiceAnalyticsService {
   }
 
   /**
-   * 유저별 활동 집계
+   * 유저별 활동 집계 (Redis 캐시 우선)
+   * GLOBAL: micOnSec, micOffSec, aloneSec
+   * 개별 채널: channelDurationSec
    */
-  private async aggregateUserActivities(guildId: string, voiceData: VoiceDailyEntity[]) {
+  private async aggregateUserActivitiesWithRedis(
+    guildId: string,
+    globalData: VoiceDailyEntity[],
+    channelData: VoiceDailyEntity[],
+  ) {
     const userMap = new Map<string, any>();
 
-    voiceData.forEach((record) => {
+    // 1. GLOBAL 데이터에서 마이크/혼자 시간 집계
+    globalData.forEach((record) => {
       if (!userMap.has(record.userId)) {
         userMap.set(record.userId, {
           userId: record.userId,
-          username: record.userId, // 일단 ID로 초기화
-          totalVoiceTime: 0,
+          username: record.userName || null,
+          totalVoiceTime: 0, // 개별 채널에서 계산
           totalMicOnTime: 0,
           totalMicOffTime: 0,
           aloneTime: 0,
-          channelMap: new Map<string, number>(),
+          channelMap: new Map<string, { name: string; duration: number }>(),
           activeDaysSet: new Set<string>(),
         });
       }
 
       const user = userMap.get(record.userId);
-      user.totalVoiceTime += record.channelDurationSec;
-      user.totalMicOnTime += record.micOnSec;
-      user.totalMicOffTime += record.micOffSec;
-      user.aloneTime += record.aloneSec;
+      user.totalMicOnTime += record.micOnSec || 0;
+      user.totalMicOffTime += record.micOffSec || 0;
+      user.aloneTime += record.aloneSec || 0;
+      user.activeDaysSet.add(record.date);
+    });
+
+    // 2. 개별 채널 데이터에서 채널별 시간 집계
+    channelData.forEach((record) => {
+      if (!userMap.has(record.userId)) {
+        userMap.set(record.userId, {
+          userId: record.userId,
+          username: record.userName || null,
+          totalVoiceTime: 0,
+          totalMicOnTime: 0,
+          totalMicOffTime: 0,
+          aloneTime: 0,
+          channelMap: new Map<string, { name: string; duration: number }>(),
+          activeDaysSet: new Set<string>(),
+        });
+      }
+
+      const user = userMap.get(record.userId);
+
+      // 총 음성 시간 누적
+      user.totalVoiceTime += record.channelDurationSec || 0;
       user.activeDaysSet.add(record.date);
 
       // 채널별 시간 집계
-      const currentChannelTime = user.channelMap.get(record.channelId) || 0;
-      user.channelMap.set(record.channelId, currentChannelTime + record.channelDurationSec);
+      const current = user.channelMap.get(record.channelId) || {
+        name: record.channelName || null,
+        duration: 0,
+      };
+      current.duration += record.channelDurationSec || 0;
+      if (record.channelName) {
+        current.name = record.channelName;
+      }
+      user.channelMap.set(record.channelId, current);
     });
 
-    // Map을 배열로 변환하고 정렬
-    const userActivities = Array.from(userMap.values())
+    // 3. 이름 보강: Redis → Discord API → Redis 저장
+    await this.enrichUserNamesWithRedis(guildId, userMap);
+    await this.enrichChannelNamesWithRedis(guildId, userMap);
+
+    // 4. 최종 결과 생성
+    return Array.from(userMap.values())
       .map((user) => {
         const activeDays = user.activeDaysSet.size;
         const avgDailyVoiceTime = activeDays > 0 ? user.totalVoiceTime / activeDays : 0;
         const micUsageRate =
           user.totalVoiceTime > 0 ? (user.totalMicOnTime / user.totalVoiceTime) * 100 : 0;
 
-        // 채널별 활동 정리
         const activeChannels = Array.from(user.channelMap.entries())
-          .map(([channelId, duration]) => ({
+          .map(([channelId, info]) => ({
             channelId,
-            channelName: channelId, // 일단 ID로 초기화
-            duration: Math.round(duration),
+            channelName: info.name || `Channel-${channelId.slice(0, 6)}`,
+            duration: Math.round(info.duration),
           }))
           .sort((a, b) => b.duration - a.duration);
 
         return {
           userId: user.userId,
-          username: user.username,
+          username: user.username || `User-${user.userId.slice(0, 6)}`,
           totalVoiceTime: Math.round(user.totalVoiceTime),
           totalMicOnTime: Math.round(user.totalMicOnTime),
           totalMicOffTime: Math.round(user.totalMicOffTime),
@@ -209,22 +268,104 @@ export class VoiceAnalyticsService {
         };
       })
       .sort((a, b) => b.totalVoiceTime - a.totalVoiceTime);
-
-    // Discord에서 유저명과 채널명 매핑 (여기서 실제로 호출!)
-    return await this.enrichWithDiscordData(guildId, userActivities);
   }
 
   /**
-   * 채널별 통계 집계
+   * 유저명 보강: Redis → Discord API → Redis
    */
-  private async aggregateChannelStats(guildId: string, voiceData: VoiceDailyEntity[]) {
+  private async enrichUserNamesWithRedis(guildId: string, userMap: Map<string, any>) {
+    const userIdsWithoutName: string[] = [];
+
+    // 1. Redis에서 유저명 조회
+    for (const [userId, user] of userMap) {
+      if (!user.username || user.username.trim() === '') {
+        const cachedName = await this.voiceRedis.getUserName(guildId, userId);
+        if (cachedName) {
+          user.username = cachedName;
+          this.logger.debug(`✅ Redis hit: user ${userId} = ${cachedName}`);
+        } else {
+          userIdsWithoutName.push(userId);
+        }
+      }
+    }
+
+    // 2. Redis에 없으면 Discord API 배치 조회
+    if (userIdsWithoutName.length > 0) {
+      this.logger.log(`🔍 Fetching ${userIdsWithoutName.length} usernames from Discord API`);
+      const userNames = await this.discordGateway.getUserNames(guildId, userIdsWithoutName);
+
+      // 3. Discord API 결과를 Redis에 저장
+      for (const [userId, username] of userNames) {
+        const user = userMap.get(userId);
+        if (user) {
+          user.username = username;
+          // Redis에 캐시 저장 (7일)
+          await this.voiceRedis.setUserName(guildId, userId, username);
+          this.logger.debug(`💾 Cached username: ${userId} = ${username}`);
+        }
+      }
+    }
+  }
+
+  /**
+   * 채널명 보강: Redis → Discord API → Redis
+   */
+  private async enrichChannelNamesWithRedis(guildId: string, userMap: Map<string, any>) {
+    const channelIdsWithoutName = new Set<string>();
+
+    // 1. Redis에서 채널명 조회
+    for (const user of userMap.values()) {
+      for (const [channelId, info] of user.channelMap) {
+        if (!info.name || info.name.trim() === '') {
+          const cachedName = await this.voiceRedis.getChannelName(guildId, channelId);
+          if (cachedName) {
+            info.name = cachedName;
+            this.logger.debug(`✅ Redis hit: channel ${channelId} = ${cachedName}`);
+          } else {
+            channelIdsWithoutName.add(channelId);
+          }
+        }
+      }
+    }
+
+    // 2. Redis에 없으면 Discord API 배치 조회
+    if (channelIdsWithoutName.size > 0) {
+      this.logger.log(`🔍 Fetching ${channelIdsWithoutName.size} channel names from Discord API`);
+      const channelNames = await this.discordGateway.getChannelNames(
+        guildId,
+        Array.from(channelIdsWithoutName),
+      );
+
+      // 3. Discord API 결과를 Redis에 저장
+      for (const [channelId, channelName] of channelNames) {
+        // Redis에 캐시 저장 (7일)
+        await this.voiceRedis.setChannelName(guildId, channelId, channelName);
+        this.logger.debug(`💾 Cached channel name: ${channelId} = ${channelName}`);
+
+        // userMap 업데이트
+        for (const user of userMap.values()) {
+          const info = user.channelMap.get(channelId);
+          if (info && (!info.name || info.name.trim() === '')) {
+            info.name = channelName;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * 채널별 통계 집계 (Redis 캐시 우선)
+   * 개별 채널 데이터만 사용 (channelDurationSec만 존재)
+   */
+  private async aggregateChannelStatsWithRedis(guildId: string, channelData: VoiceDailyEntity[]) {
     const channelMap = new Map<string, any>();
 
-    voiceData.forEach((record) => {
+    // 1. 채널 데이터 집계 (channelDurationSec만 사용)
+    channelData.forEach((record) => {
       if (!channelMap.has(record.channelId)) {
         channelMap.set(record.channelId, {
           channelId: record.channelId,
-          channelName: record.channelId, // 일단 ID로 초기화
+          channelName: record.channelName || null,
           totalVoiceTime: 0,
           uniqueUsers: new Set<string>(),
           sessionCount: 0,
@@ -232,46 +373,98 @@ export class VoiceAnalyticsService {
       }
 
       const channel = channelMap.get(record.channelId);
-      channel.totalVoiceTime += record.channelDurationSec;
+      channel.totalVoiceTime += record.channelDurationSec || 0;
       channel.uniqueUsers.add(record.userId);
       channel.sessionCount++;
     });
 
-    const channelStats = Array.from(channelMap.values())
+    // 2. 채널명 보강: Redis → Discord API → Redis
+    const channelIdsWithoutName: string[] = [];
+
+    for (const [channelId, channel] of channelMap) {
+      if (!channel.channelName || channel.channelName.trim() === '') {
+        // Redis에서 조회
+        const cachedName = await this.voiceRedis.getChannelName(guildId, channelId);
+        if (cachedName) {
+          channel.channelName = cachedName;
+          this.logger.debug(`✅ Redis hit: channel ${channelId} = ${cachedName}`);
+        } else {
+          channelIdsWithoutName.push(channelId);
+        }
+      }
+    }
+
+    // 3. Redis에 없으면 Discord API 배치 조회
+    if (channelIdsWithoutName.length > 0) {
+      this.logger.log(`🔍 Fetching ${channelIdsWithoutName.length} channel names from Discord API`);
+      const channelNames = await this.discordGateway.getChannelNames(
+        guildId,
+        channelIdsWithoutName,
+      );
+
+      for (const [channelId, channelName] of channelNames) {
+        const channel = channelMap.get(channelId);
+        if (channel) {
+          channel.channelName = channelName;
+          // Redis에 캐시 저장
+          await this.voiceRedis.setChannelName(guildId, channelId, channelName);
+          this.logger.debug(`💾 Cached channel name: ${channelId} = ${channelName}`);
+        }
+      }
+    }
+
+    // 4. 최종 결과 생성
+    return Array.from(channelMap.values())
       .map((channel) => ({
         channelId: channel.channelId,
-        channelName: channel.channelName,
+        channelName: channel.channelName || `Channel-${channel.channelId.slice(0, 6)}`,
         totalVoiceTime: Math.round(channel.totalVoiceTime),
         uniqueUsers: channel.uniqueUsers.size,
         avgSessionDuration: Math.round(channel.totalVoiceTime / channel.sessionCount),
       }))
       .sort((a, b) => b.totalVoiceTime - a.totalVoiceTime);
-
-    // Discord에서 채널명 매핑 (여기서 실제로 호출!)
-    return await this.enrichChannelsWithNames(guildId, channelStats);
   }
 
   /**
    * 일별 트렌드 집계
+   * GLOBAL: micOnSec 사용
+   * 개별 채널: channelDurationSec 사용
    */
-  private aggregateDailyTrends(voiceData: VoiceDailyEntity[]) {
+  private aggregateDailyTrendsFromGlobal(
+    globalData: VoiceDailyEntity[],
+    channelData: VoiceDailyEntity[],
+  ) {
     const dailyMap = new Map<string, any>();
 
-    voiceData.forEach((record) => {
+    // 1. GLOBAL 데이터에서 마이크 시간 집계
+    globalData.forEach((record) => {
       if (!dailyMap.has(record.date)) {
         dailyMap.set(record.date, {
           date: record.date,
           totalVoiceTime: 0,
           activeUsers: new Set<string>(),
           totalMicOnTime: 0,
-          totalDuration: 0,
         });
       }
 
       const daily = dailyMap.get(record.date);
-      daily.totalVoiceTime += record.channelDurationSec;
-      daily.totalMicOnTime += record.micOnSec;
-      daily.totalDuration += record.channelDurationSec;
+      daily.totalMicOnTime += record.micOnSec || 0;
+      daily.activeUsers.add(record.userId);
+    });
+
+    // 2. 개별 채널 데이터에서 총 음성 시간 집계
+    channelData.forEach((record) => {
+      if (!dailyMap.has(record.date)) {
+        dailyMap.set(record.date, {
+          date: record.date,
+          totalVoiceTime: 0,
+          activeUsers: new Set<string>(),
+          totalMicOnTime: 0,
+        });
+      }
+
+      const daily = dailyMap.get(record.date);
+      daily.totalVoiceTime += record.channelDurationSec || 0;
       daily.activeUsers.add(record.userId);
     });
 
@@ -281,109 +474,26 @@ export class VoiceAnalyticsService {
         totalVoiceTime: Math.round(daily.totalVoiceTime),
         activeUsers: daily.activeUsers.size,
         avgMicUsage:
-          daily.totalDuration > 0
-            ? Math.round((daily.totalMicOnTime / daily.totalDuration) * 100 * 10) / 10
+          daily.totalVoiceTime > 0
+            ? Math.round((daily.totalMicOnTime / daily.totalVoiceTime) * 100 * 10) / 10
             : 0,
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   /**
-   * Discord 데이터로 유저명과 채널명 보강
-   */
-  private async enrichWithDiscordData(guildId: string, userActivities: any[]) {
-    try {
-      const guild = await this.client.guilds.fetch(guildId);
-
-      for (const activity of userActivities) {
-        try {
-          // 유저명 가져오기
-          const member = await guild.members.fetch(activity.userId).catch(() => null);
-          if (member) {
-            activity.username = member.user.username;
-          } else {
-            activity.username = `User-${activity.userId.slice(0, 6)}`;
-          }
-
-          // 채널명 가져오기
-          for (const channel of activity.activeChannels) {
-            try {
-              const discordChannel = await guild.channels
-                .fetch(channel.channelId)
-                .catch(() => null);
-              if (discordChannel) {
-                channel.channelName = discordChannel.name;
-              } else {
-                channel.channelName = `Channel-${channel.channelId.slice(0, 6)}`;
-              }
-            } catch (error) {
-              this.logger.warn(`Failed to fetch channel ${channel.channelId}`);
-              channel.channelName = `Channel-${channel.channelId.slice(0, 6)}`;
-            }
-          }
-        } catch (error) {
-          this.logger.warn(`Failed to fetch user ${activity.userId}:`, error.message);
-          activity.username = `User-${activity.userId.slice(0, 6)}`;
-        }
-      }
-    } catch (error) {
-      this.logger.error('Failed to enrich with Discord data:', error.message);
-    }
-
-    return userActivities;
-  }
-
-  /**
-   * 채널명 보강
-   */
-  private async enrichChannelsWithNames(guildId: string, channelStats: any[]) {
-    try {
-      const guild = await this.client.guilds.fetch(guildId);
-
-      for (const stat of channelStats) {
-        try {
-          const channel = await guild.channels.fetch(stat.channelId).catch(() => null);
-          if (channel) {
-            stat.channelName = channel.name;
-          } else {
-            stat.channelName = `Channel-${stat.channelId.slice(0, 6)}`;
-          }
-        } catch (error) {
-          this.logger.warn(`Failed to fetch channel ${stat.channelId}`);
-          stat.channelName = `Channel-${stat.channelId.slice(0, 6)}`;
-        }
-      }
-    } catch (error) {
-      this.logger.error('Failed to enrich channels with names:', error.message);
-    }
-
-    return channelStats;
-  }
-
-  /**
-   * 길드 이름 가져오기
-   */
-  private async getGuildName(guildId: string): Promise<string> {
-    try {
-      const guild = await this.client.guilds.fetch(guildId);
-      return guild.name;
-    } catch (error) {
-      this.logger.warn(`Failed to fetch guild ${guildId}:`, error.message);
-      return `Guild-${guildId.slice(0, 6)}`;
-    }
-  }
-
-  /**
    * 빈 응답 생성
    */
-  private createEmptyResponse(
+  private async createEmptyResponse(
     guildId: string,
     startDate: string,
     endDate: string,
-  ): VoiceActivityData {
+  ): Promise<VoiceActivityData> {
+    const guildName = await this.discordGateway.getGuildName(guildId);
+
     return {
       guildId,
-      guildName: `Guild ${guildId}`,
+      guildName,
       timeRange: { start: startDate, end: endDate },
       totalStats: {
         totalUsers: 0,
@@ -398,7 +508,7 @@ export class VoiceAnalyticsService {
   }
 
   /**
-   * 날짜 범위 유틸리티: 최근 N일의 시작/종료 날짜 생성
+   * 날짜 범위 유틸리티
    */
   static getDateRange(days: number): { start: string; end: string } {
     const end = new Date();

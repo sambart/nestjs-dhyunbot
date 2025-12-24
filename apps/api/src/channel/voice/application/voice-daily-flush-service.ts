@@ -32,15 +32,16 @@ export class VoiceDailyFlushService {
     /**
      * 1️⃣ 채널별 체류 시간
      */
+    const userName = (await this.voiceRedisRepository.getUserName(guild, user)) ?? 'UNKNOWN';
     const channelKeys = await this.redis.scanKeys(
       `voice:duration:channel:${guild}:${user}:${date}:*`,
     );
-
     for (const key of channelKeys) {
       const duration = Number((await this.redis.get(key)) || 0);
       if (duration <= 0) continue;
-      const session = await this.voiceRedisRepository.getSession(guild, user);
       const channelId = key.split(':').at(-1)!;
+      const channelName =
+        (await this.voiceRedisRepository.getChannelName(guild, channelId)) ?? 'UNKNOWN';
 
       await this.repo.query(
         `
@@ -57,10 +58,10 @@ export class VoiceDailyFlushService {
         [
           guild,
           user,
-          session.userName ?? '', // fallback
+          userName, // fallback
           date,
           channelId,
-          session.channelName ?? '',
+          channelName,
           duration,
         ],
       );

@@ -82,7 +82,7 @@ export class VoiceStatsCommand {
         `🎙️ 총 음성 시간: ${formatTime(activityData.totalStats.totalVoiceTime)}\n` +
         `🔊 마이크 사용 시간: ${formatTime(activityData.totalStats.totalMicOnTime)}\n` +
         `📈 일평균 활성 유저: ${activityData.totalStats.avgDailyActiveUsers}명\n\n` +
-        `${analysis}`;
+        `${analysis.text}`;
       const MAX_EMBED_DESCRIPTION = 4096;
       // analysis.text를 포함했을 때 길이 계산
       const fullDescription = BASE_DESCRIPTION + analysis.text;
@@ -181,7 +181,7 @@ export class MyVoiceStatsCommand {
       const userRank = activityData.userActivities.findIndex((u) => u.userId === userId) + 1;
 
       const embed = new EmbedBuilder()
-        .setTitle(`🎤 ${interaction.user.username}님의 음성 활동 통계`)
+        .setTitle(`🎤 ${interaction.user.displayName}님의 음성 활동 통계`)
         .setColor(Colors.Green)
         .setThumbnail(interaction.user.displayAvatarURL())
         .addFields(

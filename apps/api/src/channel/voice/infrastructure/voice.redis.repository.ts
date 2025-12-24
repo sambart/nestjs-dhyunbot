@@ -71,4 +71,33 @@ export class VoiceRedisRepository {
     const key = VoiceKeys.session(guild, user);
     await this.redis.set(key, session, 60 * 60);
   }
+  async deleteSession(guild: string, user: string) {
+    const key = VoiceKeys.session(guild, user);
+    this.redis.del(key);
+    return true;
+  }
+
+  /** 채널명 캐시 */
+  async setChannelName(guild: string, channelId: string, channelName: string) {
+    const key = VoiceKeys.channelName(guild, channelId);
+    // TTL은 길게 (예: 7일)
+    await this.redis.set(key, channelName, 60 * 60 * 24 * 7);
+  }
+
+  async getChannelName(guild: string, channelId: string): Promise<string | null> {
+    const key = VoiceKeys.channelName(guild, channelId);
+    return this.redis.get<string>(key);
+  }
+
+  /** 사용자명 캐시 */
+  async setUserName(guild: string, userId: string, userName: string) {
+    const key = VoiceKeys.userName(guild, userId);
+    // 닉네임 변경 가능 → TTL은 짧거나 동일하게 7일
+    await this.redis.set(key, userName, 60 * 60 * 24 * 7);
+  }
+
+  async getUserName(guild: string, userId: string): Promise<string | null> {
+    const key = VoiceKeys.userName(guild, userId);
+    return this.redis.get<string>(key);
+  }
 }
