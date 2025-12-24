@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { VoiceDailyEntity } from 'src/channel/voice/domain/voice-daily-entity';
 import { Repository, Between, MoreThanOrEqual } from 'typeorm';
+import { InjectDiscordClient } from '@discord-nestjs/core';
+import { Client, Guild } from 'discord.js';
+import { VoiceDailyEntity } from 'src/channel/voice/domain/voice-daily-entity';
 
 export interface VoiceActivityData {
   guildId: string;
@@ -54,6 +56,8 @@ export class VoiceAnalyticsService {
   constructor(
     @InjectRepository(VoiceDailyEntity)
     private voiceDailyRepo: Repository<VoiceDailyEntity>,
+    @InjectDiscordClient()
+    private readonly client: Client,
   ) {}
 
   /**
@@ -152,7 +156,7 @@ export class VoiceAnalyticsService {
       if (!userMap.has(record.userId)) {
         userMap.set(record.userId, {
           userId: record.userId,
-          username: record.userId, // Discord에서 나중에 매핑
+          username: record.userId, // 일단 ID로 초기화
           totalVoiceTime: 0,
           totalMicOnTime: 0,
           totalMicOffTime: 0,
@@ -186,7 +190,7 @@ export class VoiceAnalyticsService {
         const activeChannels = Array.from(user.channelMap.entries())
           .map(([channelId, duration]) => ({
             channelId,
-            channelName: channelId, // Discord에서 나중에 매핑
+            channelName: channelId, // 일단 ID로 초기화
             duration: Math.round(duration),
           }))
           .sort((a, b) => b.duration - a.duration);
@@ -206,8 +210,8 @@ export class VoiceAnalyticsService {
       })
       .sort((a, b) => b.totalVoiceTime - a.totalVoiceTime);
 
-    // Discord에서 유저명과 채널명 매핑
-    return this.enrichWithDiscordData(guildId, userActivities);
+    // Discord에서 유저명과 채널명 매핑 (여기서 실제로 호출!)
+    return await this.enrichWithDiscordData(guildId, userActivities);
   }
 
   /**
@@ -220,7 +224,7 @@ export class VoiceAnalyticsService {
       if (!channelMap.has(record.channelId)) {
         channelMap.set(record.channelId, {
           channelId: record.channelId,
-          channelName: record.channelId,
+          channelName: record.channelId, // 일단 ID로 초기화
           totalVoiceTime: 0,
           uniqueUsers: new Set<string>(),
           sessionCount: 0,
@@ -243,8 +247,8 @@ export class VoiceAnalyticsService {
       }))
       .sort((a, b) => b.totalVoiceTime - a.totalVoiceTime);
 
-    // Discord에서 채널명 매핑
-    return this.enrichChannelsWithNames(guildId, channelStats);
+    // Discord에서 채널명 매핑 (여기서 실제로 호출!)
+    return await this.enrichChannelsWithNames(guildId, channelStats);
   }
 
   /**
@@ -288,22 +292,43 @@ export class VoiceAnalyticsService {
    * Discord 데이터로 유저명과 채널명 보강
    */
   private async enrichWithDiscordData(guildId: string, userActivities: any[]) {
-    // TODO: Discord.js Client를 주입받아서 실제 유저명과 채널명 가져오기
-    // const guild = await this.client.guilds.fetch(guildId);
+    try {
+      const guild = await this.client.guilds.fetch(guildId);
 
-    // for (const activity of userActivities) {
-    //   try {
-    //     const member = await guild.members.fetch(activity.userId);
-    //     activity.username = member.user.username;
-    //
-    //     for (const channel of activity.activeChannels) {
-    //       const discordChannel = guild.channels.cache.get(channel.channelId);
-    //       if (discordChannel) channel.channelName = discordChannel.name;
-    //     }
-    //   } catch (error) {
-    //     this.logger.warn(`Failed to fetch user ${activity.userId}`);
-    //   }
-    // }
+      for (const activity of userActivities) {
+        try {
+          // 유저명 가져오기
+          const member = await guild.members.fetch(activity.userId).catch(() => null);
+          if (member) {
+            activity.username = member.user.username;
+          } else {
+            activity.username = `User-${activity.userId.slice(0, 6)}`;
+          }
+
+          // 채널명 가져오기
+          for (const channel of activity.activeChannels) {
+            try {
+              const discordChannel = await guild.channels
+                .fetch(channel.channelId)
+                .catch(() => null);
+              if (discordChannel) {
+                channel.channelName = discordChannel.name;
+              } else {
+                channel.channelName = `Channel-${channel.channelId.slice(0, 6)}`;
+              }
+            } catch (error) {
+              this.logger.warn(`Failed to fetch channel ${channel.channelId}`);
+              channel.channelName = `Channel-${channel.channelId.slice(0, 6)}`;
+            }
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to fetch user ${activity.userId}:`, error.message);
+          activity.username = `User-${activity.userId.slice(0, 6)}`;
+        }
+      }
+    } catch (error) {
+      this.logger.error('Failed to enrich with Discord data:', error.message);
+    }
 
     return userActivities;
   }
@@ -312,7 +337,26 @@ export class VoiceAnalyticsService {
    * 채널명 보강
    */
   private async enrichChannelsWithNames(guildId: string, channelStats: any[]) {
-    // TODO: Discord.js Client로 채널명 가져오기
+    try {
+      const guild = await this.client.guilds.fetch(guildId);
+
+      for (const stat of channelStats) {
+        try {
+          const channel = await guild.channels.fetch(stat.channelId).catch(() => null);
+          if (channel) {
+            stat.channelName = channel.name;
+          } else {
+            stat.channelName = `Channel-${stat.channelId.slice(0, 6)}`;
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to fetch channel ${stat.channelId}`);
+          stat.channelName = `Channel-${stat.channelId.slice(0, 6)}`;
+        }
+      }
+    } catch (error) {
+      this.logger.error('Failed to enrich channels with names:', error.message);
+    }
+
     return channelStats;
   }
 
@@ -320,11 +364,13 @@ export class VoiceAnalyticsService {
    * 길드 이름 가져오기
    */
   private async getGuildName(guildId: string): Promise<string> {
-    // TODO: Discord.js Client로 길드 이름 가져오기
-    // const guild = await this.client.guilds.fetch(guildId);
-    // return guild.name;
-
-    return `Guild ${guildId}`;
+    try {
+      const guild = await this.client.guilds.fetch(guildId);
+      return guild.name;
+    } catch (error) {
+      this.logger.warn(`Failed to fetch guild ${guildId}:`, error.message);
+      return `Guild-${guildId.slice(0, 6)}`;
+    }
   }
 
   /**

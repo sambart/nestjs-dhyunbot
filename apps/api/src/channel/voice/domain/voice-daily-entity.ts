@@ -14,6 +14,12 @@ export class VoiceDailyEntity {
   @PrimaryColumn()
   channelId: string;
 
+  @Column({ default: '' })
+  channelName: string;
+
+  @Column({ default: '' })
+  userName: string;
+
   @Column({ default: 0 })
   channelDurationSec: number;
 

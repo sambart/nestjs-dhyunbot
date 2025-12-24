@@ -89,33 +89,6 @@ export class VoiceAnalyticsController {
   }
 
   /**
-   * 커뮤니티 건강도 점수
-   * GET /voice-analytics/guild/:guildId/health?days=30
-   */
-  @Get('guild/:guildId/health')
-  async getCommunityHealth(@Param('guildId') guildId: string, @Query('days') days?: string) {
-    const dayCount = this.validateDays(days);
-    const { start, end } = VoiceAnalyticsService.getDateRange(dayCount);
-
-    const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
-
-    if (activityData.userActivities.length === 0) {
-      return {
-        healthScore: 0,
-        status: 'inactive',
-        message: 'No activity data available',
-      };
-    }
-
-    const healthAnalysis = await this.geminiService.calculateCommunityHealth(activityData);
-
-    return {
-      period: { start, end, days: dayCount },
-      ...healthAnalysis,
-    };
-  }
-
-  /**
    * 기간별 비교 분석
    * GET /voice-analytics/guild/:guildId/compare?period1=7&period2=14
    */

@@ -4,18 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { VoiceActivityData } from './voice-analytics.service';
 
 export interface VoiceAnalysisResult {
-  summary: string;
-  insights: string[];
-  recommendations: string[];
-  topActiveUsers: Array<{
-    username: string;
-    activity: string;
-    stats: string;
-  }>;
-  channelUsageAnalysis: string;
-  micUsagePatterns: string;
-  trends: string[];
-  concerns: string[];
+  text: string; // 전체 분석 텍스트 (마크다운 형식)
 }
 
 @Injectable()
@@ -32,15 +21,14 @@ export class VoiceGeminiService {
     }
 
     this.genAI = new GoogleGenerativeAI(apiKey);
-    // Gemini 2.0 Flash 또는 1.5 Pro 사용
     this.model = this.genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash', // 또는 'gemini-1.5-pro-latest'
+      model: 'gemini-2.0-flash-exp',
       generationConfig: {
         temperature: 0.7,
         topK: 40,
         topP: 0.95,
-        maxOutputTokens: 8192, // 토큰 제한 대폭 증가
-        responseMimeType: 'application/json', // JSON 모드 강제
+        maxOutputTokens: 8192,
+        // responseMimeType 제거 - 일반 텍스트로 받기
       },
     });
   }
@@ -57,13 +45,18 @@ export class VoiceGeminiService {
       const response = result.response;
       const text = response.text();
 
-      const analysis = this.parseGeminiResponse(text);
-
       this.logger.log('Successfully analyzed voice activity');
-      return analysis;
+      return { text };
     } catch (error) {
       this.logger.error('Failed to analyze voice activity', error.stack);
-      throw new Error('Voice activity analysis failed');
+      return {
+        text:
+          '⚠️ 분석 중 오류가 발생했습니다.\n\n' +
+          '기본 통계:\n' +
+          `- 총 활성 유저: ${activityData.totalStats.totalUsers}명\n` +
+          `- 총 음성 시간: ${Math.floor(activityData.totalStats.totalVoiceTime / 3600)}시간\n` +
+          `- 일평균 활성 유저: ${activityData.totalStats.avgDailyActiveUsers}명`,
+      };
     }
   }
 
@@ -71,119 +64,53 @@ export class VoiceGeminiService {
    * Gemini를 위한 프롬프트 생성
    */
   private buildVoiceAnalysisPrompt(data: VoiceActivityData): string {
-    const jsonData = JSON.stringify(data, null, 2);
+    // 데이터 요약 (너무 길면 토큰 초과)
+    const summarizedData = {
+      guildName: data.guildName,
+      timeRange: data.timeRange,
+      totalStats: data.totalStats,
+      topUsers: data.userActivities.slice(0, 10),
+      topChannels: data.channelStats.slice(0, 5),
+      recentTrends: data.dailyTrends.slice(-7),
+    };
 
-    // 시간을 사람이 읽기 쉬운 형식으로 변환하는 헬퍼 함수 설명
     const timeExplanation = `
-참고: 모든 시간 단위는 초(seconds)입니다.
-- 3600초 = 1시간
-- 86400초 = 1일
-- channelDurationSec: 음성 채널에 있던 총 시간
-- micOnSec: 마이크를 켠 시간
-- micOffSec: 마이크를 끈 시간
-- aloneSec: 혼자 채널에 있던 시간
-`;
+      참고: 시간 단위는 초(seconds)입니다.
+      - 3600초 = 1시간
+      - 86400초 = 1일
+      `;
 
-    return `당신은 Discord 서버의 음성 채널 활동 분석 전문가입니다. 
-다음 데이터는 서버의 음성 채널 사용 패턴을 담고 있습니다.
+    return `
+      당신은 Discord 서버의 음성 채널 활동 분석 전문가입니다.
+      다음 데이터를 바탕으로 한국어로 상세하고 유용한 분석 리포트를 작성해주세요.
 
-${timeExplanation}
+      ${timeExplanation}
 
-**음성 채널 활동 데이터:**
-\`\`\`json
-${jsonData}
-\`\`\`
+      **음성 채널 활동 데이터:**
+      \`\`\`json
+      ${JSON.stringify(summarizedData, null, 2)}
+      \`\`\`
 
-**분석 요구사항:**
+      **분석 내용에 포함할 것:**
+      1. 📊 전체 활동 요약 (2-3문장)
+      2. 🔍 주요 인사이트 (3-5개, 구체적인 수치 포함)
+      3. 👥 활동적인 유저 분석 (TOP 3-5)
+      4. 📺 채널 사용 패턴
+      5. 🎤 마이크 사용 패턴
+      6. 📈 트렌드 및 변화
+      7. 💡 개선 제안 (실행 가능한 것)
+      8. ⚠️ 주의사항 (있다면)
 
-1. **전체 활동 패턴 분석**
-   - 서버의 음성 채널 활용도는 어떤가요?
-   - 유저들의 참여 패턴은 어떤가요? (일일 평균 활성 유저, 총 사용 시간 등)
-   - 기간 동안의 트렌드는 어떤가요? (증가/감소/정체)
+      **작성 규칙:**
+      - 모든 시간은 "시간", "분" 단위로 변환
+      - 이모지를 적절히 사용하여 가독성 향상
+      - 구체적인 숫자와 비율 포함
+      - 친근하고 이해하기 쉬운 표현 사용
+      - 마크다운 형식으로 작성 (##, ###, - 등 사용)
+      - 긍정적인 면과 개선점을 균형있게 다루기
+      - 3000자 이내로 요약하기
 
-2. **유저 행동 분석**
-   - 가장 활동적인 유저들의 특징은?
-   - 마이크 사용 패턴 (항상 켜는 유저 vs 주로 듣기만 하는 유저)
-   - 혼자 있는 시간이 많은 유저가 있나요? (외로운 유저 감지)
-
-3. **채널 사용 분석**
-   - 어떤 채널이 가장 인기 있나요?
-   - 채널별 사용 목적을 추론할 수 있나요?
-   - 채널 수가 적절한가요? (과부하 또는 사용되지 않는 채널)
-
-4. **개선 제안**
-   - 커뮤니티 활성화를 위한 실질적인 제안
-   - 새로운 채널 개설 또는 기존 채널 정리 제안
-   - 이벤트 시간대 추천
-
-5. **우려사항 감지**
-   - 커뮤니티 건강도에 문제가 있나요?
-   - 이탈 위험 신호가 있나요?
-   - 특이한 패턴이나 주의가 필요한 부분
-
-**JSON 스키마 (이 형식 그대로 반환):**
-{
-  "summary": string,
-  "insights": [string, string, string, string],
-  "recommendations": [string, string, string],
-  "topActiveUsers": [
-    {
-      "username": string,
-      "activity": string,
-      "stats": string
-    }
-  ],
-  "channelUsageAnalysis": string,
-  "micUsagePatterns": string,
-  "trends": [string, string],
-  "concerns": [string]
-}
-
-**규칙:**
-1. 순수 JSON 객체만 반환 (마크다운, 설명, 코드블록 금지)
-2. 모든 시간은 "시간", "분" 단위로 변환
-3. 구체적인 숫자와 비율 포함
-4. 한글로 작성
-
-JSON 응답:`;
-  }
-
-  /**
-   * Gemini 응답 파싱
-   */
-  private parseGeminiResponse(text: string): VoiceAnalysisResult {
-    try {
-      let cleanedText = text.trim();
-
-      // 마크다운 코드 블록 제거
-      if (cleanedText.startsWith('```json')) {
-        cleanedText = cleanedText.replace(/```json\n?/g, '').replace(/```\n?$/g, '');
-      } else if (cleanedText.startsWith('```')) {
-        cleanedText = cleanedText.replace(/```\n?/g, '').replace(/```\n?$/g, '');
-      }
-
-      const parsed = JSON.parse(cleanedText);
-
-      if (!this.isValidVoiceAnalysis(parsed)) {
-        throw new Error('Invalid response structure from Gemini');
-      }
-
-      return parsed;
-    } catch (error) {
-      this.logger.error('Failed to parse Gemini response', error.stack);
-      this.logger.debug('Raw response:', text);
-
-      return {
-        summary: '분석 중 오류가 발생했습니다.',
-        insights: ['응답을 파싱하지 못했습니다.'],
-        recommendations: ['다시 시도해주세요.'],
-        topActiveUsers: [],
-        channelUsageAnalysis: '데이터 없음',
-        micUsagePatterns: '데이터 없음',
-        trends: [],
-        concerns: [],
-      };
-    }
+      지금 분석을 시작해주세요:`;
   }
 
   /**
@@ -206,7 +133,10 @@ JSON 응답:`;
   /**
    * 특정 유저의 활동 심층 분석
    */
-  async analyzeSpecificUser(activityData: VoiceActivityData, targetUserId: string): Promise<any> {
+  async analyzeSpecificUser(
+    activityData: VoiceActivityData,
+    targetUserId: string,
+  ): Promise<string> {
     const userActivity = activityData.userActivities.find((u) => u.userId === targetUserId);
 
     if (!userActivity) {
@@ -214,42 +144,46 @@ JSON 응답:`;
     }
 
     const prompt = `
-유저의 음성 채널 활동 데이터:
+유저의 음성 채널 활동 패턴을 분석해주세요:
+
+\`\`\`json
 ${JSON.stringify(userActivity, null, 2)}
+\`\`\`
 
-다음 JSON 스키마에 정확히 맞춰 응답하세요:
-{
-  "activityLevel": string ("높음" | "보통" | "낮음"),
-  "personality": string,
-  "strengths": [string, string],
-  "concerns": [string],
-  "suggestions": [string, string]
-}
+다음 형식으로 분석 결과를 작성해주세요:
 
-JSON만 반환하세요.
+**🎯 활동 수준:** [높음/보통/낮음]
+
+**👤 활동 성향:**
+[이 유저의 활동 패턴과 특징 설명]
+
+**💪 강점:**
+- [강점 1]
+- [강점 2]
+
+**⚠️ 주의사항:**
+- [있다면 작성]
+
+**💡 제안:**
+- [제안 1]
+- [제안 2]
+
+간결하고 명확하게 작성해주세요.
 `;
 
     try {
       const result = await this.model.generateContent(prompt);
-      const text = result.response.text();
-      return JSON.parse(text.trim());
+      return result.response.text();
     } catch (error) {
-      this.logger.error('Failed to parse user-specific analysis', error);
-      return {
-        activityLevel: '보통',
-        personality: '분석 불가',
-        strengths: ['데이터 부족'],
-        concerns: ['분석 실패'],
-        suggestions: ['다시 시도해주세요'],
-      };
+      this.logger.error('Failed to analyze user', error);
+      return '⚠️ 유저 분석 중 오류가 발생했습니다.';
     }
   }
 
   /**
    * 커뮤니티 건강도 점수 산출
    */
-  async calculateCommunityHealth(activityData: VoiceActivityData): Promise<any> {
-    // 데이터 요약 (토큰 절약)
+  async calculateCommunityHealth(activityData: VoiceActivityData): Promise<string> {
     const summarizedData = {
       guildId: activityData.guildId,
       timeRange: activityData.timeRange,
@@ -265,64 +199,43 @@ JSON만 반환하세요.
         totalVoiceTime: c.totalVoiceTime,
         uniqueUsers: c.uniqueUsers,
       })),
-      recentTrends: activityData.dailyTrends.slice(-7), // 최근 7일만
+      recentTrends: activityData.dailyTrends.slice(-7),
     };
 
     const prompt = `
-음성 채널 활동 데이터로 커뮤니티 건강도를 0-100 점수로 평가하세요.
+Discord 서버의 음성 채널 활동 데이터를 기반으로 커뮤니티 건강도를 분석해주세요.
 
 데이터:
+\`\`\`json
 ${JSON.stringify(summarizedData, null, 2)}
+\`\`\`
 
-JSON 응답 (한글, 각 필드 50자 이내):
-{
-  "healthScore": 숫자,
-  "factors": {
-    "engagement": "참여도 평가",
-    "growth": "성장 평가",
-    "interaction": "상호작용 평가",
-    "retention": "유지율 평가"
-  },
-  "status": "건강함|주의필요|위험",
-  "advice": "간단한 조언"
-}
+다음 형식으로 분석 결과를 작성해주세요:
+
+**🏥 건강도 점수: [0-100점]**
+
+**📊 세부 평가:**
+- 참여도: [평가]
+- 성장세: [평가]
+- 상호작용: [평가]
+- 유지율: [평가]
+
+**📝 종합 의견:**
+[2-3문장으로 현재 상태 설명]
+
+**💡 운영자를 위한 조언:**
+[실질적인 조언]
+
+간결하고 명확하게 작성해주세요.
 `;
 
     try {
       const result = await this.model.generateContent(prompt);
       const text = result.response.text();
-
-      this.logger.debug('Health response length:', text.length);
-
-      // 응답이 완전한지 확인
-      if (!text || text.length < 50) {
-        throw new Error('Response too short or empty');
-      }
-
-      // JSON 파싱 시도
-      const parsed = JSON.parse(text.trim());
-
-      // 필수 필드 검증
-      if (typeof parsed.healthScore !== 'number' || !parsed.factors || !parsed.status) {
-        throw new Error('Invalid response structure');
-      }
-
-      return parsed;
+      return text;
     } catch (error) {
       this.logger.error('Failed to calculate health score:', error.message);
-
-      // 기본값 반환
-      return {
-        healthScore: 50,
-        factors: {
-          engagement: '데이터 부족',
-          growth: '분석 불가',
-          interaction: '데이터 부족',
-          retention: '분석 불가',
-        },
-        status: '분석 실패',
-        advice: 'API 응답 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
-      };
+      return '⚠️ 건강도 분석 중 오류가 발생했습니다.';
     }
   }
 }

@@ -106,6 +106,8 @@ export class VoiceChannelService {
 
     const session: VoiceSession = (await this.voiceRedisRepository.getSession(guildId, userId)) ?? {
       channelId: cmd.channelId,
+      channelName: cmd.channelName, // 캐시
+      userName: cmd.userName, // 캐시
       joinedAt: Date.now(),
       mic: cmd.micOn,
       alone: false,
@@ -120,6 +122,8 @@ export class VoiceChannelService {
     session.channelId = cmd.channelId ?? session.channelId;
     session.mic = cmd.micOn;
     session.alone = cmd.alone;
+    session.channelName = cmd.channelName;
+    session.userName = cmd.userName;
 
     await this.voiceRedisRepository.setSession(guildId, userId, session);
   }

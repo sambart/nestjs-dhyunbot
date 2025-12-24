@@ -4,6 +4,7 @@ import { RedisService } from 'src/redis/redis.service';
 import { VoiceDailyEntity } from '../domain/voice-daily-entity';
 import { Repository } from 'typeorm';
 import { getKSTDateString } from 'src/common/helper';
+import { VoiceRedisRepository } from '../infrastructure/voice.redis.repository';
 
 @Injectable()
 export class VoiceDailyFlushService {
@@ -11,6 +12,7 @@ export class VoiceDailyFlushService {
     private readonly redis: RedisService,
     @InjectRepository(VoiceDailyEntity)
     private readonly repo: Repository<VoiceDailyEntity>,
+    private readonly voiceRedisRepository: VoiceRedisRepository,
   ) {}
 
   async flushTodayAll() {
@@ -37,20 +39,30 @@ export class VoiceDailyFlushService {
     for (const key of channelKeys) {
       const duration = Number((await this.redis.get(key)) || 0);
       if (duration <= 0) continue;
-
+      const session = await this.voiceRedisRepository.getSession(guild, user);
       const channelId = key.split(':').at(-1)!;
 
       await this.repo.query(
         `
         INSERT INTO voice_daily AS vd
-            ("guildId","userId","date","channelId","channelDurationSec")
-        VALUES ($1,$2,$3,$4,$5)
+            ("guildId","userId","userName","date","channelId","channelName","channelDurationSec")
+        VALUES ($1,$2,$3,$4,$5,$6,$7)
         ON CONFLICT ("guildId","userId","date","channelId")
         DO UPDATE SET
-            "channelDurationSec" =
-            vd."channelDurationSec" + EXCLUDED."channelDurationSec"
+          "channelDurationSec" =
+          vd."channelDurationSec" + EXCLUDED."channelDurationSec",
+          "channelName" = EXCLUDED."channelName",
+          "userName"    = EXCLUDED."userName"
         `,
-        [guild, user, date, channelId, duration],
+        [
+          guild,
+          user,
+          session.userName ?? '', // fallback
+          date,
+          channelId,
+          session.channelName ?? '',
+          duration,
+        ],
       );
 
       await this.redis.del(key);

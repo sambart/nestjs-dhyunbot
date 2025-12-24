@@ -4,6 +4,7 @@ import { VoiceGeminiService } from './voice-gemini.service';
 import { VoiceAnalyticsService } from './voice-analytics.service';
 import { EmbedBuilder, Colors, CommandInteraction } from 'discord.js';
 import { SlashCommandPipe } from '@discord-nestjs/common';
+import { truncate } from '../common/helper';
 
 class AnalyticsDaysDto {
   @Param({
@@ -73,83 +74,49 @@ export class VoiceStatsCommand {
         return hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`;
       };
 
+      console.log(analysis);
+
+      const BASE_DESCRIPTION =
+        `📊 **기본 통계**\n` +
+        `👥 총 활성 유저: ${activityData.totalStats.totalUsers}명\n` +
+        `🎙️ 총 음성 시간: ${formatTime(activityData.totalStats.totalVoiceTime)}\n` +
+        `🔊 마이크 사용 시간: ${formatTime(activityData.totalStats.totalMicOnTime)}\n` +
+        `📈 일평균 활성 유저: ${activityData.totalStats.avgDailyActiveUsers}명\n\n` +
+        `${analysis}`;
+      const MAX_EMBED_DESCRIPTION = 4096;
+      // analysis.text를 포함했을 때 길이 계산
+      const fullDescription = BASE_DESCRIPTION + analysis.text;
+
+      // embed에 다 들어갈 수 있는 경우
+      const useInlineAnalysis = fullDescription.length <= MAX_EMBED_DESCRIPTION;
+
       // Discord Embed 생성
       const embed = new EmbedBuilder()
         .setTitle(`🎤 음성 채널 활동 분석 (최근 ${days}일)`)
         .setColor(Colors.Blue)
-        .setDescription(analysis.summary)
-        .addFields(
-          {
-            name: '📊 전체 통계',
-            value: [
-              `👥 총 활성 유저: ${activityData.totalStats.totalUsers}명`,
-              `🎙️ 총 음성 시간: ${formatTime(activityData.totalStats.totalVoiceTime)}`,
-              `🔊 마이크 사용 시간: ${formatTime(activityData.totalStats.totalMicOnTime)}`,
-              `📈 일평균 활성 유저: ${activityData.totalStats.avgDailyActiveUsers}명`,
-            ].join('\n'),
-            inline: false,
-          },
-          {
-            name: '🔍 주요 인사이트',
-            value:
-              analysis.insights
-                .slice(0, 4)
-                .map((i, idx) => `${idx + 1}. ${i}`)
-                .join('\n') || '없음',
-            inline: false,
-          },
+        .setDescription(
+          useInlineAnalysis
+            ? fullDescription
+            : BASE_DESCRIPTION +
+                truncate(analysis.text, MAX_EMBED_DESCRIPTION - BASE_DESCRIPTION.length - 100) +
+                '\n\n📄 **전체 분석은 아래 메시지를 확인하세요.**',
         )
         .setTimestamp()
         .setFooter({ text: '💡 Powered by Gemini AI' });
 
-      // 개선 제안 추가
-      if (analysis.recommendations.length > 0) {
-        embed.addFields({
-          name: '💡 개선 제안',
-          value: analysis.recommendations
-            .slice(0, 3)
-            .map((r, idx) => `${idx + 1}. ${r}`)
-            .join('\n'),
-          inline: false,
-        });
-      }
-
-      // 활동적인 유저 추가
-      if (analysis.topActiveUsers.length > 0) {
-        embed.addFields({
-          name: '🏆 활동적인 유저 TOP 3',
-          value: analysis.topActiveUsers
-            .slice(0, 3)
-            .map((u, idx) => `**${idx + 1}. ${u.username}**\n${u.activity}`)
-            .join('\n\n'),
-          inline: false,
-        });
-      }
-
-      // 채널 사용 분석
-      embed.addFields(
-        {
-          name: '📺 채널 사용 분석',
-          value: analysis.channelUsageAnalysis,
-          inline: false,
-        },
-        {
-          name: '🎙️ 마이크 사용 패턴',
-          value: analysis.micUsagePatterns,
-          inline: false,
-        },
-      );
-
-      // 우려사항이 있으면 추가
-      if (analysis.concerns.length > 0) {
-        embed.addFields({
-          name: '⚠️ 주의사항',
-          value: analysis.concerns.join('\n'),
-          inline: false,
-        });
-      }
-
       await interaction.editReply({ embeds: [embed] });
+
+      if (!useInlineAnalysis) {
+        // 일반 메시지는 2000자 제한
+        const chunks = analysis.text.match(/[\s\S]{1,1900}/g) ?? [];
+
+        for (const chunk of chunks) {
+          await interaction.followUp({
+            content: chunk,
+            ephemeral: false, // 필요하면 true
+          });
+        }
+      }
     } catch (error) {
       this.logger.error('Voice stats command error:', error);
       await interaction.editReply({
@@ -309,59 +276,19 @@ export class CommunityHealthCommand {
       }
 
       // AI로 건강도 분석
-      const healthData = await this.geminiService.calculateCommunityHealth(activityData);
-
-      // 건강도에 따른 색상
-      let color: number;
-      if (healthData.healthScore >= 70) color = Colors.Green;
-      else if (healthData.healthScore >= 40) color = Colors.Yellow;
-      else color = Colors.Red;
-
-      // 건강도 게이지 생성
-      const gaugeLength = 10;
-      const filledLength = Math.round((healthData.healthScore / 100) * gaugeLength);
-      const gauge = '█'.repeat(filledLength) + '░'.repeat(gaugeLength - filledLength);
+      const healthText = await this.geminiService.calculateCommunityHealth(activityData);
 
       const embed = new EmbedBuilder()
         .setTitle('🏥 커뮤니티 건강도 진단')
-        .setColor(color)
-        .setDescription(`**건강도 점수: ${healthData.healthScore}/100**\n${gauge}`)
-        .addFields(
-          {
-            name: '📊 상태',
-            value: healthData.status,
-            inline: true,
-          },
-          {
-            name: '📅 분석 기간',
-            value: `최근 ${days}일`,
-            inline: true,
-          },
-        );
-
-      // 세부 요인 추가
-      if (healthData.factors) {
-        const factorsText = Object.entries(healthData.factors)
-          .map(([key, value]) => `**${key}**: ${value}`)
-          .join('\n');
-
-        embed.addFields({
-          name: '🔍 세부 평가',
-          value: factorsText,
+        .setColor(Colors.Blue)
+        .setDescription(healthText)
+        .addFields({
+          name: '📅 분석 기간',
+          value: `최근 ${days}일`,
           inline: false,
-        });
-      }
-
-      // 조언 추가
-      if (healthData.advice) {
-        embed.addFields({
-          name: '💡 운영자를 위한 조언',
-          value: healthData.advice,
-          inline: false,
-        });
-      }
-
-      embed.setTimestamp().setFooter({ text: 'AI 기반 분석 결과' });
+        })
+        .setTimestamp()
+        .setFooter({ text: 'AI 기반 분석 결과' });
 
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
