@@ -54,10 +54,10 @@ export class VoiceRedisRepository {
     session.lastUpdatedAt = now;
 
     /**
-     * 5️⃣ Redis 세션 저장 (TTL 1시간)
+     * 5️⃣ Redis 세션 저장 (TTL 12시간)
      */
     const sessionKey = VoiceKeys.session(guild, user);
-    await this.redis.set(sessionKey, session, 60 * 60);
+    await this.redis.set(sessionKey, session, 60 * 60 * 12);
   }
 
   /** 세션 조회 */
@@ -69,7 +69,7 @@ export class VoiceRedisRepository {
   /** 세션 저장 */
   async setSession(guild: string, user: string, session: VoiceSession) {
     const key = VoiceKeys.session(guild, user);
-    await this.redis.set(key, session, 60 * 60);
+    await this.redis.set(key, session, 60 * 60 * 12);
   }
   async deleteSession(guild: string, user: string) {
     const key = VoiceKeys.session(guild, user);
