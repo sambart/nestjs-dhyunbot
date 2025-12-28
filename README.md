@@ -1,4 +1,4 @@
-# Discord Voice Analytics Bot
+# 디스코드 음성 활동 분석 봇
 
 Discord 서버의 음성 채널 활동을 실시간으로 수집·분석하고,
 Redis + PostgreSQL 기반으로 통계를 집계하며,
@@ -36,6 +36,7 @@ Gemini AI를 통해 자동 리포트를 생성하는 봇입니다.
 
 ## 🧩 Architecture
 
+```bash
 Discord Gateway
 ↓
 NestJS Gateway
@@ -45,17 +46,17 @@ Redis (Session / TTL)
 PostgreSQL (Daily / Monthly Stats)
 ↓
 Gemini AI → Discord Embed Report
+```
 
 ## 🚀 Getting Started
-
+Docker Compose
 ```bash
-git clone https://github.com/yourname/discord-voice-analytics
-cd discord-voice-analytics
+git clone https://github.com/sambart/nestjs-dhyunbot
+cd nestjs-dhyunbot
 docker compose up --build
 ```
 
 .env 파일 예시:
-
 ```bash
 # Database
 DATABASE_HOST=db
