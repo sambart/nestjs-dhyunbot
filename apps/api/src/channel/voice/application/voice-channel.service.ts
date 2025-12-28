@@ -7,7 +7,7 @@ import { DiscordVoiceGateway } from '../infrastructure/discord-voice.gateway';
 import { TempChannelStore } from '../infrastructure/temp-channel-store';
 import { VoiceRedisRepository } from '../infrastructure/voice.redis.repository';
 import { VoiceDailyFlushService } from './voice-daily-flush-service';
-import { getKSTDateString } from 'src/common/helper';
+import { getKSTDateString } from '../../../common/helper';
 
 @Injectable()
 export class VoiceChannelService {

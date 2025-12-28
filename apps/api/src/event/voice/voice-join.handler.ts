@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { VoiceState } from 'discord.js';
-import { VoiceChannelService } from 'src/channel/voice/application/voice-channel.service';
-import { VoiceStateDTO } from 'src/channel/voice/infrastructure/voice-state.dto';
+import { VoiceChannelService } from '../../channel/voice/application/voice-channel.service';
+import { VoiceStateDTO } from '../../channel/voice/infrastructure/voice-state.dto';
 
 @Injectable()
 export class VoiceJoinHandler {

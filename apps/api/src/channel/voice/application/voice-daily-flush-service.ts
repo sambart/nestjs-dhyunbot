@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RedisService } from 'src/redis/redis.service';
+import { RedisService } from '../../../redis/redis.service';
 import { VoiceDailyEntity } from '../domain/voice-daily-entity';
 import { Repository } from 'typeorm';
-import { getKSTDateString } from 'src/common/helper';
+import { getKSTDateString } from '../../../common/helper';
 import { VoiceRedisRepository } from '../infrastructure/voice.redis.repository';
 
 @Injectable()

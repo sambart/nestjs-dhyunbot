@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { VoiceDailyEntity } from 'src/channel/voice/domain/voice-daily-entity';
-import { VoiceRedisRepository } from 'src/channel/voice/infrastructure/voice.redis.repository';
-import { DiscordGateway } from 'src/gateway/discord.gateway';
+import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily-entity';
+import { VoiceRedisRepository } from '../channel/voice/infrastructure/voice.redis.repository';
+import { DiscordGateway } from '../gateway/discord.gateway';
 import { Repository, Between, Not } from 'typeorm';
 
 export interface VoiceActivityData {

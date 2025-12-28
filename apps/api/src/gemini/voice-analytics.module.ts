@@ -11,9 +11,9 @@ import {
   CommunityHealthCommand,
   VoiceLeaderboardCommand,
 } from './voice-analytics.commands';
-import { VoiceDailyEntity } from 'src/channel/voice/domain/voice-daily-entity';
-import { DiscordGateway } from 'src/gateway/discord.gateway';
-import { VoiceRedisRepository } from 'src/channel/voice/infrastructure/voice.redis.repository';
+import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily-entity';
+import { DiscordGateway } from '../gateway/discord.gateway';
+import { VoiceRedisRepository } from '../channel/voice/infrastructure/voice.redis.repository';
 import { DiscordModule } from '@discord-nestjs/core';
 
 @Module({
