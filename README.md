@@ -49,7 +49,9 @@ Gemini AI → Discord Embed Report
 ```
 
 ## 🚀 Getting Started
+
 Docker Compose
+
 ```bash
 git clone https://github.com/sambart/nestjs-dhyunbot
 cd nestjs-dhyunbot
@@ -57,6 +59,7 @@ docker compose up --build
 ```
 
 .env 파일 예시:
+
 ```bash
 # Database
 DATABASE_HOST=db
@@ -77,3 +80,9 @@ REDIS_PASSWORD=YOUR_PASSWORD
 # GEMINI
 GEMINI_API_KEY=YOUR_OPEN_API_KEY
 ```
+
+## 📸 Execution Result
+
+### 🎤 음성 채널 활동 분석 리포트 (Discord Embed)
+
+![voice-report](./docs/voice-report.png)
