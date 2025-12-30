@@ -1,36 +1,175 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectDiscordClient } from '@discord-nestjs/core';
-import { Client, GuildMember } from 'discord.js';
-import { VoiceState } from 'discord.js';
+import { Client } from 'discord.js';
+import { VoiceStateDTO } from '../infrastructure/voice-state.dto';
 import { VoiceChannelPolicy } from './voice-channel.policy';
 import { DiscordVoiceGateway } from '../infrastructure/discord-voice.gateway';
-import { JoinCommand } from 'src/commands/join.command';
-import { LeaveCommand } from 'src/commands/leave.command';
 import { TempChannelStore } from '../infrastructure/temp-channel-store';
 import { VoiceRedisRepository } from '../infrastructure/voice.redis.repository';
-import { MicToggleCommand } from 'src/commands/mic-toggle.comman';
-import { VoiceCommand } from 'src/commands/voice.command';
 import { VoiceDailyFlushService } from './voice-daily-flush-service';
-import { getKSTDateString, todayYYYYMMDD } from 'src/common/helper';
+import { getKSTDateString } from '../../../common/helper';
 
 @Injectable()
 export class VoiceChannelService {
   private readonly logger = new Logger(VoiceChannelService.name);
-  private readonly channelActions: Record<string, (state: VoiceState) => void>;
   private readonly discord: DiscordVoiceGateway;
+
   constructor(
     @InjectDiscordClient()
     private readonly client: Client,
     @Inject('TempChannelStore') private readonly tempChannelStore: TempChannelStore,
-    private readonly policy: VoiceChannelPolicy, // DI
+    private readonly policy: VoiceChannelPolicy,
     private readonly voiceRedisRepository: VoiceRedisRepository,
     private readonly voiceDailyFlushService: VoiceDailyFlushService,
   ) {
     this.discord = new DiscordVoiceGateway(this.client);
   }
 
-  async onUserJoined(cmd: VoiceCommand) {
+  /**
+   * ===============================
+   * JOIN / UPDATE (공통 진입점)
+   * ===============================
+   */
+  async handleVoiceStateUpdate(cmd: VoiceStateDTO) {
+    const { guildId, userId } = cmd;
+    const now = Date.now();
+    const today = getKSTDateString();
+
+    await this.voiceRedisRepository.setChannelName(guildId, cmd.channelId, cmd.channelName);
+    await this.voiceRedisRepository.setUserName(guildId, cmd.userId, cmd.userName);
+
+    let session = await this.voiceRedisRepository.getSession(guildId, userId);
+
+    if (!session) {
+      await this.voiceRedisRepository.setSession(guildId, userId, {
+        channelId: cmd.channelId,
+        joinedAt: now,
+        lastUpdatedAt: now,
+        mic: cmd.micOn,
+        alone: cmd.alone,
+        date: today,
+      });
+      return;
+    }
+
+    /**
+     * ⭐ 날짜 변경
+     */
+    if (session.date !== today) {
+      await this.voiceRedisRepository.accumulateDuration(guildId, userId, session, now);
+      await this.voiceDailyFlushService.flushDate(guildId, userId, session.date);
+
+      session = {
+        ...session,
+        joinedAt: now,
+        lastUpdatedAt: now,
+        date: today,
+      };
+    }
+
+    /**
+     * 3️⃣ UPDATE (mic / alone / move)
+     */
+    await this.voiceRedisRepository.accumulateDuration(guildId, userId, session, now);
+
+    session.channelId = cmd.channelId ?? session.channelId;
+    session.mic = cmd.micOn;
+    session.alone = cmd.alone;
+    session.lastUpdatedAt = now;
+
+    await this.voiceRedisRepository.setSession(guildId, userId, session);
+  }
+
+  async onUserMove(oldCmd: VoiceStateDTO, newCmd: VoiceStateDTO) {
+    const { guildId, userId } = newCmd;
+    const now = Date.now();
+
+    await this.voiceRedisRepository.setChannelName(guildId, newCmd.channelId, newCmd.channelName);
+    await this.voiceRedisRepository.setUserName(guildId, newCmd.userId, newCmd.userName);
+    const session = await this.voiceRedisRepository.getSession(guildId, userId);
+    if (!session) {
+      await this.voiceRedisRepository.setSession(guildId, userId, {
+        channelId: newCmd.channelId,
+        joinedAt: now,
+        lastUpdatedAt: now,
+        mic: newCmd.micOn,
+        alone: newCmd.alone,
+        date: getKSTDateString(),
+      });
+      return;
+    }
+
+    /**
+     * 1️⃣ 🔒 이전 채널 정보 고정
+     */
+    const prevSession = {
+      ...session,
+      channelId: oldCmd.channelId,
+      channelName: oldCmd.channelName,
+    };
+
+    /**
+     * 2️⃣ 이전 채널 체류 시간 마감 (정확)
+     */
+    await this.voiceRedisRepository.accumulateDuration(guildId, userId, prevSession, now);
+
+    /**
+     * 3️⃣ 새 채널 세션 시작
+     */
+    const newSession = {
+      ...session,
+      channelId: newCmd.channelId,
+      channelName: newCmd.channelName,
+      userName: newCmd.userName,
+      joinedAt: now,
+      lastUpdatedAt: now,
+      mic: newCmd.micOn,
+      alone: newCmd.alone,
+    };
+
+    await this.voiceRedisRepository.setSession(guildId, userId, newSession);
+
+    this.logger.debug(`[VOICE MOVE] ${userId} ${oldCmd.channelName} → ${newCmd.channelName}`);
+  }
+  /**
+   * ===============================
+   * LEAVE (세션 종료)
+   * ===============================
+   */
+  async onUserLeave(cmd: VoiceStateDTO) {
+    const { guildId, userId } = cmd;
+    const now = Date.now();
+
+    const session = await this.voiceRedisRepository.getSession(guildId, userId);
+    if (!session) return;
+
+    // 1️⃣ 마지막 상태 기준 누적
+    await this.voiceRedisRepository.accumulateDuration(guildId, userId, session, now);
+
+    // 2️⃣ ⭐ 세션 살아 있을 때 flush (이름 확보)
+    await this.voiceDailyFlushService.flushDate(guildId, userId, session.date);
+
+    // 3️⃣ 세션 완전 종료
+    await this.voiceRedisRepository.deleteSession(guildId, userId);
+
+    // 4️⃣ 임시 채널 삭제 정책
+    if (cmd.channelId && (await this.policy.shouldDeleteChannel(guildId, cmd.channelId))) {
+      await this.tempChannelStore.removeMember(cmd.channelId, userId);
+      await this.tempChannelStore.unregisterTempChannel(guildId, cmd.channelId);
+      await this.discord.deleteChannel(cmd.channelId);
+    }
+    this.logger.debug(`[VOICE LEAVE] ${userId} ${cmd.channelName}`);
+  }
+
+  /**
+   * ===============================
+   * JOIN 후 임시 채널 생성 정책
+   * ===============================
+   */
+  async onUserJoined(cmd: VoiceStateDTO) {
+    console.log('onUserJoined');
     await this.handleVoiceStateUpdate(cmd);
+
     if (this.policy.shouldCreateTempChannel(cmd.channelId)) {
       const tempChannelId = await this.discord.createVoiceChannel({
         guildId: cmd.guildId,
@@ -42,88 +181,10 @@ export class VoiceChannelService {
       await this.tempChannelStore.addMember(tempChannelId, cmd.userId);
       await this.discord.moveUserToChannel(cmd.guildId, cmd.userId, tempChannelId);
     }
+    this.logger.debug(`[VOICE ENTER] ${cmd.userId} ${cmd.channelName}`);
   }
 
-  async onUserLeave(cmd: VoiceCommand) {
-    const guildId = cmd.guildId;
-    const userId = cmd.userId;
-    const now = Date.now();
-
-    const session = await this.voiceRedisRepository.getSession(guildId, userId);
-    if (!session) return;
-
-    // 1️⃣ leave 직전까지 누적
-    await this.voiceRedisRepository.accumulateDuration(guildId, userId, session, now);
-
-    // ⭐ 날짜 변경 감지 → flush
-    //if (session.date !== today) {
-    await this.voiceDailyFlushService.flushDate(guildId, userId, session.date);
-
-    // 세션 리셋
-    /*
-        session = {
-      ...session,
-      lastUpdatedAt: Date.now(),
-      date: today,
-    };*/
-
-    //}
-
-    // 2️⃣ 채널 OUT 상태 확정
-    session.channelId = null;
-    session.alone = false;
-    session.lastUpdatedAt = now;
-
-    // 3️⃣ 세션 저장
-    await this.voiceRedisRepository.setSession(guildId, userId, session);
-
-    // 4️⃣ 이후 채널 삭제 정책 처리
-    if (await this.policy.shouldDeleteChannel(cmd.guildId, cmd.channelId)) {
-      await this.tempChannelStore.removeMember(cmd.channelId, cmd.userId);
-      await this.tempChannelStore.unregisterTempChannel(cmd.guildId, cmd.channelId);
-      await this.discord.deleteChannel(cmd.channelId);
-    }
-  }
-
-  async onUserMicToggle(cmd: VoiceCommand) {
+  async onUserMicToggle(cmd: VoiceStateDTO) {
     await this.handleVoiceStateUpdate(cmd);
-  }
-
-  async moveUserToChannel(voiceState: VoiceState, channelId: string): Promise<void> {
-    try {
-      const member: GuildMember | null = voiceState.member;
-      if (member && member.voice.channelId) {
-        await member.voice.setChannel(channelId); // 유저를 지정한 채널로 이동
-        this.logger.log(`Moved ${member.user.tag} to channel ${channelId}`);
-      }
-    } catch (error) {
-      this.logger.error(`Error moving user to channel: ${error.message}`, error);
-    }
-  }
-
-  async handleVoiceStateUpdate(cmd: VoiceCommand) {
-    const guildId = cmd.guildId;
-    const userId = cmd.userId;
-
-    const today = getKSTDateString();
-
-    const session: VoiceSession = (await this.voiceRedisRepository.getSession(guildId, userId)) ?? {
-      channelId: cmd.channelId,
-      joinedAt: Date.now(),
-      mic: cmd.micOn,
-      alone: false,
-      lastUpdatedAt: Date.now(),
-      date: today,
-    };
-
-    // duration 누적
-    await this.voiceRedisRepository.accumulateDuration(guildId, userId, session);
-
-    // 세션 갱신
-    session.channelId = cmd.channelId ?? session.channelId;
-    session.mic = cmd.micOn;
-    session.alone = cmd.alone;
-
-    await this.voiceRedisRepository.setSession(guildId, userId, session);
   }
 }

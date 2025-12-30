@@ -16,6 +16,7 @@ import { Channel } from './channel/channel.entity';
 import { MusicModule } from './music/music.module';
 import { DiscordEventsModule } from './event/discord-events.module';
 import { RedisModule } from './redis/redis.module';
+import { VoiceAnalyticsModule } from './gemini/voice-analytics.module';
 @Module({
   imports: [
     ConfigModule.forRoot(BaseConfig),
@@ -26,6 +27,7 @@ import { RedisModule } from './redis/redis.module';
     MusicModule,
     DiscordEventsModule,
     RedisModule,
+    VoiceAnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

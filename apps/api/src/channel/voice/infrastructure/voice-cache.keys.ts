@@ -9,4 +9,8 @@ export const VoiceKeys = {
 
   aloneDuration: (guild: string, user: string, date: string) =>
     `voice:duration:alone:${guild}:${user}:${date}`,
+
+  channelName: (guild: string, channel: string) => `voice:channel:name:${guild}:${channel}`,
+
+  userName: (guild: string, user: string) => `voice:user:name:${guild}:${user}`,
 };

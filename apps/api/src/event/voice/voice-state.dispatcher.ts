@@ -18,23 +18,26 @@ export class VoiceStateDispatcher {
   @On('voiceStateUpdate')
   async dispatch(oldState: VoiceState, newState: VoiceState) {
     // 마이크 켜짐/꺼짐 상태
-    const oldMute = oldState.selfMute;
-    const newMute = newState.selfMute;
+    const isMuteChanged = oldState.selfMute !== newState.selfMute;
+    const isJoin = !oldState.channelId && newState.channelId;
+    const isLeave = oldState.channelId && !newState.channelId;
+    const isMove =
+      oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId;
 
-    if (oldMute !== newMute) {
-      return this.micToggleHandler.handle(newState);
+    if (isMove) {
+      await this.moveHandler.handle(oldState, newState);
     }
 
-    if (!oldState.channelId && newState.channelId) {
-      return this.joinHandler.handle(newState);
+    if (isJoin) {
+      await this.joinHandler.handle(newState);
     }
 
-    if (oldState.channelId && !newState.channelId) {
-      return this.leaveHandler.handle(oldState);
+    if (isLeave) {
+      await this.leaveHandler.handle(oldState);
     }
 
-    if (oldState.channelId !== newState.channelId) {
-      return this.moveHandler.handle(oldState, newState);
+    if (isMuteChanged) {
+      await this.micToggleHandler.handle(newState);
     }
   }
 }

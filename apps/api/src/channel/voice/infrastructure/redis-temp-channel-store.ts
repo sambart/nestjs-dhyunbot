@@ -6,7 +6,7 @@
 */
 import { Injectable } from '@nestjs/common';
 import { TempChannelStore } from './temp-channel-store';
-import { RedisService } from 'src/redis/redis.service';
+import { RedisService } from '../../../redis/redis.service';
 
 @Injectable()
 export class RedisTempChannelStore implements TempChannelStore {

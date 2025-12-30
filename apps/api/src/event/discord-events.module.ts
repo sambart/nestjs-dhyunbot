@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ChannelStateHandler } from './channel/channel-state.handler';
-import { ChannelModule } from 'src/channel/channel.module';
+import { ChannelModule } from '../channel/channel.module';
 import { DiscordModule } from '@discord-nestjs/core';
-import { VoiceChannelModule } from 'src/channel/voice/voice-channel.module';
-import { DiscordConfig } from 'src/config/discord.config';
+import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
+import { DiscordConfig } from '../config/discord.config';
 import { VoiceStateDispatcher } from './voice/voice-state.dispatcher';
 import { VoiceJoinHandler } from './voice/voice-join.handler';
 import { VoiceLeaveHandler } from './voice/voice-leave.handler';
