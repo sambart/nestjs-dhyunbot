@@ -1,9 +1,9 @@
 {
-  "name": "web",
+  "name": "@dhyunbot/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 4000",
+    "dev": "NODE_OPTIONS='--no-experimental-fetch' next dev -p 4000",
     "build": "next build",
     "start": "next start -p 4000",
     "lint": "eslint"

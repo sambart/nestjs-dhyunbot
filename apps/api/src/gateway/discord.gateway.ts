@@ -35,7 +35,7 @@ export class DiscordGateway {
       this.guildCache.set(guildId, guild);
       return guild;
     } catch (error) {
-      this.logger.warn(`Failed to fetch guild ${guildId}:`, error.message);
+      this.logger.warn(`Failed to fetch guild ${guildId}:`, (error as Error).message);
       return null;
     }
   }
@@ -73,7 +73,7 @@ export class DiscordGateway {
       this.userCache.set(cacheKey, username);
       return username;
     } catch (error) {
-      this.logger.warn(`Failed to fetch user ${userId}:`, error.message);
+      this.logger.warn(`Failed to fetch user ${userId}:`, (error as Error).message);
       return `User-${userId.slice(0, 6)}`;
     }
   }
@@ -108,7 +108,7 @@ export class DiscordGateway {
       this.channelCache.set(cacheKey, channelName);
       return channelName;
     } catch (error) {
-      this.logger.warn(`Failed to fetch channel ${channelId}:`, error.message);
+      this.logger.warn(`Failed to fetch channel ${channelId}:`, (error as Error).message);
       return `Channel-${channelId.slice(0, 6)}`;
     }
   }
@@ -135,7 +135,7 @@ export class DiscordGateway {
         // 일괄 조회
         await guild.members.fetch({ user: uncachedUserIds });
       } catch (error) {
-        this.logger.warn('Failed to fetch members in bulk:', error.message);
+        this.logger.warn('Failed to fetch members in bulk:', (error as Error).message);
       }
     }
 

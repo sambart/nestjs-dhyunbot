@@ -1,4 +1,5 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "module": "commonjs",
     "declaration": true,
@@ -19,7 +20,9 @@
     "noFallthroughCasesInSwitch": false,
     "useDefineForClassFields": true,
     "paths": {
-      "src/*": ["src/*"]
+      "src/*": ["src/*"],
+      "@dhyunbot/shared": ["../../libs/shared/src"],
+      "@dhyunbot/shared/*": ["../../libs/shared/src/*"]
     }
   }
 }

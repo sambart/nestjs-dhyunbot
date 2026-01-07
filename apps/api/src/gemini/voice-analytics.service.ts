@@ -5,6 +5,22 @@ import { VoiceRedisRepository } from '../channel/voice/infrastructure/voice.redi
 import { DiscordGateway } from '../gateway/discord.gateway';
 import { Repository, Between, Not } from 'typeorm';
 
+interface UserChannelInfo {
+  name: string;
+  duration: number;
+}
+
+interface UserAggregateData {
+  userId: string;
+  username: string | null;
+  totalVoiceTime: number;
+  totalMicOnTime: number;
+  totalMicOffTime: number;
+  aloneTime: number;
+  channelMap: Map<string, UserChannelInfo>;
+  activeDaysSet: Set<string>;
+}
+
 export interface VoiceActivityData {
   guildId: string;
   guildName: string;
@@ -128,7 +144,7 @@ export class VoiceAnalyticsService {
         dailyTrends,
       };
     } catch (error) {
-      this.logger.error('Failed to collect voice activity data', error.stack);
+      this.logger.error('Failed to collect voice activity data', (error as Error).stack);
       throw error;
     }
   }
@@ -177,7 +193,7 @@ export class VoiceAnalyticsService {
     globalData: VoiceDailyEntity[],
     channelData: VoiceDailyEntity[],
   ) {
-    const userMap = new Map<string, any>();
+    const userMap = new Map<string, UserAggregateData>();
 
     // 1. GLOBAL 데이터에서 마이크/혼자 시간 집계
     globalData.forEach((record) => {
@@ -194,7 +210,7 @@ export class VoiceAnalyticsService {
         });
       }
 
-      const user = userMap.get(record.userId);
+      const user = userMap.get(record.userId)!;
       user.totalMicOnTime += record.micOnSec || 0;
       user.totalMicOffTime += record.micOffSec || 0;
       user.aloneTime += record.aloneSec || 0;
@@ -216,7 +232,7 @@ export class VoiceAnalyticsService {
         });
       }
 
-      const user = userMap.get(record.userId);
+      const user = userMap.get(record.userId)!;
 
       // 총 음성 시간 누적
       user.totalVoiceTime += record.channelDurationSec || 0;
@@ -224,7 +240,7 @@ export class VoiceAnalyticsService {
 
       // 채널별 시간 집계
       const current = user.channelMap.get(record.channelId) || {
-        name: record.channelName || null,
+        name: record.channelName || '',
         duration: 0,
       };
       current.duration += record.channelDurationSec || 0;
@@ -273,7 +289,7 @@ export class VoiceAnalyticsService {
   /**
    * 유저명 보강: Redis → Discord API → Redis
    */
-  private async enrichUserNamesWithRedis(guildId: string, userMap: Map<string, any>) {
+  private async enrichUserNamesWithRedis(guildId: string, userMap: Map<string, UserAggregateData>) {
     const userIdsWithoutName: string[] = [];
 
     // 1. Redis에서 유저명 조회
@@ -310,7 +326,7 @@ export class VoiceAnalyticsService {
   /**
    * 채널명 보강: Redis → Discord API → Redis
    */
-  private async enrichChannelNamesWithRedis(guildId: string, userMap: Map<string, any>) {
+  private async enrichChannelNamesWithRedis(guildId: string, userMap: Map<string, UserAggregateData>) {
     const channelIdsWithoutName = new Set<string>();
 
     // 1. Redis에서 채널명 조회

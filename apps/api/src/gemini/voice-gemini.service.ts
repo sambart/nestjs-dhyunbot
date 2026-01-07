@@ -48,7 +48,7 @@ export class VoiceGeminiService {
       this.logger.log('Successfully analyzed voice activity');
       return { text };
     } catch (error) {
-      this.logger.error('Failed to analyze voice activity', error.stack);
+      this.logger.error('Failed to analyze voice activity', (error as Error).stack);
       return {
         text:
           '⚠️ 분석 중 오류가 발생했습니다.\n\n' +
@@ -235,7 +235,7 @@ ${JSON.stringify(summarizedData, null, 2)}
       const text = result.response.text();
       return text;
     } catch (error) {
-      this.logger.error('Failed to calculate health score:', error.message);
+      this.logger.error('Failed to calculate health score:', (error as Error).message);
       return '⚠️ 건강도 분석 중 오류가 발생했습니다.';
     }
   }

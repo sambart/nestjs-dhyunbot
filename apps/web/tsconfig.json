@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@dhyunbot/shared": ["../../libs/shared/src"],
+      "@dhyunbot/shared/*": ["../../libs/shared/src/*"]
     }
   },
   "include": [

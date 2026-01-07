@@ -10,8 +10,14 @@ services:
     env_file:
       - .env
     volumes:
-      - ./apps/api:/app # 소스코드 실시간 반영
-      - /app/node_modules # node_modules 충돌 방지
+      - .:/workspace # Monorepo root
+      - /workspace/node_modules # Root node_modules
+      - /workspace/apps/api/node_modules # API node_modules
+      - /workspace/libs/shared/node_modules # Shared lib node_modules
+    working_dir: /workspace/apps/api
+    depends_on:
+      - db
+      - redis
     restart: unless-stopped
 
   web:
@@ -21,12 +27,18 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     ports:
-      - "3001:3001"
+      - "4000:4000"
     env_file:
       - .env
+    environment:
+      - TURBOPACK_ROOT=/workspace
     volumes:
-      - ./apps/web:/app
-      - /app/node_modules
+      - .:/workspace # Monorepo root
+      - /workspace/node_modules # Root node_modules
+      - /workspace/apps/web/node_modules # Web node_modules
+      - /workspace/apps/web/.next # Next.js build cache
+      - /workspace/libs/shared/node_modules # Shared lib node_modules
+    working_dir: /workspace/apps/web
     depends_on:
       - api
     restart: unless-stopped

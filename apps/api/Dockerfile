@@ -1,23 +1,34 @@
 FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /workspace
 
-# api 패키지 파일만 복사
-COPY apps/api/package*.json ./
+# Install dependencies for monorepo
+# Copy root package.json first
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Copy workspace package.json files
+COPY apps/api/package*.json ./apps/api/
+COPY apps/web/package*.json ./apps/web/
+COPY libs/shared/package*.json ./libs/shared/
+
+# Install all dependencies (monorepo)
 RUN npm install
 
-# 소스 복사
-COPY apps/api ./
+# Copy shared library
+COPY libs/shared ./libs/shared
 
+# Build shared library
+RUN npm run build --workspace=@dhyunbot/shared || true
 
-# 빌드
-#RUN npm run build
+# Copy API source
+COPY apps/api ./apps/api
 
-#CMD ["node", "dist/main.js"]
+# Set working directory to API
+WORKDIR /workspace/apps/api
 
+# Install nodemon globally for development
+RUN npm install -g nodemon ts-node
 
-# 개발용 nodemon 설치
-RUN npm install -g nodemon
-
-# 개발용 명령
-CMD ["nodemon", "--watch", "src", "--ext", "ts,js,json", "src/main.ts"]
+# Development mode with hot reload
+CMD ["nodemon", "--watch", "src", "--watch", "../../libs/shared/src", "--ext", "ts,js,json", "--exec", "ts-node -r tsconfig-paths/register", "src/main.ts"]

@@ -1,19 +1,34 @@
 FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /workspace
 
-# web 패키지 파일만 복사
-COPY apps/web/package*.json ./
+# Install dependencies for monorepo
+# Copy root package.json first
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Copy workspace package.json files
+COPY apps/api/package*.json ./apps/api/
+COPY apps/web/package*.json ./apps/web/
+COPY libs/shared/package*.json ./libs/shared/
+
+# Install all dependencies (monorepo)
 RUN npm install
 
-# 소스 복사
-COPY apps/web ./
+# Copy shared library
+COPY libs/shared ./libs/shared
 
-# Next 빌드
-#RUN npm run build
+# Build shared library
+RUN npm run build --workspace=@dhyunbot/shared || true
 
-EXPOSE 3000
-#CMD ["npm", "start"]
+# Copy Web source
+COPY apps/web ./apps/web
 
-# 개발용 명령
+# Set working directory to Web
+WORKDIR /workspace/apps/web
+
+# Expose correct port (4000)
+EXPOSE 4000
+
+# Development mode
 CMD ["npm", "run", "dev"]

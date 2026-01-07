@@ -1,7 +1,11 @@
 # compiled output
-/apps/api/dist
-/apps/api/node_modules
+/apps/*/dist
+/libs/*/dist
+/dist
 /build
+node_modules
+.next
+.turbo
 
 # Logs
 logs

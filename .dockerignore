@@ -1,4 +1,59 @@
+# Dependencies
 node_modules
+**/node_modules
+
+# Build outputs
 dist
-.git
+**/dist
+.next
+**/.next
+build
+**/build
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
 .DS_Store
+*.swp
+*.swo
+
+# IDE
+.vscode
+.idea
+*.sublime-workspace
+
+# Git
+.git
+.gitignore
+
+# Testing
+coverage
+.nyc_output
+**/*.spec.ts
+**/*.test.ts
+
+# Temp
+.tmp
+.temp
+*.tmp
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
