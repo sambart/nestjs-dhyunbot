@@ -1,8 +1,9 @@
 'use client';
 
 import { useRef } from 'react';
-import type { DiscordChannel } from '../../../../../lib/discord-api';
+import type { DiscordChannel, DiscordEmoji } from '../../../../../lib/discord-api';
 import type { NewbieConfig } from '../../../../../lib/newbie-api';
+import GuildEmojiPicker from '../../../../../components/GuildEmojiPicker';
 import EmbedPreview from './EmbedPreview';
 
 const MOCO_TEMPLATE_VARIABLES = [
@@ -18,18 +19,18 @@ const SAMPLE_RANK_DETAILS =
 interface MocoTabProps {
   config: NewbieConfig;
   channels: DiscordChannel[];
+  emojis: DiscordEmoji[];
   onChange: (partial: Partial<NewbieConfig>) => void;
 }
 
-export default function MocoTab({ config, channels, onChange }: MocoTabProps) {
+export default function MocoTab({ config, channels, emojis, onChange }: MocoTabProps) {
   const isEnabled = config.mocoEnabled;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const channelSelectRef = useRef<HTMLSelectElement>(null);
 
-  const handleInsertChannel = (channelId: string) => {
+  const insertAtCursor = (insertText: string) => {
     const textarea = textareaRef.current;
     const currentValue = config.mocoEmbedDescription ?? '';
-    const insertText = `<#${channelId}>`;
 
     if (textarea) {
       const start = textarea.selectionStart;
@@ -51,6 +52,10 @@ export default function MocoTab({ config, channels, onChange }: MocoTabProps) {
         mocoEmbedDescription: (currentValue + insertText) || null,
       });
     }
+  };
+
+  const handleInsertChannel = (channelId: string) => {
+    insertAtCursor(`<#${channelId}>`);
   };
 
   const previewDescription = (config.mocoEmbedDescription ?? '{rankDetails}')
@@ -219,6 +224,11 @@ export default function MocoTab({ config, channels, onChange }: MocoTabProps) {
           >
             삽입
           </button>
+          <GuildEmojiPicker
+            emojis={emojis}
+            onSelect={(val) => insertAtCursor(val)}
+            disabled={!isEnabled}
+          />
         </div>
       </div>
 

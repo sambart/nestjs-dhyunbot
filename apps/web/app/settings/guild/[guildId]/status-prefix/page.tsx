@@ -1,7 +1,7 @@
 'use client';
 
 import { Loader2, RefreshCw, Server, Tag } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { DiscordChannel, DiscordEmoji } from '../../../../lib/discord-api';
 import { fetchGuildEmojis, fetchGuildTextChannels } from '../../../../lib/discord-api';
@@ -38,6 +38,34 @@ export default function StatusPrefixSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const embedDescRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertAtCursor = (insertText: string) => {
+    const textarea = embedDescRef.current;
+    const currentValue = config.embedDescription ?? '';
+
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue =
+        currentValue.substring(0, start) +
+        insertText +
+        currentValue.substring(end);
+
+      setConfig((prev) => ({ ...prev, embedDescription: newValue || null }));
+
+      requestAnimationFrame(() => {
+        textarea.focus();
+        const pos = start + insertText.length;
+        textarea.setSelectionRange(pos, pos);
+      });
+    } else {
+      setConfig((prev) => ({
+        ...prev,
+        embedDescription: (currentValue + insertText) || null,
+      }));
+    }
+  };
 
   useEffect(() => {
     if (!selectedGuildId) return;
@@ -374,6 +402,7 @@ export default function StatusPrefixSettingsPage() {
               Embed 설명
             </label>
             <textarea
+              ref={embedDescRef}
               id="sp-embed-desc"
               value={config.embedDescription ?? ''}
               onChange={(e) =>
@@ -387,6 +416,13 @@ export default function StatusPrefixSettingsPage() {
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed resize-none"
             />
+            <div className="flex items-center mt-2">
+              <GuildEmojiPicker
+                emojis={emojis}
+                onSelect={(val) => insertAtCursor(val)}
+                disabled={!config.enabled}
+              />
+            </div>
           </div>
 
           {/* Embed 색상 */}

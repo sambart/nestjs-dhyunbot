@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { DiscordChannel, DiscordEmoji } from "../../../../lib/discord-api";
 import { fetchGuildChannels, fetchGuildEmojis } from "../../../../lib/discord-api";
@@ -66,6 +66,31 @@ export default function AutoChannelSettingsPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [hasExisting, setHasExisting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const embedDescRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertAtCursor = (insertText: string) => {
+    const textarea = embedDescRef.current;
+    const currentValue = form.guideMessage;
+
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue =
+        currentValue.substring(0, start) +
+        insertText +
+        currentValue.substring(end);
+
+      setForm((f) => ({ ...f, guideMessage: newValue }));
+
+      requestAnimationFrame(() => {
+        textarea.focus();
+        const pos = start + insertText.length;
+        textarea.setSelectionRange(pos, pos);
+      });
+    } else {
+      setForm((f) => ({ ...f, guideMessage: currentValue + insertText }));
+    }
+  };
 
   const voiceChannels = channels.filter((c) => c.type === 2);
   const textChannels = channels.filter((c) => c.type === 0);
@@ -350,6 +375,7 @@ export default function AutoChannelSettingsPage() {
               Embed 설명 <span className="text-red-500">*</span>
             </label>
             <textarea
+              ref={embedDescRef}
               id="ac-embed-desc"
               value={form.guideMessage}
               onChange={(e) => setForm((f) => ({ ...f, guideMessage: e.target.value }))}
@@ -357,6 +383,12 @@ export default function AutoChannelSettingsPage() {
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             />
+            <div className="flex items-center mt-2">
+              <GuildEmojiPicker
+                emojis={emojis}
+                onSelect={(val) => insertAtCursor(val)}
+              />
+            </div>
           </div>
 
           {/* Embed 색상 */}

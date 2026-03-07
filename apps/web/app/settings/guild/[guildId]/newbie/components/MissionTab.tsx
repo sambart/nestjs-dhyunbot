@@ -1,8 +1,9 @@
 'use client';
 
 import { useRef } from 'react';
-import type { DiscordChannel } from '../../../../../lib/discord-api';
+import type { DiscordChannel, DiscordEmoji } from '../../../../../lib/discord-api';
 import type { NewbieConfig } from '../../../../../lib/newbie-api';
+import GuildEmojiPicker from '../../../../../components/GuildEmojiPicker';
 import EmbedPreview from './EmbedPreview';
 
 const MISSION_TEMPLATE_VARIABLES = [
@@ -16,18 +17,18 @@ const SAMPLE_MISSION_LIST =
 interface MissionTabProps {
   config: NewbieConfig;
   channels: DiscordChannel[];
+  emojis: DiscordEmoji[];
   onChange: (partial: Partial<NewbieConfig>) => void;
 }
 
-export default function MissionTab({ config, channels, onChange }: MissionTabProps) {
+export default function MissionTab({ config, channels, emojis, onChange }: MissionTabProps) {
   const isEnabled = config.missionEnabled;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const channelSelectRef = useRef<HTMLSelectElement>(null);
 
-  const handleInsertChannel = (channelId: string) => {
+  const insertAtCursor = (insertText: string) => {
     const textarea = textareaRef.current;
     const currentValue = config.missionEmbedDescription ?? '';
-    const insertText = `<#${channelId}>`;
 
     if (textarea) {
       const start = textarea.selectionStart;
@@ -49,6 +50,10 @@ export default function MissionTab({ config, channels, onChange }: MissionTabPro
         missionEmbedDescription: (currentValue + insertText) || null,
       });
     }
+  };
+
+  const handleInsertChannel = (channelId: string) => {
+    insertAtCursor(`<#${channelId}>`);
   };
 
   const previewDescription = (config.missionEmbedDescription ?? '{missionList}')
@@ -242,6 +247,11 @@ export default function MissionTab({ config, channels, onChange }: MissionTabPro
           >
             삽입
           </button>
+          <GuildEmojiPicker
+            emojis={emojis}
+            onSelect={(val) => insertAtCursor(val)}
+            disabled={!isEnabled}
+          />
         </div>
       </div>
 

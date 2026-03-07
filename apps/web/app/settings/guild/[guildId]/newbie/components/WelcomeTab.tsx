@@ -1,13 +1,16 @@
 'use client';
 
 import { useRef } from 'react';
-import type { DiscordChannel } from '../../../../../lib/discord-api';
+import type { DiscordChannel, DiscordEmoji } from '../../../../../lib/discord-api';
 import type { NewbieConfig } from '../../../../../lib/newbie-api';
+import GuildEmojiPicker from '../../../../../components/GuildEmojiPicker';
+import { formatEmojiString } from '../../../../../lib/discord-api';
 import EmbedPreview from './EmbedPreview';
 
 interface WelcomeTabProps {
   config: NewbieConfig;
   channels: DiscordChannel[];
+  emojis: DiscordEmoji[];
   onChange: (partial: Partial<NewbieConfig>) => void;
 }
 
@@ -17,15 +20,14 @@ const TEMPLATE_VARIABLES = [
   { variable: '{serverName}', description: '서버 이름' },
 ] as const;
 
-export default function WelcomeTab({ config, channels, onChange }: WelcomeTabProps) {
+export default function WelcomeTab({ config, channels, emojis, onChange }: WelcomeTabProps) {
   const isEnabled = config.welcomeEnabled;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const channelSelectRef = useRef<HTMLSelectElement>(null);
 
-  const handleInsertChannel = (channelId: string) => {
+  const insertAtCursor = (insertText: string) => {
     const textarea = textareaRef.current;
     const currentValue = config.welcomeEmbedDescription ?? '';
-    const insertText = `<#${channelId}>`;
 
     if (textarea) {
       const start = textarea.selectionStart;
@@ -47,6 +49,10 @@ export default function WelcomeTab({ config, channels, onChange }: WelcomeTabPro
         welcomeEmbedDescription: (currentValue + insertText) || null,
       });
     }
+  };
+
+  const handleInsertChannel = (channelId: string) => {
+    insertAtCursor(`<#${channelId}>`);
   };
 
   return (
@@ -148,7 +154,7 @@ export default function WelcomeTab({ config, channels, onChange }: WelcomeTabPro
           rows={4}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed resize-none"
         />
-        {/* 채널 링크 삽입 */}
+        {/* 채널 링크 삽입 + 이모지 삽입 */}
         <div className="flex items-center space-x-2 mt-2">
           <select
             ref={channelSelectRef}
@@ -176,6 +182,11 @@ export default function WelcomeTab({ config, channels, onChange }: WelcomeTabPro
           >
             삽입
           </button>
+          <GuildEmojiPicker
+            emojis={emojis}
+            onSelect={(val) => insertAtCursor(val)}
+            disabled={!isEnabled}
+          />
         </div>
       </div>
 

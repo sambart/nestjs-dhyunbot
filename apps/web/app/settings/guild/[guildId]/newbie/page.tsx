@@ -3,8 +3,8 @@
 import { Loader2, RefreshCw, Server } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import type { DiscordChannel, DiscordRole } from '../../../../lib/discord-api';
-import { fetchGuildTextChannels, fetchGuildRoles } from '../../../../lib/discord-api';
+import type { DiscordChannel, DiscordEmoji, DiscordRole } from '../../../../lib/discord-api';
+import { fetchGuildEmojis, fetchGuildRoles, fetchGuildTextChannels } from '../../../../lib/discord-api';
 import type { NewbieConfig } from '../../../../lib/newbie-api';
 import { fetchNewbieConfig, saveNewbieConfig } from '../../../../lib/newbie-api';
 import { useSettings } from '../../../SettingsContext';
@@ -58,6 +58,7 @@ export default function NewbieSettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
   const [roles, setRoles] = useState<DiscordRole[]>([]);
+  const [emojis, setEmojis] = useState<DiscordEmoji[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -73,11 +74,13 @@ export default function NewbieSettingsPage() {
         (): DiscordChannel[] => [],
       ),
       fetchGuildRoles(selectedGuildId).catch((): DiscordRole[] => []),
+      fetchGuildEmojis(selectedGuildId).catch((): DiscordEmoji[] => []),
     ])
-      .then(([cfg, chs, rls]) => {
+      .then(([cfg, chs, rls, ems]) => {
         if (cfg) setConfig(cfg);
         setChannels(chs);
         setRoles(rls);
+        setEmojis(ems);
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
@@ -87,12 +90,14 @@ export default function NewbieSettingsPage() {
     if (!selectedGuildId || isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const [chs, rls] = await Promise.all([
+      const [chs, rls, ems] = await Promise.all([
         fetchGuildTextChannels(selectedGuildId, true).catch((): DiscordChannel[] => []),
         fetchGuildRoles(selectedGuildId, true).catch((): DiscordRole[] => []),
+        fetchGuildEmojis(selectedGuildId, true).catch((): DiscordEmoji[] => []),
       ]);
       setChannels(chs);
       setRoles(rls);
+      setEmojis(ems);
     } finally {
       setIsRefreshing(false);
     }
@@ -156,6 +161,7 @@ export default function NewbieSettingsPage() {
           <WelcomeTab
             config={config}
             channels={channels}
+            emojis={emojis}
             onChange={updateConfig}
           />
         );
@@ -164,6 +170,7 @@ export default function NewbieSettingsPage() {
           <MissionTab
             config={config}
             channels={channels}
+            emojis={emojis}
             onChange={updateConfig}
           />
         );
@@ -172,6 +179,7 @@ export default function NewbieSettingsPage() {
           <MocoTab
             config={config}
             channels={channels}
+            emojis={emojis}
             onChange={updateConfig}
           />
         );
