@@ -1,10 +1,11 @@
 import { On } from '@discord-nestjs/core';
 import { Injectable } from '@nestjs/common';
 import { VoiceState } from 'discord.js';
+
 import { VoiceJoinHandler } from './voice-join.handler';
 import { VoiceLeaveHandler } from './voice-leave.handler';
-import { VoiceMoveHandler } from './voice-move.handler';
 import { MicToggleHandler } from './voice-mic-toggle.handler';
+import { VoiceMoveHandler } from './voice-move.handler';
 
 @Injectable()
 export class VoiceStateDispatcher {

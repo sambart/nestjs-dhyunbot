@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryColumn, Index } from 'typeorm';
+import { Column, Entity, Index,PrimaryColumn } from 'typeorm';
 
 @Entity('voice_daily')
 @Index(['guildId', 'date']) // 날짜별 조회 최적화

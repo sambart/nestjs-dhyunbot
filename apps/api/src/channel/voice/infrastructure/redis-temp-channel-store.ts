@@ -5,8 +5,9 @@
     서버 재시작 / 다중 인스턴스에서도 안전
 */
 import { Injectable } from '@nestjs/common';
-import { TempChannelStore } from './temp-channel-store';
+
 import { RedisService } from '../../../redis/redis.service';
+import { TempChannelStore } from './temp-channel-store';
 
 @Injectable()
 export class RedisTempChannelStore implements TempChannelStore {

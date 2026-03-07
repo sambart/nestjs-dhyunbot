@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { VoiceState } from 'discord.js';
+
 import { VoiceChannelService } from '../../channel/voice/application/voice-channel.service';
-import { VoiceStateDTO } from '../../channel/voice/infrastructure/voice-state.dto';
+import { VoiceStateDto } from '../../channel/voice/infrastructure/voice-state.dto';
 
 @Injectable()
 export class VoiceMoveHandler {
@@ -9,8 +10,8 @@ export class VoiceMoveHandler {
 
   async handle(oldState: VoiceState, newState: VoiceState) {
     await this.voiceChannelService.onUserMove(
-      VoiceStateDTO.fromVoiceState(oldState),
-      VoiceStateDTO.fromVoiceState(newState),
+      VoiceStateDto.fromVoiceState(oldState),
+      VoiceStateDto.fromVoiceState(newState),
     );
   }
 }

@@ -1,10 +1,11 @@
+import { VoiceActivityData } from '@dhyunbot/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { VoiceActivityData } from '@dhyunbot/shared';
-import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily-entity';
+import { Between, Not,Repository } from 'typeorm';
+
+import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
 import { DiscordGateway } from '../gateway/discord.gateway';
-import { Repository, Between, Not } from 'typeorm';
-import { VoiceNameEnricherService, UserAggregateData } from './voice-name-enricher.service';
+import { UserAggregateData,VoiceNameEnricherService } from './voice-name-enricher.service';
 
 export { VoiceActivityData } from '@dhyunbot/shared';
 
@@ -218,10 +219,7 @@ export class VoiceAnalyticsService {
       .sort((a, b) => b.totalVoiceTime - a.totalVoiceTime);
   }
 
-  private aggregateDailyTrends(
-    globalData: VoiceDailyEntity[],
-    channelData: VoiceDailyEntity[],
-  ) {
+  private aggregateDailyTrends(globalData: VoiceDailyEntity[], channelData: VoiceDailyEntity[]) {
     const dailyMap = new Map<string, any>();
 
     globalData.forEach((record) => {

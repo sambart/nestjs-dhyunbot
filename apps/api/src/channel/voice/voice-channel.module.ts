@@ -1,18 +1,19 @@
-import { Module } from '@nestjs/common';
 import { DiscordModule } from '@discord-nestjs/core';
-import { DiscordConfig } from '../../config/discord.config';
-import { VoiceChannelService } from './application/voice-channel.service';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { VoiceChannelHistory } from './domain/voice-channel-history.entity';
-import { VoiceChannelHistoryService } from './application/voice-channel-history.service';
-import { ChannelModule } from '../channel.module';
+
+import { DiscordConfig } from '../../config/discord.config';
 import { MemberModule } from '../../member/member.module';
+import { ChannelModule } from '../channel.module';
 import { VoiceChannelPolicy } from './application/voice-channel.policy';
+import { VoiceChannelService } from './application/voice-channel.service';
+import { VoiceChannelHistoryService } from './application/voice-channel-history.service';
+import { VoiceDailyFlushService } from './application/voice-daily-flush-service';
+import { VoiceChannelHistory } from './domain/voice-channel-history.entity';
+import { VoiceDailyEntity } from './domain/voice-daily.entity';
 import { DiscordVoiceGateway } from './infrastructure/discord-voice.gateway';
 import { RedisTempChannelStore } from './infrastructure/redis-temp-channel-store';
-import { VoiceRedisRepository } from './infrastructure/voice.redis.repository';
-import { VoiceDailyFlushService } from './application/voice-daily-flush-service';
-import { VoiceDailyEntity } from './domain/voice-daily-entity';
+import { VoiceRedisRepository } from './infrastructure/voice-redis.repository';
 
 @Module({
   imports: [

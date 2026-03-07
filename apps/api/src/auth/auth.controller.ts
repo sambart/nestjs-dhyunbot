@@ -1,6 +1,7 @@
-import { Controller, Get, UseGuards, Res, Req } from '@nestjs/common/decorators';
-import { AuthGuard } from '@nestjs/passport';
+import { Controller, Get, Req,Res, UseGuards } from '@nestjs/common/decorators';
 import { ConfigService } from '@nestjs/config';
+import { AuthGuard } from '@nestjs/passport';
+
 import { AuthService } from './auth.service';
 
 @Controller('auth/discord')

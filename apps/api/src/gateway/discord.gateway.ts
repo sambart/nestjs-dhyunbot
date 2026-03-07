@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { InjectDiscordClient } from '@discord-nestjs/core';
-import { Client, Guild, GuildMember, GuildChannel } from 'discord.js';
+import { Injectable, Logger } from '@nestjs/common';
+import { Client, Guild } from 'discord.js';
 
 /**
  * Discord API와 통신하는 Gateway 클래스

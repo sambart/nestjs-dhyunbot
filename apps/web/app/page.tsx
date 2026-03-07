@@ -1,12 +1,12 @@
-import Link from "next/link";
 import {
-  TrendingUp,
+  BarChart3,
   Settings,
   Shield,
-  Zap,
+  TrendingUp,
   Users,
-  BarChart3,
+  Zap,
 } from "lucide-react";
+import Link from "next/link";
 
 export default function Home() {
   return (

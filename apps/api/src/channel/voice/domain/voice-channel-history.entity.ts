@@ -1,13 +1,14 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
+  Entity,
   ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
-import { Channel } from '../../channel.entity';
+
 import { Member } from '../../../member/member.entity';
+import { Channel } from '../../channel.entity';
 
 @Entity({ schema: 'public' })
 export class VoiceChannelHistory {
@@ -20,10 +21,10 @@ export class VoiceChannelHistory {
   @ManyToOne(() => Member, (member) => member.voiceHistories)
   member: Member;
 
-  @Column({ type: 'timestamp', nullable: false })
-  joinAt: Date;
+  @Column({ name: 'joinAt', type: 'timestamp', nullable: false })
+  joinedAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true }) // outTime은 null 가능
+  @Column({ type: 'timestamp', nullable: true })
   leftAt: Date | null;
 
   @CreateDateColumn()
@@ -32,11 +33,10 @@ export class VoiceChannelHistory {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // 접속 기간 계산 (getter 사용)
   get duration(): number | null {
-    if (this.joinAt && this.leftAt) {
-      return Math.floor((+this.leftAt - +this.joinAt) / 1000); // 초 단위 반환
+    if (this.joinedAt && this.leftAt) {
+      return Math.floor((+this.leftAt - +this.joinedAt) / 1000);
     }
-    return null; // outTime이 없으면 null
+    return null;
   }
 }

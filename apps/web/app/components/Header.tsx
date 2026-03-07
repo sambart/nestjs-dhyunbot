@@ -1,16 +1,15 @@
 "use client";
 
+import { Home, LayoutDashboard,Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X, Home, LayoutDashboard } from "lucide-react";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false); // 실제로는 useSession 사용
 
   const handleLogin = () => {
-    // Discord OAuth 로그인 로직
-    console.log("Login clicked");
+    // TODO: Discord OAuth 로그인 로직
     setIsLoggedIn(true);
   };
 

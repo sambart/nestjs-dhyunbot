@@ -1,11 +1,12 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
+  Entity,
   OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
+
 import { VoiceChannelHistory } from '../channel/voice/domain/voice-channel-history.entity';
 
 @Entity({ schema: 'public' })
@@ -16,8 +17,8 @@ export class Member {
   @Column({ unique: true })
   discordMemberId: string;
 
-  @Column()
-  nickName: string;
+  @Column({ name: 'nickName' })
+  nickname: string;
 
   @OneToMany(() => VoiceChannelHistory, (history) => history.member)
   voiceHistories: VoiceChannelHistory[];

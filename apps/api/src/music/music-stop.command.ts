@@ -1,13 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { Command, Handler, InteractionEvent, EventParams } from '@discord-nestjs/core';
-import { MusicService } from './music.service';
+import { Command, EventParams,Handler } from '@discord-nestjs/core';
+import { Injectable, Logger } from '@nestjs/common';
 import {
-  CommandInteraction,
-  GuildMember,
   ClientEvents,
-  ChatInputCommandInteraction,
 } from 'discord.js';
-import { SlashCommandPipe } from '@discord-nestjs/common';
+
+import { MusicService } from './music.service';
 
 @Injectable()
 @Command({
@@ -15,6 +12,7 @@ import { SlashCommandPipe } from '@discord-nestjs/common';
   description: '음악을 중지합니다.',
 })
 export class MusicStopCommand {
+  private readonly logger = new Logger(MusicStopCommand.name);
   constructor(private readonly musicService: MusicService) {}
 
   @Handler()
@@ -26,7 +24,7 @@ export class MusicStopCommand {
       await this.musicService.stop(interaction);
       //await interaction.reply(`Playing: ${dto.url}`);
     } catch (error) {
-      console.error('Error stop music:', error);
+      this.logger.error('Error stop music:', error);
       await interaction.reply('음악을 중지하는 동안 오류가 발생했습니다.');
     }
   }

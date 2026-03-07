@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { InjectDiscordClient, On } from '@discord-nestjs/core';
-import { Client, Channel } from 'discord.js';
+import { Injectable, Logger } from '@nestjs/common';
+import { Channel,Client } from 'discord.js';
+
 import { ChannelService } from '../../channel/channel.service';
 
 @Injectable()

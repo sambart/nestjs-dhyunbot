@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { VoiceRedisRepository } from '../channel/voice/infrastructure/voice.redis.repository';
+
+import { VoiceRedisRepository } from '../channel/voice/infrastructure/voice-redis.repository';
 import { DiscordGateway } from '../gateway/discord.gateway';
 
 export interface UserAggregateData {

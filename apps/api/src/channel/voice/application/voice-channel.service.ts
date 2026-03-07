@@ -1,11 +1,12 @@
+import { getKSTDateString } from '@dhyunbot/shared';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { VoiceStateDTO } from '../infrastructure/voice-state.dto';
-import { VoiceChannelPolicy } from './voice-channel.policy';
+
 import { DiscordVoiceGateway } from '../infrastructure/discord-voice.gateway';
 import { TempChannelStore } from '../infrastructure/temp-channel-store';
-import { VoiceRedisRepository } from '../infrastructure/voice.redis.repository';
+import { VoiceRedisRepository } from '../infrastructure/voice-redis.repository';
+import { VoiceStateDto } from '../infrastructure/voice-state.dto';
+import { VoiceChannelPolicy } from './voice-channel.policy';
 import { VoiceDailyFlushService } from './voice-daily-flush-service';
-import { getKSTDateString } from '@dhyunbot/shared';
 
 @Injectable()
 export class VoiceChannelService {
@@ -24,7 +25,7 @@ export class VoiceChannelService {
    * JOIN / UPDATE (공통 진입점)
    * ===============================
    */
-  async handleVoiceStateUpdate(cmd: VoiceStateDTO) {
+  async handleVoiceStateUpdate(cmd: VoiceStateDto) {
     const { guildId, userId } = cmd;
     const now = Date.now();
     const today = getKSTDateString();
@@ -74,7 +75,7 @@ export class VoiceChannelService {
     await this.voiceRedisRepository.setSession(guildId, userId, session);
   }
 
-  async onUserMove(oldCmd: VoiceStateDTO, newCmd: VoiceStateDTO) {
+  async onUserMove(oldCmd: VoiceStateDto, newCmd: VoiceStateDto) {
     const { guildId, userId } = newCmd;
     const now = Date.now();
 
@@ -130,7 +131,7 @@ export class VoiceChannelService {
    * LEAVE (세션 종료)
    * ===============================
    */
-  async onUserLeave(cmd: VoiceStateDTO) {
+  async onUserLeave(cmd: VoiceStateDto) {
     const { guildId, userId } = cmd;
     const now = Date.now();
 
@@ -160,7 +161,7 @@ export class VoiceChannelService {
    * JOIN 후 임시 채널 생성 정책
    * ===============================
    */
-  async onUserJoined(cmd: VoiceStateDTO) {
+  async onUserJoined(cmd: VoiceStateDto) {
     await this.handleVoiceStateUpdate(cmd);
 
     if (this.policy.shouldCreateTempChannel(cmd.channelId)) {
@@ -177,7 +178,7 @@ export class VoiceChannelService {
     this.logger.debug(`[VOICE ENTER] ${cmd.userId} ${cmd.channelName}`);
   }
 
-  async onUserMicToggle(cmd: VoiceStateDTO) {
+  async onUserMicToggle(cmd: VoiceStateDto) {
     await this.handleVoiceStateUpdate(cmd);
   }
 }

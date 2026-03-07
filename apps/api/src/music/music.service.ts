@@ -1,15 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Player, QueryType, useQueue } from 'discord-player';
 import { InjectDiscordClient } from '@discord-nestjs/core';
+import { DefaultExtractors } from '@discord-player/extractor';
+import { Injectable, Logger } from '@nestjs/common';
 import {
-  Client,
-  Interaction,
   CacheType,
   ChatInputCommandInteraction,
+  Client,
   GuildMember,
 } from 'discord.js';
+import { Player, QueryType, useQueue } from 'discord-player';
 import * as ytSearch from 'yt-search';
-import { DefaultExtractors } from '@discord-player/extractor';
 
 @Injectable()
 export class MusicService {
@@ -31,7 +30,7 @@ export class MusicService {
       this.logger.log(`Now playing: ${track.title}`);
     });
 
-    this.player.events.on('emptyQueue', (queue) => {
+    this.player.events.on('emptyQueue', (_queue) => {
       this.logger.debug('Queue ended');
     });
 
@@ -103,7 +102,6 @@ export class MusicService {
         content: '❌ | 더 이상 재생 중인 트랙이 없습니다.',
       });
 
-    const currentTrack = queue.currentTrack;
     const success = queue.node.skip();
     if (!success) return void interaction.followUp({ content: '❌ | 스킵할 수 없습니다.' });
 
