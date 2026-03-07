@@ -1,11 +1,14 @@
-// auth/auth.controller.ts
 import { Controller, Get, UseGuards, Res, Req } from '@nestjs/common/decorators';
 import { AuthGuard } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 
 @Controller('auth/discord')
 export class AuthController {
-  private readonly authService: AuthService;
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Get()
   @UseGuards(AuthGuard('discord'))
@@ -14,9 +17,9 @@ export class AuthController {
   @Get('callback')
   @UseGuards(AuthGuard('discord'))
   callback(@Req() req, @Res() res) {
-    // JWT 발급
     const token = this.authService.createToken(req.user);
+    const webUrl = this.configService.get<string>('WEB_URL', 'http://localhost:4000');
 
-    res.redirect(`http://localhost:3000/auth/callback?token=${token}`);
+    res.redirect(`${webUrl}/auth/callback?token=${token}`);
   }
 }

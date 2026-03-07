@@ -10,7 +10,6 @@ import { MemberModule } from '../../member/member.module';
 import { VoiceChannelPolicy } from './application/voice-channel.policy';
 import { DiscordVoiceGateway } from './infrastructure/discord-voice.gateway';
 import { RedisTempChannelStore } from './infrastructure/redis-temp-channel-store';
-import { RedisService } from '../../redis/redis.service';
 import { VoiceRedisRepository } from './infrastructure/voice.redis.repository';
 import { VoiceDailyFlushService } from './application/voice-daily-flush-service';
 import { VoiceDailyEntity } from './domain/voice-daily-entity';
@@ -19,8 +18,7 @@ import { VoiceDailyEntity } from './domain/voice-daily-entity';
   imports: [
     DiscordModule.forRootAsync(DiscordConfig),
     DiscordModule.forFeature(),
-    TypeOrmModule.forFeature([VoiceChannelHistory]),
-    TypeOrmModule.forFeature([VoiceDailyEntity]),
+    TypeOrmModule.forFeature([VoiceChannelHistory, VoiceDailyEntity]),
     MemberModule,
     ChannelModule,
   ],
@@ -29,7 +27,6 @@ import { VoiceDailyEntity } from './domain/voice-daily-entity';
     VoiceChannelHistoryService,
     VoiceChannelPolicy,
     DiscordVoiceGateway,
-    RedisService,
     {
       provide: 'TempChannelStore',
       useClass: RedisTempChannelStore,

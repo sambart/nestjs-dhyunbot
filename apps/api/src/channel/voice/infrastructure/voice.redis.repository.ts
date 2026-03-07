@@ -31,7 +31,6 @@ export class VoiceRedisRepository {
     if (session.channelId) {
       const channelKey = VoiceKeys.channelDuration(guild, user, date, session.channelId);
       await this.redis.incrBy(channelKey, elapsedSeconds);
-      console.log('체류시간 추가: ', elapsedSeconds);
     }
     /**
      * 2️⃣ 마이크 상태별 시간

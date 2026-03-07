@@ -4,8 +4,6 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToOne,
-  JoinColumn,
   ManyToOne,
 } from 'typeorm';
 import { Channel } from '../../channel.entity';
@@ -16,20 +14,11 @@ export class VoiceChannelHistory {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Channel, (channel) => channel.voiceHistories, { eager: true })
+  @ManyToOne(() => Channel, (channel) => channel.voiceHistories)
   channel: Channel;
 
-  @ManyToOne(() => Member, (member) => member.voiceHistories, { eager: true })
+  @ManyToOne(() => Member, (member) => member.voiceHistories)
   member: Member;
-
-  /*
-  // IN/OUT 접속여부
-  @Column({
-    type: 'enum',
-    enum: ['IN', 'OUT'], // 접속 여부를 ENUM으로 설정
-  })
-  inOutType: 'IN' | 'OUT';
-*/
 
   @Column({ type: 'timestamp', nullable: false })
   joinAt: Date;

@@ -1,30 +1,49 @@
-// Shared type definitions
+// API response types shared between api and web
 
-export interface User {
-  id: string;
-  username: string;
-  discriminator: string;
-  avatar?: string;
-}
-
-export interface VoiceChannelActivity {
-  userId: string;
-  channelId: string;
+export interface VoiceActivityData {
   guildId: string;
-  joinedAt: Date;
-  leftAt?: Date;
-  duration?: number;
+  guildName: string;
+  timeRange: {
+    start: string;
+    end: string;
+  };
+  totalStats: {
+    totalUsers: number;
+    totalVoiceTime: number;
+    totalMicOnTime: number;
+    avgDailyActiveUsers: number;
+  };
+  userActivities: Array<{
+    userId: string;
+    username: string;
+    totalVoiceTime: number;
+    totalMicOnTime: number;
+    totalMicOffTime: number;
+    aloneTime: number;
+    activeChannels: Array<{
+      channelId: string;
+      channelName: string;
+      duration: number;
+    }>;
+    activeDays: number;
+    avgDailyVoiceTime: number;
+    micUsageRate: number;
+  }>;
+  channelStats: Array<{
+    channelId: string;
+    channelName: string;
+    totalVoiceTime: number;
+    uniqueUsers: number;
+    avgSessionDuration: number;
+  }>;
+  dailyTrends: Array<{
+    date: string;
+    totalVoiceTime: number;
+    activeUsers: number;
+    avgMicUsage: number;
+  }>;
 }
 
-export interface VoiceDailyStats {
-  userId: string;
-  date: string;
-  totalDuration: number;
-  channelIds: string[];
-}
-
-export interface DiscordConfig {
-  token: string;
-  clientId: string;
-  commandPrefix: string;
+export interface VoiceAnalysisResult {
+  text: string;
 }

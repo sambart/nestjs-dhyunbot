@@ -18,6 +18,7 @@
     "web:build": "npm run build --workspace=@dhyunbot/web",
     "web:start": "npm run start --workspace=@dhyunbot/web",
     "build": "npm run build --workspaces --if-present",
+    "format": "prettier --write \"apps/*/src/**/*.{ts,tsx}\" \"libs/*/src/**/*.ts\"",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",

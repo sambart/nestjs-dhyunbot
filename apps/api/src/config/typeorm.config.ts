@@ -1,6 +1,5 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModuleAsyncOptions } from '@nestjs/typeorm';
-import { Logger } from '@nestjs/common';
 
 export const TypeORMConfig: TypeOrmModuleAsyncOptions = {
   imports: [ConfigModule],
@@ -14,8 +13,10 @@ export const TypeORMConfig: TypeOrmModuleAsyncOptions = {
     database: configService.get('DATABASE_NAME'),
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     autoLoadEntities: true,
-    synchronize: true, // 데이터베이스 자동 동기화
-    logging: true, // 쿼리 로깅 활성화
+    synchronize: false,
+    migrations: [__dirname + '/../migrations/*{.ts,.js}'],
+    migrationsTableName: 'migrations',
+    logging: configService.get('NODE_ENV') !== 'production',
     logger: 'advanced-console',
   }),
   inject: [ConfigService],

@@ -4,7 +4,7 @@ import { VoiceGeminiService } from './voice-gemini.service';
 import { VoiceAnalyticsService } from './voice-analytics.service';
 import { EmbedBuilder, Colors, CommandInteraction } from 'discord.js';
 import { SlashCommandPipe } from '@discord-nestjs/common';
-import { truncate } from '../common/helper';
+import { truncate } from '@dhyunbot/shared';
 
 class AnalyticsDaysDto {
   @Param({
@@ -74,7 +74,7 @@ export class VoiceStatsCommand {
         return hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`;
       };
 
-      console.log(analysis);
+      this.logger.debug('AI analysis result', analysis);
 
       const BASE_DESCRIPTION =
         `📊 **기본 통계**\n` +

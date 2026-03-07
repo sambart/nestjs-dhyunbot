@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { VoiceActivityData } from './voice-analytics.service';
-
-export interface VoiceAnalysisResult {
-  text: string; // 전체 분석 텍스트 (마크다운 형식)
-}
+import { VoiceActivityData, VoiceAnalysisResult } from '@dhyunbot/shared';
 
 @Injectable()
 export class VoiceGeminiService {

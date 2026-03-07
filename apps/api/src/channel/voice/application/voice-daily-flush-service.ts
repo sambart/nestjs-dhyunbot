@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { RedisService } from '../../../redis/redis.service';
 import { VoiceDailyEntity } from '../domain/voice-daily-entity';
 import { Repository } from 'typeorm';
-import { getKSTDateString } from '../../../common/helper';
+import { getKSTDateString } from '@dhyunbot/shared';
 import { VoiceRedisRepository } from '../infrastructure/voice.redis.repository';
 
 @Injectable()

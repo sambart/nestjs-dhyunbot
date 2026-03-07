@@ -1,29 +1,23 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { InjectDiscordClient } from '@discord-nestjs/core';
-import { Client } from 'discord.js';
 import { VoiceStateDTO } from '../infrastructure/voice-state.dto';
 import { VoiceChannelPolicy } from './voice-channel.policy';
 import { DiscordVoiceGateway } from '../infrastructure/discord-voice.gateway';
 import { TempChannelStore } from '../infrastructure/temp-channel-store';
 import { VoiceRedisRepository } from '../infrastructure/voice.redis.repository';
 import { VoiceDailyFlushService } from './voice-daily-flush-service';
-import { getKSTDateString } from '../../../common/helper';
+import { getKSTDateString } from '@dhyunbot/shared';
 
 @Injectable()
 export class VoiceChannelService {
   private readonly logger = new Logger(VoiceChannelService.name);
-  private readonly discord: DiscordVoiceGateway;
 
   constructor(
-    @InjectDiscordClient()
-    private readonly client: Client,
     @Inject('TempChannelStore') private readonly tempChannelStore: TempChannelStore,
     private readonly policy: VoiceChannelPolicy,
     private readonly voiceRedisRepository: VoiceRedisRepository,
     private readonly voiceDailyFlushService: VoiceDailyFlushService,
-  ) {
-    this.discord = new DiscordVoiceGateway(this.client);
-  }
+    private readonly discord: DiscordVoiceGateway,
+  ) {}
 
   /**
    * ===============================
@@ -167,7 +161,6 @@ export class VoiceChannelService {
    * ===============================
    */
   async onUserJoined(cmd: VoiceStateDTO) {
-    console.log('onUserJoined');
     await this.handleVoiceStateUpdate(cmd);
 
     if (this.policy.shouldCreateTempChannel(cmd.channelId)) {

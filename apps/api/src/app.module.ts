@@ -8,15 +8,13 @@ import { TypeORMConfig } from './config/typeorm.config';
 import { DiscordConfig } from './config/discord.config';
 import { BaseConfig } from './config/base.config';
 import { ChannelModule } from './channel/channel.module';
-import { Logger } from '@nestjs/common';
 import { VoiceChannelModule } from './channel/voice/voice-channel.module';
-import { Member } from './member/member.entity';
-import { VoiceChannelHistory } from './channel/voice/domain/voice-channel-history.entity';
-import { Channel } from './channel/channel.entity';
 import { MusicModule } from './music/music.module';
 import { DiscordEventsModule } from './event/discord-events.module';
 import { RedisModule } from './redis/redis.module';
 import { VoiceAnalyticsModule } from './gemini/voice-analytics.module';
+import { AuthModule } from './auth/auth.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot(BaseConfig),
@@ -28,14 +26,9 @@ import { VoiceAnalyticsModule } from './gemini/voice-analytics.module';
     DiscordEventsModule,
     RedisModule,
     VoiceAnalyticsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {
-  constructor(private configService: ConfigService) {
-    // 환경 변수 확인
-    //const data = this.configService.get('DATABASE_USER');
-    //Logger.log(`DATABASE_USER: ${data}`);
-  }
-}
+export class AppModule {}

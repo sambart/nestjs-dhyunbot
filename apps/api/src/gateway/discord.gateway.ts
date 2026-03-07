@@ -9,16 +9,23 @@ import { Client, Guild, GuildMember, GuildChannel } from 'discord.js';
 @Injectable()
 export class DiscordGateway {
   private readonly logger = new Logger(DiscordGateway.name);
+  private static readonly MAX_CACHE_SIZE = 1000;
 
-  // 캐시 (메모리 효율성을 위해 LRU 캐시 고려 가능)
   private guildCache = new Map<string, Guild>();
-  private userCache = new Map<string, string>(); // userId -> username
-  private channelCache = new Map<string, string>(); // channelId -> channelName
+  private userCache = new Map<string, string>();
+  private channelCache = new Map<string, string>();
 
   constructor(
     @InjectDiscordClient()
     private readonly client: Client,
   ) {}
+
+  private evictIfNeeded(cache: Map<string, any>) {
+    if (cache.size >= DiscordGateway.MAX_CACHE_SIZE) {
+      cache.clear();
+      this.logger.debug(`Cache evicted (exceeded ${DiscordGateway.MAX_CACHE_SIZE})`);
+    }
+  }
 
   /**
    * Guild 가져오기 (캐시 사용)
@@ -30,8 +37,8 @@ export class DiscordGateway {
         return this.guildCache.get(guildId);
       }
 
-      // Discord API 호출
       const guild = await this.client.guilds.fetch(guildId);
+      this.evictIfNeeded(this.guildCache);
       this.guildCache.set(guildId, guild);
       return guild;
     } catch (error) {
@@ -69,7 +76,7 @@ export class DiscordGateway {
       const member = await guild.members.fetch(userId).catch(() => null);
       const username = member ? member.user.displayName : `User-${userId.slice(0, 6)}`;
 
-      // 캐시 저장
+      this.evictIfNeeded(this.userCache);
       this.userCache.set(cacheKey, username);
       return username;
     } catch (error) {
@@ -78,33 +85,26 @@ export class DiscordGateway {
     }
   }
 
-  /**
-   * 채널명 가져오기 (캐시 사용)
-   */
   async getChannelName(guildId: string, channelId: string): Promise<string> {
     try {
-      // GLOBAL 채널은 특수 처리
       if (channelId === 'GLOBAL') {
         return '전체';
       }
 
-      // 캐시 확인
       const cacheKey = `${guildId}:${channelId}`;
       if (this.channelCache.has(cacheKey)) {
         return this.channelCache.get(cacheKey);
       }
 
-      // Guild 가져오기
       const guild = await this.getGuild(guildId);
       if (!guild) {
         return `Channel-${channelId.slice(0, 6)}`;
       }
 
-      // Channel 가져오기
       const channel = await guild.channels.fetch(channelId).catch(() => null);
       const channelName = channel ? channel.name : `Channel-${channelId.slice(0, 6)}`;
 
-      // 캐시 저장
+      this.evictIfNeeded(this.channelCache);
       this.channelCache.set(cacheKey, channelName);
       return channelName;
     } catch (error) {
@@ -148,6 +148,7 @@ export class DiscordGateway {
       } else {
         const member = guild.members.cache.get(userId);
         const username = member ? member.user.displayName : `User-${userId.slice(0, 6)}`;
+        this.evictIfNeeded(this.userCache);
         this.userCache.set(cacheKey, username);
         result.set(userId, username);
       }
@@ -187,6 +188,7 @@ export class DiscordGateway {
       } else {
         const channel = guild.channels.cache.get(channelId);
         const channelName = channel ? channel.name : `Channel-${channelId.slice(0, 6)}`;
+        this.evictIfNeeded(this.channelCache);
         this.channelCache.set(cacheKey, channelName);
         result.set(channelId, channelName);
       }

@@ -1,6 +1,7 @@
 import { Controller, Get, Query, Param, BadRequestException, UseGuards } from '@nestjs/common';
-import { VoiceAnalyticsService, VoiceActivityData } from './voice-analytics.service';
-import { VoiceAnalysisResult, VoiceGeminiService } from './voice-gemini.service';
+import { VoiceActivityData, VoiceAnalysisResult } from '@dhyunbot/shared';
+import { VoiceAnalyticsService } from './voice-analytics.service';
+import { VoiceGeminiService } from './voice-gemini.service';
 
 @Controller('voice-analytics')
 export class VoiceAnalyticsController {
