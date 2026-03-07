@@ -20,7 +20,7 @@ export class VoiceTempChannelService {
       const tempChannelId = await this.discord.createVoiceChannel({
         guildId: cmd.guildId,
         name: '임시',
-        parentCategoryId: cmd.parentCategoryId,
+        parentCategoryId: cmd.parentCategoryId ?? undefined,
       });
 
       await this.tempChannelStore.registerTempChannel(cmd.guildId, tempChannelId);

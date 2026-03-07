@@ -16,10 +16,13 @@ export class VoiceDailyFlushService {
   async flushTodayAll() {
     const today = getKSTDateString();
 
-    const guildKeys = await this.redis.scanKeys(`voice:duration:*`);
+    // voice:session:{guildId}:{userId} 패턴으로 활성 세션 탐색
+    const sessionKeys = await this.redis.scanKeys('voice:session:*');
 
-    for (const entry of guildKeys) {
-      const [guild, user] = entry.split(':');
+    for (const key of sessionKeys) {
+      const parts = key.split(':');
+      const guild = parts[2];
+      const user = parts[3];
       await this.flushDate(guild, user, today);
     }
   }

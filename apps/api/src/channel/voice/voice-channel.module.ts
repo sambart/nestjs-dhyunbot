@@ -9,6 +9,7 @@ import { VoiceChannelService } from './application/voice-channel.service';
 import { VoiceChannelHistoryService } from './application/voice-channel-history.service';
 import { VoiceDailyFlushService } from './application/voice-daily-flush-service';
 import { VoiceSessionService } from './application/voice-session.service';
+import { VoiceRecoveryService } from './application/voice-recovery.service';
 import { VoiceTempChannelService } from './application/voice-temp-channel.service';
 import { VoiceChannelHistory } from './domain/voice-channel-history.entity';
 import { VoiceDailyEntity } from './domain/voice-daily.entity';
@@ -38,7 +39,8 @@ import { VoiceRedisRepository } from './infrastructure/voice-redis.repository';
     VoiceRedisRepository,
     VoiceDailyRepository,
     VoiceDailyFlushService,
+    VoiceRecoveryService,
   ],
-  exports: [VoiceChannelService, TypeOrmModule],
+  exports: [VoiceChannelService, VoiceDailyFlushService, VoiceRedisRepository, TypeOrmModule],
 })
 export class VoiceChannelModule {}

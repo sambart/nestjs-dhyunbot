@@ -1,6 +1,7 @@
 import { getKSTDateString } from '@dhyunbot/shared';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { RedisService } from '../../../redis/redis.service';
 import { VoiceRedisRepository } from '../infrastructure/voice-redis.repository';
 import { VoiceStateDto } from '../infrastructure/voice-state.dto';
 import { VoiceDailyFlushService } from './voice-daily-flush-service';
@@ -12,6 +13,7 @@ export class VoiceSessionService {
   constructor(
     private readonly voiceRedisRepository: VoiceRedisRepository,
     private readonly voiceDailyFlushService: VoiceDailyFlushService,
+    private readonly redis: RedisService,
   ) {}
 
   async startOrUpdateSession(cmd: VoiceStateDto): Promise<void> {
@@ -124,5 +126,29 @@ export class VoiceSessionService {
     await this.voiceRedisRepository.deleteSession(guildId, userId);
 
     this.logger.log(`[VOICE LEAVE] ${userId} ${cmd.channelName}`);
+  }
+
+  /**
+   * 채널 내 남은 유저들의 alone 상태를 갱신한다.
+   * leave/join/move 이벤트 발생 후 호출하여 정확도를 높인다.
+   */
+  async updateAloneForChannel(
+    guildId: string,
+    channelMemberIds: string[],
+    isAlone: boolean,
+  ): Promise<void> {
+    const now = Date.now();
+
+    for (const memberId of channelMemberIds) {
+      const session = await this.voiceRedisRepository.getSession(guildId, memberId);
+      if (!session) continue;
+      if (session.alone === isAlone) continue;
+
+      // 기존 상태 기준으로 누적 마감 후 alone 전환
+      await this.voiceRedisRepository.accumulateDuration(guildId, memberId, session, now);
+      session.alone = isAlone;
+      session.lastUpdatedAt = now;
+      await this.voiceRedisRepository.setSession(guildId, memberId, session);
+    }
   }
 }

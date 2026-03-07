@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { VoiceState } from 'discord.js';
+import { OnEvent } from '@nestjs/event-emitter';
 
 import { VoiceChannelService } from '../../channel/voice/application/voice-channel.service';
-import { VoiceStateDto } from '../../channel/voice/infrastructure/voice-state.dto';
+import { VOICE_EVENTS, VoiceLeaveEvent } from './voice-events';
 
 @Injectable()
 export class VoiceLeaveHandler {
   constructor(private readonly voiceChannelService: VoiceChannelService) {}
 
-  async handle(state: VoiceState) {
-    await this.voiceChannelService.onUserLeave(VoiceStateDto.fromVoiceState(state));
+  @OnEvent(VOICE_EVENTS.LEAVE)
+  async handle(event: VoiceLeaveEvent) {
+    await this.voiceChannelService.onUserLeave(event.state);
   }
 }

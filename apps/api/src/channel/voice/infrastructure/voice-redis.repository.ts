@@ -16,14 +16,13 @@ const TTL = {
 export class VoiceRedisRepository {
   constructor(private readonly redis: RedisService) {}
 
-  /** 세션 기반으로 duration 누적 */
+  /** 세션 기반으로 duration 누적 (Pipeline으로 1회 왕복) */
   async accumulateDuration(
     guild: string,
     user: string,
     session: VoiceSession,
     now: number = Date.now(),
   ) {
-    // 최초 진입
     if (!session.lastUpdatedAt) {
       session.lastUpdatedAt = now;
       return;
@@ -32,41 +31,25 @@ export class VoiceRedisRepository {
     const elapsedSeconds = Math.floor((now - session.lastUpdatedAt) / 1000);
     if (elapsedSeconds <= 0) return;
 
-    // ⭐ 핵심: date는 session 기준
     const date = session.date;
-    /**
-     * 1️⃣ 채널별 체류 시간
-     */
-    if (session.channelId) {
-      const channelKey = VoiceKeys.channelDuration(guild, user, date, session.channelId);
-      await this.redis.incrBy(channelKey, elapsedSeconds);
-    }
-    /**
-     * 2️⃣ 마이크 상태별 시간
-     */
-
-    if (session.channelId) {
-      const micKey = VoiceKeys.micDuration(guild, user, date, session.mic ? 'on' : 'off');
-      await this.redis.incrBy(micKey, elapsedSeconds);
-    }
-    /**
-     * 3️⃣ 혼자 있었던 시간
-     */
-    if (session.alone && session.channelId) {
-      const aloneKey = VoiceKeys.aloneDuration(guild, user, date);
-      await this.redis.incrBy(aloneKey, elapsedSeconds);
-    }
-
-    /**
-     * 4️⃣ 세션 갱신
-     */
     session.lastUpdatedAt = now;
 
-    /**
-     * 5️⃣ Redis 세션 저장 (TTL 12시간)
-     */
-    const sessionKey = VoiceKeys.session(guild, user);
-    await this.redis.set(sessionKey, session, TTL.SESSION);
+    await this.redis.pipeline((pipe) => {
+      // 채널별 체류 시간
+      if (session.channelId) {
+        pipe.incrby(VoiceKeys.channelDuration(guild, user, date, session.channelId), elapsedSeconds);
+      }
+      // 마이크 상태별 시간
+      if (session.channelId) {
+        pipe.incrby(VoiceKeys.micDuration(guild, user, date, session.mic ? 'on' : 'off'), elapsedSeconds);
+      }
+      // 혼자 있었던 시간
+      if (session.alone && session.channelId) {
+        pipe.incrby(VoiceKeys.aloneDuration(guild, user, date), elapsedSeconds);
+      }
+      // 세션 저장 (TTL 12시간)
+      pipe.set(VoiceKeys.session(guild, user), JSON.stringify(session), 'EX', TTL.SESSION);
+    });
   }
 
   /** 세션 조회 */
@@ -80,10 +63,9 @@ export class VoiceRedisRepository {
     const key = VoiceKeys.session(guild, user);
     await this.redis.set(key, session, TTL.SESSION);
   }
-  async deleteSession(guild: string, user: string) {
+  async deleteSession(guild: string, user: string): Promise<void> {
     const key = VoiceKeys.session(guild, user);
-    this.redis.del(key);
-    return true;
+    await this.redis.del(key);
   }
 
   /** 채널명 캐시 */

@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { VoiceState } from 'discord.js';
+import { OnEvent } from '@nestjs/event-emitter';
 
 import { VoiceChannelService } from '../../channel/voice/application/voice-channel.service';
-import { VoiceStateDto } from '../../channel/voice/infrastructure/voice-state.dto';
+import { VOICE_EVENTS, VoiceMicToggleEvent } from './voice-events';
 
 @Injectable()
 export class MicToggleHandler {
   constructor(private readonly voiceChannelService: VoiceChannelService) {}
 
-  async handle(state: VoiceState) {
-    await this.voiceChannelService.onUserMicToggle(VoiceStateDto.fromVoiceState(state));
+  @OnEvent(VOICE_EVENTS.MIC_TOGGLE)
+  async handle(event: VoiceMicToggleEvent) {
+    await this.voiceChannelService.onUserMicToggle(event.state);
   }
 }

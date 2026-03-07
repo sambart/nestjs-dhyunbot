@@ -18,15 +18,16 @@ export class VoiceStateDto {
     public readonly channelId: string,
     public readonly userName: string,
     public readonly channelName: string,
-    public readonly parentCategoryId: string,
+    public readonly parentCategoryId: string | null,
     public readonly micOn: boolean,
     public readonly alone: boolean,
+    public readonly channelMemberCount: number,
   ) {}
 
   static fromVoiceState(state: VoiceState): VoiceStateDto {
-    if (!state.guild || !state.member || !state.channelId || !state.channel?.parentId) {
+    if (!state.guild || !state.member || !state.channelId || !state.channel) {
       throw new InvalidVoiceStateError(
-        `Invalid VoiceState: guild=${!!state.guild} member=${!!state.member} channelId=${state.channelId} parentId=${state.channel?.parentId}`,
+        `Invalid VoiceState: guild=${!!state.guild} member=${!!state.member} channelId=${state.channelId}`,
         state.guild?.id,
         state.member?.id,
       );
@@ -38,9 +39,10 @@ export class VoiceStateDto {
       state.channelId,
       state.member.displayName,
       state.channel.name,
-      state.channel.parentId,
+      state.channel.parentId ?? null,
       !state.selfMute,
       state.channel.members.size === 1,
+      state.channel.members.size,
     );
   }
 }

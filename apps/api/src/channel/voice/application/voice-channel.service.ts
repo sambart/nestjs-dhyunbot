@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { ChannelService } from '../../channel.service';
+import { MemberService } from '../../../member/member.service';
 import { VoiceStateDto } from '../infrastructure/voice-state.dto';
+import { VoiceChannelHistoryService } from './voice-channel-history.service';
 import { VoiceSessionService } from './voice-session.service';
 import { VoiceTempChannelService } from './voice-temp-channel.service';
 
@@ -11,20 +14,48 @@ export class VoiceChannelService {
   constructor(
     private readonly sessionService: VoiceSessionService,
     private readonly tempChannelService: VoiceTempChannelService,
+    private readonly historyService: VoiceChannelHistoryService,
+    private readonly memberService: MemberService,
+    private readonly channelService: ChannelService,
   ) {}
 
   async onUserJoined(cmd: VoiceStateDto) {
-    await this.sessionService.startOrUpdateSession(cmd);
-    await this.tempChannelService.handleJoin(cmd);
+    const [member, channel] = await Promise.all([
+      this.memberService.findOrCreateMember(cmd.userId, cmd.userName),
+      this.channelService.findOrCreateChannel(cmd.channelId, cmd.channelName),
+    ]);
+
+    await Promise.all([
+      this.historyService.logJoin(member, channel),
+      this.sessionService.startOrUpdateSession(cmd),
+      this.tempChannelService.handleJoin(cmd),
+    ]);
+
     this.logger.log(`[VOICE ENTER] ${cmd.userId} ${cmd.channelName}`);
   }
 
   async onUserLeave(cmd: VoiceStateDto) {
+    const [member, channel] = await Promise.all([
+      this.memberService.findOrCreateMember(cmd.userId, cmd.userName),
+      this.channelService.findOrCreateChannel(cmd.channelId, cmd.channelName),
+    ]);
+
+    await this.historyService.logLeave(member, channel);
     await this.sessionService.closeSession(cmd);
     await this.tempChannelService.handleLeave(cmd);
+
+    this.logger.log(`[VOICE LEAVE] ${cmd.userId} ${cmd.channelName}`);
   }
 
   async onUserMove(oldCmd: VoiceStateDto, newCmd: VoiceStateDto) {
+    const [member, oldChannel, newChannel] = await Promise.all([
+      this.memberService.findOrCreateMember(newCmd.userId, newCmd.userName),
+      this.channelService.findOrCreateChannel(oldCmd.channelId, oldCmd.channelName),
+      this.channelService.findOrCreateChannel(newCmd.channelId, newCmd.channelName),
+    ]);
+
+    await this.historyService.logLeave(member, oldChannel);
+    await this.historyService.logJoin(member, newChannel);
     await this.sessionService.switchChannel(oldCmd, newCmd);
   }
 

@@ -1,6 +1,7 @@
 import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AppController } from './app.controller';
@@ -19,6 +20,7 @@ import { RedisModule } from './redis/redis.module';
 @Module({
   imports: [
     ConfigModule.forRoot(BaseConfig),
+    EventEmitterModule.forRoot(),
     DiscordModule.forRootAsync(DiscordConfig),
     TypeOrmModule.forRootAsync(TypeORMConfig),
     ChannelModule,
