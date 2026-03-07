@@ -10,8 +10,8 @@ COPY tsconfig.json ./
 COPY apps/api/package*.json ./apps/api/
 COPY libs/shared/package*.json ./libs/shared/
 
-# Install dependencies
-RUN npm install
+# Install dependencies (cache mount for faster rebuilds)
+RUN --mount=type=cache,target=/root/.npm npm install
 
 # Copy shared library and build
 COPY libs/shared ./libs/shared
@@ -35,7 +35,7 @@ COPY apps/api/package*.json ./apps/api/
 COPY libs/shared/package*.json ./libs/shared/
 
 # Install only production dependencies
-RUN npm install --omit=dev
+RUN --mount=type=cache,target=/root/.npm npm install --omit=dev
 
 # Copy built shared library
 COPY --from=builder /workspace/libs/shared/dist ./libs/shared/dist
