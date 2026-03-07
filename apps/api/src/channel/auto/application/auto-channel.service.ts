@@ -377,8 +377,12 @@ export class AutoChannelService {
             .setLabel(opt.label)
             .setStyle(ButtonStyle.Primary);
 
-          if (opt.emoji) {
-            builder.setEmoji(opt.emoji);
+          if (opt.emoji && opt.emoji.trim()) {
+            try {
+              builder.setEmoji(opt.emoji.trim());
+            } catch {
+              // 유효하지 않은 이모지 무시
+            }
           }
 
           return builder;

@@ -133,8 +133,12 @@ export class AutoChannelDiscordGateway {
             .setLabel(btn.label)
             .setStyle(ButtonStyle.Primary);
 
-          if (btn.emoji) {
-            builder.setEmoji(btn.emoji);
+          if (btn.emoji && btn.emoji.trim()) {
+            try {
+              builder.setEmoji(btn.emoji.trim());
+            } catch {
+              // 유효하지 않은 이모지 무시
+            }
           }
 
           return builder;

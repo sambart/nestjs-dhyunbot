@@ -200,13 +200,13 @@ export default function AutoChannelSettingsPage() {
       embedColor: form.embedColor || null,
       buttons: form.buttons.map((b, i) => ({
         label: b.label,
-        emoji: b.emoji || undefined,
+        emoji: b.emoji.trim() || undefined,
         targetCategoryId: b.targetCategoryId,
         channelNameTemplate: b.channelNameTemplate || undefined,
         sortOrder: i,
         subOptions: b.subOptions.map((s, j) => ({
           label: s.label,
-          emoji: s.emoji || undefined,
+          emoji: s.emoji.trim() || undefined,
           channelSuffix: s.channelSuffix,
           sortOrder: j,
         })),
