@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { VoiceChannelHistory } from '../channel/voice/domain/voice-channel-history.entity';
 import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
+import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
 import { RedisModule } from '../redis/redis.module';
 import { NewbieConfig } from './domain/newbie-config.entity';
 import { NewbieMission } from './domain/newbie-mission.entity';
@@ -32,6 +33,7 @@ import { WelcomeService } from './welcome/welcome.service';
       VoiceDailyEntity,
       VoiceChannelHistory,
     ]),
+    VoiceChannelModule,
     RedisModule,
     AuthModule,
   ],

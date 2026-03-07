@@ -8,6 +8,7 @@ import { VoiceChannelPolicy } from './application/voice-channel.policy';
 import { VoiceChannelService } from './application/voice-channel.service';
 import { VoiceChannelHistoryService } from './application/voice-channel-history.service';
 import { VoiceDailyFlushService } from './application/voice-daily-flush-service';
+import { VoiceFlushCommand } from './application/voice-flush.command';
 import { VoiceSessionService } from './application/voice-session.service';
 import { VoiceRecoveryService } from './application/voice-recovery.service';
 import { VoiceTempChannelService } from './application/voice-temp-channel.service';
@@ -39,6 +40,7 @@ import { VoiceRedisRepository } from './infrastructure/voice-redis.repository';
     VoiceRedisRepository,
     VoiceDailyRepository,
     VoiceDailyFlushService,
+    VoiceFlushCommand,
     VoiceRecoveryService,
   ],
   exports: [VoiceChannelService, VoiceSessionService, VoiceDailyFlushService, VoiceRedisRepository, DiscordVoiceGateway, TypeOrmModule],

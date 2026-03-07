@@ -15,6 +15,7 @@ import { NewbieConfigSaveDto } from './dto/newbie-config-save.dto';
 import { NewbieConfigRepository } from './infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from './infrastructure/newbie-mission.repository';
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
+import { MocoService } from './moco/moco.service';
 
 @Controller('api/guilds/:guildId/newbie')
 @UseGuards(JwtAuthGuard)
@@ -23,6 +24,7 @@ export class NewbieController {
     private readonly configRepo: NewbieConfigRepository,
     private readonly missionRepo: NewbieMissionRepository,
     private readonly redisRepo: NewbieRedisRepository,
+    private readonly mocoService: MocoService,
   ) {}
 
   /**
@@ -54,6 +56,12 @@ export class NewbieController {
   ): Promise<{ ok: boolean }> {
     const savedConfig = await this.configRepo.upsert(guildId, dto);
     await this.redisRepo.setConfig(guildId, savedConfig);
+
+    // 모코코 설정이 활성이고 채널이 지정되어 있으면 Embed 전송/갱신
+    if (savedConfig.mocoEnabled && savedConfig.mocoRankChannelId) {
+      await this.mocoService.sendOrUpdateRankEmbed(guildId, 1);
+    }
+
     return { ok: true };
   }
 

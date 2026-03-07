@@ -1,5 +1,5 @@
 import { getKSTDateString } from '@dhyunbot/shared';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { RedisService } from '../../../redis/redis.service';
 import { VoiceDailyRepository } from '../infrastructure/voice-daily.repository';
@@ -7,6 +7,9 @@ import { VoiceRedisRepository } from '../infrastructure/voice-redis.repository';
 
 @Injectable()
 export class VoiceDailyFlushService {
+  private readonly logger = new Logger(VoiceDailyFlushService.name);
+  private flushing = false;
+
   constructor(
     private readonly redis: RedisService,
     private readonly voiceDailyRepository: VoiceDailyRepository,
@@ -77,6 +80,52 @@ export class VoiceDailyFlushService {
     if (aloneSec > 0) {
       await this.voiceDailyRepository.accumulateAloneDuration(guild, user, date, aloneSec);
       await this.redis.del(aloneKey);
+    }
+  }
+
+  /** 활성 세션의 미누적 구간을 포함하여 안전하게 전체 flush */
+  async safeFlushAll(): Promise<{ flushed: number; skipped: number }> {
+    if (this.flushing) throw new Error('이미 집계가 진행 중입니다.');
+    this.flushing = true;
+
+    try {
+      const sessionKeys = await this.redis.scanKeys('voice:session:*');
+      const now = Date.now();
+      let flushed = 0;
+      let skipped = 0;
+
+      for (const key of sessionKeys) {
+        try {
+          const parts = key.split(':');
+          const guildId = parts[2];
+          const userId = parts[3];
+
+          const session = await this.voiceRedisRepository.getSession(guildId, userId);
+          if (!session) {
+            skipped++;
+            continue;
+          }
+
+          // 1. 현재 시점까지 미누적 구간 누적
+          await this.voiceRedisRepository.accumulateDuration(guildId, userId, session, now);
+
+          // 2. DB flush
+          await this.flushDate(guildId, userId, session.date);
+
+          // 3. 세션 lastUpdatedAt 갱신 (이중 카운팅 방지, 세션 유지)
+          session.lastUpdatedAt = now;
+          await this.voiceRedisRepository.setSession(guildId, userId, session);
+
+          flushed++;
+        } catch (error) {
+          skipped++;
+          this.logger.error(`Failed to flush session: ${key}`, (error as Error).stack);
+        }
+      }
+
+      return { flushed, skipped };
+    } finally {
+      this.flushing = false;
     }
   }
 }

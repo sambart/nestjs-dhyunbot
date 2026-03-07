@@ -12,6 +12,7 @@ import {
 } from 'discord.js';
 import { Repository } from 'typeorm';
 
+import { VoiceDailyFlushService } from '../../channel/voice/application/voice-daily-flush-service';
 import { VoiceChannelHistory } from '../../channel/voice/domain/voice-channel-history.entity';
 import { VoiceDailyEntity } from '../../channel/voice/domain/voice-daily.entity';
 import { NewbieConfig } from '../domain/newbie-config.entity';
@@ -29,6 +30,7 @@ export class MissionService {
     private readonly missionRepo: NewbieMissionRepository,
     private readonly configRepo: NewbieConfigRepository,
     private readonly newbieRedis: NewbieRedisRepository,
+    private readonly voiceDailyFlushService: VoiceDailyFlushService,
     @InjectRepository(VoiceDailyEntity)
     private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
     @InjectRepository(VoiceChannelHistory)
@@ -185,6 +187,7 @@ export class MissionService {
    * 갱신 버튼 클릭 시 호출. 미션 캐시 무효화 후 Embed 갱신.
    */
   async invalidateAndRefresh(guildId: string): Promise<void> {
+    await this.voiceDailyFlushService.safeFlushAll();
     await this.newbieRedis.deleteMissionActive(guildId);
     await this.refreshMissionEmbed(guildId);
   }
