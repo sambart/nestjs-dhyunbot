@@ -325,12 +325,27 @@ export class AutoChannelService {
   }
 
   /**
-   * 확정방 채널명 중복 시 순번 부여.
-   * 예: "DHyun의 오버워치" → "DHyun의 오버워치 2"
+   * 확정방 채널명 중복 해소.
+   *
+   * 템플릿에 {n}이 포함된 경우:
+   *   {n}을 1부터 증가시키며 사용 가능한 이름 반환.
+   *   예: "오버워치 #{n}" → "오버워치 #1", "오버워치 #2", ...
+   *
+   * {n}이 없는 경우 (기존 방식):
+   *   중복 시 " 2", " 3", ... 순번 부여.
+   *   예: "DHyun의 오버워치" → "DHyun의 오버워치 2"
    */
   private async resolveChannelName(guildId: string, baseName: string): Promise<string> {
     const existingNames = await this.autoChannelDiscordGateway.fetchGuildVoiceChannelNames(guildId);
     const nameSet = new Set(existingNames);
+
+    if (baseName.includes('{n}')) {
+      let index = 1;
+      while (nameSet.has(baseName.replace(/{n}/g, String(index)))) {
+        index++;
+      }
+      return baseName.replace(/{n}/g, String(index));
+    }
 
     if (!nameSet.has(baseName)) {
       return baseName;

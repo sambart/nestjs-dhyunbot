@@ -54,6 +54,9 @@ export class NewbieConfig {
   @Column({ nullable: true })
   missionEmbedTitle: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  missionEmbedDescription: string | null;
+
   @Column({ nullable: true })
   missionEmbedColor: string | null;
 
@@ -75,6 +78,9 @@ export class NewbieConfig {
 
   @Column({ nullable: true })
   mocoEmbedTitle: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  mocoEmbedDescription: string | null;
 
   @Column({ nullable: true })
   mocoEmbedColor: string | null;

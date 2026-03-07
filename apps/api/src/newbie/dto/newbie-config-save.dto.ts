@@ -57,6 +57,10 @@ export class NewbieConfigSaveDto {
 
   @IsOptional()
   @IsString()
+  missionEmbedDescription?: string | null;
+
+  @IsOptional()
+  @IsString()
   missionEmbedColor?: string | null;
 
   @IsOptional()
@@ -80,6 +84,10 @@ export class NewbieConfigSaveDto {
   @IsOptional()
   @IsString()
   mocoEmbedTitle?: string | null;
+
+  @IsOptional()
+  @IsString()
+  mocoEmbedDescription?: string | null;
 
   @IsOptional()
   @IsString()

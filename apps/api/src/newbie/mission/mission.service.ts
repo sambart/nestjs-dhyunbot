@@ -235,13 +235,21 @@ export class MissionService {
       lines.push('');
     }
 
+    const templateVars: Record<string, string> = {
+      count: String(missions.length),
+      missionList: lines.join('\n'),
+    };
+
     const titleTemplate = config.missionEmbedTitle ?? '🧑‍🌾 신입 미션 체크';
-    const titleVars: Record<string, string> = { count: String(missions.length) };
-    const resolvedTitle = this.applyTemplate(titleTemplate, titleVars);
+    const resolvedTitle = this.applyTemplate(titleTemplate, templateVars);
+
+    const descTemplate =
+      config.missionEmbedDescription ?? '{missionList}';
+    const resolvedDesc = this.applyTemplate(descTemplate, templateVars);
 
     const embed = new EmbedBuilder()
       .setTitle(resolvedTitle)
-      .setDescription(lines.join('\n'))
+      .setDescription(resolvedDesc)
       .setColor(config.missionEmbedColor ? (config.missionEmbedColor as `#${string}`) : 0x57f287)
       .setTimestamp();
 

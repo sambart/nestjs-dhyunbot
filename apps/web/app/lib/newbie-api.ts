@@ -13,6 +13,7 @@ export interface NewbieConfig {
   missionTargetPlaytimeHours: number | null;
   missionNotifyChannelId: string | null;
   missionEmbedTitle: string | null;
+  missionEmbedDescription: string | null;
   missionEmbedColor: string | null;
   missionEmbedThumbnailUrl: string | null;
 
@@ -21,6 +22,7 @@ export interface NewbieConfig {
   mocoRankChannelId: string | null;
   mocoAutoRefreshMinutes: number | null;
   mocoEmbedTitle: string | null;
+  mocoEmbedDescription: string | null;
   mocoEmbedColor: string | null;
   mocoEmbedThumbnailUrl: string | null;
 

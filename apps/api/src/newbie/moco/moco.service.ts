@@ -238,15 +238,24 @@ export class MocoService {
       ? `페이지 ${currentPage}/${totalPages} | 자동 갱신 ${autoRefreshMinutes}분`
       : `페이지 ${currentPage}/${totalPages}`;
 
+    const defaultDesc = `총 모코코 사냥 시간: ${totalMinutes}분\n\n도움을 받은 모코코들:\n${detailLines || '없음'}`;
+
+    const templateVars: Record<string, string> = {
+      rank: String(rank),
+      hunterName,
+      totalMinutes: String(totalMinutes),
+      rankDetails: defaultDesc,
+    };
+
     const titleTemplate = config?.mocoEmbedTitle ?? '모코코 사냥 TOP {rank} — {hunterName} 🌱';
-    const titleVars: Record<string, string> = { rank: String(rank), hunterName };
-    const resolvedTitle = this.applyTemplate(titleTemplate, titleVars);
+    const resolvedTitle = this.applyTemplate(titleTemplate, templateVars);
+
+    const descTemplate = config?.mocoEmbedDescription ?? '{rankDetails}';
+    const resolvedDesc = this.applyTemplate(descTemplate, templateVars);
 
     const embed = new EmbedBuilder()
       .setTitle(resolvedTitle)
-      .setDescription(
-        `총 모코코 사냥 시간: ${totalMinutes}분\n\n도움을 받은 모코코들:\n${detailLines || '없음'}`,
-      )
+      .setDescription(resolvedDesc)
       .setFooter({ text: footer })
       .setColor(config?.mocoEmbedColor ? (config.mocoEmbedColor as `#${string}`) : 0x5865f2);
 

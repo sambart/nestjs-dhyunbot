@@ -1,14 +1,16 @@
 'use client';
 
+import { useRef } from 'react';
 import type { DiscordChannel } from '../../../../../lib/discord-api';
 import type { NewbieConfig } from '../../../../../lib/newbie-api';
 import EmbedPreview from './EmbedPreview';
 
 const MISSION_TEMPLATE_VARIABLES = [
   { variable: '{count}', description: '현재 진행중인 미션 총 인원 수' },
+  { variable: '{missionList}', description: '자동 생성된 미션 목록 (멤버별 상태/플레이타임)' },
 ] as const;
 
-const SAMPLE_DESCRIPTION =
+const SAMPLE_MISSION_LIST =
   '🧑‍🌾 뉴비 멤버 (총 인원: 3명)\n\n@사용자1 🌱\n3월 1일 ~ 3월 8일\n🟡 진행중 | 플레이타임: 2시간 30분 0초 | 플레이횟수: 5회\n\n@사용자2 🌱\n3월 3일 ~ 3월 10일\n✅ 완료 | 플레이타임: 12시간 0분 0초 | 플레이횟수: 8회';
 
 interface MissionTabProps {
@@ -19,6 +21,39 @@ interface MissionTabProps {
 
 export default function MissionTab({ config, channels, onChange }: MissionTabProps) {
   const isEnabled = config.missionEnabled;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const channelSelectRef = useRef<HTMLSelectElement>(null);
+
+  const handleInsertChannel = (channelId: string) => {
+    const textarea = textareaRef.current;
+    const currentValue = config.missionEmbedDescription ?? '';
+    const insertText = `<#${channelId}>`;
+
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue =
+        currentValue.substring(0, start) +
+        insertText +
+        currentValue.substring(end);
+
+      onChange({ missionEmbedDescription: newValue || null });
+
+      requestAnimationFrame(() => {
+        textarea.focus();
+        const pos = start + insertText.length;
+        textarea.setSelectionRange(pos, pos);
+      });
+    } else {
+      onChange({
+        missionEmbedDescription: (currentValue + insertText) || null,
+      });
+    }
+  };
+
+  const previewDescription = (config.missionEmbedDescription ?? '{missionList}')
+    .replace(/\{missionList\}/g, SAMPLE_MISSION_LIST)
+    .replace(/\{count\}/g, '3');
 
   return (
     <div className="space-y-6">
@@ -159,6 +194,57 @@ export default function MissionTab({ config, channels, onChange }: MissionTabPro
         </p>
       </div>
 
+      {/* Embed 설명 (멀티라인) */}
+      <div>
+        <label
+          htmlFor="mission-embed-description"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
+          Embed 설명
+        </label>
+        <textarea
+          ref={textareaRef}
+          id="mission-embed-description"
+          value={config.missionEmbedDescription ?? ''}
+          onChange={(e) =>
+            onChange({ missionEmbedDescription: e.target.value || null })
+          }
+          disabled={!isEnabled}
+          placeholder="비워두면 미션 목록만 표시됩니다. {missionList}로 미션 목록 위치를 지정할 수 있습니다."
+          rows={4}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed resize-none"
+        />
+        {/* 채널 링크 삽입 */}
+        <div className="flex items-center space-x-2 mt-2">
+          <select
+            ref={channelSelectRef}
+            disabled={!isEnabled || channels.length === 0}
+            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+          >
+            <option value="">채널 링크 삽입</option>
+            {channels.map((ch) => (
+              <option key={ch.id} value={ch.id}>
+                # {ch.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={!isEnabled}
+            onClick={() => {
+              const sel = channelSelectRef.current;
+              if (sel?.value) {
+                handleInsertChannel(sel.value);
+                sel.value = '';
+              }
+            }}
+            className="px-3 py-1.5 bg-indigo-100 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            삽입
+          </button>
+        </div>
+      </div>
+
       {/* Embed 색상 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -227,9 +313,19 @@ export default function MissionTab({ config, channels, onChange }: MissionTabPro
             </div>
           ))}
         </dl>
-        <p className="text-xs text-indigo-500 mt-3">
-          설명(Description)은 미션 데이터에서 자동 생성됩니다.
-        </p>
+        <div className="mt-3 pt-3 border-t border-indigo-200">
+          <p className="text-xs font-semibold text-indigo-700 mb-1.5">
+            채널 링크
+          </p>
+          <div className="flex items-center space-x-2">
+            <code className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono">
+              {'<#채널ID>'}
+            </code>
+            <span className="text-xs text-indigo-600">
+              클릭 가능한 채널 링크 (위 드롭다운으로 삽입)
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Embed 미리보기 */}
@@ -238,9 +334,10 @@ export default function MissionTab({ config, channels, onChange }: MissionTabPro
           (config.missionEmbedTitle ?? '🧑‍🌾 신입 미션 체크')
             .replace(/\{count\}/g, '3')
         }
-        description={SAMPLE_DESCRIPTION}
+        description={previewDescription}
         color={config.missionEmbedColor}
         thumbnailUrl={config.missionEmbedThumbnailUrl}
+        channels={channels}
       />
     </div>
   );

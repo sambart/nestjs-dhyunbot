@@ -480,7 +480,8 @@ export default function AutoChannelSettingsPage() {
                   className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  <code className="bg-gray-100 px-1 rounded">{"{username}"}</code> — 유저 닉네임으로 치환됩니다.
+                  <code className="bg-gray-100 px-1 rounded">{"{username}"}</code> — 유저 닉네임,{" "}
+                  <code className="bg-gray-100 px-1 rounded">{"{n}"}</code> — 자동 증가 번호 (예: <code className="bg-gray-100 px-1 rounded">오버워치 #{"{n}"}</code> → 오버워치 #1, #2, ...).
                   비우면 기본값: <code className="bg-gray-100 px-1 rounded">{`{username}의 ${btn.label || "라벨"}`}</code>
                 </p>
               </div>
