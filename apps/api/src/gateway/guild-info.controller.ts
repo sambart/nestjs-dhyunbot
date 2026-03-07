@@ -58,4 +58,26 @@ export class GuildInfoController {
         color: role.color,
       }));
   }
+
+  @Get('emojis')
+  async getEmojis(
+    @Param('guildId') guildId: string,
+    @Query('refresh') refresh?: string,
+  ) {
+    const guild = this.client.guilds.cache.get(guildId);
+    if (!guild) return [];
+
+    const emojis =
+      refresh === 'true'
+        ? await guild.emojis.fetch()
+        : guild.emojis.cache;
+
+    return emojis
+      .filter((emoji) => emoji.available !== false)
+      .map((emoji) => ({
+        id: emoji.id,
+        name: emoji.name,
+        animated: emoji.animated ?? false,
+      }));
+  }
 }

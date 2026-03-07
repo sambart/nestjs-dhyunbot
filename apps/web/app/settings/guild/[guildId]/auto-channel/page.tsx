@@ -3,8 +3,9 @@
 import { Loader2, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { DiscordChannel } from "../../../../lib/discord-api";
-import { fetchGuildChannels } from "../../../../lib/discord-api";
+import type { DiscordChannel, DiscordEmoji } from "../../../../lib/discord-api";
+import { fetchGuildChannels, fetchGuildEmojis } from "../../../../lib/discord-api";
+import GuildEmojiPicker from "../../../../components/GuildEmojiPicker";
 import { useSettings } from "../../../SettingsContext";
 
 // ─── 타입 ──────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ export default function AutoChannelSettingsPage() {
 
   const [form, setForm] = useState<ConfigForm>(EMPTY_CONFIG);
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
+  const [emojis, setEmojis] = useState<DiscordEmoji[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -82,9 +84,11 @@ export default function AutoChannelSettingsPage() {
         .then((r) => (r.ok ? r.json() : []))
         .catch(() => []),
       fetchGuildChannels(selectedGuildId),
+      fetchGuildEmojis(selectedGuildId),
     ])
-      .then(([configs, chs]) => {
+      .then(([configs, chs, ems]) => {
         setChannels(chs);
+        setEmojis(ems);
 
         if (Array.isArray(configs) && configs.length > 0) {
           const cfg = configs[0];
@@ -120,8 +124,12 @@ export default function AutoChannelSettingsPage() {
     if (!selectedGuildId || isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const chs = await fetchGuildChannels(selectedGuildId, true);
+      const [chs, ems] = await Promise.all([
+        fetchGuildChannels(selectedGuildId, true),
+        fetchGuildEmojis(selectedGuildId, true),
+      ]);
       setChannels(chs);
+      setEmojis(ems);
     } finally {
       setIsRefreshing(false);
     }
@@ -466,13 +474,19 @@ export default function AutoChannelSettingsPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">이모지 (선택)</label>
-                  <input
-                    type="text"
-                    value={btn.emoji}
-                    onChange={(e) => updateButton(bIdx, { emoji: e.target.value })}
-                    placeholder="🎮"
-                    className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={btn.emoji}
+                      onChange={(e) => updateButton(bIdx, { emoji: e.target.value })}
+                      placeholder="🎮"
+                      className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <GuildEmojiPicker
+                      emojis={emojis}
+                      onSelect={(val) => updateButton(bIdx, { emoji: val })}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -534,13 +548,19 @@ export default function AutoChannelSettingsPage() {
                       placeholder="라벨"
                       className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
-                    <input
-                      type="text"
-                      value={sub.emoji}
-                      onChange={(e) => updateSubOption(bIdx, sIdx, { emoji: e.target.value })}
-                      placeholder="🎯"
-                      className="w-12 px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={sub.emoji}
+                        onChange={(e) => updateSubOption(bIdx, sIdx, { emoji: e.target.value })}
+                        placeholder="🎯"
+                        className="w-12 px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <GuildEmojiPicker
+                        emojis={emojis}
+                        onSelect={(val) => updateSubOption(bIdx, sIdx, { emoji: val })}
+                      />
+                    </div>
                     <input
                       type="text"
                       value={sub.channelSuffix}

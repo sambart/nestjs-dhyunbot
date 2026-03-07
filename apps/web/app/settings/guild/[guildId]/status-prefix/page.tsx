@@ -3,8 +3,9 @@
 import { Loader2, RefreshCw, Server, Tag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import type { DiscordChannel } from '../../../../lib/discord-api';
-import { fetchGuildTextChannels } from '../../../../lib/discord-api';
+import type { DiscordChannel, DiscordEmoji } from '../../../../lib/discord-api';
+import { fetchGuildEmojis, fetchGuildTextChannels } from '../../../../lib/discord-api';
+import GuildEmojiPicker from '../../../../components/GuildEmojiPicker';
 import type {
   StatusPrefixButton,
   StatusPrefixButtonType,
@@ -31,6 +32,7 @@ export default function StatusPrefixSettingsPage() {
 
   const [config, setConfig] = useState<StatusPrefixConfig>(DEFAULT_CONFIG);
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
+  const [emojis, setEmojis] = useState<DiscordEmoji[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -46,10 +48,12 @@ export default function StatusPrefixSettingsPage() {
     Promise.all([
       fetchStatusPrefixConfig(selectedGuildId).catch(() => null),
       fetchGuildTextChannels(selectedGuildId).catch((): DiscordChannel[] => []),
+      fetchGuildEmojis(selectedGuildId).catch((): DiscordEmoji[] => []),
     ])
-      .then(([cfg, chs]) => {
+      .then(([cfg, chs, ems]) => {
         if (cfg) setConfig(cfg);
         setChannels(chs);
+        setEmojis(ems);
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
@@ -59,8 +63,12 @@ export default function StatusPrefixSettingsPage() {
     if (!selectedGuildId || isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const chs = await fetchGuildTextChannels(selectedGuildId, true).catch((): DiscordChannel[] => []);
+      const [chs, ems] = await Promise.all([
+        fetchGuildTextChannels(selectedGuildId, true).catch((): DiscordChannel[] => []),
+        fetchGuildEmojis(selectedGuildId, true).catch((): DiscordEmoji[] => []),
+      ]);
       setChannels(chs);
+      setEmojis(ems);
     } finally {
       setIsRefreshing(false);
     }
@@ -572,17 +580,24 @@ export default function StatusPrefixSettingsPage() {
                     <label className="block text-xs font-medium text-gray-600 mb-1">
                       이모지 (선택)
                     </label>
-                    <input
-                      type="text"
-                      value={btn.emoji ?? ''}
-                      onChange={(e) =>
-                        updateButton(btn.id, {
-                          emoji: e.target.value || null,
-                        })
-                      }
-                      placeholder="예: 👁"
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={btn.emoji ?? ''}
+                        onChange={(e) =>
+                          updateButton(btn.id, {
+                            emoji: e.target.value || null,
+                          })
+                        }
+                        placeholder="예: 👁"
+                        className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <GuildEmojiPicker
+                        emojis={emojis}
+                        onSelect={(val) => updateButton(btn.id, { emoji: val })}
+                        disabled={!config.enabled}
+                      />
+                    </div>
                   </div>
 
                   {/* 접두사 텍스트 — PREFIX 타입일 때만 활성화 */}

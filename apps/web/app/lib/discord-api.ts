@@ -45,3 +45,32 @@ export async function fetchGuildRoles(
     return [];
   }
 }
+
+export interface DiscordEmoji {
+  id: string;
+  name: string;
+  animated: boolean;
+}
+
+export async function fetchGuildEmojis(
+  guildId: string,
+  refresh = false,
+): Promise<DiscordEmoji[]> {
+  try {
+    const url = `/api/guilds/${guildId}/emojis${refresh ? '?refresh=true' : ''}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    return res.json() as Promise<DiscordEmoji[]>;
+  } catch {
+    return [];
+  }
+}
+
+export function getEmojiCdnUrl(id: string, animated: boolean, size = 32): string {
+  const ext = animated ? 'gif' : 'png';
+  return `https://cdn.discordapp.com/emojis/${id}.${ext}?size=${size}&quality=lossless`;
+}
+
+export function formatEmojiString(emoji: DiscordEmoji): string {
+  return emoji.animated ? `<a:${emoji.name}:${emoji.id}>` : `<:${emoji.name}:${emoji.id}>`;
+}
