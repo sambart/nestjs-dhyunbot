@@ -42,6 +42,9 @@ lerna-debug.log*
 # Claude Code
 .claude
 
+# Next.js auto-generated
+next-env.d.ts
+
 # dotenv environment variable files
 .env
 .env.prod
