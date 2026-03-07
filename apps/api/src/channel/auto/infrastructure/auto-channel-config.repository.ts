@@ -121,7 +121,7 @@ export class AutoChannelConfigRepository {
             buttonId: button.id,
             label: subDto.label,
             emoji: subDto.emoji ?? null,
-            channelSuffix: subDto.channelSuffix,
+            channelNameTemplate: subDto.channelNameTemplate,
             sortOrder: subDto.sortOrder,
           });
           await manager.save(AutoChannelSubOption, sub);

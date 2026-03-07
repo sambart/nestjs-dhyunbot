@@ -20,7 +20,7 @@ export class AutoChannelSubOptionDto {
 
   @IsString()
   @IsNotEmpty()
-  channelSuffix: string;
+  channelNameTemplate: string;
 
   @IsInt()
   sortOrder: number;

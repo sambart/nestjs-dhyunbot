@@ -307,8 +307,8 @@ export class AutoChannelService {
   /**
    * 채널명 템플릿 적용.
    * 버튼 템플릿으로 기본 이름을 만든 뒤,
-   * subOption이 있으면 channelSuffix 템플릿의 {name}을 기본 이름으로 치환.
-   * channelSuffix에 {name}이 없으면 기존처럼 뒤에 이어붙이기.
+   * subOption이 있으면 channelNameTemplate 템플릿의 {name}을 기본 이름으로 치환.
+   * channelNameTemplate에 {name}이 없으면 기존처럼 뒤에 이어붙이기.
    */
   private buildChannelName(
     userName: string,
@@ -318,11 +318,11 @@ export class AutoChannelService {
     const template = button.channelNameTemplate || `{username}의 ${button.label}`;
     const baseName = template.replace(/{username}/g, userName);
 
-    if (subOption && subOption.channelSuffix) {
-      if (subOption.channelSuffix.includes('{name}')) {
-        return subOption.channelSuffix.replace(/{name}/g, baseName);
+    if (subOption && subOption.channelNameTemplate) {
+      if (subOption.channelNameTemplate.includes('{name}')) {
+        return subOption.channelNameTemplate.replace(/{name}/g, baseName);
       }
-      return `${baseName} ${subOption.channelSuffix}`;
+      return `${baseName} ${subOption.channelNameTemplate}`;
     }
 
     return baseName;

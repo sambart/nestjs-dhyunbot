@@ -13,7 +13,7 @@ import { useSettings } from "../../../SettingsContext";
 interface SubOptionForm {
   label: string;
   emoji: string;
-  channelSuffix: string;
+  channelNameTemplate: string;
 }
 
 interface ButtonForm {
@@ -41,7 +41,7 @@ const EMPTY_BUTTON: ButtonForm = {
   subOptions: [],
 };
 
-const EMPTY_SUB: SubOptionForm = { label: "", emoji: "", channelSuffix: "" };
+const EMPTY_SUB: SubOptionForm = { label: "", emoji: "", channelNameTemplate: "" };
 
 const EMPTY_CONFIG: ConfigForm = {
   triggerChannelId: "",
@@ -126,17 +126,17 @@ export default function AutoChannelSettingsPage() {
             embedColor: cfg.embedColor ?? "#5865F2",
             buttons: (cfg.buttons ?? [])
               .sort((a: { sortOrder: number }, b: { sortOrder: number }) => a.sortOrder - b.sortOrder)
-              .map((btn: { label: string; emoji: string | null; targetCategoryId: string; channelNameTemplate: string | null; subOptions: { label: string; emoji: string | null; channelSuffix: string; sortOrder: number }[] }) => ({
+              .map((btn: { label: string; emoji: string | null; targetCategoryId: string; channelNameTemplate: string | null; subOptions: { label: string; emoji: string | null; channelNameTemplate: string; sortOrder: number }[] }) => ({
                 label: btn.label,
                 emoji: btn.emoji ?? "",
                 targetCategoryId: btn.targetCategoryId,
                 channelNameTemplate: btn.channelNameTemplate ?? "",
                 subOptions: (btn.subOptions ?? [])
                   .sort((a: { sortOrder: number }, b: { sortOrder: number }) => a.sortOrder - b.sortOrder)
-                  .map((s: { label: string; emoji: string | null; channelSuffix: string }) => ({
+                  .map((s: { label: string; emoji: string | null; channelNameTemplate: string }) => ({
                     label: s.label,
                     emoji: s.emoji ?? "",
-                    channelSuffix: s.channelSuffix,
+                    channelNameTemplate: s.channelNameTemplate,
                   })),
               })),
           });
@@ -240,7 +240,7 @@ export default function AutoChannelSettingsPage() {
         subOptions: b.subOptions.map((s, j) => ({
           label: s.label,
           emoji: s.emoji.trim() || undefined,
-          channelSuffix: s.channelSuffix,
+          channelNameTemplate: s.channelNameTemplate,
           sortOrder: j,
         })),
       })),
@@ -602,8 +602,8 @@ export default function AutoChannelSettingsPage() {
                     </div>
                     <input
                       type="text"
-                      value={sub.channelSuffix}
-                      onChange={(e) => updateSubOption(bIdx, sIdx, { channelSuffix: e.target.value })}
+                      value={sub.channelNameTemplate}
+                      onChange={(e) => updateSubOption(bIdx, sIdx, { channelNameTemplate: e.target.value })}
                       placeholder="일반 {name}"
                       className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />

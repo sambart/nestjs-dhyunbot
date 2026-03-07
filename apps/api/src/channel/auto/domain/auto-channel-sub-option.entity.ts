@@ -29,7 +29,7 @@ export class AutoChannelSubOption {
   emoji: string | null;
 
   @Column()
-  channelSuffix: string;
+  channelNameTemplate: string;
 
   @Column({ default: 0 })
   sortOrder: number;
