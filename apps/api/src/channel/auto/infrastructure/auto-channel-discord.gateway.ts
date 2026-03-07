@@ -5,6 +5,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   Client,
+  EmbedBuilder,
   VoiceChannel,
 } from 'discord.js';
 
@@ -31,6 +32,8 @@ export class AutoChannelDiscordGateway {
   async sendGuideMessage(
     channelId: string,
     guideMessage: string,
+    embedTitle: string | null,
+    embedColor: string | null,
     buttons: GuideMessageButtonPayload[],
   ): Promise<string> {
     const channel = await this.client.channels.fetch(channelId);
@@ -38,9 +41,10 @@ export class AutoChannelDiscordGateway {
       throw new Error(`Channel ${channelId} is not a voice-based channel`);
     }
 
+    const embed = this.buildEmbed(guideMessage, embedTitle, embedColor);
     const components = this.buildActionRows(buttons);
     const message = await (channel as VoiceChannel).send({
-      content: guideMessage,
+      embeds: [embed],
       components,
     });
 
@@ -55,6 +59,8 @@ export class AutoChannelDiscordGateway {
     channelId: string,
     messageId: string,
     guideMessage: string,
+    embedTitle: string | null,
+    embedColor: string | null,
     buttons: GuideMessageButtonPayload[],
   ): Promise<string | null> {
     try {
@@ -64,10 +70,11 @@ export class AutoChannelDiscordGateway {
       }
 
       const message = await (channel as VoiceChannel).messages.fetch(messageId);
+      const embed = this.buildEmbed(guideMessage, embedTitle, embedColor);
       const components = this.buildActionRows(buttons);
 
       await message.edit({
-        content: guideMessage,
+        embeds: [embed],
         components,
       });
 
@@ -108,6 +115,21 @@ export class AutoChannelDiscordGateway {
     return channels
       .filter((ch) => ch?.isVoiceBased() ?? false)
       .map((ch) => ch!.name);
+  }
+
+  /**
+   * 안내 메시지용 Embed 생성.
+   */
+  private buildEmbed(
+    description: string,
+    title: string | null,
+    color: string | null,
+  ): EmbedBuilder {
+    const embed = new EmbedBuilder();
+    if (title) embed.setTitle(title);
+    if (description) embed.setDescription(description);
+    if (color) embed.setColor(color as `#${string}`);
+    return embed;
   }
 
   /**

@@ -1,0 +1,80 @@
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Max,
+  Min,
+} from 'class-validator';
+
+export class NewbieConfigSaveDto {
+  // 환영인사
+  @IsBoolean()
+  welcomeEnabled: boolean;
+
+  @IsOptional()
+  @IsString()
+  welcomeChannelId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  welcomeEmbedTitle?: string | null;
+
+  @IsOptional()
+  @IsString()
+  welcomeEmbedDescription?: string | null;
+
+  @IsOptional()
+  @IsString()
+  welcomeEmbedColor?: string | null;
+
+  @IsOptional()
+  @IsUrl()
+  welcomeEmbedThumbnailUrl?: string | null;
+
+  // 미션
+  @IsBoolean()
+  missionEnabled: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  missionDurationDays?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  missionTargetPlaytimeHours?: number | null;
+
+  @IsOptional()
+  @IsString()
+  missionNotifyChannelId?: string | null;
+
+  // 모코코 사냥
+  @IsBoolean()
+  mocoEnabled: boolean;
+
+  @IsOptional()
+  @IsString()
+  mocoRankChannelId?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  mocoAutoRefreshMinutes?: number | null;
+
+  // 신입기간 역할
+  @IsBoolean()
+  roleEnabled: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  roleDurationDays?: number | null;
+
+  @IsOptional()
+  @IsString()
+  newbieRoleId?: string | null;
+}

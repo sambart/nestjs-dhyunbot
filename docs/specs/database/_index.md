@@ -61,6 +61,56 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 │ updatedAt              │         ON DELETE CASCADE                ON DELETE CASCADE
 └────────────────────────┘         IDX(configId)                    IDX(buttonId)
   UNIQUE(guildId, triggerChannelId)
+
+┌──────────────────────────────────────────────────────────────────────┐
+│                      NewbieConfig (newbie_config)                    │
+├──────────────────────────────────────────────────────────────────────┤
+│ PK id                                                                │
+│ guildId (UNIQUE)                                                     │
+│ welcomeEnabled, welcomeChannelId, welcomeEmbedTitle                  │
+│ welcomeEmbedDescription, welcomeEmbedColor, welcomeEmbedThumbnailUrl │
+│ missionEnabled, missionDurationDays, missionTargetPlaytimeHours      │
+│ missionNotifyChannelId, missionNotifyMessageId                       │
+│ mocoEnabled, mocoRankChannelId, mocoRankMessageId                    │
+│ mocoAutoRefreshMinutes                                               │
+│ roleEnabled, roleDurationDays, newbieRoleId                          │
+│ createdAt, updatedAt                                                 │
+└──────────────────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+
+┌────────────────────────────┐       ┌──────────────────────────────┐
+│  StatusPrefixConfig        │       │  StatusPrefixButton           │
+│  (status_prefix_config)    │       │  (status_prefix_button)       │
+├────────────────────────────┤       ├──────────────────────────────┤
+│ PK id                      │──1:N─►│ PK id                        │
+│ guildId (UNIQUE)           │       │ FK configId                  │
+│ enabled                    │       │ label                        │
+│ channelId                  │       │ emoji                        │
+│ messageId                  │       │ prefix                       │
+│ embedTitle                 │       │ type (PREFIX|RESET)          │
+│ embedDescription           │       │ sortOrder                    │
+│ embedColor                 │       │ createdAt                    │
+│ prefixTemplate             │       │ updatedAt                    │
+│ createdAt                  │       └──────────────────────────────┘
+│ updatedAt                  │         ON DELETE CASCADE
+└────────────────────────────┘         IDX(configId, sortOrder)
+  UNIQUE(guildId)
+
+┌──────────────────────────────────┐       ┌──────────────────────────────────┐
+│    NewbieMission (newbie_mission) │       │    NewbiePeriod (newbie_period)   │
+├──────────────────────────────────┤       ├──────────────────────────────────┤
+│ PK id                            │       │ PK id                            │
+│ guildId                          │       │ guildId                          │
+│ memberId                         │       │ memberId                         │
+│ startDate (YYYYMMDD)             │       │ startDate (YYYYMMDD)             │
+│ endDate (YYYYMMDD)               │       │ expiresDate (YYYYMMDD)           │
+│ targetPlaytimeSec                │       │ isExpired                        │
+│ status (enum)                    │       │ createdAt, updatedAt             │
+│ createdAt, updatedAt             │       └──────────────────────────────────┘
+└──────────────────────────────────┘         IDX(guildId, memberId)
+  IDX(guildId, memberId)                      IDX(guildId, isExpired)
+  IDX(guildId, status)                        IDX(expiresDate, isExpired)
+  IDX(status, endDate)
 ```
 
 ---
@@ -230,6 +280,179 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 
 ---
 
+### 8. NewbieConfig (`newbie_config`)
+
+길드별 신규사용자 관리 설정을 저장한다. 환영인사, 미션, 모코코 사냥, 신입기간 역할 관련 필드를 단일 테이블에 통합한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
+| `welcomeEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 환영인사 기능 활성화 여부 |
+| `welcomeChannelId` | `varchar` | NULLABLE | 환영 메시지 전송 채널 ID |
+| `welcomeEmbedTitle` | `varchar` | NULLABLE | Embed 제목 (템플릿 변수 포함 가능) |
+| `welcomeEmbedDescription` | `text` | NULLABLE | Embed 설명 (템플릿 변수 포함 가능) |
+| `welcomeEmbedColor` | `varchar` | NULLABLE | Embed 색상 (HEX, 예: `#5865F2`) |
+| `welcomeEmbedThumbnailUrl` | `varchar` | NULLABLE | Embed 썸네일 이미지 URL |
+| `missionEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 미션 기능 활성화 여부 |
+| `missionDurationDays` | `int` | NULLABLE | 미션 기간 (일수) |
+| `missionTargetPlaytimeHours` | `int` | NULLABLE | 미션 목표 플레이타임 (시간) |
+| `missionNotifyChannelId` | `varchar` | NULLABLE | 미션 현황 알림 채널 ID |
+| `missionNotifyMessageId` | `varchar` | NULLABLE | 미션 현황 Embed 메시지 ID (Discord message ID) |
+| `mocoEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 모코코 사냥 기능 활성화 여부 |
+| `mocoRankChannelId` | `varchar` | NULLABLE | 모코코 사냥 순위 표시 채널 ID |
+| `mocoRankMessageId` | `varchar` | NULLABLE | 모코코 사냥 순위 Embed 메시지 ID |
+| `mocoAutoRefreshMinutes` | `int` | NULLABLE | 모코코 사냥 순위 자동 갱신 간격 (분) |
+| `roleEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 신입기간 역할 자동관리 활성화 여부 |
+| `roleDurationDays` | `int` | NULLABLE | 신입기간 (일수) |
+| `newbieRoleId` | `varchar` | NULLABLE | 자동 부여할 Discord 역할 ID |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/newbie/domain/newbie-config.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `UQ_newbie_config_guild` | `(guildId)` UNIQUE | 길드당 하나의 설정 보장 |
+
+---
+
+### 9. NewbieMission (`newbie_mission`)
+
+신규사용자별 미션 진행 상태를 저장한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
+| `memberId` | `varchar` | NOT NULL | 디스코드 유저 ID |
+| `startDate` | `varchar` | NOT NULL | 미션 시작일 (`YYYYMMDD`) |
+| `endDate` | `varchar` | NOT NULL | 미션 마감일 (`YYYYMMDD`) |
+| `targetPlaytimeSec` | `int` | NOT NULL | 목표 플레이타임 (초 단위로 변환 저장) |
+| `status` | `enum('IN_PROGRESS','COMPLETED','FAILED')` | NOT NULL, DEFAULT `'IN_PROGRESS'` | 미션 상태 |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/newbie/domain/newbie-mission.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_newbie_mission_guild_member` | `(guildId, memberId)` | 멤버별 미션 조회 |
+| `IDX_newbie_mission_guild_status` | `(guildId, status)` | 길드별 진행중 미션 조회 |
+| `IDX_newbie_mission_status_end_date` | `(status, endDate)` | 만료 예정 미션 스케줄러 조회 (`status='IN_PROGRESS' AND endDate < today`) |
+
+#### 인덱스 설계 근거
+
+만료 스케줄러 쿼리는 `status = 'IN_PROGRESS'` 등치 조건 이후 `endDate < today` 범위 조건을 사용한다. 등치 조건 컬럼을 선두에 두는 것이 범위 조건 컬럼을 선두에 두는 것보다 인덱스 선택도가 높아 효율적이다. 기존의 `(endDate, status)` 순서에서 `(status, endDate)` 순서로 변경한다.
+
+---
+
+### 10. NewbiePeriod (`newbie_period`)
+
+신입기간 역할 관리 이력을 저장한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
+| `memberId` | `varchar` | NOT NULL | 디스코드 유저 ID |
+| `startDate` | `varchar` | NOT NULL | 신입기간 시작일 (`YYYYMMDD`) |
+| `expiresDate` | `varchar` | NOT NULL | 신입기간 만료일 (`YYYYMMDD`) |
+| `isExpired` | `boolean` | NOT NULL, DEFAULT `false` | 만료 처리 완료 여부 |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/newbie/domain/newbie-period.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_newbie_period_guild_member` | `(guildId, memberId)` | 멤버별 이력 조회 |
+| `IDX_newbie_period_guild_active` | `(guildId, isExpired)` | 길드 내 활성 신입기간 멤버 집합 조회 (모코코 사냥 캐시 워밍업) |
+| `IDX_newbie_period_expires` | `(expiresDate, isExpired)` | 만료 스케줄러 조회 |
+
+#### 인덱스 설계 근거
+
+모코코 사냥 측정 시 `newbie:period:active:{guildId}` 캐시 미스가 발생하면 `WHERE guildId = ? AND isExpired = false` 조건으로 DB를 조회한다. 기존 `IDX_newbie_period_guild_member`는 `memberId`까지 조건이 있는 단건 조회에 최적화되어 있어 이 쿼리를 커버하지 못한다. `IDX_newbie_period_guild_active`를 추가하여 활성 멤버 전체 조회를 지원한다.
+
+---
+
+### 11. StatusPrefixConfig (`status_prefix_config`)
+
+길드별 Status Prefix 기능 설정을 저장한다. 길드당 하나의 설정이 존재하며, 안내 Embed 메시지 구성과 접두사 형식 템플릿을 포함한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
+| `enabled` | `boolean` | NOT NULL, DEFAULT `false` | 기능 활성화 여부 |
+| `channelId` | `varchar` | NULLABLE | 안내 메시지를 표시할 텍스트 채널 ID |
+| `messageId` | `varchar` | NULLABLE | 전송된 안내 Embed 메시지 ID (Discord message ID) |
+| `embedTitle` | `varchar` | NULLABLE | Embed 제목 |
+| `embedDescription` | `text` | NULLABLE | Embed 설명 |
+| `embedColor` | `varchar` | NULLABLE | Embed 색상 (HEX, 예: `#5865F2`) |
+| `prefixTemplate` | `varchar` | NOT NULL, DEFAULT `'[{prefix}] {nickname}'` | 닉네임 변환 템플릿 (`{prefix}`, `{nickname}` 변수 사용) |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+- **스키마**: `public`
+- **관계**: `StatusPrefixButton` (1:N)
+- **파일**: `apps/api/src/status-prefix/domain/status-prefix-config.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `UQ_status_prefix_config_guild` | `(guildId)` UNIQUE | 길드당 하나의 설정 보장 |
+
+---
+
+### 12. StatusPrefixButton (`status_prefix_button`)
+
+길드별 접두사 버튼 목록을 저장한다. Discord 안내 메시지의 ActionRow에 표시되는 버튼 각각에 대응하며, 접두사 적용(PREFIX)과 원래대로 복원(RESET) 두 가지 타입을 가진다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `configId` | `int` | FK → StatusPrefixConfig.id, NOT NULL, ON DELETE CASCADE | 소속 설정 |
+| `label` | `varchar` | NOT NULL | Discord 버튼 표시 라벨 (예: `관전 적용`) |
+| `emoji` | `varchar` | NULLABLE | Discord 버튼 이모지 (예: `👁`) |
+| `prefix` | `varchar` | NULLABLE | 닉네임에 삽입될 접두사 텍스트 (type = `PREFIX` 시 필수, `RESET` 시 NULL) |
+| `type` | `enum('PREFIX','RESET')` | NOT NULL | 버튼 동작 타입 |
+| `sortOrder` | `int` | NOT NULL, DEFAULT `0` | 버튼 표시 순서 |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+- **스키마**: `public`
+- **관계**: StatusPrefixConfig (N:1)
+- **파일**: `apps/api/src/status-prefix/domain/status-prefix-button.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_status_prefix_button_config` | `(configId, sortOrder)` | 설정별 버튼 목록을 순서대로 조회 |
+
+#### 버튼 타입 정의
+
+| 타입 | customId 형식 | 동작 |
+|------|---------------|------|
+| `PREFIX` | `status_prefix:{buttonId}` | 닉네임에 접두사 적용 |
+| `RESET` | `status_reset:{buttonId}` | 원래 닉네임으로 복원 |
+
+---
+
 ## Redis 데이터 구조
 
 ### 키 네이밍 패턴
@@ -239,6 +462,8 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 ```
 voice:{category}:{sub}:{guildId}:{...params}
 auto_channel:{category}:{...params}
+newbie:{category}:{...params}
+status_prefix:{category}:{...params}
 ```
 
 ### voice 키 정의
@@ -308,6 +533,65 @@ Redis Set 자료구조로 저장된다. 봇 기동 시 또는 설정 저장 시 
 SADD auto_channel:trigger:{guildId} {triggerChannelId}
 ```
 
+### newbie 키 정의
+
+신규사용자 도메인의 설정 캐시, 미션 목록 캐시, 신입기간 활성 멤버 집합, 모코코 사냥 누적 데이터를 저장한다.
+
+| 키 패턴 | TTL | 자료구조 | 설명 |
+|---------|-----|----------|------|
+| `newbie:config:{guildId}` | 1시간 | String (JSON) | NewbieConfig 설정 캐시 |
+| `newbie:mission:active:{guildId}` | 30분 | String (JSON) | 진행중 미션 목록 캐시 (NewbieMission[] JSON 직렬화) |
+| `newbie:period:active:{guildId}` | 1시간 | Set | 신입기간 활성 멤버 집합 (`Set<memberId>`) |
+| `newbie:moco:total:{guildId}:{hunterId}` | 없음 | Hash | 사냥꾼(기존 멤버)의 신규사용자별 사냥 시간 |
+| `newbie:moco:rank:{guildId}` | 없음 | Sorted Set | 길드별 사냥꾼 총 사냥 시간 순위 (score = 총 사냥분) |
+
+- **키 생성 함수**: `apps/api/src/newbie/infrastructure/newbie-cache.keys.ts`
+- **저장소**: `apps/api/src/newbie/infrastructure/newbie-redis.repository.ts`
+
+#### newbie:moco:total 구조
+
+Redis Hash 자료구조로 저장된다. 필드는 신규사용자 memberId, 값은 동시 접속 시간(분)이다.
+
+```
+HSET newbie:moco:total:{guildId}:{hunterId} {newbieMemberId} {minutes}
+```
+
+#### newbie:moco:rank 구조
+
+Redis Sorted Set 자료구조로 저장된다. score는 사냥꾼의 총 사냥 시간(분)이다.
+
+```
+ZADD newbie:moco:rank:{guildId} {totalMinutes} {hunterId}
+```
+
+### status_prefix 키 정의
+
+멤버의 원래 닉네임(접두사 적용 전)과 설정 캐시를 저장한다.
+
+| 키 패턴 | TTL | 자료구조 | 설명 |
+|---------|-----|----------|------|
+| `status_prefix:original:{guildId}:{memberId}` | 없음 (퇴장 시 명시적 삭제) | String | 멤버의 원래 닉네임 (접두사 적용 전 닉네임) |
+| `status_prefix:config:{guildId}` | 1시간 | String (JSON) | StatusPrefixConfig 설정 캐시 |
+
+- **키 생성 함수**: `apps/api/src/status-prefix/infrastructure/status-prefix-cache.keys.ts`
+- **저장소**: `apps/api/src/status-prefix/infrastructure/status-prefix-redis.repository.ts`
+
+#### status_prefix:original 저장 규칙
+
+최초 접두사 적용 시에만 저장하며, 이미 값이 존재하면 덮어쓰지 않는다. 이유: 접두사가 이미 적용된 상태에서 다른 접두사로 교체할 때 원래 닉네임(접두사 적용 전)을 보존해야 한다.
+
+```
+SET status_prefix:original:{guildId}:{memberId} {originalNickname} NX
+```
+
+#### status_prefix:config 구조
+
+StatusPrefixConfig와 연관 StatusPrefixButton 목록을 JSON으로 직렬화하여 저장한다. 설정 저장(POST) 시 명시적으로 갱신된다.
+
+```
+SET status_prefix:config:{guildId} {configJson} EX 3600
+```
+
 ### TTL 정책
 
 | 대상 | TTL | 사유 |
@@ -318,6 +602,12 @@ SADD auto_channel:trigger:{guildId} {triggerChannelId}
 | 대기방 상태 | 12시간 (43,200초) | 봇 크래시 시 고아 대기방 자동 정리 |
 | 확정방 상태 | 12시간 (43,200초) | voice session과 동일한 생명주기. 봇 크래시 시 고아 키 자동 정리 |
 | 트리거 채널 집합 | 없음 | 설정 변경 시 명시적 갱신 |
+| newbie 설정 캐시 | 1시간 (3,600초) | 설정 변경 빈도 낮음, 저장 시 명시적 갱신 |
+| newbie 미션 목록 캐시 | 30분 (1,800초) | 갱신 버튼 클릭 시 명시적 갱신 |
+| newbie 신입기간 활성 멤버 | 1시간 (3,600초) | 스케줄러 실행 시 갱신 |
+| newbie 모코코 사냥 데이터 | 없음 | 영구 누적, 리셋 시 명시적 삭제 |
+| status_prefix 원래 닉네임 | 없음 (명시적 삭제) | 퇴장(F-STATUS-PREFIX-005) 또는 RESET 버튼(F-STATUS-PREFIX-004) 시 삭제. 비정상 종료 대비 운영 환경에서 24시간 TTL 설정 검토 |
+| status_prefix 설정 캐시 | 1시간 (3,600초) | 설정 변경 빈도 낮음, 저장 시 명시적 갱신 |
 
 ---
 
@@ -347,6 +637,94 @@ SADD auto_channel:trigger:{guildId} {triggerChannelId}
 Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
                       ├── GLOBAL 레코드: 전체 마이크/혼자시간
                       └── 채널별 레코드: 채널 체류 시간
+```
+
+### Newbie 라이프사이클
+
+```
+[신규 멤버 가입 — guildMemberAdd 이벤트]
+  1. newbie:config:{guildId} → Redis get (설정 캐시 조회, 미스 시 DB)
+  2. NewbieConfig → PostgreSQL select (캐시 미스 시 조회 후 Redis set, TTL 1h)
+
+  [환영인사 — welcomeEnabled = true]
+  3. Discord API → 환영 채널에 Embed 메시지 전송
+
+  [미션 생성 — missionEnabled = true]
+  4. NewbieMission → PostgreSQL insert (guildId, memberId, startDate, endDate, targetPlaytimeSec, status='IN_PROGRESS')
+  5. newbie:mission:active:{guildId} → Redis delete (캐시 무효화)
+
+  [신입기간 역할 부여 — roleEnabled = true]
+  6. Discord API → 신규 멤버에게 newbieRoleId 역할 부여
+  7. NewbiePeriod → PostgreSQL insert (guildId, memberId, startDate, expiresDate, isExpired=false)
+  8. newbie:period:active:{guildId} → Redis delete (캐시 무효화)
+
+[모코코 사냥 측정 — voiceStateUpdate 이벤트]
+  1. newbie:period:active:{guildId} → Redis get (신입기간 활성 멤버 집합 조회, 미스 시 DB)
+  2. NewbiePeriod → PostgreSQL select WHERE guildId=? AND isExpired=false (IDX_newbie_period_guild_active 활용, Redis SADD, TTL 1h)
+  3. 채널 내 신규사용자(IN_PROGRESS 미션 보유) 존재 여부 확인
+  4. newbie:moco:total:{guildId}:{hunterId} → Redis HINCRBY (신규사용자별 사냥 시간 누적, 분 단위)
+  5. newbie:moco:rank:{guildId} → Redis ZINCRBY (사냥꾼 총 사냥 시간 갱신)
+
+[미션 만료 스케줄러 — 매일 자정]
+  1. NewbieMission → PostgreSQL select WHERE status='IN_PROGRESS' AND endDate < today (IDX_newbie_mission_status_end_date 활용)
+  2. VoiceDailyEntity → PostgreSQL select SUM(channelDurationSec) (startDate~endDate, channelId != 'GLOBAL')
+  3. 목표 달성 여부 판별 → NewbieMission → PostgreSQL update (status='COMPLETED' 또는 'FAILED')
+  4. newbie:mission:active:{guildId} → Redis delete (캐시 무효화)
+
+[신입기간 만료 스케줄러 — 매일 자정]
+  1. NewbiePeriod → PostgreSQL select WHERE isExpired=false AND expiresDate < today (IDX_newbie_period_expires 활용)
+  2. Discord API → 해당 멤버의 신입 역할 제거
+  3. NewbiePeriod → PostgreSQL update (isExpired=true)
+  4. newbie:period:active:{guildId} → Redis delete (캐시 무효화)
+
+[웹 대시보드 설정 저장]
+  1. NewbieConfig → PostgreSQL upsert (guildId 기준)
+  2. newbie:config:{guildId} → Redis set (설정 캐시 갱신, TTL 1h)
+```
+
+### Status Prefix 라이프사이클
+
+```
+[웹 설정 저장 — POST /api/guilds/{guildId}/status-prefix/config]
+  1. status_prefix_config → PostgreSQL upsert (guildId 기준)
+  2. status_prefix_button → PostgreSQL delete WHERE configId = ? (기존 버튼 전체 삭제)
+  3. status_prefix_button → PostgreSQL insert (요청 버튼 목록 일괄 삽입, sortOrder 순서 반영)
+  4. status_prefix:config:{guildId} → Redis set (설정 캐시 갱신, TTL 1h)
+  5. enabled = true 인 경우:
+     - Discord API → channelId 채널 조회
+     - messageId 존재 시 → Discord API 기존 메시지 edit (Embed + 버튼 ActionRow)
+     - messageId 없을 시 → Discord API 신규 메시지 send
+     - status_prefix_config.messageId → PostgreSQL update (Discord message ID 저장)
+
+[버튼 클릭 — 접두사 적용 (customId: status_prefix:{buttonId})]
+  1. status_prefix_button → PostgreSQL select WHERE id = {buttonId} (label, prefix, type 확인)
+  2. status_prefix:original:{guildId}:{memberId} → Redis get (원래 닉네임 조회)
+     - 값 없음: Discord API → 현재 멤버 닉네임 조회 후
+               status_prefix:original:{guildId}:{memberId} → Redis SET NX (원래 닉네임 저장, 덮어쓰지 않음)
+     - 값 있음: 기존 저장값 유지
+  3. status_prefix:config:{guildId} → Redis get (캐시 조회, 미스 시 DB)
+     - 캐시 미스: status_prefix_config → PostgreSQL select WHERE guildId = ? → Redis set (TTL 1h)
+  4. prefixTemplate 적용 → 새 닉네임 생성 (예: `[관전] 동현`)
+  5. Discord API → GuildMember.setNickname(newNickname)
+  6. Discord API → Ephemeral 성공 응답
+
+[버튼 클릭 — 원래대로 복원 (customId: status_reset:{buttonId})]
+  1. status_prefix:original:{guildId}:{memberId} → Redis get (원래 닉네임 조회)
+  2. 값 없음: Discord API → Ephemeral 응답 (`변경된 닉네임이 없습니다.`) 후 종료
+  3. 값 있음:
+     - Discord API → GuildMember.setNickname(originalNickname)
+     - status_prefix:original:{guildId}:{memberId} → Redis delete
+     - Discord API → Ephemeral 성공 응답
+
+[음성 채널 퇴장 — voiceStateUpdate 이벤트 연계]
+  1. status_prefix:config:{guildId} → Redis get (캐시 조회, 미스 시 DB)
+     - 캐시 미스: status_prefix_config → PostgreSQL select WHERE guildId = ? → Redis set (TTL 1h)
+  2. enabled = false 이면 처리 중단
+  3. status_prefix:original:{guildId}:{memberId} → Redis get (원래 닉네임 조회)
+  4. 값 없음: 처리 중단 (닉네임 변경 이력 없음)
+  5. 값 있음:
+     - Discord API → GuildMember.setNickname(originalNickname)
+     - status_prefix:original:{guildId}:{memberId} → Redis delete
 ```
 
 ### 자동방 라이프사이클

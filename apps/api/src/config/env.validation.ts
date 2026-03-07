@@ -11,8 +11,8 @@ export const envValidationSchema = Joi.object({
   // Discord
   DISCORD_API_TOKEN: Joi.string().required(),
   DISCORD_CLIENT_ID: Joi.string().required(),
-  DISCORD_CLIENT_SECRET: Joi.string().optional(),
-  DISCORD_CALLBACK_URL: Joi.string().optional(),
+  DISCORD_CLIENT_SECRET: Joi.string().required(),
+  DISCORD_CALLBACK_URL: Joi.string().uri().required(),
   DISCORD_COMMAND_PREFIX: Joi.string().default('!'),
 
   // Redis

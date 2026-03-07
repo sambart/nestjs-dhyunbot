@@ -31,6 +31,12 @@ export class AutoChannelConfig {
   guideMessage: string;
 
   @Column({ nullable: true })
+  embedTitle: string | null;
+
+  @Column({ nullable: true })
+  embedColor: string | null;
+
+  @Column({ nullable: true })
   guideMessageId: string | null;
 
   @OneToMany(() => AutoChannelButton, (button) => button.config, {

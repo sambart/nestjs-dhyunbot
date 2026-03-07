@@ -13,11 +13,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  async validate(payload: { sub: string; username: string; avatar?: string }) {
+  async validate(payload: {
+    sub: string;
+    username: string;
+    avatar?: string;
+    guilds?: Array<{ id: string; name: string; icon: string | null }>;
+  }) {
     return {
       discordId: payload.sub,
       username: payload.username,
       avatar: payload.avatar,
+      guilds: payload.guilds ?? [],
     };
   }
 }

@@ -4,7 +4,11 @@ import { Module } from '@nestjs/common';
 import { AutoChannelModule } from '../channel/auto/auto-channel.module';
 import { ChannelModule } from '../channel/channel.module';
 import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
+import { NewbieModule } from '../newbie/newbie.module';
+import { StatusPrefixModule } from '../status-prefix/status-prefix.module';
 import { ChannelStateHandler } from './channel/channel-state.handler';
+import { NewbieInteractionHandler } from './newbie/newbie-interaction.handler';
+import { NewbieVoiceStateChangedHandler } from './newbie/newbie-voice-state-changed.handler';
 import { VoiceAloneHandler } from './voice/voice-alone.handler';
 import { VoiceJoinHandler } from './voice/voice-join.handler';
 import { VoiceLeaveHandler } from './voice/voice-leave.handler';
@@ -17,6 +21,8 @@ import { VoiceStateDispatcher } from './voice/voice-state.dispatcher';
     AutoChannelModule,
     ChannelModule,
     VoiceChannelModule,
+    NewbieModule,
+    StatusPrefixModule,
     DiscordModule.forFeature(),
   ],
   providers: [
@@ -27,6 +33,8 @@ import { VoiceStateDispatcher } from './voice/voice-state.dispatcher';
     VoiceMoveHandler,
     MicToggleHandler,
     VoiceAloneHandler,
+    NewbieVoiceStateChangedHandler,
+    NewbieInteractionHandler,
   ],
 })
 export class DiscordEventsModule {}

@@ -23,8 +23,6 @@ export class MusicPlayCommand {
     @InteractionEvent(SlashCommandPipe) dto: PlayDto, // DTO를 사용하여 매개변수 수집
     @EventParams() args: ClientEvents['interactionCreate'],
   ): Promise<void> {
-    // console.log('DTO', dto);
-    // console.log('ARGS', args);
 
     const [interaction] = args;
     if (!interaction.isChatInputCommand()) return;

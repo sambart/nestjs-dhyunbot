@@ -82,6 +82,8 @@ export class AutoChannelConfigRepository {
         // 2a. 기존 설정 업데이트
         config.waitingRoomTemplate = dto.waitingRoomTemplate;
         config.guideMessage = dto.guideMessage;
+        config.embedTitle = dto.embedTitle ?? null;
+        config.embedColor = dto.embedColor ?? null;
         await manager.save(AutoChannelConfig, config);
 
         // 2b. 기존 버튼 전체 삭제 (CASCADE로 subOptions도 삭제됨)
@@ -93,6 +95,8 @@ export class AutoChannelConfigRepository {
           triggerChannelId: dto.triggerChannelId,
           waitingRoomTemplate: dto.waitingRoomTemplate,
           guideMessage: dto.guideMessage,
+          embedTitle: dto.embedTitle ?? null,
+          embedColor: dto.embedColor ?? null,
           guideMessageId: null,
         });
         config = await manager.save(AutoChannelConfig, config);

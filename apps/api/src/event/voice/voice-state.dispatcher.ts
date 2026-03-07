@@ -10,6 +10,7 @@ import {
   AutoChannelChannelEmptyEvent,
   AutoChannelTriggerJoinEvent,
 } from '../auto-channel/auto-channel-events';
+import { NEWBIE_EVENTS, NewbieVoiceStateChangedEvent } from '../newbie/newbie-events';
 import {
   VOICE_EVENTS,
   VoiceAloneChangedEvent,
@@ -51,6 +52,20 @@ export class VoiceStateDispatcher {
             new AutoChannelChannelEmptyEvent(oldState.guild.id, oldState.channelId!),
           );
         }
+
+        // 모코코 사냥 이벤트 — 이동 후 새 채널 기준 (fire-and-forget)
+        if (newState.channelId && newState.channel) {
+          const memberIds = [...newState.channel.members.keys()];
+          this.eventEmitter.emit(
+            NEWBIE_EVENTS.VOICE_STATE_CHANGED,
+            new NewbieVoiceStateChangedEvent(
+              newState.guild.id,
+              newState.channelId,
+              oldState.channelId ?? null,
+              memberIds,
+            ),
+          );
+        }
       }
 
       if (isJoin) {
@@ -66,10 +81,25 @@ export class VoiceStateDispatcher {
             new AutoChannelTriggerJoinEvent(dto),
           );
           // 트리거 채널은 세션 추적 제외 — emitAloneChanged 생략
+          // 트리거 채널(대기방)은 모코코 사냥 대상 외 — NEWBIE_EVENTS 미발행
         } else {
           const dto = VoiceStateDto.fromVoiceState(newState);
           await this.eventEmitter.emitAsync(VOICE_EVENTS.JOIN, new VoiceJoinEvent(dto));
           this.emitAloneChanged(newState);
+
+          // 모코코 사냥 이벤트 — 입장한 채널 기준 (fire-and-forget)
+          if (newState.channelId && newState.channel) {
+            const memberIds = [...newState.channel.members.keys()];
+            this.eventEmitter.emit(
+              NEWBIE_EVENTS.VOICE_STATE_CHANGED,
+              new NewbieVoiceStateChangedEvent(
+                newState.guild.id,
+                newState.channelId,
+                null,
+                memberIds,
+              ),
+            );
+          }
         }
       }
 
@@ -83,6 +113,21 @@ export class VoiceStateDispatcher {
           this.eventEmitter.emit(
             AUTO_CHANNEL_EVENTS.CHANNEL_EMPTY,
             new AutoChannelChannelEmptyEvent(oldState.guild.id, oldState.channelId!),
+          );
+        }
+
+        // 모코코 사냥 이벤트 — 퇴장 후 이전 채널 기준 (fire-and-forget)
+        // channelId = null(퇴장), channelMemberIds = 퇴장 후 남은 멤버 목록
+        if (oldState.channelId && oldState.channel) {
+          const memberIds = [...oldState.channel.members.keys()];
+          this.eventEmitter.emit(
+            NEWBIE_EVENTS.VOICE_STATE_CHANGED,
+            new NewbieVoiceStateChangedEvent(
+              oldState.guild.id,
+              null,
+              oldState.channelId,
+              memberIds,
+            ),
           );
         }
       }

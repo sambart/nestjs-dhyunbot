@@ -145,6 +145,8 @@ export class AutoChannelService {
         config.triggerChannelId,
         config.guideMessageId,
         config.guideMessage,
+        config.embedTitle ?? null,
+        config.embedColor ?? null,
         buttonPayloads,
       );
 
@@ -154,6 +156,8 @@ export class AutoChannelService {
         messageId = await this.autoChannelDiscordGateway.sendGuideMessage(
           config.triggerChannelId,
           config.guideMessage,
+          config.embedTitle ?? null,
+          config.embedColor ?? null,
           buttonPayloads,
         );
       }
@@ -161,6 +165,8 @@ export class AutoChannelService {
       messageId = await this.autoChannelDiscordGateway.sendGuideMessage(
         config.triggerChannelId,
         config.guideMessage,
+        config.embedTitle ?? null,
+        config.embedColor ?? null,
         buttonPayloads,
       );
     }

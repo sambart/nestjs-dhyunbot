@@ -1,3 +1,4 @@
+import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -17,6 +18,7 @@ import { VoiceNameEnricherService } from './voice-name-enricher.service';
 
 @Module({
   imports: [
+    DiscordModule.forFeature(),
     ConfigModule,
     TypeOrmModule.forFeature([VoiceDailyEntity]),
     GatewayModule,

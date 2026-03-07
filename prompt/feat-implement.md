@@ -73,17 +73,16 @@ nest-dhyunbot/
     - Entity 파일 수정 후 `npm run migration:generate` 실행
     - 생성된 migration 파일 검토 및 커밋
     - 출력: `/apps/api/src/migrations/*.ts`
-5. [usecase-writer] → 입력: PRD (도메인별) / 출력: 유스케이스 문서 갱신
 
 ### Phase 3: 계획
-6. [common-task-planner] → 입력: 유스케이스 / 출력: 공통 모듈 판단 결과
-7. [plan-writer] × N (병렬, 모듈 단위) → 출력: 각 모듈별 구현 계획
+5. [common-task-planner] → 입력: PRD (도메인별) / 출력: 공통 모듈 판단 결과
+6. [plan-writer] × N (병렬, 모듈 단위) → 출력: 각 모듈별 구현 계획
 
 ### Phase 4: 구현
-8. [implementer] × N (병렬, 계획 단위) → 출력: 변경된 코드
+7. [implementer] × N (병렬, 계획 단위) → 출력: 변경된 코드
 
 ### Phase 5: 완료
-9. 변경 요약 출력
+8. 변경 요약 출력
     - 수정된 파일 목록
     - 주요 변경 사항 요약
 
@@ -95,10 +94,10 @@ nest-dhyunbot/
 [도메인 결정] ──AUTO──► [문서] ──AUTO──► [설계] ──AUTO──► [계획] ──AUTO──► [구현] ──AUTO──► [완료]
      │                   │                │                │                │                │
      │                   │                │                │                │                │
-  0. 도메인 결정      1. prd-writer    2. db-architect  6. common-task   8. implementer   9. 변경 요약
+  0. 도메인 결정      1. prd-writer    2. db-architect  5. common-task   7. implementer   8. 변경 요약
                                         3. db-critic        planner         × N (병렬)
-                                        4. migration?    7. plan-writer
-                                        5. usecase          × N (병렬)
+                                        4. migration?    6. plan-writer
+                                                            × N (병렬)
 
   ※ AUTO = 사용자 확인 없이 자동 전환
   ※ 실패 시: 각 단계 최대 3회 재시도, 초과 시 사용자 보고

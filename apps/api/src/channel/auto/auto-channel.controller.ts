@@ -57,6 +57,8 @@ export class AutoChannelController {
         dto.triggerChannelId,
         config.guideMessageId,
         dto.guideMessage,
+        dto.embedTitle ?? null,
+        dto.embedColor ?? null,
         buttonPayloads,
       );
 
@@ -67,6 +69,8 @@ export class AutoChannelController {
         guideMessageId = await this.discordGateway.sendGuideMessage(
           dto.triggerChannelId,
           dto.guideMessage,
+          dto.embedTitle ?? null,
+          dto.embedColor ?? null,
           buttonPayloads,
         );
       }
@@ -75,6 +79,8 @@ export class AutoChannelController {
       guideMessageId = await this.discordGateway.sendGuideMessage(
         dto.triggerChannelId,
         dto.guideMessage,
+        dto.embedTitle ?? null,
+        dto.embedColor ?? null,
         buttonPayloads,
       );
     }

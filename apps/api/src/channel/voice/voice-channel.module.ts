@@ -41,6 +41,6 @@ import { VoiceRedisRepository } from './infrastructure/voice-redis.repository';
     VoiceDailyFlushService,
     VoiceRecoveryService,
   ],
-  exports: [VoiceChannelService, VoiceDailyFlushService, VoiceRedisRepository, DiscordVoiceGateway, TypeOrmModule],
+  exports: [VoiceChannelService, VoiceSessionService, VoiceDailyFlushService, VoiceRedisRepository, DiscordVoiceGateway, TypeOrmModule],
 })
 export class VoiceChannelModule {}

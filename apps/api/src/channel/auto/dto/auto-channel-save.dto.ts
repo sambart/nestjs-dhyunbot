@@ -61,6 +61,14 @@ export class AutoChannelSaveDto {
   @IsNotEmpty()
   guideMessage: string;
 
+  @IsOptional()
+  @IsString()
+  embedTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  embedColor?: string;
+
   @IsArray()
   @ArrayMaxSize(25)
   @ValidateNested({ each: true })
