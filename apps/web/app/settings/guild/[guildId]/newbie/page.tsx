@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, Server } from 'lucide-react';
+import { Loader2, RefreshCw, Server } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import type { DiscordChannel, DiscordRole } from '../../../../lib/discord-api';
@@ -59,6 +59,7 @@ export default function NewbieSettingsPage() {
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
   const [roles, setRoles] = useState<DiscordRole[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     if (!selectedGuildId) return;
@@ -81,6 +82,21 @@ export default function NewbieSettingsPage() {
       .catch(() => {})
       .finally(() => setIsLoading(false));
   }, [selectedGuildId]);
+
+  const refreshChannels = async () => {
+    if (!selectedGuildId || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const [chs, rls] = await Promise.all([
+        fetchGuildTextChannels(selectedGuildId, true).catch((): DiscordChannel[] => []),
+        fetchGuildRoles(selectedGuildId, true).catch((): DiscordRole[] => []),
+      ]);
+      setChannels(chs);
+      setRoles(rls);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const updateConfig = (partial: Partial<NewbieConfig>) => {
     setConfig((prev) => ({ ...prev, ...partial }));
@@ -174,7 +190,19 @@ export default function NewbieSettingsPage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">신입 관리 설정</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">신입 관리 설정</h1>
+        <button
+          type="button"
+          onClick={refreshChannels}
+          disabled={isRefreshing}
+          title="채널/역할 목록 새로고침"
+          className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>채널 새로고침</span>
+        </button>
+      </div>
 
       {/* 탭 네비게이션 */}
       <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">

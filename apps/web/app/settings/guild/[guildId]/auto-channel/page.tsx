@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Plus, Server, Trash2 } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { DiscordChannel } from "../../../../lib/discord-api";
@@ -63,6 +63,7 @@ export default function AutoChannelSettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [hasExisting, setHasExisting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const voiceChannels = channels.filter((c) => c.type === 2);
   const textChannels = channels.filter((c) => c.type === 0);
@@ -114,6 +115,17 @@ export default function AutoChannelSettingsPage() {
       })
       .finally(() => setIsLoading(false));
   }, [selectedGuildId]);
+
+  const refreshChannels = async () => {
+    if (!selectedGuildId || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const chs = await fetchGuildChannels(selectedGuildId, true);
+      setChannels(chs);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // ─── 폼 헬퍼 ──────────────────────────────────────────────────
 
@@ -247,9 +259,21 @@ export default function AutoChannelSettingsPage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        자동방 설정 {hasExisting && <span className="text-sm font-normal text-gray-400">(수정)</span>}
-      </h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">
+          자동방 설정 {hasExisting && <span className="text-sm font-normal text-gray-400">(수정)</span>}
+        </h1>
+        <button
+          type="button"
+          onClick={refreshChannels}
+          disabled={isRefreshing}
+          title="채널 목록 새로고침"
+          className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>채널 새로고침</span>
+        </button>
+      </div>
 
       {/* 대기 채널 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">

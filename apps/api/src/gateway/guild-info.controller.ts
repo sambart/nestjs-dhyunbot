@@ -1,5 +1,5 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ChannelType, Client } from 'discord.js';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -12,11 +12,18 @@ export class GuildInfoController {
   ) {}
 
   @Get('channels')
-  async getChannels(@Param('guildId') guildId: string) {
+  async getChannels(
+    @Param('guildId') guildId: string,
+    @Query('refresh') refresh?: string,
+  ) {
     const guild = this.client.guilds.cache.get(guildId);
     if (!guild) return [];
 
-    const channels = await guild.channels.fetch();
+    const channels =
+      refresh === 'true'
+        ? await guild.channels.fetch()
+        : guild.channels.cache;
+
     return channels
       .filter((ch) => ch !== null)
       .map((ch) => ({
@@ -30,11 +37,18 @@ export class GuildInfoController {
   }
 
   @Get('roles')
-  async getRoles(@Param('guildId') guildId: string) {
+  async getRoles(
+    @Param('guildId') guildId: string,
+    @Query('refresh') refresh?: string,
+  ) {
     const guild = this.client.guilds.cache.get(guildId);
     if (!guild) return [];
 
-    const roles = await guild.roles.fetch();
+    const roles =
+      refresh === 'true'
+        ? await guild.roles.fetch()
+        : guild.roles.cache;
+
     return roles
       .filter((role) => !role.managed && role.name !== '@everyone')
       .sort((a, b) => b.position - a.position)

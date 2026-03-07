@@ -12,9 +12,11 @@ export interface DiscordRole {
 
 export async function fetchGuildChannels(
   guildId: string,
+  refresh = false,
 ): Promise<DiscordChannel[]> {
   try {
-    const res = await fetch(`/api/guilds/${guildId}/channels`);
+    const url = `/api/guilds/${guildId}/channels${refresh ? '?refresh=true' : ''}`;
+    const res = await fetch(url);
     if (!res.ok) return [];
     return res.json() as Promise<DiscordChannel[]>;
   } catch {
@@ -24,16 +26,19 @@ export async function fetchGuildChannels(
 
 export async function fetchGuildTextChannels(
   guildId: string,
+  refresh = false,
 ): Promise<DiscordChannel[]> {
-  const all = await fetchGuildChannels(guildId);
+  const all = await fetchGuildChannels(guildId, refresh);
   return all.filter((ch) => ch.type === 0);
 }
 
 export async function fetchGuildRoles(
   guildId: string,
+  refresh = false,
 ): Promise<DiscordRole[]> {
   try {
-    const res = await fetch(`/api/guilds/${guildId}/roles`);
+    const url = `/api/guilds/${guildId}/roles${refresh ? '?refresh=true' : ''}`;
+    const res = await fetch(url);
     if (!res.ok) return [];
     return res.json() as Promise<DiscordRole[]>;
   } catch {

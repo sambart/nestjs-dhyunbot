@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, Server, Tag } from 'lucide-react';
+import { Loader2, RefreshCw, Server, Tag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import type { DiscordChannel } from '../../../../lib/discord-api';
@@ -32,6 +32,7 @@ export default function StatusPrefixSettingsPage() {
   const [config, setConfig] = useState<StatusPrefixConfig>(DEFAULT_CONFIG);
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -53,6 +54,17 @@ export default function StatusPrefixSettingsPage() {
       .catch(() => {})
       .finally(() => setIsLoading(false));
   }, [selectedGuildId]);
+
+  const refreshChannels = async () => {
+    if (!selectedGuildId || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const chs = await fetchGuildTextChannels(selectedGuildId, true).catch((): DiscordChannel[] => []);
+      setChannels(chs);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // ─── 버튼 목록 헬퍼 ─────────────────────────────────────────────────────
 
@@ -169,9 +181,21 @@ export default function StatusPrefixSettingsPage() {
 
   return (
     <div className="max-w-3xl">
-      <div className="flex items-center space-x-3 mb-6">
-        <Tag className="w-6 h-6 text-indigo-600" />
-        <h1 className="text-2xl font-bold text-gray-900">게임방 상태 설정</h1>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-3">
+          <Tag className="w-6 h-6 text-indigo-600" />
+          <h1 className="text-2xl font-bold text-gray-900">게임방 상태 설정</h1>
+        </div>
+        <button
+          type="button"
+          onClick={refreshChannels}
+          disabled={isRefreshing}
+          title="채널 목록 새로고침"
+          className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>채널 새로고침</span>
+        </button>
       </div>
 
       {/* 섹션 1: 기본 설정 */}
