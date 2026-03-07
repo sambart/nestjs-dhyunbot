@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.redirect(new URL('/select-guild', origin));
   response.cookies.set('token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: request.nextUrl.protocol === 'https:',
     sameSite: 'lax',
     maxAge: 60 * 60, // 1h
     path: '/',
