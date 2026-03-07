@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import type { DiscordChannel } from '../../../../../lib/discord-api';
 import type { NewbieConfig } from '../../../../../lib/newbie-api';
 import EmbedPreview from './EmbedPreview';
@@ -7,9 +8,11 @@ import EmbedPreview from './EmbedPreview';
 const MOCO_TEMPLATE_VARIABLES = [
   { variable: '{rank}', description: '현재 표시 중인 순위' },
   { variable: '{hunterName}', description: '사냥꾼(기존 멤버)의 닉네임' },
+  { variable: '{totalMinutes}', description: '총 모코코 사냥 시간(분)' },
+  { variable: '{rankDetails}', description: '자동 생성된 순위 상세 (사냥 시간 + 모코코 목록)' },
 ] as const;
 
-const SAMPLE_DESCRIPTION =
+const SAMPLE_RANK_DETAILS =
   '총 모코코 사냥 시간: 120분\n\n도움을 받은 모코코들:\n– 신입1 🌱: 60분\n– 신입2 🌱: 60분';
 
 interface MocoTabProps {
@@ -20,6 +23,41 @@ interface MocoTabProps {
 
 export default function MocoTab({ config, channels, onChange }: MocoTabProps) {
   const isEnabled = config.mocoEnabled;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const channelSelectRef = useRef<HTMLSelectElement>(null);
+
+  const handleInsertChannel = (channelId: string) => {
+    const textarea = textareaRef.current;
+    const currentValue = config.mocoEmbedDescription ?? '';
+    const insertText = `<#${channelId}>`;
+
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue =
+        currentValue.substring(0, start) +
+        insertText +
+        currentValue.substring(end);
+
+      onChange({ mocoEmbedDescription: newValue || null });
+
+      requestAnimationFrame(() => {
+        textarea.focus();
+        const pos = start + insertText.length;
+        textarea.setSelectionRange(pos, pos);
+      });
+    } else {
+      onChange({
+        mocoEmbedDescription: (currentValue + insertText) || null,
+      });
+    }
+  };
+
+  const previewDescription = (config.mocoEmbedDescription ?? '{rankDetails}')
+    .replace(/\{rankDetails\}/g, SAMPLE_RANK_DETAILS)
+    .replace(/\{rank\}/g, '1')
+    .replace(/\{hunterName\}/g, '사냥꾼닉네임')
+    .replace(/\{totalMinutes\}/g, '120');
 
   return (
     <div className="space-y-6">
@@ -133,6 +171,57 @@ export default function MocoTab({ config, channels, onChange }: MocoTabProps) {
         </p>
       </div>
 
+      {/* Embed 설명 (멀티라인) */}
+      <div>
+        <label
+          htmlFor="moco-embed-description"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
+          Embed 설명
+        </label>
+        <textarea
+          ref={textareaRef}
+          id="moco-embed-description"
+          value={config.mocoEmbedDescription ?? ''}
+          onChange={(e) =>
+            onChange({ mocoEmbedDescription: e.target.value || null })
+          }
+          disabled={!isEnabled}
+          placeholder="비워두면 순위 상세만 표시됩니다. {rankDetails}로 순위 상세 위치를 지정할 수 있습니다."
+          rows={4}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed resize-none"
+        />
+        {/* 채널 링크 삽입 */}
+        <div className="flex items-center space-x-2 mt-2">
+          <select
+            ref={channelSelectRef}
+            disabled={!isEnabled || channels.length === 0}
+            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+          >
+            <option value="">채널 링크 삽입</option>
+            {channels.map((ch) => (
+              <option key={ch.id} value={ch.id}>
+                # {ch.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={!isEnabled}
+            onClick={() => {
+              const sel = channelSelectRef.current;
+              if (sel?.value) {
+                handleInsertChannel(sel.value);
+                sel.value = '';
+              }
+            }}
+            className="px-3 py-1.5 bg-indigo-100 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            삽입
+          </button>
+        </div>
+      </div>
+
       {/* Embed 색상 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -201,9 +290,19 @@ export default function MocoTab({ config, channels, onChange }: MocoTabProps) {
             </div>
           ))}
         </dl>
-        <p className="text-xs text-indigo-500 mt-3">
-          설명(Description)은 순위 데이터에서 자동 생성됩니다.
-        </p>
+        <div className="mt-3 pt-3 border-t border-indigo-200">
+          <p className="text-xs font-semibold text-indigo-700 mb-1.5">
+            채널 링크
+          </p>
+          <div className="flex items-center space-x-2">
+            <code className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono">
+              {'<#채널ID>'}
+            </code>
+            <span className="text-xs text-indigo-600">
+              클릭 가능한 채널 링크 (위 드롭다운으로 삽입)
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Embed 미리보기 */}
@@ -213,9 +312,10 @@ export default function MocoTab({ config, channels, onChange }: MocoTabProps) {
             .replace(/\{rank\}/g, '1')
             .replace(/\{hunterName\}/g, '사냥꾼닉네임')
         }
-        description={SAMPLE_DESCRIPTION}
+        description={previewDescription}
         color={config.mocoEmbedColor}
         thumbnailUrl={config.mocoEmbedThumbnailUrl}
+        channels={channels}
       />
     </div>
   );
