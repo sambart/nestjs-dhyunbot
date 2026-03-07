@@ -7,6 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { AutoChannelModule } from './channel/auto/auto-channel.module';
 import { ChannelModule } from './channel/channel.module';
 import { VoiceChannelModule } from './channel/voice/voice-channel.module';
 import { BaseConfig } from './config/base.config';
@@ -25,6 +26,7 @@ import { RedisModule } from './redis/redis.module';
     TypeOrmModule.forRootAsync(TypeORMConfig),
     ChannelModule,
     VoiceChannelModule,
+    AutoChannelModule,
     MusicModule,
     DiscordEventsModule,
     RedisModule,

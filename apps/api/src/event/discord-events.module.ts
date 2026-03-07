@@ -1,6 +1,7 @@
 import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 
+import { AutoChannelModule } from '../channel/auto/auto-channel.module';
 import { ChannelModule } from '../channel/channel.module';
 import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
 import { ChannelStateHandler } from './channel/channel-state.handler';
@@ -13,6 +14,7 @@ import { VoiceStateDispatcher } from './voice/voice-state.dispatcher';
 
 @Module({
   imports: [
+    AutoChannelModule,
     ChannelModule,
     VoiceChannelModule,
     DiscordModule.forFeature(),

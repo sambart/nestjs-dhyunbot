@@ -3,7 +3,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { VoiceState } from 'discord.js';
 
+import { AutoChannelRedisRepository } from '../../channel/auto/infrastructure/auto-channel-redis.repository';
 import { VoiceStateDto } from '../../channel/voice/infrastructure/voice-state.dto';
+import {
+  AUTO_CHANNEL_EVENTS,
+  AutoChannelChannelEmptyEvent,
+  AutoChannelTriggerJoinEvent,
+} from '../auto-channel/auto-channel-events';
 import {
   VOICE_EVENTS,
   VoiceAloneChangedEvent,
@@ -17,7 +23,10 @@ import {
 export class VoiceStateDispatcher {
   private readonly logger = new Logger(VoiceStateDispatcher.name);
 
-  constructor(private readonly eventEmitter: EventEmitter2) {}
+  constructor(
+    private readonly eventEmitter: EventEmitter2,
+    private readonly autoChannelRedis: AutoChannelRedisRepository,
+  ) {}
 
   @On('voiceStateUpdate')
   async dispatch(oldState: VoiceState, newState: VoiceState) {
@@ -34,18 +43,48 @@ export class VoiceStateDispatcher {
         await this.eventEmitter.emitAsync(VOICE_EVENTS.MOVE, new VoiceMoveEvent(oldDto, newDto));
         this.emitAloneChanged(oldState);
         this.emitAloneChanged(newState);
+
+        // 이동 후 이전 채널이 비어있으면 자동방 삭제 이벤트 발행 (fire-and-forget)
+        if (oldState.channel && oldState.channel.members.size === 0) {
+          this.eventEmitter.emit(
+            AUTO_CHANNEL_EVENTS.CHANNEL_EMPTY,
+            new AutoChannelChannelEmptyEvent(oldState.guild.id, oldState.channelId!),
+          );
+        }
       }
 
       if (isJoin) {
-        const dto = VoiceStateDto.fromVoiceState(newState);
-        await this.eventEmitter.emitAsync(VOICE_EVENTS.JOIN, new VoiceJoinEvent(dto));
-        this.emitAloneChanged(newState);
+        const isTrigger = await this.autoChannelRedis.isTriggerChannel(
+          newState.guild.id,
+          newState.channelId!,
+        );
+
+        if (isTrigger) {
+          const dto = VoiceStateDto.fromVoiceState(newState);
+          await this.eventEmitter.emitAsync(
+            AUTO_CHANNEL_EVENTS.TRIGGER_JOIN,
+            new AutoChannelTriggerJoinEvent(dto),
+          );
+          // 트리거 채널은 세션 추적 제외 — emitAloneChanged 생략
+        } else {
+          const dto = VoiceStateDto.fromVoiceState(newState);
+          await this.eventEmitter.emitAsync(VOICE_EVENTS.JOIN, new VoiceJoinEvent(dto));
+          this.emitAloneChanged(newState);
+        }
       }
 
       if (isLeave) {
         const dto = VoiceStateDto.fromVoiceState(oldState);
         await this.eventEmitter.emitAsync(VOICE_EVENTS.LEAVE, new VoiceLeaveEvent(dto));
         this.emitAloneChanged(oldState);
+
+        // 퇴장 후 채널이 비어있으면 자동방 삭제 이벤트 발행 (fire-and-forget)
+        if (oldState.channel && oldState.channel.members.size === 0) {
+          this.eventEmitter.emit(
+            AUTO_CHANNEL_EVENTS.CHANNEL_EMPTY,
+            new AutoChannelChannelEmptyEvent(oldState.guild.id, oldState.channelId!),
+          );
+        }
       }
 
       if (isMuteChanged && !isJoin && !isLeave && !isMove) {

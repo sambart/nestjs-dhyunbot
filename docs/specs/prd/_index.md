@@ -24,13 +24,14 @@ libs/shared/  → 공유 타입 및 상수
 
 | 도메인 | 설명 | PRD 문서 |
 |--------|------|----------|
-| voice | 음성 채널 접속 추적, 세션 관리, 일별 통계 집계 | [voice.md](voice.md) |
+| voice | 음성 채널 접속 추적, 세션 관리, 일별 통계 집계, 자동방 생성 | [voice.md](voice.md) |
 | gemini | AI 기반 음성 활동 분석 및 리포트 생성 | [gemini.md](gemini.md) |
 | music | 디스코드 음성 채널 음악 재생/제어 | [music.md](music.md) |
 | auth | Discord OAuth2 인증, JWT 세션 관리 | [auth.md](auth.md) |
-| web | 웹 대시보드 UI (음성 통계, 서버 관리) | [web.md](web.md) |
+| web | 웹 대시보드 UI (음성 통계, 서버 관리, 자동방 설정) | [web.md](web.md) |
 | member | 디스코드 멤버 정보 관리 | (voice.md에 포함) |
 | channel | 디스코드 채널 정보 관리 | (voice.md에 포함) |
+| auto-channel | 트리거 채널 입장 기반 자동 음성 채널 생성 및 관리 | (voice.md에 포함) |
 
 ## 핵심 기능 요약
 
@@ -59,6 +60,14 @@ libs/shared/  → 공유 타입 및 상수
 - 랜딩 페이지 (기능 소개)
 - Discord OAuth 로그인 흐름
 - 대시보드 (프로토타입 단계)
+- 자동방 설정 UI (서버별 트리거 채널, 버튼 구성, 네이밍 규칙 설정)
+
+### 6. 자동방 생성 (auto-channel)
+- 트리거 채널 입장 시 대기방 자동 생성 및 사용자 이동
+- 안내 메시지 + Discord Button Component로 확정방 선택
+- 하위 선택지 Ephemeral 버튼으로 세부 유형 선택
+- 확정방 전환 시 voice 세션 추적 통합
+- 모든 사용자 퇴장 시 채널 즉시 삭제
 
 ## 데이터베이스 엔티티
 
@@ -68,6 +77,9 @@ libs/shared/  → 공유 타입 및 상수
 | Channel | public.channel | 디스코드 채널 정보 (discordChannelId, channelName, status) |
 | VoiceChannelHistory | public.voice_channel_history | 음성 입/퇴장 이력 (joinAt, leftAt, duration) |
 | VoiceDailyEntity | voice_daily | 일별 집계 통계 (channelDurationSec, micOnSec, micOffSec, aloneSec) |
+| AutoChannelConfig | auto_channel_config | 자동방 설정 (guildId, triggerChannelId, 대기방 템플릿, 안내 메시지) |
+| AutoChannelButton | auto_channel_button | 자동방 버튼 목록 (label, emoji, targetCategoryId) |
+| AutoChannelSubOption | auto_channel_sub_option | 버튼 하위 선택지 (label, emoji, channelSuffix) |
 
 ## 외부 의존성
 
