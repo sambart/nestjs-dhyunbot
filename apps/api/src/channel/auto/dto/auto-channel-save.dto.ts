@@ -39,6 +39,10 @@ export class AutoChannelButtonDto {
   @IsNotEmpty()
   targetCategoryId: string;
 
+  @IsOptional()
+  @IsString()
+  channelNameTemplate?: string;
+
   @IsInt()
   sortOrder: number;
 
@@ -55,7 +59,11 @@ export class AutoChannelSaveDto {
 
   @IsString()
   @IsNotEmpty()
-  waitingRoomTemplate: string;
+  guideChannelId: string;
+
+  @IsOptional()
+  @IsString()
+  waitingRoomTemplate?: string;
 
   @IsString()
   @IsNotEmpty()

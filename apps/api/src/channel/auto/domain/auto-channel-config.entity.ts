@@ -24,8 +24,11 @@ export class AutoChannelConfig {
   @Column()
   triggerChannelId: string;
 
-  @Column()
-  waitingRoomTemplate: string;
+  @Column({ nullable: true })
+  guideChannelId: string | null;
+
+  @Column({ nullable: true })
+  waitingRoomTemplate: string | null;
 
   @Column({ type: 'text' })
   guideMessage: string;

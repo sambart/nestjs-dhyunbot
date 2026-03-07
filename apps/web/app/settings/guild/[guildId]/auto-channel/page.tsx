@@ -19,12 +19,13 @@ interface ButtonForm {
   label: string;
   emoji: string;
   targetCategoryId: string;
+  channelNameTemplate: string;
   subOptions: SubOptionForm[];
 }
 
 interface ConfigForm {
   triggerChannelId: string;
-  waitingRoomTemplate: string;
+  guideChannelId: string;
   guideMessage: string;
   embedTitle: string;
   embedColor: string;
@@ -35,6 +36,7 @@ const EMPTY_BUTTON: ButtonForm = {
   label: "",
   emoji: "",
   targetCategoryId: "",
+  channelNameTemplate: "",
   subOptions: [],
 };
 
@@ -42,7 +44,7 @@ const EMPTY_SUB: SubOptionForm = { label: "", emoji: "", channelSuffix: "" };
 
 const EMPTY_CONFIG: ConfigForm = {
   triggerChannelId: "",
-  waitingRoomTemplate: "⌛ {username}의 대기방",
+  guideChannelId: "",
   guideMessage: "",
   embedTitle: "",
   embedColor: "#5865F2",
@@ -63,6 +65,7 @@ export default function AutoChannelSettingsPage() {
   const [hasExisting, setHasExisting] = useState(false);
 
   const voiceChannels = channels.filter((c) => c.type === 2);
+  const textChannels = channels.filter((c) => c.type === 0);
   const categories = channels.filter((c) => c.type === 4);
 
   // 데이터 로드
@@ -87,16 +90,17 @@ export default function AutoChannelSettingsPage() {
           setHasExisting(true);
           setForm({
             triggerChannelId: cfg.triggerChannelId ?? "",
-            waitingRoomTemplate: cfg.waitingRoomTemplate ?? "",
+            guideChannelId: cfg.guideChannelId ?? "",
             guideMessage: cfg.guideMessage ?? "",
             embedTitle: cfg.embedTitle ?? "",
             embedColor: cfg.embedColor ?? "#5865F2",
             buttons: (cfg.buttons ?? [])
               .sort((a: { sortOrder: number }, b: { sortOrder: number }) => a.sortOrder - b.sortOrder)
-              .map((btn: { label: string; emoji: string | null; targetCategoryId: string; subOptions: { label: string; emoji: string | null; channelSuffix: string; sortOrder: number }[] }) => ({
+              .map((btn: { label: string; emoji: string | null; targetCategoryId: string; channelNameTemplate: string | null; subOptions: { label: string; emoji: string | null; channelSuffix: string; sortOrder: number }[] }) => ({
                 label: btn.label,
                 emoji: btn.emoji ?? "",
                 targetCategoryId: btn.targetCategoryId,
+                channelNameTemplate: btn.channelNameTemplate ?? "",
                 subOptions: (btn.subOptions ?? [])
                   .sort((a: { sortOrder: number }, b: { sortOrder: number }) => a.sortOrder - b.sortOrder)
                   .map((s: { label: string; emoji: string | null; channelSuffix: string }) => ({
@@ -164,7 +168,11 @@ export default function AutoChannelSettingsPage() {
   const handleSave = async () => {
     if (!selectedGuildId || isSaving) return;
     if (!form.triggerChannelId) {
-      setSaveError("트리거 채널을 선택하세요.");
+      setSaveError("대기 채널을 선택하세요.");
+      return;
+    }
+    if (!form.guideChannelId) {
+      setSaveError("안내 메시지 채널을 선택하세요.");
       return;
     }
 
@@ -174,7 +182,7 @@ export default function AutoChannelSettingsPage() {
 
     const body = {
       triggerChannelId: form.triggerChannelId,
-      waitingRoomTemplate: form.waitingRoomTemplate,
+      guideChannelId: form.guideChannelId,
       guideMessage: form.guideMessage,
       embedTitle: form.embedTitle || null,
       embedColor: form.embedColor || null,
@@ -182,6 +190,7 @@ export default function AutoChannelSettingsPage() {
         label: b.label,
         emoji: b.emoji || undefined,
         targetCategoryId: b.targetCategoryId,
+        channelNameTemplate: b.channelNameTemplate || undefined,
         sortOrder: i,
         subOptions: b.subOptions.map((s, j) => ({
           label: s.label,
@@ -242,9 +251,10 @@ export default function AutoChannelSettingsPage() {
         자동방 설정 {hasExisting && <span className="text-sm font-normal text-gray-400">(수정)</span>}
       </h1>
 
-      {/* 트리거 채널 */}
+      {/* 대기 채널 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-sm font-semibold text-gray-900 mb-3">트리거 채널</h2>
+        <h2 className="text-sm font-semibold text-gray-900 mb-3">대기 채널</h2>
+        <p className="text-xs text-gray-400 mb-2">유저가 입장하는 영구 음성 채널입니다.</p>
         <select
           value={form.triggerChannelId}
           onChange={(e) => setForm((f) => ({ ...f, triggerChannelId: e.target.value }))}
@@ -262,23 +272,25 @@ export default function AutoChannelSettingsPage() {
         )}
       </section>
 
-      {/* 대기방 설정 */}
+      {/* 안내 메시지 채널 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-sm font-semibold text-gray-900 mb-3">대기방 설정</h2>
-        <label htmlFor="waiting-template" className="block text-sm font-medium text-gray-700 mb-1">
-          네이밍 템플릿
-        </label>
-        <input
-          id="waiting-template"
-          type="text"
-          value={form.waitingRoomTemplate}
-          onChange={(e) => setForm((f) => ({ ...f, waitingRoomTemplate: e.target.value }))}
-          placeholder="⌛ {username}의 대기방"
+        <h2 className="text-sm font-semibold text-gray-900 mb-3">안내 메시지 채널</h2>
+        <p className="text-xs text-gray-400 mb-2">임베드와 버튼이 표시될 텍스트 채널입니다.</p>
+        <select
+          value={form.guideChannelId}
+          onChange={(e) => setForm((f) => ({ ...f, guideChannelId: e.target.value }))}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <p className="text-xs text-gray-400 mt-1">
-          <code className="bg-gray-100 px-1 rounded">{"{username}"}</code> — 유저 닉네임으로 치환됩니다.
-        </p>
+        >
+          <option value="">텍스트 채널을 선택하세요</option>
+          {textChannels.map((ch) => (
+            <option key={ch.id} value={ch.id}>
+              # {ch.name}
+            </option>
+          ))}
+        </select>
+        {textChannels.length === 0 && (
+          <p className="text-xs text-amber-500 mt-1">텍스트 채널을 불러올 수 없습니다.</p>
+        )}
       </section>
 
       {/* 안내 메시지 (Embed) */}
@@ -309,7 +321,7 @@ export default function AutoChannelSettingsPage() {
               id="ac-embed-desc"
               value={form.guideMessage}
               onChange={(e) => setForm((f) => ({ ...f, guideMessage: e.target.value }))}
-              placeholder="트리거 채널에 표시될 안내 문구를 입력하세요."
+              placeholder="안내 채널에 표시될 안내 문구를 입력하세요."
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             />
@@ -454,6 +466,23 @@ export default function AutoChannelSettingsPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  채널명 템플릿 <span className="text-gray-400 font-normal">(선택)</span>
+                </label>
+                <input
+                  type="text"
+                  value={btn.channelNameTemplate}
+                  onChange={(e) => updateButton(bIdx, { channelNameTemplate: e.target.value })}
+                  placeholder={`{username}의 ${btn.label || "게임"}`}
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  <code className="bg-gray-100 px-1 rounded">{"{username}"}</code> — 유저 닉네임으로 치환됩니다.
+                  비우면 기본값: <code className="bg-gray-100 px-1 rounded">{`{username}의 ${btn.label || "라벨"}`}</code>
+                </p>
               </div>
 
               {/* 하위 선택지 */}

@@ -11,12 +11,11 @@ import { VoiceChannelService } from '../../voice/application/voice-channel.servi
 import { DiscordVoiceGateway } from '../../voice/infrastructure/discord-voice.gateway';
 import { VoiceStateDto } from '../../voice/infrastructure/voice-state.dto';
 import { AutoChannelButton } from '../domain/auto-channel-button.entity';
-import { AutoChannelConfig } from '../domain/auto-channel-config.entity';
 import { AutoChannelSubOption } from '../domain/auto-channel-sub-option.entity';
 import { AutoChannelConfigRepository } from '../infrastructure/auto-channel-config.repository';
 import { AutoChannelDiscordGateway } from '../infrastructure/auto-channel-discord.gateway';
 import { AutoChannelRedisRepository } from '../infrastructure/auto-channel-redis.repository';
-import { AutoChannelConfirmedState, AutoChannelWaitingState } from '../infrastructure/auto-channel-state';
+import { AutoChannelConfirmedState } from '../infrastructure/auto-channel-state';
 
 /** Discord 버튼 제약: ActionRow당 최대 버튼 수 */
 const BUTTONS_PER_ROW = 5;
@@ -37,75 +36,12 @@ export class AutoChannelService {
   ) {}
 
   /**
-   * F-VOICE-007 + F-VOICE-008
-   * 트리거 채널 입장 이벤트 수신 시 대기방을 생성하고 유저를 이동시킨다.
-   */
-  async handleTriggerJoin(state: VoiceStateDto): Promise<void> {
-    const config = await this.findConfig(state.guildId, state.channelId);
-    if (!config) {
-      // 설정이 없는 경우 — Redis 트리거 Set이 stale할 수 있음. 무시.
-      this.logger.warn(
-        `[AUTO CHANNEL] Config not found: guild=${state.guildId} trigger=${state.channelId}`,
-      );
-      return;
-    }
-
-    const channelName = this.applyTemplate(config.waitingRoomTemplate, state.userName);
-
-    // 1. Discord API로 대기방 음성 채널 생성 (트리거 채널과 동일한 카테고리)
-    const waitingChannelId = await this.discordVoiceGateway.createVoiceChannel({
-      guildId: state.guildId,
-      name: channelName,
-      parentCategoryId: state.parentCategoryId ?? undefined,
-    });
-
-    // 2. Redis에 대기방 상태 저장 (TTL 12h)
-    await this.autoChannelRedis.setWaitingState(waitingChannelId, {
-      guildId: state.guildId,
-      userId: state.userId,
-      triggerChannelId: state.channelId,
-      configId: config.id,
-    });
-
-    // 3. 유저를 대기방으로 이동 (실패 시 warn 로그 후 계속 — 고아 채널은 TTL로 정리)
-    try {
-      await this.discordVoiceGateway.moveUserToChannel(
-        state.guildId,
-        state.userId,
-        waitingChannelId,
-      );
-    } catch (err) {
-      this.logger.warn(
-        `[AUTO CHANNEL] Failed to move user to waiting room: guild=${state.guildId} user=${state.userId} waitingChannel=${waitingChannelId}`,
-        (err as Error).stack,
-      );
-      // 채널은 이미 생성됨 — TTL 만료 또는 단위 C의 빈 채널 삭제로 정리됨
-    }
-
-    this.logger.log(
-      `[AUTO CHANNEL] Waiting room created: guild=${state.guildId} user=${state.userId} channel=${waitingChannelId}`,
-    );
-  }
-
-  /**
    * F-VOICE-012: 자동방 채널 삭제
    *
-   * 채널이 비었을 때 호출된다. 대기방 또는 확정방이면 Redis 키 삭제 후 Discord 채널 삭제.
+   * 채널이 비었을 때 호출된다. 확정방이면 Redis 키 삭제 후 Discord 채널 삭제.
    * 자동방이 아니면 무시한다.
-   *
-   * VOICE_EVENTS.LEAVE가 await emitAsync로 완료된 후 CHANNEL_EMPTY가 emit(fire-and-forget)으로
-   * 발행되므로, 마지막 퇴장자의 세션은 이미 종료된 상태이다.
    */
   async handleChannelEmpty(guildId: string, channelId: string): Promise<void> {
-    // 1단계: 대기방 여부 확인
-    const waitingState = await this.autoChannelRedis.getWaitingState(channelId);
-
-    if (waitingState) {
-      await this.deleteWaitingChannel(channelId, waitingState);
-      return;
-    }
-
-    // 2단계: 확정방 여부 확인
     const confirmedState = await this.autoChannelRedis.getConfirmedState(channelId);
 
     if (confirmedState) {
@@ -118,7 +54,7 @@ export class AutoChannelService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 단위 B: 버튼 인터랙션 + 확정방 전환 (F-VOICE-009, F-VOICE-010, F-VOICE-011)
+  // 단위 B: 버튼 인터랙션 + 확정방 생성 (F-VOICE-009, F-VOICE-010, F-VOICE-011)
   // ─────────────────────────────────────────────────────────────────────────
 
   /**
@@ -132,6 +68,12 @@ export class AutoChannelService {
       return;
     }
 
+    const guideChannelId = config.guideChannelId;
+    if (!guideChannelId) {
+      this.logger.warn(`AutoChannelConfig has no guideChannelId: configId=${configId}`);
+      return;
+    }
+
     const buttonPayloads = config.buttons.map((btn) => ({
       id: btn.id,
       label: btn.label,
@@ -142,7 +84,7 @@ export class AutoChannelService {
 
     if (config.guideMessageId) {
       const editResult = await this.autoChannelDiscordGateway.editGuideMessage(
-        config.triggerChannelId,
+        guideChannelId,
         config.guideMessageId,
         config.guideMessage,
         config.embedTitle ?? null,
@@ -154,7 +96,7 @@ export class AutoChannelService {
         messageId = editResult;
       } else {
         messageId = await this.autoChannelDiscordGateway.sendGuideMessage(
-          config.triggerChannelId,
+          guideChannelId,
           config.guideMessage,
           config.embedTitle ?? null,
           config.embedColor ?? null,
@@ -163,7 +105,7 @@ export class AutoChannelService {
       }
     } else {
       messageId = await this.autoChannelDiscordGateway.sendGuideMessage(
-        config.triggerChannelId,
+        guideChannelId,
         config.guideMessage,
         config.embedTitle ?? null,
         config.embedColor ?? null,
@@ -204,27 +146,9 @@ export class AutoChannelService {
       return;
     }
 
-    const waitingState = await this.autoChannelRedis.getWaitingState(voiceChannelId);
-
-    if (!waitingState) {
-      await interaction.reply({
-        ephemeral: true,
-        content: '대기방에서만 선택할 수 있습니다.',
-      });
-      return;
-    }
-
-    if (waitingState.userId !== userId) {
-      await interaction.reply({
-        ephemeral: true,
-        content: '본인의 대기방에서만 선택할 수 있습니다.',
-      });
-      return;
-    }
-
     const button = await this.configRepo.findButtonById(buttonId);
 
-    if (!button) {
+    if (!button?.config) {
       await interaction.reply({
         ephemeral: true,
         content: '설정을 찾을 수 없습니다. 관리자에게 문의하세요.',
@@ -232,10 +156,19 @@ export class AutoChannelService {
       return;
     }
 
+    // 대기채널 검증: 유저가 등록된 대기채널(트리거 채널)에 있는지 확인
+    if (voiceChannelId !== button.config.triggerChannelId) {
+      await interaction.reply({
+        ephemeral: true,
+        content: '대기 채널에서만 선택할 수 있습니다.',
+      });
+      return;
+    }
+
     if (button.subOptions.length === 0) {
-      // 하위 선택지 없음 → 즉시 확정방 전환
+      // 하위 선택지 없음 → 즉시 확정방 생성
       await interaction.deferReply({ ephemeral: true });
-      await this.convertToConfirmed(interaction, voiceChannelId, waitingState, button);
+      await this.convertToConfirmed(interaction, guildId, userId, member, button);
     } else {
       // 하위 선택지 있음 → Ephemeral로 하위 버튼 표시
       const sorted = [...button.subOptions].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -250,7 +183,7 @@ export class AutoChannelService {
   }
 
   /**
-   * F-VOICE-011: 2단계 하위 선택지 클릭 처리 → 확정방 전환.
+   * F-VOICE-011: 2단계 하위 선택지 클릭 처리 → 확정방 생성.
    */
   async handleSubOptionClick(interaction: ButtonInteraction): Promise<void> {
     const subOptionId = parseInt(interaction.customId.split(':')[1], 10);
@@ -276,27 +209,9 @@ export class AutoChannelService {
       return;
     }
 
-    const waitingState = await this.autoChannelRedis.getWaitingState(voiceChannelId);
-
-    if (!waitingState) {
-      await interaction.reply({
-        ephemeral: true,
-        content: '대기방에서만 선택할 수 있습니다.',
-      });
-      return;
-    }
-
-    if (waitingState.userId !== userId) {
-      await interaction.reply({
-        ephemeral: true,
-        content: '본인의 대기방에서만 선택할 수 있습니다.',
-      });
-      return;
-    }
-
     const subOption = await this.configRepo.findSubOptionById(subOptionId);
 
-    if (!subOption) {
+    if (!subOption?.button?.config) {
       await interaction.reply({
         ephemeral: true,
         content: '설정을 찾을 수 없습니다. 관리자에게 문의하세요.',
@@ -304,54 +219,63 @@ export class AutoChannelService {
       return;
     }
 
+    // 대기채널 검증
+    if (voiceChannelId !== subOption.button.config.triggerChannelId) {
+      await interaction.reply({
+        ephemeral: true,
+        content: '대기 채널에서만 선택할 수 있습니다.',
+      });
+      return;
+    }
+
     await interaction.deferReply({ ephemeral: true });
     await this.convertToConfirmed(
       interaction,
-      voiceChannelId,
-      waitingState,
+      guildId,
+      userId,
+      member,
       subOption.button,
       subOption,
     );
   }
 
   /**
-   * F-VOICE-011: 대기방 → 확정방 전환 핵심 로직.
+   * F-VOICE-011: 확정방 새로 생성 + 유저 이동 핵심 로직.
    */
   private async convertToConfirmed(
     interaction: ButtonInteraction,
-    waitingChannelId: string,
-    waitingState: AutoChannelWaitingState,
+    guildId: string,
+    userId: string,
+    member: GuildMember,
     button: AutoChannelButton,
     subOption?: AutoChannelSubOption,
   ): Promise<void> {
-    const member = interaction.member as GuildMember;
     const userName = member.displayName;
-    const guildId = waitingState.guildId;
 
     // 1. 확정방 채널명 결정
-    const baseName = subOption
-      ? `${userName}의 ${button.label} ${subOption.channelSuffix}`
-      : `${userName}의 ${button.label}`;
+    const baseName = this.buildChannelName(userName, button, subOption);
 
     const finalName = await this.resolveChannelName(guildId, baseName);
 
-    // 2. Discord 채널 수정 (대기방 → 확정방 변환)
-    await this.autoChannelDiscordGateway.editVoiceChannel(
-      waitingChannelId,
-      finalName,
-      button.targetCategoryId,
-    );
+    // 2. 확정방 새로 생성
+    const confirmedChannelId = await this.discordVoiceGateway.createVoiceChannel({
+      guildId,
+      name: finalName,
+      parentCategoryId: button.targetCategoryId,
+    });
 
-    // 3. Redis 상태 전환
-    await this.autoChannelRedis.deleteWaitingState(waitingChannelId);
-    await this.autoChannelRedis.setConfirmedState(waitingChannelId, {
-      guildId: waitingState.guildId,
-      userId: waitingState.userId,
+    // 3. 유저를 확정방으로 이동
+    await this.discordVoiceGateway.moveUserToChannel(guildId, userId, confirmedChannelId);
+
+    // 4. Redis 확정 상태 저장
+    await this.autoChannelRedis.setConfirmedState(confirmedChannelId, {
+      guildId,
+      userId,
       buttonId: button.id,
       subOptionId: subOption?.id,
     });
 
-    // 4. 세션 추적 시작 (F-VOICE-001과 동일)
+    // 5. 세션 추적 시작 (F-VOICE-001과 동일)
     const voiceState = member.voice;
     const micOn = voiceState.selfMute === null ? true : !voiceState.selfMute;
     const channel = voiceState.channel;
@@ -359,9 +283,9 @@ export class AutoChannelService {
     const alone = memberCount === 1;
 
     const voiceStateDto = new VoiceStateDto(
-      waitingState.guildId,
-      waitingState.userId,
-      waitingChannelId,
+      guildId,
+      userId,
+      confirmedChannelId,
       userName,
       finalName,
       button.targetCategoryId,
@@ -372,18 +296,32 @@ export class AutoChannelService {
 
     await this.voiceChannelService.onUserJoined(voiceStateDto);
 
-    // 5. 인터랙션 응답
-    const successContent = `**${finalName}** 방이 생성되었습니다!`;
-
-    if (interaction.deferred) {
-      await interaction.editReply({ content: successContent });
-    } else {
-      await interaction.reply({ ephemeral: true, content: successContent });
-    }
+    // 6. 인터랙션 응답
+    await interaction.editReply({ content: `**${finalName}** 방이 생성되었습니다!` });
 
     this.logger.log(
-      `[AUTO CHANNEL] Confirmed: guild=${guildId} user=${waitingState.userId} channel="${finalName}"`,
+      `[AUTO CHANNEL] Confirmed: guild=${guildId} user=${userId} channel="${finalName}"`,
     );
+  }
+
+  /**
+   * 채널명 템플릿 적용.
+   * 템플릿이 있으면 {username} 치환 + subOption suffix 추가.
+   * 없으면 기본 패턴: "{username}의 {label}" 사용.
+   */
+  private buildChannelName(
+    userName: string,
+    button: AutoChannelButton,
+    subOption?: AutoChannelSubOption,
+  ): string {
+    const template = button.channelNameTemplate || `{username}의 ${button.label}`;
+    let name = template.replace(/{username}/g, userName);
+
+    if (subOption) {
+      name = `${name} ${subOption.channelSuffix}`;
+    }
+
+    return name;
   }
 
   /**
@@ -438,33 +376,7 @@ export class AutoChannelService {
   }
 
   /**
-   * 대기방 Redis 키 삭제 후 Discord 채널 삭제.
-   * 대기방은 세션 추적 대상이 아니므로 Redis 키 삭제 + Discord 채널 삭제만 수행한다.
-   */
-  private async deleteWaitingChannel(
-    channelId: string,
-    state: AutoChannelWaitingState,
-  ): Promise<void> {
-    await this.autoChannelRedis.deleteWaitingState(channelId);
-
-    try {
-      await this.discordVoiceGateway.deleteChannel(channelId);
-      this.logger.log(
-        `[AUTO CHANNEL] Waiting channel deleted: ${channelId} (guild=${state.guildId})`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `[AUTO CHANNEL] Failed to delete waiting channel: ${channelId}`,
-        (error as Error).stack,
-      );
-      // Discord 채널 삭제 실패 시 Redis 키는 이미 삭제된 상태.
-      // 고아 채널은 수동 정리 필요.
-    }
-  }
-
-  /**
    * 확정방 Redis 키 삭제 후 Discord 채널 삭제.
-   * VOICE_EVENTS.LEAVE await emitAsync 완료 후 CHANNEL_EMPTY 발행 → 별도 세션 종료 불필요.
    */
   private async deleteConfirmedChannel(
     channelId: string,
@@ -483,18 +395,5 @@ export class AutoChannelService {
         (error as Error).stack,
       );
     }
-  }
-
-  /** waitingRoomTemplate의 {username} 변수 치환 */
-  private applyTemplate(template: string, username: string): string {
-    return template.replace('{username}', username);
-  }
-
-  /** 트리거 채널 설정 조회 (DB) */
-  private async findConfig(
-    guildId: string,
-    triggerChannelId: string,
-  ): Promise<AutoChannelConfig | null> {
-    return this.configRepo.findByTriggerChannel(guildId, triggerChannelId);
   }
 }

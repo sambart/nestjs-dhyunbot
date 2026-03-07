@@ -2,6 +2,15 @@
 
 import type { DiscordChannel } from '../../../../../lib/discord-api';
 import type { NewbieConfig } from '../../../../../lib/newbie-api';
+import EmbedPreview from './EmbedPreview';
+
+const MOCO_TEMPLATE_VARIABLES = [
+  { variable: '{rank}', description: '현재 표시 중인 순위' },
+  { variable: '{hunterName}', description: '사냥꾼(기존 멤버)의 닉네임' },
+] as const;
+
+const SAMPLE_DESCRIPTION =
+  '총 모코코 사냥 시간: 120분\n\n도움을 받은 모코코들:\n– 신입1 🌱: 60분\n– 신입2 🌱: 60분';
 
 interface MocoTabProps {
   config: NewbieConfig;
@@ -99,6 +108,115 @@ export default function MocoTab({ config, channels, onChange }: MocoTabProps) {
           순위 Embed를 자동으로 갱신하는 주기(분)
         </p>
       </div>
+
+      {/* Embed 제목 */}
+      <div>
+        <label
+          htmlFor="moco-embed-title"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
+          Embed 제목
+        </label>
+        <input
+          id="moco-embed-title"
+          type="text"
+          value={config.mocoEmbedTitle ?? ''}
+          onChange={(e) =>
+            onChange({ mocoEmbedTitle: e.target.value || null })
+          }
+          disabled={!isEnabled}
+          placeholder="예: 모코코 사냥 TOP {rank} — {hunterName} 🌱"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+        />
+        <p className="text-xs text-gray-400 mt-1">
+          비워두면 기본값: 모코코 사냥 TOP {'{rank}'} — {'{hunterName}'} 🌱
+        </p>
+      </div>
+
+      {/* Embed 색상 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Embed 색상
+        </label>
+        <div className="flex items-center space-x-3">
+          <input
+            type="color"
+            value={config.mocoEmbedColor ?? '#5865F2'}
+            onChange={(e) => onChange({ mocoEmbedColor: e.target.value })}
+            disabled={!isEnabled}
+            aria-label="Embed 색상 피커"
+            className="h-9 w-16 border border-gray-300 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed p-1"
+          />
+          <input
+            type="text"
+            value={config.mocoEmbedColor ?? '#5865F2'}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                onChange({ mocoEmbedColor: val });
+              }
+            }}
+            disabled={!isEnabled}
+            maxLength={7}
+            placeholder="#5865F2"
+            aria-label="Embed 색상 HEX 코드"
+            className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+          />
+        </div>
+      </div>
+
+      {/* 썸네일 이미지 URL */}
+      <div>
+        <label
+          htmlFor="moco-thumbnail-url"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
+          썸네일 이미지 URL
+        </label>
+        <input
+          id="moco-thumbnail-url"
+          type="url"
+          value={config.mocoEmbedThumbnailUrl ?? ''}
+          onChange={(e) =>
+            onChange({ mocoEmbedThumbnailUrl: e.target.value || null })
+          }
+          disabled={!isEnabled}
+          placeholder="https://example.com/image.png"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+        />
+      </div>
+
+      {/* 템플릿 변수 안내 */}
+      <div className="bg-indigo-50 rounded-lg p-4">
+        <p className="text-xs font-semibold text-indigo-700 mb-2">
+          사용 가능한 템플릿 변수
+        </p>
+        <dl className="space-y-1.5">
+          {MOCO_TEMPLATE_VARIABLES.map((item) => (
+            <div key={item.variable} className="flex items-center space-x-2">
+              <code className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono">
+                {item.variable}
+              </code>
+              <span className="text-xs text-indigo-600">{item.description}</span>
+            </div>
+          ))}
+        </dl>
+        <p className="text-xs text-indigo-500 mt-3">
+          설명(Description)은 순위 데이터에서 자동 생성됩니다.
+        </p>
+      </div>
+
+      {/* Embed 미리보기 */}
+      <EmbedPreview
+        title={
+          (config.mocoEmbedTitle ?? '모코코 사냥 TOP {rank} — {hunterName} 🌱')
+            .replace(/\{rank\}/g, '1')
+            .replace(/\{hunterName\}/g, '사냥꾼닉네임')
+        }
+        description={SAMPLE_DESCRIPTION}
+        color={config.mocoEmbedColor}
+        thumbnailUrl={config.mocoEmbedThumbnailUrl}
+      />
     </div>
   );
 }

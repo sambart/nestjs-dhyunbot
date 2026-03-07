@@ -80,7 +80,8 @@ export class AutoChannelConfigRepository {
 
       if (config) {
         // 2a. 기존 설정 업데이트
-        config.waitingRoomTemplate = dto.waitingRoomTemplate;
+        config.guideChannelId = dto.guideChannelId;
+        config.waitingRoomTemplate = dto.waitingRoomTemplate ?? null;
         config.guideMessage = dto.guideMessage;
         config.embedTitle = dto.embedTitle ?? null;
         config.embedColor = dto.embedColor ?? null;
@@ -93,7 +94,8 @@ export class AutoChannelConfigRepository {
         config = manager.create(AutoChannelConfig, {
           guildId,
           triggerChannelId: dto.triggerChannelId,
-          waitingRoomTemplate: dto.waitingRoomTemplate,
+          guideChannelId: dto.guideChannelId,
+          waitingRoomTemplate: dto.waitingRoomTemplate ?? null,
           guideMessage: dto.guideMessage,
           embedTitle: dto.embedTitle ?? null,
           embedColor: dto.embedColor ?? null,
@@ -109,6 +111,7 @@ export class AutoChannelConfigRepository {
           label: btnDto.label,
           emoji: btnDto.emoji ?? null,
           targetCategoryId: btnDto.targetCategoryId,
+          channelNameTemplate: btnDto.channelNameTemplate ?? null,
           sortOrder: btnDto.sortOrder,
         });
         button = await manager.save(AutoChannelButton, button);
@@ -148,18 +151,18 @@ export class AutoChannelConfigRepository {
   async findButtonById(buttonId: number): Promise<AutoChannelButton | null> {
     return this.buttonRepo.findOne({
       where: { id: buttonId },
-      relations: { subOptions: true },
+      relations: { subOptions: true, config: true },
     });
   }
 
   /**
-   * 하위 선택지 ID로 하위 선택지 조회 (button 관계 포함).
+   * 하위 선택지 ID로 하위 선택지 조회 (button + config 관계 포함).
    * F-VOICE-011: 2단계 하위 선택지 클릭 인터랙션 처리에서 사용.
    */
   async findSubOptionById(subOptionId: number): Promise<AutoChannelSubOption | null> {
     return this.subOptionRepo.findOne({
       where: { id: subOptionId },
-      relations: { button: true },
+      relations: { button: { config: true } },
     });
   }
 }

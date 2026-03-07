@@ -51,6 +51,15 @@ export class NewbieConfig {
   @Column({ nullable: true })
   missionNotifyMessageId: string | null;
 
+  @Column({ nullable: true })
+  missionEmbedTitle: string | null;
+
+  @Column({ nullable: true })
+  missionEmbedColor: string | null;
+
+  @Column({ nullable: true })
+  missionEmbedThumbnailUrl: string | null;
+
   // 모코코 사냥 설정
   @Column({ default: false })
   mocoEnabled: boolean;
@@ -63,6 +72,15 @@ export class NewbieConfig {
 
   @Column({ nullable: true })
   mocoAutoRefreshMinutes: number | null;
+
+  @Column({ nullable: true })
+  mocoEmbedTitle: string | null;
+
+  @Column({ nullable: true })
+  mocoEmbedColor: string | null;
+
+  @Column({ nullable: true })
+  mocoEmbedThumbnailUrl: string | null;
 
   // 신입기간 역할 설정
   @Column({ default: false })

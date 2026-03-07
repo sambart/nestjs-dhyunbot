@@ -33,6 +33,9 @@ export class AutoChannelButton {
   @Column()
   targetCategoryId: string;
 
+  @Column({ nullable: true })
+  channelNameTemplate: string | null;
+
   @Column({ default: 0 })
   sortOrder: number;
 

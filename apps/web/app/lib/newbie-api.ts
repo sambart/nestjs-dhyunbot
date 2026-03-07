@@ -12,11 +12,17 @@ export interface NewbieConfig {
   missionDurationDays: number | null;
   missionTargetPlaytimeHours: number | null;
   missionNotifyChannelId: string | null;
+  missionEmbedTitle: string | null;
+  missionEmbedColor: string | null;
+  missionEmbedThumbnailUrl: string | null;
 
   // 모코코 사냥
   mocoEnabled: boolean;
   mocoRankChannelId: string | null;
   mocoAutoRefreshMinutes: number | null;
+  mocoEmbedTitle: string | null;
+  mocoEmbedColor: string | null;
+  mocoEmbedThumbnailUrl: string | null;
 
   // 신입기간 역할
   roleEnabled: boolean;

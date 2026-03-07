@@ -51,6 +51,18 @@ export class NewbieConfigSaveDto {
   @IsString()
   missionNotifyChannelId?: string | null;
 
+  @IsOptional()
+  @IsString()
+  missionEmbedTitle?: string | null;
+
+  @IsOptional()
+  @IsString()
+  missionEmbedColor?: string | null;
+
+  @IsOptional()
+  @IsUrl()
+  missionEmbedThumbnailUrl?: string | null;
+
   // 모코코 사냥
   @IsBoolean()
   mocoEnabled: boolean;
@@ -64,6 +76,18 @@ export class NewbieConfigSaveDto {
   @Min(1)
   @Max(1440)
   mocoAutoRefreshMinutes?: number | null;
+
+  @IsOptional()
+  @IsString()
+  mocoEmbedTitle?: string | null;
+
+  @IsOptional()
+  @IsString()
+  mocoEmbedColor?: string | null;
+
+  @IsOptional()
+  @IsUrl()
+  mocoEmbedThumbnailUrl?: string | null;
 
   // 신입기간 역할
   @IsBoolean()

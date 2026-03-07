@@ -3,12 +3,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { VoiceState } from 'discord.js';
 
-import { AutoChannelRedisRepository } from '../../channel/auto/infrastructure/auto-channel-redis.repository';
 import { VoiceStateDto } from '../../channel/voice/infrastructure/voice-state.dto';
 import {
   AUTO_CHANNEL_EVENTS,
   AutoChannelChannelEmptyEvent,
-  AutoChannelTriggerJoinEvent,
 } from '../auto-channel/auto-channel-events';
 import { NEWBIE_EVENTS, NewbieVoiceStateChangedEvent } from '../newbie/newbie-events';
 import {
@@ -24,10 +22,7 @@ import {
 export class VoiceStateDispatcher {
   private readonly logger = new Logger(VoiceStateDispatcher.name);
 
-  constructor(
-    private readonly eventEmitter: EventEmitter2,
-    private readonly autoChannelRedis: AutoChannelRedisRepository,
-  ) {}
+  constructor(private readonly eventEmitter: EventEmitter2) {}
 
   @On('voiceStateUpdate')
   async dispatch(oldState: VoiceState, newState: VoiceState) {
@@ -69,37 +64,22 @@ export class VoiceStateDispatcher {
       }
 
       if (isJoin) {
-        const isTrigger = await this.autoChannelRedis.isTriggerChannel(
-          newState.guild.id,
-          newState.channelId!,
-        );
+        const dto = VoiceStateDto.fromVoiceState(newState);
+        await this.eventEmitter.emitAsync(VOICE_EVENTS.JOIN, new VoiceJoinEvent(dto));
+        this.emitAloneChanged(newState);
 
-        if (isTrigger) {
-          const dto = VoiceStateDto.fromVoiceState(newState);
-          await this.eventEmitter.emitAsync(
-            AUTO_CHANNEL_EVENTS.TRIGGER_JOIN,
-            new AutoChannelTriggerJoinEvent(dto),
+        // 모코코 사냥 이벤트 — 입장한 채널 기준 (fire-and-forget)
+        if (newState.channelId && newState.channel) {
+          const memberIds = [...newState.channel.members.keys()];
+          this.eventEmitter.emit(
+            NEWBIE_EVENTS.VOICE_STATE_CHANGED,
+            new NewbieVoiceStateChangedEvent(
+              newState.guild.id,
+              newState.channelId,
+              null,
+              memberIds,
+            ),
           );
-          // 트리거 채널은 세션 추적 제외 — emitAloneChanged 생략
-          // 트리거 채널(대기방)은 모코코 사냥 대상 외 — NEWBIE_EVENTS 미발행
-        } else {
-          const dto = VoiceStateDto.fromVoiceState(newState);
-          await this.eventEmitter.emitAsync(VOICE_EVENTS.JOIN, new VoiceJoinEvent(dto));
-          this.emitAloneChanged(newState);
-
-          // 모코코 사냥 이벤트 — 입장한 채널 기준 (fire-and-forget)
-          if (newState.channelId && newState.channel) {
-            const memberIds = [...newState.channel.members.keys()];
-            this.eventEmitter.emit(
-              NEWBIE_EVENTS.VOICE_STATE_CHANGED,
-              new NewbieVoiceStateChangedEvent(
-                newState.guild.id,
-                newState.channelId,
-                null,
-                memberIds,
-              ),
-            );
-          }
         }
       }
 
@@ -117,7 +97,6 @@ export class VoiceStateDispatcher {
         }
 
         // 모코코 사냥 이벤트 — 퇴장 후 이전 채널 기준 (fire-and-forget)
-        // channelId = null(퇴장), channelMemberIds = 퇴장 후 남은 멤버 목록
         if (oldState.channelId && oldState.channel) {
           const memberIds = [...oldState.channel.members.keys()];
           this.eventEmitter.emit(

@@ -36,9 +36,15 @@ export class NewbieConfigRepository {
       config.missionDurationDays = dto.missionDurationDays ?? null;
       config.missionTargetPlaytimeHours = dto.missionTargetPlaytimeHours ?? null;
       config.missionNotifyChannelId = dto.missionNotifyChannelId ?? null;
+      config.missionEmbedTitle = dto.missionEmbedTitle ?? null;
+      config.missionEmbedColor = dto.missionEmbedColor ?? null;
+      config.missionEmbedThumbnailUrl = dto.missionEmbedThumbnailUrl ?? null;
       config.mocoEnabled = dto.mocoEnabled;
       config.mocoRankChannelId = dto.mocoRankChannelId ?? null;
       config.mocoAutoRefreshMinutes = dto.mocoAutoRefreshMinutes ?? null;
+      config.mocoEmbedTitle = dto.mocoEmbedTitle ?? null;
+      config.mocoEmbedColor = dto.mocoEmbedColor ?? null;
+      config.mocoEmbedThumbnailUrl = dto.mocoEmbedThumbnailUrl ?? null;
       config.roleEnabled = dto.roleEnabled;
       config.roleDurationDays = dto.roleDurationDays ?? null;
       config.newbieRoleId = dto.newbieRoleId ?? null;
@@ -57,10 +63,16 @@ export class NewbieConfigRepository {
         missionTargetPlaytimeHours: dto.missionTargetPlaytimeHours ?? null,
         missionNotifyChannelId: dto.missionNotifyChannelId ?? null,
         missionNotifyMessageId: null,
+        missionEmbedTitle: dto.missionEmbedTitle ?? null,
+        missionEmbedColor: dto.missionEmbedColor ?? null,
+        missionEmbedThumbnailUrl: dto.missionEmbedThumbnailUrl ?? null,
         mocoEnabled: dto.mocoEnabled,
         mocoRankChannelId: dto.mocoRankChannelId ?? null,
         mocoRankMessageId: null,
         mocoAutoRefreshMinutes: dto.mocoAutoRefreshMinutes ?? null,
+        mocoEmbedTitle: dto.mocoEmbedTitle ?? null,
+        mocoEmbedColor: dto.mocoEmbedColor ?? null,
+        mocoEmbedThumbnailUrl: dto.mocoEmbedThumbnailUrl ?? null,
         roleEnabled: dto.roleEnabled,
         roleDurationDays: dto.roleDurationDays ?? null,
         newbieRoleId: dto.newbieRoleId ?? null,

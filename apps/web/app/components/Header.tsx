@@ -2,7 +2,7 @@
 
 import { Home, LayoutDashboard, Menu, Settings, X } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface Guild {
   id: string;
@@ -21,6 +21,8 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetch("/auth/me")
@@ -41,6 +43,12 @@ export default function Header() {
     setUser(null);
   }, []);
 
+  const showToast = useCallback((message: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(message);
+    toastTimer.current = setTimeout(() => setToast(null), 2000);
+  }, []);
+
   const avatarUrl = user?.avatar
     ? `https://cdn.discordapp.com/avatars/${user.discordId}/${user.avatar}.png`
     : null;
@@ -48,6 +56,7 @@ export default function Header() {
   const displayInitial = user?.username?.charAt(0).toUpperCase() ?? "U";
 
   return (
+    <>
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -71,13 +80,13 @@ export default function Header() {
                 <span>홈</span>
               </Link>
 
-              <Link
-                href="/dashboard"
+              <button
+                onClick={() => showToast("준비중입니다")}
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>대시보드</span>
-              </Link>
+              </button>
 
               {user && (
                 <Link
@@ -158,14 +167,16 @@ export default function Header() {
                 <span>홈</span>
               </Link>
 
-              <Link
-                href="/dashboard"
+              <button
+                onClick={() => {
+                  showToast("준비중입니다");
+                  setIsMenuOpen(false);
+                }}
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
-                onClick={() => setIsMenuOpen(false)}
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>대시보드</span>
-              </Link>
+              </button>
 
               {user && (
                 <Link
@@ -206,5 +217,13 @@ export default function Header() {
         )}
       </nav>
     </header>
+
+    {/* Toast */}
+    {toast && (
+      <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-gray-800 text-white px-5 py-3 rounded-lg shadow-lg text-sm animate-fade-in">
+        {toast}
+      </div>
+    )}
+  </>
   );
 }

@@ -6,7 +6,7 @@ import {
   ButtonStyle,
   Client,
   EmbedBuilder,
-  VoiceChannel,
+  TextChannel,
 } from 'discord.js';
 
 /** 안내 메시지 전송/수정에 사용하는 버튼 페이로드 */
@@ -26,7 +26,7 @@ export class AutoChannelDiscordGateway {
   constructor(@InjectDiscordClient() private readonly client: Client) {}
 
   /**
-   * F-VOICE-009: 트리거 채널에 안내 메시지 + 버튼 신규 전송.
+   * F-VOICE-009: 텍스트 채널에 안내 메시지 + 버튼 신규 전송.
    * 반환값: Discord message ID
    */
   async sendGuideMessage(
@@ -37,13 +37,13 @@ export class AutoChannelDiscordGateway {
     buttons: GuideMessageButtonPayload[],
   ): Promise<string> {
     const channel = await this.client.channels.fetch(channelId);
-    if (!channel || !channel.isVoiceBased()) {
-      throw new Error(`Channel ${channelId} is not a voice-based channel`);
+    if (!channel || !channel.isTextBased()) {
+      throw new Error(`Channel ${channelId} is not a text-based channel`);
     }
 
     const embed = this.buildEmbed(guideMessage, embedTitle, embedColor);
     const components = this.buildActionRows(buttons);
-    const message = await (channel as VoiceChannel).send({
+    const message = await (channel as TextChannel).send({
       embeds: [embed],
       components,
     });
@@ -65,11 +65,11 @@ export class AutoChannelDiscordGateway {
   ): Promise<string | null> {
     try {
       const channel = await this.client.channels.fetch(channelId);
-      if (!channel || !channel.isVoiceBased()) {
-        throw new Error(`Channel ${channelId} is not a voice-based channel`);
+      if (!channel || !channel.isTextBased()) {
+        throw new Error(`Channel ${channelId} is not a text-based channel`);
       }
 
-      const message = await (channel as VoiceChannel).messages.fetch(messageId);
+      const message = await (channel as TextChannel).messages.fetch(messageId);
       const embed = this.buildEmbed(guideMessage, embedTitle, embedColor);
       const components = this.buildActionRows(buttons);
 
@@ -85,24 +85,6 @@ export class AutoChannelDiscordGateway {
       );
       return null;
     }
-  }
-
-  /**
-   * F-VOICE-011: 대기방 채널명과 카테고리를 변경하여 확정방으로 전환.
-   * 채널 삭제 + 재생성이 아닌 channel.edit() 방식 사용.
-   */
-  async editVoiceChannel(
-    channelId: string,
-    name: string,
-    parentCategoryId: string,
-  ): Promise<void> {
-    const channel = await this.client.channels.fetch(channelId);
-    if (!channel || !channel.isVoiceBased()) {
-      throw new Error(`Channel ${channelId} is not a voice-based channel`);
-    }
-
-    await (channel as VoiceChannel).edit({ name, parent: parentCategoryId });
-    this.logger.log(`Edited voice channel ${channelId} → name="${name}", parent=${parentCategoryId}`);
   }
 
   /**

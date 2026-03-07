@@ -5,7 +5,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../../auth/auth.module';
 import { AutoChannelChannelEmptyHandler } from '../../event/auto-channel/auto-channel-channel-empty.handler';
 import { AutoChannelInteractionHandler } from '../../event/auto-channel/auto-channel-interaction.handler';
-import { AutoChannelTriggerJoinHandler } from '../../event/auto-channel/auto-channel-trigger-join.handler';
 import { VoiceChannelModule } from '../voice/voice-channel.module';
 import { DiscordVoiceGateway } from '../voice/infrastructure/discord-voice.gateway';
 import { AutoChannelService } from './application/auto-channel.service';
@@ -32,7 +31,6 @@ import { AutoChannelRedisRepository } from './infrastructure/auto-channel-redis.
     AutoChannelDiscordGateway,
     AutoChannelBootstrapService,
     AutoChannelService,
-    AutoChannelTriggerJoinHandler,
     AutoChannelChannelEmptyHandler,
     AutoChannelInteractionHandler,
     DiscordVoiceGateway,

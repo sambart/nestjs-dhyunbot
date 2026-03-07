@@ -147,7 +147,7 @@ export class MissionService {
     // 진행중 미션 목록 조회 (Redis 캐시 우선)
     const missions = await this.getActiveMissions(guildId);
 
-    const embed = await this.buildMissionEmbed(guildId, missions);
+    const embed = await this.buildMissionEmbed(guildId, missions, resolvedConfig);
     const row = this.buildRefreshButton(guildId);
 
     const channel = await this.discord.channels
@@ -209,6 +209,7 @@ export class MissionService {
   private async buildMissionEmbed(
     guildId: string,
     missions: NewbieMission[],
+    config: NewbieConfig,
   ): Promise<EmbedBuilder> {
     const lines: string[] = [
       `🧑‍🌾 뉴비 멤버 (총 인원: ${missions.length}명)`,
@@ -234,11 +235,21 @@ export class MissionService {
       lines.push('');
     }
 
-    return new EmbedBuilder()
-      .setTitle('🧑‍🌾 신입 미션 체크')
+    const titleTemplate = config.missionEmbedTitle ?? '🧑‍🌾 신입 미션 체크';
+    const titleVars: Record<string, string> = { count: String(missions.length) };
+    const resolvedTitle = this.applyTemplate(titleTemplate, titleVars);
+
+    const embed = new EmbedBuilder()
+      .setTitle(resolvedTitle)
       .setDescription(lines.join('\n'))
-      .setColor(0x57f287)
+      .setColor(config.missionEmbedColor ? (config.missionEmbedColor as `#${string}`) : 0x57f287)
       .setTimestamp();
+
+    if (config.missionEmbedThumbnailUrl) {
+      embed.setThumbnail(config.missionEmbedThumbnailUrl);
+    }
+
+    return embed;
   }
 
   /**
@@ -304,6 +315,13 @@ export class MissionService {
    * bound='start': 해당일 00:00:00.000 KST (UTC 기준으로 저장)
    * bound='end':   해당일 23:59:59.999 KST (UTC 기준으로 저장)
    */
+  private applyTemplate(template: string, vars: Record<string, string>): string {
+    return Object.entries(vars).reduce(
+      (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, 'g'), value),
+      template,
+    );
+  }
+
   private yyyymmddToKSTDate(yyyymmdd: string, bound: 'start' | 'end'): Date {
     const year = parseInt(yyyymmdd.slice(0, 4), 10);
     const month = parseInt(yyyymmdd.slice(4, 6), 10) - 1; // 0-indexed
