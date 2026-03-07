@@ -20,11 +20,28 @@ export class DiscordGateway {
     private readonly client: Client,
   ) {}
 
+  /** LRU 방식으로 캐시의 가장 오래된 10% 항목을 제거 */
   private evictIfNeeded(cache: Map<string, any>) {
-    if (cache.size >= DiscordGateway.MAX_CACHE_SIZE) {
-      cache.clear();
-      this.logger.debug(`Cache evicted (exceeded ${DiscordGateway.MAX_CACHE_SIZE})`);
+    if (cache.size < DiscordGateway.MAX_CACHE_SIZE) return;
+
+    const evictCount = Math.ceil(cache.size * 0.1);
+    let removed = 0;
+    for (const key of cache.keys()) {
+      if (removed >= evictCount) break;
+      cache.delete(key);
+      removed++;
     }
+    this.logger.debug(`Cache evicted ${removed} entries (LRU)`);
+  }
+
+  /** 캐시 조회 시 LRU 순서를 갱신 (삭제 후 재삽입) */
+  private touchCache<T>(cache: Map<string, T>, key: string): T | undefined {
+    const value = cache.get(key);
+    if (value !== undefined) {
+      cache.delete(key);
+      cache.set(key, value);
+    }
+    return value;
   }
 
   /**
@@ -32,10 +49,8 @@ export class DiscordGateway {
    */
   async getGuild(guildId: string): Promise<Guild | null> {
     try {
-      // 캐시 확인
-      if (this.guildCache.has(guildId)) {
-        return this.guildCache.get(guildId);
-      }
+      const cached = this.touchCache(this.guildCache, guildId);
+      if (cached) return cached;
 
       const guild = await this.client.guilds.fetch(guildId);
       this.evictIfNeeded(this.guildCache);
@@ -60,11 +75,9 @@ export class DiscordGateway {
    */
   async getUserName(guildId: string, userId: string): Promise<string> {
     try {
-      // 캐시 확인
       const cacheKey = `${guildId}:${userId}`;
-      if (this.userCache.has(cacheKey)) {
-        return this.userCache.get(cacheKey);
-      }
+      const cached = this.touchCache(this.userCache, cacheKey);
+      if (cached) return cached;
 
       // Guild 가져오기
       const guild = await this.getGuild(guildId);
@@ -92,9 +105,8 @@ export class DiscordGateway {
       }
 
       const cacheKey = `${guildId}:${channelId}`;
-      if (this.channelCache.has(cacheKey)) {
-        return this.channelCache.get(cacheKey);
-      }
+      const cached = this.touchCache(this.channelCache, cacheKey);
+      if (cached) return cached;
 
       const guild = await this.getGuild(guildId);
       if (!guild) {
@@ -127,7 +139,6 @@ export class DiscordGateway {
       return result;
     }
 
-    // 캐시에 없는 유저만 조회
     const uncachedUserIds = userIds.filter((userId) => !this.userCache.has(`${guildId}:${userId}`));
 
     if (uncachedUserIds.length > 0) {
@@ -143,8 +154,9 @@ export class DiscordGateway {
     for (const userId of userIds) {
       const cacheKey = `${guildId}:${userId}`;
 
-      if (this.userCache.has(cacheKey)) {
-        result.set(userId, this.userCache.get(cacheKey));
+      const cachedName = this.touchCache(this.userCache, cacheKey);
+      if (cachedName) {
+        result.set(userId, cachedName);
       } else {
         const member = guild.members.cache.get(userId);
         const username = member ? member.user.displayName : `User-${userId.slice(0, 6)}`;
@@ -183,8 +195,9 @@ export class DiscordGateway {
 
       const cacheKey = `${guildId}:${channelId}`;
 
-      if (this.channelCache.has(cacheKey)) {
-        result.set(channelId, this.channelCache.get(cacheKey));
+      const cachedChName = this.touchCache(this.channelCache, cacheKey);
+      if (cachedChName) {
+        result.set(channelId, cachedChName);
       } else {
         const channel = guild.channels.cache.get(channelId);
         const channelName = channel ? channel.name : `Channel-${channelId.slice(0, 6)}`;

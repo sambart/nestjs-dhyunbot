@@ -1,5 +1,16 @@
 import { VoiceState } from 'discord.js';
 
+export class InvalidVoiceStateError extends Error {
+  constructor(
+    message: string,
+    public readonly guildId?: string,
+    public readonly userId?: string,
+  ) {
+    super(message);
+    this.name = 'InvalidVoiceStateError';
+  }
+}
+
 export class VoiceStateDto {
   constructor(
     public readonly guildId: string,
@@ -13,8 +24,12 @@ export class VoiceStateDto {
   ) {}
 
   static fromVoiceState(state: VoiceState): VoiceStateDto {
-    if (!state.guild || !state.member || !state.channelId || !state.channel.parentId) {
-      throw new Error('Invalid VoiceState for JoinCommand');
+    if (!state.guild || !state.member || !state.channelId || !state.channel?.parentId) {
+      throw new InvalidVoiceStateError(
+        `Invalid VoiceState: guild=${!!state.guild} member=${!!state.member} channelId=${state.channelId} parentId=${state.channel?.parentId}`,
+        state.guild?.id,
+        state.member?.id,
+      );
     }
 
     return new VoiceStateDto(
@@ -25,7 +40,7 @@ export class VoiceStateDto {
       state.channel.name,
       state.channel.parentId,
       !state.selfMute,
-      state.channel ? state.channel.members.size === 1 : false,
+      state.channel.members.size === 1,
     );
   }
 }

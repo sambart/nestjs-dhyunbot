@@ -3,7 +3,6 @@ import { Module } from '@nestjs/common';
 
 import { ChannelModule } from '../channel/channel.module';
 import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
-import { DiscordConfig } from '../config/discord.config';
 import { ChannelStateHandler } from './channel/channel-state.handler';
 import { VoiceJoinHandler } from './voice/voice-join.handler';
 import { VoiceLeaveHandler } from './voice/voice-leave.handler';
@@ -15,7 +14,6 @@ import { VoiceStateDispatcher } from './voice/voice-state.dispatcher';
   imports: [
     ChannelModule,
     VoiceChannelModule,
-    DiscordModule.forRootAsync(DiscordConfig),
     DiscordModule.forFeature(),
   ],
   providers: [

@@ -4,6 +4,14 @@ import { RedisService } from '../../../redis/redis.service';
 import { VoiceKeys } from './voice-cache.keys';
 import { VoiceSession } from './voice-session.keys';
 
+/** Redis TTL 상수 (초 단위) */
+const TTL = {
+  /** 음성 세션 TTL — 12시간 */
+  SESSION: 60 * 60 * 12,
+  /** 채널명·유저명 캐시 TTL — 7일 */
+  NAME_CACHE: 60 * 60 * 24 * 7,
+} as const;
+
 @Injectable()
 export class VoiceRedisRepository {
   constructor(private readonly redis: RedisService) {}
@@ -58,7 +66,7 @@ export class VoiceRedisRepository {
      * 5️⃣ Redis 세션 저장 (TTL 12시간)
      */
     const sessionKey = VoiceKeys.session(guild, user);
-    await this.redis.set(sessionKey, session, 60 * 60 * 12);
+    await this.redis.set(sessionKey, session, TTL.SESSION);
   }
 
   /** 세션 조회 */
@@ -70,7 +78,7 @@ export class VoiceRedisRepository {
   /** 세션 저장 */
   async setSession(guild: string, user: string, session: VoiceSession) {
     const key = VoiceKeys.session(guild, user);
-    await this.redis.set(key, session, 60 * 60 * 12);
+    await this.redis.set(key, session, TTL.SESSION);
   }
   async deleteSession(guild: string, user: string) {
     const key = VoiceKeys.session(guild, user);
@@ -81,8 +89,7 @@ export class VoiceRedisRepository {
   /** 채널명 캐시 */
   async setChannelName(guild: string, channelId: string, channelName: string) {
     const key = VoiceKeys.channelName(guild, channelId);
-    // TTL은 길게 (예: 7일)
-    await this.redis.set(key, channelName, 60 * 60 * 24 * 7);
+    await this.redis.set(key, channelName, TTL.NAME_CACHE);
   }
 
   async getChannelName(guild: string, channelId: string): Promise<string | null> {
@@ -93,8 +100,7 @@ export class VoiceRedisRepository {
   /** 사용자명 캐시 */
   async setUserName(guild: string, userId: string, userName: string) {
     const key = VoiceKeys.userName(guild, userId);
-    // 닉네임 변경 가능 → TTL은 짧거나 동일하게 7일
-    await this.redis.set(key, userName, 60 * 60 * 24 * 7);
+    await this.redis.set(key, userName, TTL.NAME_CACHE);
   }
 
   async getUserName(guild: string, userId: string): Promise<string | null> {

@@ -1,5 +1,5 @@
 import { On } from '@discord-nestjs/core';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { VoiceState } from 'discord.js';
 
 import { VoiceJoinHandler } from './voice-join.handler';
@@ -9,6 +9,8 @@ import { VoiceMoveHandler } from './voice-move.handler';
 
 @Injectable()
 export class VoiceStateDispatcher {
+  private readonly logger = new Logger(VoiceStateDispatcher.name);
+
   constructor(
     private readonly joinHandler: VoiceJoinHandler,
     private readonly leaveHandler: VoiceLeaveHandler,
@@ -18,27 +20,33 @@ export class VoiceStateDispatcher {
 
   @On('voiceStateUpdate')
   async dispatch(oldState: VoiceState, newState: VoiceState) {
-    // 마이크 켜짐/꺼짐 상태
-    const isMuteChanged = oldState.selfMute !== newState.selfMute;
-    const isJoin = !oldState.channelId && newState.channelId;
-    const isLeave = oldState.channelId && !newState.channelId;
-    const isMove =
-      oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId;
+    try {
+      const isMuteChanged = oldState.selfMute !== newState.selfMute;
+      const isJoin = !oldState.channelId && newState.channelId;
+      const isLeave = oldState.channelId && !newState.channelId;
+      const isMove =
+        oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId;
 
-    if (isMove) {
-      await this.moveHandler.handle(oldState, newState);
-    }
+      if (isMove) {
+        await this.moveHandler.handle(oldState, newState);
+      }
 
-    if (isJoin) {
-      await this.joinHandler.handle(newState);
-    }
+      if (isJoin) {
+        await this.joinHandler.handle(newState);
+      }
 
-    if (isLeave) {
-      await this.leaveHandler.handle(oldState);
-    }
+      if (isLeave) {
+        await this.leaveHandler.handle(oldState);
+      }
 
-    if (isMuteChanged) {
-      await this.micToggleHandler.handle(newState);
+      if (isMuteChanged) {
+        await this.micToggleHandler.handle(newState);
+      }
+    } catch (error) {
+      this.logger.error(
+        `[voiceStateUpdate] guild=${newState.guild?.id} user=${newState.member?.id ?? 'unknown'}`,
+        (error as Error).stack,
+      );
     }
   }
 }
