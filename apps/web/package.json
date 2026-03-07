@@ -6,7 +6,8 @@
     "dev": "NODE_OPTIONS='--no-experimental-fetch' next dev -p 4000",
     "build": "next build",
     "start": "next start -p 4000",
-    "lint": "eslint"
+    "lint": "eslint",
+    "lint:fix": "eslint --fix"
   },
   "dependencies": {
     "lucide-react": "^0.562.0",

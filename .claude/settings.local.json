@@ -1,9 +1,5 @@
 {
   "permissions": {
-    "allow": [
-      "Bash(cat:*)",
-      "Bash(tree:*)",
-      "Bash(docker compose:*)"
-    ]
+    "allow": ["Bash(*)"]
   }
 }
