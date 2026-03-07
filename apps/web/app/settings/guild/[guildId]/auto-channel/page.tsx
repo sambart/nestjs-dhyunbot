@@ -539,6 +539,13 @@ export default function AutoChannelSettingsPage() {
                   </button>
                 </div>
 
+                {btn.subOptions.length > 0 && (
+                  <p className="text-xs text-gray-400 mb-2">
+                    채널명 템플릿에서 <code className="bg-gray-100 px-1 rounded">{"{name}"}</code>은 버튼의 기본 채널명으로 치환됩니다.
+                    예: <code className="bg-gray-100 px-1 rounded">일반 {"{name}"}</code> → <code className="bg-gray-100 px-1 rounded">일반 DHyun의 오버워치</code>
+                  </p>
+                )}
+
                 {btn.subOptions.map((sub, sIdx) => (
                   <div key={sIdx} className="flex items-center gap-2 mb-2">
                     <input
@@ -546,7 +553,7 @@ export default function AutoChannelSettingsPage() {
                       value={sub.label}
                       onChange={(e) => updateSubOption(bIdx, sIdx, { label: e.target.value })}
                       placeholder="라벨"
-                      className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-20 px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                     <div className="flex items-center gap-1">
                       <input
@@ -565,8 +572,8 @@ export default function AutoChannelSettingsPage() {
                       type="text"
                       value={sub.channelSuffix}
                       onChange={(e) => updateSubOption(bIdx, sIdx, { channelSuffix: e.target.value })}
-                      placeholder="접미사"
-                      className="w-24 px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      placeholder="일반 {name}"
+                      className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                     <button
                       type="button"
