@@ -17,12 +17,12 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/dashboard"
-              className="px-8 py-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold text-lg"
+            <span
+              className="px-8 py-4 bg-gray-400 text-white rounded-lg cursor-not-allowed font-semibold text-lg select-none"
+              aria-disabled="true"
             >
-              대시보드
-            </Link>
+              대시보드 (준비 중)
+            </span>
 
             <a
               href="#features"

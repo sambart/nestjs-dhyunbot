@@ -1,10 +1,10 @@
 'use client';
 
 import { useRef } from 'react';
+
+import GuildEmojiPicker from '../../../../../components/GuildEmojiPicker';
 import type { DiscordChannel, DiscordEmoji } from '../../../../../lib/discord-api';
 import type { NewbieConfig } from '../../../../../lib/newbie-api';
-import GuildEmojiPicker from '../../../../../components/GuildEmojiPicker';
-import { formatEmojiString } from '../../../../../lib/discord-api';
 import EmbedPreview from './EmbedPreview';
 
 interface WelcomeTabProps {

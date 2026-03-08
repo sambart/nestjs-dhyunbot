@@ -87,12 +87,12 @@ export class NewbieConfigRepository {
   }
 
   /** 미션 현황 Embed 메시지 ID 갱신 */
-  async updateMissionNotifyMessageId(guildId: string, messageId: string): Promise<void> {
+  async updateMissionNotifyMessageId(guildId: string, messageId: string | null): Promise<void> {
     await this.repo.update({ guildId }, { missionNotifyMessageId: messageId });
   }
 
   /** 모코코 사냥 순위 Embed 메시지 ID 갱신 */
-  async updateMocoRankMessageId(guildId: string, messageId: string): Promise<void> {
+  async updateMocoRankMessageId(guildId: string, messageId: string | null): Promise<void> {
     await this.repo.update({ guildId }, { mocoRankMessageId: messageId });
   }
 }

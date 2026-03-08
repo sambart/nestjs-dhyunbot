@@ -60,12 +60,14 @@ export default function NewbieSettingsPage() {
   const [roles, setRoles] = useState<DiscordRole[]>([]);
   const [emojis, setEmojis] = useState<DiscordEmoji[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [configLoaded, setConfigLoaded] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     if (!selectedGuildId) return;
 
     setIsLoading(true);
+    setConfigLoaded(false);
     setConfig(DEFAULT_CONFIG);
 
     Promise.all([
@@ -81,6 +83,7 @@ export default function NewbieSettingsPage() {
         setChannels(chs);
         setRoles(rls);
         setEmojis(ems);
+        setConfigLoaded(true);
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
@@ -109,6 +112,22 @@ export default function NewbieSettingsPage() {
 
   const handleSave = async () => {
     if (!selectedGuildId || isSaving) return;
+
+    // 채널 필수값 유효성 검사
+    const errors: string[] = [];
+    if (config.welcomeEnabled && !config.welcomeChannelId) {
+      errors.push('환영인사 채널을 선택해주세요.');
+    }
+    if (config.missionEnabled && !config.missionNotifyChannelId) {
+      errors.push('미션 알림 채널을 선택해주세요.');
+    }
+    if (config.mocoEnabled && !config.mocoRankChannelId) {
+      errors.push('모코코 순위 채널을 선택해주세요.');
+    }
+    if (errors.length > 0) {
+      setSaveError(errors.join(' '));
+      return;
+    }
 
     setIsSaving(true);
     setSaveError(null);
@@ -250,7 +269,7 @@ export default function NewbieSettingsPage() {
         <button
           type="button"
           onClick={handleSave}
-          disabled={isSaving || !selectedGuildId}
+          disabled={isSaving || !selectedGuildId || !configLoaded}
           className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
         >
           {isSaving ? '저장 중...' : '저장'}

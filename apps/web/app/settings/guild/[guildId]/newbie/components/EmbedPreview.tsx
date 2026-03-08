@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+
 import type { DiscordChannel } from '../../../../../lib/discord-api';
 
 interface EmbedPreviewProps {

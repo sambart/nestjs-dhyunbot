@@ -3,9 +3,9 @@
 import { Loader2, RefreshCw, Server, Tag } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import GuildEmojiPicker from '../../../../components/GuildEmojiPicker';
 import type { DiscordChannel, DiscordEmoji } from '../../../../lib/discord-api';
 import { fetchGuildEmojis, fetchGuildTextChannels } from '../../../../lib/discord-api';
-import GuildEmojiPicker from '../../../../components/GuildEmojiPicker';
 import type {
   StatusPrefixButton,
   StatusPrefixButtonType,
@@ -153,6 +153,30 @@ export default function StatusPrefixSettingsPage() {
 
   const handleSave = async () => {
     if (!selectedGuildId || isSaving) return;
+
+    // 유효성 검사
+    const errors: string[] = [];
+    if (config.enabled && !config.channelId) {
+      errors.push('안내 채널을 선택해주세요.');
+    }
+    if (config.enabled) {
+      const sorted = [...config.buttons].sort((a, b) => a.sortOrder - b.sortOrder);
+      for (let i = 0; i < sorted.length; i++) {
+        const btn = sorted[i];
+        if (!btn.label.trim()) {
+          errors.push(`버튼 #${i + 1}의 라벨을 입력해주세요.`);
+          break;
+        }
+        if (btn.type === 'PREFIX' && !btn.prefix?.trim()) {
+          errors.push(`버튼 #${i + 1}의 접두사 텍스트를 입력해주세요.`);
+          break;
+        }
+      }
+    }
+    if (errors.length > 0) {
+      setSaveError(errors.join(' '));
+      return;
+    }
 
     setIsSaving(true);
     setSaveError(null);

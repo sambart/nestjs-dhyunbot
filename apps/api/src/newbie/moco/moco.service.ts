@@ -174,6 +174,29 @@ export class MocoService {
   }
 
   /**
+   * 기존 모코코 순위 Embed 메시지를 삭제한다.
+   * 설정 저장 시 Embed를 새로 작성하기 위해 컨트롤러에서 호출한다.
+   */
+  async deleteEmbed(channelId: string, messageId: string): Promise<void> {
+    try {
+      const channel = (await this.discordClient.channels
+        .fetch(channelId)
+        .catch(() => null)) as TextChannel | null;
+      if (channel) {
+        const message = await channel.messages.fetch(messageId).catch(() => null);
+        if (message) {
+          await message.delete();
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[MOCO] Failed to delete old embed: channel=${channelId} message=${messageId}`,
+        (err as Error).stack,
+      );
+    }
+  }
+
+  /**
    * 순위 Embed를 생성하고 설정된 채널에 전송(최초) 또는 수정(이후)한다.
    *
    * - 최초 전송: mocoRankMessageId가 없을 때 새 메시지 전송 후 DB에 messageId 저장

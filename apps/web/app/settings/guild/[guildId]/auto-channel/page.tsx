@@ -3,9 +3,9 @@
 import { Loader2, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import GuildEmojiPicker from "../../../../components/GuildEmojiPicker";
 import type { DiscordChannel, DiscordEmoji } from "../../../../lib/discord-api";
 import { fetchGuildChannels, fetchGuildEmojis } from "../../../../lib/discord-api";
-import GuildEmojiPicker from "../../../../components/GuildEmojiPicker";
 import { useSettings } from "../../../SettingsContext";
 
 // ─── 타입 ──────────────────────────────────────────────────────
@@ -219,6 +219,17 @@ export default function AutoChannelSettingsPage() {
     if (!form.guideChannelId) {
       setSaveError("안내 메시지 채널을 선택하세요.");
       return;
+    }
+    for (let i = 0; i < form.buttons.length; i++) {
+      const btn = form.buttons[i];
+      if (!btn.label.trim()) {
+        setSaveError(`버튼 #${i + 1}의 라벨을 입력하세요.`);
+        return;
+      }
+      if (!btn.targetCategoryId) {
+        setSaveError(`버튼 #${i + 1}의 대상 카테고리를 선택하세요.`);
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -572,10 +583,18 @@ export default function AutoChannelSettingsPage() {
                 </div>
 
                 {btn.subOptions.length > 0 && (
-                  <p className="text-xs text-gray-400 mb-2">
-                    채널명 템플릿에서 <code className="bg-gray-100 px-1 rounded">{"{name}"}</code>은 버튼의 기본 채널명으로 치환됩니다.
-                    예: <code className="bg-gray-100 px-1 rounded">일반 {"{name}"}</code> → <code className="bg-gray-100 px-1 rounded">일반 DHyun의 오버워치</code>
-                  </p>
+                  <>
+                    <p className="text-xs text-gray-400 mb-2">
+                      채널명 템플릿에서 <code className="bg-gray-100 px-1 rounded">{"{name}"}</code>은 버튼의 기본 채널명으로 치환됩니다.
+                      예: <code className="bg-gray-100 px-1 rounded">일반 {"{name}"}</code> → <code className="bg-gray-100 px-1 rounded">일반 DHyun의 오버워치</code>
+                    </p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-20 text-[10px] font-medium text-gray-400">라벨</span>
+                      <span className="w-[4.5rem] text-[10px] font-medium text-gray-400">이모지</span>
+                      <span className="flex-1 text-[10px] font-medium text-gray-400">채널명 템플릿</span>
+                      <span className="w-3.5" />
+                    </div>
+                  </>
                 )}
 
                 {btn.subOptions.map((sub, sIdx) => (

@@ -184,6 +184,27 @@ export class MissionService {
   }
 
   /**
+   * 기존 미션 Embed 메시지를 삭제하고 DB에서 messageId를 초기화한다.
+   * 설정 저장 시 Embed를 새로 작성하기 위해 컨트롤러에서 호출한다.
+   */
+  async deleteEmbed(channelId: string, messageId: string): Promise<void> {
+    try {
+      const channel = await this.discord.channels.fetch(channelId).catch(() => null);
+      if (channel && channel.isTextBased()) {
+        const message = await (channel as TextChannel).messages.fetch(messageId).catch(() => null);
+        if (message) {
+          await message.delete();
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[MISSION] Failed to delete old embed: channel=${channelId} message=${messageId}`,
+        (err as Error).stack,
+      );
+    }
+  }
+
+  /**
    * 갱신 버튼 클릭 시 호출. 미션 캐시 무효화 후 Embed 갱신.
    */
   async invalidateAndRefresh(guildId: string): Promise<void> {

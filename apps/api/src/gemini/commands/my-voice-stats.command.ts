@@ -1,7 +1,7 @@
 import { SlashCommandPipe } from '@discord-nestjs/common';
 import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Colors, CommandInteraction, EmbedBuilder } from 'discord.js';
+import { Colors, CommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 
 import { VoiceAnalyticsService } from '../voice-analytics.service';
 import { AnalyticsDaysDto } from './analytics-days.dto';
@@ -9,6 +9,7 @@ import { AnalyticsDaysDto } from './analytics-days.dto';
 @Command({
   name: 'my-voice-stats',
   description: '내 음성 채널 활동 통계를 확인합니다',
+  defaultMemberPermissions: PermissionFlagsBits.Administrator,
 })
 @Injectable()
 export class MyVoiceStatsCommand {
@@ -21,6 +22,11 @@ export class MyVoiceStatsCommand {
     @InteractionEvent() interaction: CommandInteraction,
     @InteractionEvent(SlashCommandPipe) dto: AnalyticsDaysDto,
   ): Promise<void> {
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+      await interaction.reply({ content: '관리자만 사용할 수 있는 명령어입니다.', ephemeral: true });
+      return;
+    }
+
     await interaction.deferReply({ ephemeral: true });
 
     try {

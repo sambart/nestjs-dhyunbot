@@ -1,9 +1,10 @@
 'use client';
 
 import { useRef } from 'react';
+
+import GuildEmojiPicker from '../../../../../components/GuildEmojiPicker';
 import type { DiscordChannel, DiscordEmoji } from '../../../../../lib/discord-api';
 import type { NewbieConfig } from '../../../../../lib/newbie-api';
-import GuildEmojiPicker from '../../../../../components/GuildEmojiPicker';
 import EmbedPreview from './EmbedPreview';
 
 const MISSION_TEMPLATE_VARIABLES = [

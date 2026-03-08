@@ -15,6 +15,7 @@ import { NewbieConfigSaveDto } from './dto/newbie-config-save.dto';
 import { NewbieConfigRepository } from './infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from './infrastructure/newbie-mission.repository';
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
+import { MissionService } from './mission/mission.service';
 import { MocoService } from './moco/moco.service';
 
 @Controller('api/guilds/:guildId/newbie')
@@ -24,6 +25,7 @@ export class NewbieController {
     private readonly configRepo: NewbieConfigRepository,
     private readonly missionRepo: NewbieMissionRepository,
     private readonly redisRepo: NewbieRedisRepository,
+    private readonly missionService: MissionService,
     private readonly mocoService: MocoService,
   ) {}
 
@@ -54,12 +56,65 @@ export class NewbieController {
     @Param('guildId') guildId: string,
     @Body() dto: NewbieConfigSaveDto,
   ): Promise<{ ok: boolean }> {
+    // prevConfig 스냅샷 (dto와 비교하여 변경 감지용, TypeORM identity map 무관)
+    const prevConfig = await this.configRepo.findByGuildId(guildId);
+    const prevMission = {
+      channelId: prevConfig?.missionNotifyChannelId ?? null,
+      messageId: prevConfig?.missionNotifyMessageId ?? null,
+    };
+    const prevMoco = {
+      channelId: prevConfig?.mocoRankChannelId ?? null,
+      messageId: prevConfig?.mocoRankMessageId ?? null,
+    };
+
+    // dto(요청 body)와 prevConfig를 비교하여 각 섹션 변경 여부 판단
+    const missionChanged =
+      !prevConfig ||
+      (dto.missionEnabled ?? false) !== (prevConfig.missionEnabled ?? false) ||
+      (dto.missionNotifyChannelId ?? null) !== (prevConfig.missionNotifyChannelId ?? null) ||
+      (dto.missionEmbedTitle ?? null) !== (prevConfig.missionEmbedTitle ?? null) ||
+      (dto.missionEmbedDescription ?? null) !== (prevConfig.missionEmbedDescription ?? null) ||
+      (dto.missionEmbedColor ?? null) !== (prevConfig.missionEmbedColor ?? null) ||
+      (dto.missionEmbedThumbnailUrl ?? null) !== (prevConfig.missionEmbedThumbnailUrl ?? null) ||
+      (dto.missionDurationDays ?? null) !== (prevConfig.missionDurationDays ?? null) ||
+      (dto.missionTargetPlaytimeHours ?? null) !== (prevConfig.missionTargetPlaytimeHours ?? null);
+
+    const mocoChanged =
+      !prevConfig ||
+      (dto.mocoEnabled ?? false) !== (prevConfig.mocoEnabled ?? false) ||
+      (dto.mocoRankChannelId ?? null) !== (prevConfig.mocoRankChannelId ?? null) ||
+      (dto.mocoEmbedTitle ?? null) !== (prevConfig.mocoEmbedTitle ?? null) ||
+      (dto.mocoEmbedDescription ?? null) !== (prevConfig.mocoEmbedDescription ?? null) ||
+      (dto.mocoEmbedColor ?? null) !== (prevConfig.mocoEmbedColor ?? null) ||
+      (dto.mocoEmbedThumbnailUrl ?? null) !== (prevConfig.mocoEmbedThumbnailUrl ?? null) ||
+      (dto.mocoAutoRefreshMinutes ?? null) !== (prevConfig.mocoAutoRefreshMinutes ?? null);
+
     const savedConfig = await this.configRepo.upsert(guildId, dto);
     await this.redisRepo.setConfig(guildId, savedConfig);
 
-    // 모코코 설정이 활성이고 채널이 지정되어 있으면 Embed 전송/갱신
-    if (savedConfig.mocoEnabled && savedConfig.mocoRankChannelId) {
+    // 미션 Embed: 설정이 변경되었을 때만 기존 메시지 삭제 후 새로 작성
+    if (missionChanged && savedConfig.missionEnabled && savedConfig.missionNotifyChannelId) {
+      if (prevMission.messageId && prevMission.channelId) {
+        await this.missionService.deleteEmbed(prevMission.channelId, prevMission.messageId);
+        await this.configRepo.updateMissionNotifyMessageId(guildId, null);
+        savedConfig.missionNotifyMessageId = null;
+      }
+      await this.missionService.refreshMissionEmbed(guildId, savedConfig);
+    } else if (prevMission.messageId && prevMission.channelId && !savedConfig.missionNotifyChannelId) {
+      await this.missionService.deleteEmbed(prevMission.channelId, prevMission.messageId);
+      await this.configRepo.updateMissionNotifyMessageId(guildId, null);
+    }
+
+    // 모코코 Embed: 설정이 변경되었을 때만 기존 메시지 삭제 후 새로 작성
+    if (mocoChanged && savedConfig.mocoEnabled && savedConfig.mocoRankChannelId) {
+      if (prevMoco.messageId && prevMoco.channelId) {
+        await this.mocoService.deleteEmbed(prevMoco.channelId, prevMoco.messageId);
+        await this.configRepo.updateMocoRankMessageId(guildId, null);
+      }
       await this.mocoService.sendOrUpdateRankEmbed(guildId, 1);
+    } else if (prevMoco.messageId && prevMoco.channelId && !savedConfig.mocoRankChannelId) {
+      await this.mocoService.deleteEmbed(prevMoco.channelId, prevMoco.messageId);
+      await this.configRepo.updateMocoRankMessageId(guildId, null);
     }
 
     return { ok: true };

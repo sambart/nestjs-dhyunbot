@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 const API_BASE = process.env.API_INTERNAL_URL ?? 'http://api:3000';
 
 async function proxy(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
@@ -22,18 +24,26 @@ async function proxy(request: NextRequest, { params }: { params: Promise<{ path:
   const fetchOptions: RequestInit = {
     method: request.method,
     headers,
+    cache: 'no-store',
   };
 
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    fetchOptions.body = await request.text();
+    const body = await request.text();
+    fetchOptions.body = body;
+    console.log(`[PROXY] ${request.method} ${apiPath} body:`, body.substring(0, 500));
   }
 
   const res = await fetch(url, fetchOptions);
   const data = await res.text();
 
+  console.log(`[PROXY] ${request.method} ${apiPath} → ${res.status}`, data.substring(0, 200));
+
   return new NextResponse(data, {
     status: res.status,
-    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
+    headers: {
+      'Content-Type': res.headers.get('Content-Type') ?? 'application/json',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+    },
   });
 }
 
