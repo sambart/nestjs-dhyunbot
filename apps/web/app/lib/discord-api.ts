@@ -74,3 +74,21 @@ export function getEmojiCdnUrl(id: string, animated: boolean, size = 32): string
 export function formatEmojiString(emoji: DiscordEmoji): string {
   return emoji.animated ? `<a:${emoji.name}:${emoji.id}>` : `<:${emoji.name}:${emoji.id}>`;
 }
+
+export interface SlashCommand {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export async function fetchGuildCommands(
+  guildId: string,
+): Promise<SlashCommand[]> {
+  try {
+    const res = await fetch(`/api/guilds/${guildId}/commands`);
+    if (!res.ok) return [];
+    return res.json() as Promise<SlashCommand[]>;
+  } catch {
+    return [];
+  }
+}

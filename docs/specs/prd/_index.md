@@ -31,6 +31,7 @@ libs/shared/  → 공유 타입 및 상수
 | web | 웹 대시보드 UI (음성 통계, 서버 관리, 자동방 설정) | [web.md](web.md) |
 | newbie | 신규사용자 관리 (환영인사, 미션 추적, 모코코 사냥, 신입기간 역할) | [newbie.md](newbie.md) |
 | status-prefix | 게임방 상태 접두사 설정 (버튼 클릭으로 닉네임 접두사 변경 및 자동 복원) | [status-prefix.md](status-prefix.md) |
+| general | 슬래시 커맨드 자동 등록, 커맨드 목록 API, 일반설정 페이지 동적 커맨드 렌더링 | [general.md](general.md) |
 | member | 디스코드 멤버 정보 관리 | (voice.md에 포함) |
 | channel | 디스코드 채널 정보 관리 | (voice.md에 포함) |
 | auto-channel | 트리거 채널 입장 기반 자동 음성 채널 생성 및 관리 | (voice.md에 포함) |
@@ -84,6 +85,11 @@ libs/shared/  → 공유 타입 및 상수
 - 다른 접두사 버튼 클릭 시 기존 접두사가 새 접두사로 교체
 - 음성 채널 퇴장 시 원래 닉네임으로 자동 복원 (voice 도메인 연계)
 
+### 9. 일반설정 (general)
+- discord-nestjs `ExplorerService` 기반 슬래시 커맨드 자동 탐색 및 등록 (`discord.config.ts` 수동 배열 제거)
+- `GET /api/guilds/:guildId/commands` — Discord API에서 실제 등록된 슬래시 커맨드 목록 조회
+- 일반설정 페이지에서 하드코딩 커맨드 목록을 제거하고 API 기반 동적 렌더링으로 전환
+
 ## 데이터베이스 엔티티
 
 | 엔티티 | 테이블 | 역할 |
@@ -96,6 +102,8 @@ libs/shared/  → 공유 타입 및 상수
 | AutoChannelButton | auto_channel_button | 자동방 버튼 목록 (label, emoji, targetCategoryId) |
 | AutoChannelSubOption | auto_channel_sub_option | 버튼 하위 선택지 (label, emoji, channelSuffix) |
 | NewbieConfig | newbie_config | 신규사용자 관리 길드별 설정 (환영인사, 미션, 모코코, 역할 설정 통합) |
+| NewbieMissionTemplate | newbie_mission_template | 미션 Embed 커스텀 템플릿 (제목/헤더/항목/푸터/상태 매핑, 길드별 1행) |
+| NewbieMocoTemplate | newbie_moco_template | 모코코 사냥 Embed 커스텀 템플릿 (제목/본문/항목/푸터, 길드별 1행) |
 | NewbieMission | newbie_mission | 신규사용자 미션 진행 상태 (startDate, endDate, targetPlaytimeSec, status) |
 | NewbiePeriod | newbie_period | 신입기간 역할 관리 이력 (startDate, expiresDate, isExpired) |
 | StatusPrefixConfig | status_prefix_config | 게임방 상태 접두사 길드별 설정 (channelId, messageId, embedTitle, prefixTemplate) |

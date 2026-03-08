@@ -111,6 +111,22 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
   IDX(guildId, memberId)                      IDX(guildId, isExpired)
   IDX(guildId, status)                        IDX(expiresDate, isExpired)
   IDX(status, endDate)
+
+┌──────────────────────────────────────────┐       ┌──────────────────────────────────────────┐
+│  NewbieMissionTemplate                   │       │  NewbieMocoTemplate                      │
+│  (newbie_mission_template)               │       │  (newbie_moco_template)                  │
+├──────────────────────────────────────────┤       ├──────────────────────────────────────────┤
+│ PK id                                    │       │ PK id                                    │
+│ guildId (UNIQUE)                         │       │ guildId (UNIQUE)                         │
+│ titleTemplate                            │       │ titleTemplate                            │
+│ headerTemplate                           │       │ bodyTemplate                             │
+│ itemTemplate                             │       │ itemTemplate                             │
+│ footerTemplate                           │       │ footerTemplate                           │
+│ statusMapping (json)                     │       │ createdAt, updatedAt                     │
+│ createdAt, updatedAt                     │       └──────────────────────────────────────────┘
+└──────────────────────────────────────────┘         (독립 테이블 — FK 없음, 레코드 없으면 기본값 사용)
+  (독립 테이블 — FK 없음, 레코드 없으면 기본값 사용)
+  UNIQUE(guildId)                                    UNIQUE(guildId)
 ```
 
 ---
@@ -388,7 +404,62 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 
 ---
 
-### 11. StatusPrefixConfig (`status_prefix_config`)
+### 11. NewbieMissionTemplate (`newbie_mission_template`)
+
+미션 Embed 표시 형식을 길드별로 커스터마이징하는 템플릿을 저장한다. `NewbieConfig`와 별도 테이블로 분리되어 있으며, 레코드가 없으면 F-NEWBIE-002에 정의된 기본값을 사용한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
+| `titleTemplate` | `varchar` | NULLABLE | Embed 제목 템플릿. 허용 변수: `{totalCount}` |
+| `headerTemplate` | `text` | NULLABLE | description 최상단 헤더 템플릿. 허용 변수: `{totalCount}`, `{inProgressCount}`, `{completedCount}`, `{failedCount}` |
+| `itemTemplate` | `text` | NULLABLE | 멤버별 미션 현황 항목 템플릿 (반복 렌더링). 허용 변수: `{username}`, `{mention}`, `{startDate}`, `{endDate}`, `{statusEmoji}`, `{statusText}`, `{playtimeHour}`, `{playtimeMin}`, `{playtimeSec}`, `{playtime}`, `{playCount}`, `{targetPlaytime}`, `{daysLeft}` |
+| `footerTemplate` | `varchar` | NULLABLE | Embed footer 템플릿. 허용 변수: `{updatedAt}` |
+| `statusMapping` | `json` | NULLABLE | 상태별 이모지·텍스트 매핑. 형식: `{"IN_PROGRESS":{"emoji":"🟡","text":"진행중"},"COMPLETED":{"emoji":"✅","text":"완료"},"FAILED":{"emoji":"❌","text":"실패"}}` |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장). 레코드가 없으면 기본값 사용.
+- **파일**: `apps/api/src/newbie/domain/newbie-mission-template.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `UQ_newbie_mission_template_guild` | `(guildId)` UNIQUE | 길드당 하나의 템플릿 보장 |
+
+---
+
+### 12. NewbieMocoTemplate (`newbie_moco_template`)
+
+모코코 사냥 Embed 표시 형식을 길드별로 커스터마이징하는 템플릿을 저장한다. `NewbieConfig`와 별도 테이블로 분리되어 있으며, 레코드가 없으면 F-NEWBIE-003에 정의된 기본값을 사용한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
+| `titleTemplate` | `varchar` | NULLABLE | Embed 제목 템플릿. 허용 변수: `{rank}`, `{hunterName}` |
+| `bodyTemplate` | `text` | NULLABLE | 사냥꾼 1명 페이지 전체 본문 템플릿. `{mocoList}` 위치에 항목 템플릿 반복 삽입. 허용 변수: `{totalMinutes}`, `{mocoList}` |
+| `itemTemplate` | `varchar` | NULLABLE | 도움받은 모코코 한 줄 항목 템플릿. 허용 변수: `{newbieName}`, `{minutes}` |
+| `footerTemplate` | `varchar` | NULLABLE | Embed footer 템플릿. 허용 변수: `{currentPage}`, `{totalPages}`, `{interval}` |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장). 레코드가 없으면 기본값 사용.
+- **파일**: `apps/api/src/newbie/domain/newbie-moco-template.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `UQ_newbie_moco_template_guild` | `(guildId)` UNIQUE | 길드당 하나의 템플릿 보장 |
+
+---
+
+### 13. StatusPrefixConfig (`status_prefix_config`)
 
 길드별 Status Prefix 기능 설정을 저장한다. 길드당 하나의 설정이 존재하며, 안내 Embed 메시지 구성과 접두사 형식 템플릿을 포함한다.
 
@@ -418,7 +489,7 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 
 ---
 
-### 12. StatusPrefixButton (`status_prefix_button`)
+### 14. StatusPrefixButton (`status_prefix_button`)
 
 길드별 접두사 버튼 목록을 저장한다. Discord 안내 메시지의 ActionRow에 표시되는 버튼 각각에 대응하며, 접두사 적용(PREFIX)과 원래대로 복원(RESET) 두 가지 타입을 가진다.
 
@@ -677,9 +748,21 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
   3. NewbiePeriod → PostgreSQL update (isExpired=true)
   4. newbie:period:active:{guildId} → Redis delete (캐시 무효화)
 
-[웹 대시보드 설정 저장]
+[웹 대시보드 설정 저장 — NewbieConfig]
   1. NewbieConfig → PostgreSQL upsert (guildId 기준)
   2. newbie:config:{guildId} → Redis set (설정 캐시 갱신, TTL 1h)
+
+[웹 대시보드 설정 저장 — NewbieMissionTemplate]
+  1. 허용 변수 유효성 검사 (백엔드) → 실패 시 400 응답
+  2. NewbieMissionTemplate → PostgreSQL upsert (guildId 기준)
+     - 레코드 없음: INSERT (id, guildId, titleTemplate, headerTemplate, itemTemplate, footerTemplate, statusMapping, createdAt, updatedAt)
+     - 레코드 있음: UPDATE (titleTemplate, headerTemplate, itemTemplate, footerTemplate, statusMapping, updatedAt)
+
+[웹 대시보드 설정 저장 — NewbieMocoTemplate]
+  1. 허용 변수 유효성 검사 (백엔드) → 실패 시 400 응답
+  2. NewbieMocoTemplate → PostgreSQL upsert (guildId 기준)
+     - 레코드 없음: INSERT (id, guildId, titleTemplate, bodyTemplate, itemTemplate, footerTemplate, createdAt, updatedAt)
+     - 레코드 있음: UPDATE (titleTemplate, bodyTemplate, itemTemplate, footerTemplate, updatedAt)
 ```
 
 ### Status Prefix 라이프사이클

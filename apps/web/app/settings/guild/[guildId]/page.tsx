@@ -1,16 +1,36 @@
-import { Bot, Hash, Mic,Music } from "lucide-react";
+'use client';
 
-const commands = [
-  { name: "/play", description: "음악 재생", icon: Music },
-  { name: "/stop", description: "음악 정지", icon: Music },
-  { name: "/skip", description: "음악 스킵", icon: Music },
-  { name: "/voice-stats", description: "음성 통계 조회", icon: Mic },
-  { name: "/my-voice-stats", description: "내 음성 통계", icon: Mic },
-  { name: "/voice-leaderboard", description: "음성 리더보드", icon: Mic },
-  { name: "/community-health", description: "커뮤니티 분석", icon: Bot },
-];
+import { Bot, Hash, Loader2, Mic, Music } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import type { SlashCommand } from '../../../lib/discord-api';
+import { fetchGuildCommands } from '../../../lib/discord-api';
+import { useSettings } from '../../SettingsContext';
+
+function getCommandIcon(name: string): React.ElementType {
+  if (['play', 'stop', 'skip'].includes(name)) return Music;
+  if (name.startsWith('voice-') || name === 'my-voice-stats') return Mic;
+  if (name === 'community-health') return Bot;
+  return Hash;
+}
 
 export default function SettingsPage() {
+  const { selectedGuildId } = useSettings();
+  const [commands, setCommands] = useState<SlashCommand[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedGuildId) return;
+
+    Promise.resolve()
+      .then(() => {
+        setIsLoading(true);
+        return fetchGuildCommands(selectedGuildId);
+      })
+      .then(setCommands)
+      .finally(() => setIsLoading(false));
+  }, [selectedGuildId]);
+
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">일반 설정</h1>
@@ -34,7 +54,7 @@ export default function SettingsPage() {
               <span className="text-sm text-gray-700">등록된 명령어</span>
             </div>
             <span className="text-sm text-gray-500">
-              {commands.length}개
+              {isLoading ? '—' : `${commands.length}개`}
             </span>
           </div>
         </div>
@@ -45,23 +65,33 @@ export default function SettingsPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           슬래시 커맨드
         </h2>
-        <div className="space-y-2">
-          {commands.map((cmd) => {
-            const Icon = cmd.icon;
-            return (
-              <div
-                key={cmd.name}
-                className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <Icon className="w-4 h-4 text-indigo-500" />
-                <span className="text-sm font-mono font-medium text-gray-900">
-                  {cmd.name}
-                </span>
-                <span className="text-sm text-gray-500">{cmd.description}</span>
-              </div>
-            );
-          })}
-        </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+          </div>
+        ) : commands.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-gray-400">등록된 슬래시 커맨드가 없습니다.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {commands.map((cmd) => {
+              const Icon = getCommandIcon(cmd.name);
+              return (
+                <div
+                  key={cmd.id}
+                  className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Icon className="w-4 h-4 text-indigo-500" />
+                  <span className="text-sm font-mono font-medium text-gray-900">
+                    /{cmd.name}
+                  </span>
+                  <span className="text-sm text-gray-500">{cmd.description}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );

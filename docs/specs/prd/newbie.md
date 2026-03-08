@@ -102,18 +102,50 @@ Web Dashboard API
 - **알림 메시지 (채널 Embed)**:
   - 설정된 알림 채널에 미션 현황 Embed 표시
   - 갱신 버튼(Discord Button) 클릭 시 최신 데이터로 Embed 수정
-  - Embed 표시 형식:
+  - Embed 표시 형식은 `NewbieMissionTemplate` 테이블의 템플릿 필드로 결정된다 (아래 템플릿 시스템 참조)
+- **Embed 템플릿 시스템** (F-NEWBIE-002-TMPL):
+  - 제목, 헤더, 항목 포맷, 푸터, 상태 이모지/텍스트를 길드별로 커스터마이징 가능
+  - 템플릿은 `NewbieMissionTemplate` 테이블에 저장되며 길드당 1행 보장
+  - 템플릿이 존재하지 않으면 기본값(Default Template)을 사용
+  - **제목 템플릿** (`titleTemplate`):
+    - 사용 가능 변수: `{totalCount}`
+    - 기본값: `🧑‍🌾 신입 미션 체크`
+  - **헤더 템플릿** (`headerTemplate`): description 최상단 요약 줄
+    - 사용 가능 변수: `{totalCount}`, `{inProgressCount}`, `{completedCount}`, `{failedCount}`
+    - 기본값: `🧑‍🌾 뉴비 멤버 (총 인원: {totalCount}명)`
+  - **항목 템플릿** (`itemTemplate`): 멤버별 미션 현황 한 줄 포맷 (반복 렌더링)
+    - 사용 가능 변수:
 
-    ```
-    🧑‍🌾 신입 미션 체크
-    🧑‍🌾 뉴비 멤버 (총 인원: N명)
+      | 변수 | 설명 |
+      |------|------|
+      | `{username}` | 서버 닉네임 (없으면 전역 닉네임) |
+      | `{mention}` | Discord 멘션 (`<@memberId>`) |
+      | `{startDate}` | 미션 시작일 (`YYYY-MM-DD`) |
+      | `{endDate}` | 미션 마감일 (`YYYY-MM-DD`) |
+      | `{statusEmoji}` | 상태 이모지 (상태 매핑에서 결정) |
+      | `{statusText}` | 상태 텍스트 (상태 매핑에서 결정) |
+      | `{playtimeHour}` | 누적 플레이타임 시간 (정수) |
+      | `{playtimeMin}` | 누적 플레이타임 분 (정수) |
+      | `{playtimeSec}` | 누적 플레이타임 초 (정수) |
+      | `{playtime}` | 누적 플레이타임 포맷 (`H시간 M분 S초`) |
+      | `{playCount}` | 플레이횟수 (정수) |
+      | `{targetPlaytime}` | 목표 플레이타임 (`H시간` 또는 `H시간 M분` 형태) |
+      | `{daysLeft}` | 마감일까지 남은 일수 (정수, 마감 당일 = 0) |
 
-    @{username} 🌱
-    {startDate} ~ {endDate}
-    {statusEmoji} {statusText} | 플레이타임: {H}시간 {M}분 {S}초 | 플레이횟수: {N}회
-    ```
-
-  - 상태 이모지: 진행중 = `🟡`, 완료 = `✅`, 실패 = `❌`
+    - 기본값:
+      ```
+      {mention} 🌱
+      {startDate} ~ {endDate}
+      {statusEmoji} {statusText} | 플레이타임: {playtime} | 플레이횟수: {playCount}회
+      ```
+  - **푸터 템플릿** (`footerTemplate`): Embed footer
+    - 사용 가능 변수: `{updatedAt}`
+    - 기본값: `마지막 갱신: {updatedAt}`
+  - **상태 이모지/텍스트 매핑** (`statusMapping`): JSON 컬럼 1개에 저장
+    - 구조: `{"IN_PROGRESS": {"emoji": "🟡", "text": "진행중"}, "COMPLETED": {"emoji": "✅", "text": "완료"}, "FAILED": {"emoji": "❌", "text": "실패"}}`
+    - 사용자가 이모지와 텍스트를 각각 변경 가능
+  - **날짜 포맷**: 고정 (`YYYY-MM-DD`)
+  - **유효성 검사**: 존재하지 않는 변수 사용 시 저장 차단 (프론트엔드 + 백엔드)
 - **길드별 독립 설정**
 
 ---
@@ -132,20 +164,30 @@ Web Dashboard API
   - 설정된 채널에 TOP N 순위 Embed 표시
   - 페이지네이션: Discord Button으로 이전/다음 페이지 이동
   - 자동 갱신: 설정된 간격(분)마다 Embed 수정, 또는 갱신 버튼 클릭 시 즉시 갱신
-  - Embed 표시 형식:
+  - Embed 표시 형식은 `NewbieMocoTemplate` 테이블의 템플릿 필드로 결정된다 (아래 템플릿 시스템 참조)
+- **Embed 템플릿 시스템** (F-NEWBIE-003-TMPL):
+  - 제목, 본문 구조, 항목 포맷, 푸터를 길드별로 커스터마이징 가능
+  - 템플릿은 `NewbieMocoTemplate` 테이블에 저장되며 길드당 1행 보장
+  - 템플릿이 존재하지 않으면 기본값(Default Template)을 사용
+  - **제목 템플릿** (`titleTemplate`):
+    - 사용 가능 변수: `{rank}`, `{hunterName}`
+    - 기본값: `모코코 사냥 TOP {rank} — {hunterName} 🌱`
+  - **본문 템플릿** (`bodyTemplate`): 사냥꾼 1명의 페이지 전체 구조. `{mocoList}` 블록 변수 위치에 항목 템플릿이 반복 삽입됨
+    - 사용 가능 변수: `{totalMinutes}`, `{mocoList}`
+    - 기본값:
+      ```
+      총 모코코 사냥 시간: {totalMinutes}분
 
-    ```
-    모코코 사냥 TOP {rank} — {memberName} 🌱
-    총 모코코 사냥 시간: {totalMinutes}분
-
-    도움을 받은 모코코들:
-    – {newbieName} 🌱: {minutes}분
-    – {newbieName} 🌱: {minutes}분
-    ...
-
-    페이지 {currentPage}/{totalPages} | 자동 갱신 {interval}분
-    ```
-
+      도움을 받은 모코코들:
+      {mocoList}
+      ```
+  - **항목 템플릿** (`itemTemplate`): 도움받은 모코코 한 줄 포맷 (반복 렌더링)
+    - 사용 가능 변수: `{newbieName}`, `{minutes}`
+    - 기본값: `– {newbieName} 🌱: {minutes}분`
+  - **푸터 템플릿** (`footerTemplate`): Embed footer
+    - 사용 가능 변수: `{currentPage}`, `{totalPages}`, `{interval}`
+    - 기본값: `페이지 {currentPage}/{totalPages} | 자동 갱신 {interval}분`
+  - **유효성 검사**: 존재하지 않는 변수 사용 시 저장 차단 (프론트엔드 + 백엔드)
 - **MVP 제외 항목**: [막판], [관전] 등 태그 구분 기능
 - **길드별 독립 설정**
 
@@ -210,6 +252,19 @@ Web Dashboard API
 | 알림 채널 선택 드롭다운 | 미션 현황 Embed를 표시할 채널 선택 |
 | 저장 버튼 | 설정 내용을 API로 전송 |
 
+##### 템플릿 설정 섹션 (탭 2)
+
+| UI 요소 | 설명 |
+|---------|------|
+| 제목 템플릿 입력 | Embed 제목 (`{totalCount}` 사용 가능) |
+| 헤더 템플릿 입력 | description 최상단 요약 줄 (`{totalCount}`, `{inProgressCount}`, `{completedCount}`, `{failedCount}` 사용 가능) |
+| 항목 템플릿 입력 (멀티라인) | 멤버별 미션 현황 한 줄 포맷. 사용 가능 변수 목록 인라인 표시 |
+| 푸터 템플릿 입력 | Embed footer (`{updatedAt}` 사용 가능) |
+| 상태 매핑 테이블 | 상태(진행중/완료/실패) × 이모지/텍스트 3행 입력 테이블 |
+| 기본값 복원 버튼 | 각 필드를 기본값으로 일괄 복원 |
+| 실시간 미리보기 패널 | 입력 시 debounce(300ms) 적용하여 실시간 Embed 미리보기 반영. 더미 데이터는 프론트에서 고정값 보유 |
+| 사용 가능 변수 안내 | 각 템플릿 필드 하단에 해당 필드의 허용 변수 목록 표시 |
+
 #### 탭 3: 모코코 사냥 설정
 
 | UI 요소 | 설명 |
@@ -218,6 +273,18 @@ Web Dashboard API
 | 순위 표시 채널 선택 드롭다운 | 모코코 사냥 TOP N Embed를 표시할 채널 선택 |
 | 자동 갱신 간격 입력 (숫자) | Embed 자동 갱신 주기 (분 단위) |
 | 저장 버튼 | 설정 내용을 API로 전송 |
+
+##### 템플릿 설정 섹션 (탭 3)
+
+| UI 요소 | 설명 |
+|---------|------|
+| 제목 템플릿 입력 | Embed 제목 (`{rank}`, `{hunterName}` 사용 가능) |
+| 본문 템플릿 입력 (멀티라인) | 사냥꾼 1명의 페이지 전체 구조. `{totalMinutes}`, `{mocoList}` 사용 가능. `{mocoList}` 위치에 항목 템플릿이 반복 삽입됨 |
+| 항목 템플릿 입력 | 도움받은 모코코 한 줄 포맷 (`{newbieName}`, `{minutes}` 사용 가능) |
+| 푸터 템플릿 입력 | Embed footer (`{currentPage}`, `{totalPages}`, `{interval}` 사용 가능) |
+| 기본값 복원 버튼 | 각 필드를 기본값으로 일괄 복원 |
+| 실시간 미리보기 패널 | 입력 시 debounce(300ms) 적용하여 실시간 Embed 미리보기 반영. 더미 데이터는 프론트에서 고정값 보유 |
+| 사용 가능 변수 안내 | 각 템플릿 필드 하단에 해당 필드의 허용 변수 목록 표시 |
 
 #### 탭 4: 신입기간 설정
 
@@ -230,9 +297,17 @@ Web Dashboard API
 
 #### 저장 동작 (공통)
 
-1. 각 탭의 설정을 `POST /api/guilds/{guildId}/newbie/config`로 전송
+1. 각 탭의 기본 설정을 `POST /api/guilds/{guildId}/newbie/config`로 전송
 2. 백엔드에서 `NewbieConfig` DB 저장 및 Redis 캐시 갱신
 3. 저장 성공 시 토스트 알림 표시
+
+#### 저장 동작 (템플릿)
+
+1. 탭 2 템플릿 설정을 `POST /api/guilds/{guildId}/newbie/mission-template`로 전송
+2. 탭 3 템플릿 설정을 `POST /api/guilds/{guildId}/newbie/moco-template`로 전송
+3. 백엔드에서 허용되지 않는 변수 포함 여부 유효성 검사 후 `NewbieMissionTemplate` / `NewbieMocoTemplate` DB upsert
+4. 유효성 검사 실패 시 400 응답, 오류 필드 및 허용 변수 목록 반환
+5. 저장 성공 시 토스트 알림 표시
 
 ---
 
@@ -269,6 +344,47 @@ Web Dashboard API
 
 **인덱스**:
 - `UNIQUE(guildId)` — 길드당 하나의 설정
+
+---
+
+### NewbieMissionTemplate (`newbie_mission_template`)
+
+미션 Embed 표시 형식을 길드별로 커스터마이징하는 템플릿을 저장한다. `NewbieConfig`와 별도 테이블로 분리되어 있으며, 레코드가 없으면 F-NEWBIE-002에 정의된 기본값을 사용한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
+| `titleTemplate` | `varchar` | NULLABLE | Embed 제목 템플릿. 허용 변수: `{totalCount}` |
+| `headerTemplate` | `text` | NULLABLE | description 최상단 헤더 템플릿. 허용 변수: `{totalCount}`, `{inProgressCount}`, `{completedCount}`, `{failedCount}` |
+| `itemTemplate` | `text` | NULLABLE | 멤버별 미션 현황 항목 템플릿 (반복 렌더링). 허용 변수: `{username}`, `{mention}`, `{startDate}`, `{endDate}`, `{statusEmoji}`, `{statusText}`, `{playtimeHour}`, `{playtimeMin}`, `{playtimeSec}`, `{playtime}`, `{playCount}`, `{targetPlaytime}`, `{daysLeft}` |
+| `footerTemplate` | `varchar` | NULLABLE | Embed footer 템플릿. 허용 변수: `{updatedAt}` |
+| `statusMapping` | `json` | NULLABLE | 상태별 이모지·텍스트 매핑. 형식: `{"IN_PROGRESS":{"emoji":"🟡","text":"진행중"},"COMPLETED":{"emoji":"✅","text":"완료"},"FAILED":{"emoji":"❌","text":"실패"}}` |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+**인덱스**:
+- `UNIQUE(guildId)` — 길드당 하나의 템플릿
+
+---
+
+### NewbieMocoTemplate (`newbie_moco_template`)
+
+모코코 사냥 Embed 표시 형식을 길드별로 커스터마이징하는 템플릿을 저장한다. `NewbieConfig`와 별도 테이블로 분리되어 있으며, 레코드가 없으면 F-NEWBIE-003에 정의된 기본값을 사용한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
+| `titleTemplate` | `varchar` | NULLABLE | Embed 제목 템플릿. 허용 변수: `{rank}`, `{hunterName}` |
+| `bodyTemplate` | `text` | NULLABLE | 사냥꾼 1명 페이지 전체 본문 템플릿. `{mocoList}` 위치에 항목 템플릿 반복 삽입. 허용 변수: `{totalMinutes}`, `{mocoList}` |
+| `itemTemplate` | `varchar` | NULLABLE | 도움받은 모코코 한 줄 항목 템플릿. 허용 변수: `{newbieName}`, `{minutes}` |
+| `footerTemplate` | `varchar` | NULLABLE | Embed footer 템플릿. 허용 변수: `{currentPage}`, `{totalPages}`, `{interval}` |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+**인덱스**:
+- `UNIQUE(guildId)` — 길드당 하나의 템플릿
 
 ---
 

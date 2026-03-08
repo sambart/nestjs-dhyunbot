@@ -80,4 +80,20 @@ export class GuildInfoController {
         animated: emoji.animated ?? false,
       }));
   }
+
+  @Get('commands')
+  async getCommands() {
+    try {
+      const commands = await this.client.application?.commands.fetch();
+      if (!commands) return [];
+
+      return commands.map((cmd) => ({
+        id: cmd.id,
+        name: cmd.name,
+        description: cmd.description,
+      }));
+    } catch {
+      return [];
+    }
+  }
 }

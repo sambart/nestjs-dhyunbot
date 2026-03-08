@@ -63,4 +63,28 @@ export class NewbieMissionRepository {
   async updateStatus(id: number, status: MissionStatus): Promise<void> {
     await this.repo.update(id, { status });
   }
+
+  /**
+   * 길드의 미션 상태별 카운트 집계.
+   * headerTemplate의 {inProgressCount}, {completedCount}, {failedCount} 변수 렌더링에 사용.
+   */
+  async countByStatusForGuild(guildId: string): Promise<Record<MissionStatus, number>> {
+    const rows = await this.repo
+      .createQueryBuilder('m')
+      .select('m.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .where('m.guildId = :guildId', { guildId })
+      .groupBy('m.status')
+      .getRawMany<{ status: MissionStatus; count: string }>();
+
+    const result: Record<MissionStatus, number> = {
+      [MissionStatus.IN_PROGRESS]: 0,
+      [MissionStatus.COMPLETED]: 0,
+      [MissionStatus.FAILED]: 0,
+    };
+    for (const row of rows) {
+      result[row.status] = parseInt(row.count, 10);
+    }
+    return result;
+  }
 }
