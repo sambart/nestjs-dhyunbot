@@ -18,6 +18,7 @@ export interface NewbieConfig {
 
   // 모코코 사냥
   mocoEnabled: boolean;
+  mocoNewbieDays: number | null;
   mocoAllowNewbieHunter: boolean;
   mocoRankChannelId: string | null;
   mocoAutoRefreshMinutes: number | null;

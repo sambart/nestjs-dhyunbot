@@ -101,8 +101,9 @@ Web Dashboard API
   |------|------|------|
   | 진행중 | `IN_PROGRESS` | 현재일 <= 마감일, 목표 미달성 |
   | 완료 | `COMPLETED` | 목표 플레이타임 달성 (마감일 이전 포함) |
-  | 실패 | `FAILED` | 현재일 > 마감일, 목표 미달성 |
+  | 실패 | `FAILED` | 현재일 > 마감일 목표 미달성, 또는 봇·서버 탈퇴 멤버로 판정 |
 
+- **봇·탈퇴 멤버 자동 제거**: 미션 Embed 갱신 시 각 활성 미션의 멤버를 Discord API로 조회하여, 봇이거나 서버를 떠난 멤버의 미션을 `FAILED` 처리하고 목록에서 제거한다.
 - **스케줄러**: 매일 자정 `MissionScheduler` 실행
   1. `IN_PROGRESS` 상태 미션 중 마감일이 지난 항목 조회
   2. 목표 달성 여부 재확인 후 `COMPLETED` 또는 `FAILED`로 상태 갱신
@@ -159,16 +160,17 @@ Web Dashboard API
 
 ### F-NEWBIE-003: 같이 플레이한 사용자 기록 (모코코 사냥)
 
-- **개념**: "모코코" = 신규사용자(신입기간 내 멤버). 기존 멤버가 신규사용자와 같은 음성 채널에 동시 접속한 시간을 "모코코 사냥" 시간으로 기록한다.
+- **개념**: "모코코" = 신규사용자(서버 가입 후 설정된 일수 이내인 멤버). 기존 멤버가 신규사용자와 같은 음성 채널에 동시 접속한 시간을 "모코코 사냥" 시간으로 기록한다.
 - **전제 조건**: `NewbieConfig.mocoEnabled = true`
+- **모코코 기준 일수** (`mocoNewbieDays`): Discord 서버 가입일(`member.joinedAt`) 기준으로, 가입 후 이 일수 이내인 멤버를 모코코(신입)로 판정한다. 기본값 30일, 최솟값 1일, 최댓값 365일.
 - **모코코도 사냥꾼 허용 옵션** (`mocoAllowNewbieHunter`):
   - `false` (기본): 모코코(신규사용자)는 사냥꾼이 될 수 없음. 기존 멤버만 사냥꾼으로 집계
   - `true`: 모코코도 다른 모코코의 사냥꾼이 될 수 있음 (단, 자기 자신에 대한 사냥 시간은 누적하지 않음)
 - **측정 방식**:
   1. `MocoScheduler`가 매 1분마다 봇이 참여 중인 모든 길드의 음성 채널을 순회
-  2. 채널 내 신규사용자(신입기간 중인 멤버) 존재 여부 확인
+  2. 채널 내 신규사용자(서버 가입 후 `mocoNewbieDays`일 이내인 멤버) 존재 여부 확인
   3. 신규사용자와 같은 채널에 있는 사냥꾼 각각에 대해 Redis에 시간 1분 누적
-  4. 신규사용자 기준: `NewbieMission` 상태가 `IN_PROGRESS`인 멤버
+  4. 신규사용자 기준: Discord `member.joinedAt` 기준 가입 후 `mocoNewbieDays`일 이내인 멤버
   5. 사냥꾼 기준: `mocoAllowNewbieHunter` 설정에 따라 기존 멤버만 또는 전체 채널 멤버
 - **순위 기준**: 기존 멤버별 모코코 사냥 누적 시간(분) 내림차순
 - **알림 메시지 (채널 Embed)**:
@@ -287,6 +289,7 @@ Web Dashboard API
 | UI 요소 | 설명 |
 |---------|------|
 | 기능 활성화 토글 | 모코코 사냥 기능 ON/OFF |
+| 모코코 기준 일수 입력 (숫자) | 서버 가입 후 이 일수 이내인 멤버를 모코코로 판정. 1~365, 기본값 30 |
 | 모코코도 사냥꾼 허용 토글 | `true`이면 신입(모코코)도 다른 신입의 사냥꾼이 될 수 있음. 기본값 `false` |
 | 순위 표시 채널 선택 드롭다운 | 모코코 사냥 TOP N Embed를 표시할 채널 선택 |
 | 자동 갱신 간격 입력 (숫자) | Embed 자동 갱신 주기 (분 단위) |
@@ -361,6 +364,7 @@ Web Dashboard API
 | `missionEmbedColor` | `varchar` | NULLABLE | 미션 현황 Embed 색상 (HEX, 예: `#5865F2`) |
 | `missionEmbedThumbnailUrl` | `varchar` | NULLABLE | 미션 현황 Embed 썸네일 이미지 URL |
 | `mocoEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 모코코 사냥 기능 활성화 여부 |
+| `mocoNewbieDays` | `int` | NOT NULL, DEFAULT `30` | 모코코 기준 일수. 서버 가입 후 이 일수 이내인 멤버를 모코코로 판정. 1~365 |
 | `mocoAllowNewbieHunter` | `boolean` | NOT NULL, DEFAULT `false` | 모코코도 사냥꾼 허용 여부. `true`이면 신입도 다른 신입의 사냥꾼이 될 수 있음 |
 | `mocoRankChannelId` | `varchar` | NULLABLE | 모코코 사냥 순위 표시 채널 ID |
 | `mocoRankMessageId` | `varchar` | NULLABLE | 모코코 사냥 순위 Embed 메시지 ID |

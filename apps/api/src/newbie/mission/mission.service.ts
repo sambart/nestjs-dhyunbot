@@ -210,7 +210,10 @@ export class MissionService {
     }
 
     // 진행중 미션 목록 조회 (Redis 캐시 우선)
-    const missions = await this.getActiveMissions(guildId);
+    let missions = await this.getActiveMissions(guildId);
+
+    // 봇·나간 멤버 미션 제거
+    missions = await this.removeInvalidMissions(guildId, missions);
 
     const embed = await this.buildMissionEmbed(guildId, missions, resolvedConfig);
     const row = this.buildRefreshButton(guildId);
@@ -296,6 +299,42 @@ export class MissionService {
 
     await this.newbieRedis.deleteMissionActive(guildId);
     await this.refreshMissionEmbed(guildId);
+  }
+
+  /**
+   * 봇이거나 서버를 떠난 멤버의 미션을 FAILED 처리하고 목록에서 제거한다.
+   * 제거된 미션이 있으면 캐시를 무효화한다.
+   */
+  private async removeInvalidMissions(
+    guildId: string,
+    missions: NewbieMission[],
+  ): Promise<NewbieMission[]> {
+    if (missions.length === 0) return missions;
+
+    const guild = await this.discord.guilds.fetch(guildId).catch(() => null);
+    if (!guild) return missions; // 길드 조회 실패 시 필터 생략
+
+    const valid: NewbieMission[] = [];
+    let removed = 0;
+
+    for (const mission of missions) {
+      const member = await guild.members.fetch(mission.memberId).catch(() => null);
+      if (!member || member.user.bot) {
+        await this.missionRepo.updateStatus(mission.id, MissionStatus.FAILED);
+        this.logger.log(
+          `[MISSION] Removed invalid member: id=${mission.id} member=${mission.memberId} reason=${!member ? 'left' : 'bot'}`,
+        );
+        removed++;
+        continue;
+      }
+      valid.push(mission);
+    }
+
+    if (removed > 0) {
+      await this.newbieRedis.deleteMissionActive(guildId);
+    }
+
+    return valid;
   }
 
   /**

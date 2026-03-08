@@ -57,6 +57,33 @@ export default function MocoTab({
         </button>
       </div>
 
+      {/* 모코코 기준 일수 */}
+      <div>
+        <label
+          htmlFor="moco-newbie-days"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
+          모코코 기준 (가입 후 일수)
+        </label>
+        <input
+          id="moco-newbie-days"
+          type="number"
+          min={1}
+          max={365}
+          value={config.mocoNewbieDays ?? 30}
+          onChange={(e) => {
+            const val = parseInt(e.target.value, 10);
+            onChange({ mocoNewbieDays: isNaN(val) ? null : val });
+          }}
+          disabled={!isEnabled}
+          placeholder="30"
+          className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+        />
+        <p className="text-xs text-gray-400 mt-1">
+          서버 가입 후 이 일수 이내인 멤버를 모코코(신입)로 판정합니다.
+        </p>
+      </div>
+
       {/* 모코코도 사냥꾼 허용 토글 */}
       <div className="flex items-center justify-between">
         <div>

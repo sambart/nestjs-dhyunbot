@@ -29,7 +29,8 @@ export class NewbieInteractionHandler {
     const isMoco =
       customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_PREV) ||
       customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_NEXT) ||
-      customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_REFRESH);
+      customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_REFRESH) ||
+      customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_MY);
 
     if (!isMission && !isMoco) return;
 
@@ -113,6 +114,16 @@ export class NewbieInteractionHandler {
       const currentPage = parseInt(rest.slice(lastColon + 1), 10);
       const payload = await this.mocoService.buildRankPayload(guildId, currentPage + 1);
       await interaction.update(payload);
+      return;
+    }
+
+    if (customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_MY)) {
+      // newbie_moco:my:{guildId}
+      const guildId = customId.slice(NEWBIE_CUSTOM_ID.MOCO_MY.length);
+      const userId = interaction.user.id;
+      await interaction.deferReply({ ephemeral: true });
+      const content = await this.mocoService.buildMyHuntingMessage(guildId, userId);
+      await interaction.editReply({ content });
     }
   }
 }
