@@ -16,7 +16,7 @@ import { VoiceDailyFlushService } from '../../channel/voice/application/voice-da
 import { VoiceChannelHistory } from '../../channel/voice/domain/voice-channel-history.entity';
 import { VoiceDailyEntity } from '../../channel/voice/domain/voice-daily.entity';
 import { NewbieConfig } from '../domain/newbie-config.entity';
-import { MissionStatus, NewbieMission } from '../domain/newbie-mission.entity';
+import { NewbieMission } from '../domain/newbie-mission.entity';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { MISSION_STATUS_EMOJI, MISSION_STATUS_TEXT } from '../infrastructure/newbie-mission.constants';
 import { NewbieMissionRepository } from '../infrastructure/newbie-mission.repository';

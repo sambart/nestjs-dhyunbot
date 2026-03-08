@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { ChannelService } from '../../channel.service';
 import { MemberService } from '../../../member/member.service';
+import { ChannelService } from '../../channel.service';
 import { VoiceStateDto } from '../infrastructure/voice-state.dto';
 import { VoiceChannelHistoryService } from './voice-channel-history.service';
 import { VoiceSessionService } from './voice-session.service';

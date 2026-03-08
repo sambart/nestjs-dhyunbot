@@ -1,5 +1,4 @@
 import { Mic, Music, Settings, TrendingUp, UserPlus, Zap } from "lucide-react";
-import Link from "next/link";
 
 export default function Home() {
   return (

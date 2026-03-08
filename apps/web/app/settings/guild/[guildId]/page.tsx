@@ -1,4 +1,4 @@
-import { Bot, Hash, Music, Mic } from "lucide-react";
+import { Bot, Hash, Mic,Music } from "lucide-react";
 
 const commands = [
   { name: "/play", description: "음악 재생", icon: Music },

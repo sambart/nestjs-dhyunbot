@@ -1,3 +1,4 @@
+import { getKSTDateString } from '@dhyunbot/shared';
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import {
   Injectable,
@@ -6,7 +7,6 @@ import {
   OnApplicationShutdown,
 } from '@nestjs/common';
 import { Client } from 'discord.js';
-import { getKSTDateString } from '@dhyunbot/shared';
 
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { NewbiePeriodRepository } from '../infrastructure/newbie-period.repository';

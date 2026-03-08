@@ -1,7 +1,7 @@
+import { getKSTDateString } from '@dhyunbot/shared';
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Client, GuildMember } from 'discord.js';
-import { getKSTDateString } from '@dhyunbot/shared';
 
 import { NewbieConfig } from '../domain/newbie-config.entity';
 import { NewbiePeriodRepository } from '../infrastructure/newbie-period.repository';
