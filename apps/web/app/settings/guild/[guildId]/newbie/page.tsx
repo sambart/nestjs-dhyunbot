@@ -5,8 +5,18 @@ import { useEffect, useState } from 'react';
 
 import type { DiscordChannel, DiscordEmoji, DiscordRole } from '../../../../lib/discord-api';
 import { fetchGuildEmojis, fetchGuildRoles, fetchGuildTextChannels } from '../../../../lib/discord-api';
-import type { NewbieConfig } from '../../../../lib/newbie-api';
-import { fetchNewbieConfig, saveNewbieConfig } from '../../../../lib/newbie-api';
+import type { MissionTemplate, MocoTemplate, NewbieConfig } from '../../../../lib/newbie-api';
+import {
+  DEFAULT_MISSION_TEMPLATE,
+  DEFAULT_MOCO_TEMPLATE,
+  fetchMissionTemplate,
+  fetchMocoTemplate,
+  fetchNewbieConfig,
+  saveMissionTemplate,
+  saveMocoTemplate,
+  saveNewbieConfig,
+} from '../../../../lib/newbie-api';
+import { validateMissionTemplate, validateMocoTemplate } from '../../../../lib/newbie-template-utils';
 import { useSettings } from '../../../SettingsContext';
 import MissionTab from './components/MissionTab';
 import MocoTab from './components/MocoTab';
@@ -33,17 +43,9 @@ const DEFAULT_CONFIG: NewbieConfig = {
   missionDurationDays: null,
   missionTargetPlaytimeHours: null,
   missionNotifyChannelId: null,
-  missionEmbedTitle: null,
-  missionEmbedDescription: null,
-  missionEmbedColor: '#57F287',
-  missionEmbedThumbnailUrl: null,
   mocoEnabled: false,
   mocoRankChannelId: null,
   mocoAutoRefreshMinutes: null,
-  mocoEmbedTitle: null,
-  mocoEmbedDescription: null,
-  mocoEmbedColor: '#5865F2',
-  mocoEmbedThumbnailUrl: null,
   roleEnabled: false,
   roleDurationDays: null,
   newbieRoleId: null,
@@ -63,12 +65,26 @@ export default function NewbieSettingsPage() {
   const [configLoaded, setConfigLoaded] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // 미션 템플릿 상태
+  const [missionTemplate, setMissionTemplate] = useState<MissionTemplate>(DEFAULT_MISSION_TEMPLATE);
+  const [isSavingMissionTemplate, setIsSavingMissionTemplate] = useState(false);
+  const [missionTemplateSaveError, setMissionTemplateSaveError] = useState<string | null>(null);
+  const [missionTemplateSaveSuccess, setMissionTemplateSaveSuccess] = useState(false);
+
+  // 모코코 템플릿 상태
+  const [mocoTemplate, setMocoTemplate] = useState<MocoTemplate>(DEFAULT_MOCO_TEMPLATE);
+  const [isSavingMocoTemplate, setIsSavingMocoTemplate] = useState(false);
+  const [mocoTemplateSaveError, setMocoTemplateSaveError] = useState<string | null>(null);
+  const [mocoTemplateSaveSuccess, setMocoTemplateSaveSuccess] = useState(false);
+
   useEffect(() => {
     if (!selectedGuildId) return;
 
     setIsLoading(true);
     setConfigLoaded(false);
     setConfig(DEFAULT_CONFIG);
+    setMissionTemplate(DEFAULT_MISSION_TEMPLATE);
+    setMocoTemplate(DEFAULT_MOCO_TEMPLATE);
 
     Promise.all([
       fetchNewbieConfig(selectedGuildId).catch(() => null),
@@ -77,12 +93,16 @@ export default function NewbieSettingsPage() {
       ),
       fetchGuildRoles(selectedGuildId).catch((): DiscordRole[] => []),
       fetchGuildEmojis(selectedGuildId).catch((): DiscordEmoji[] => []),
+      fetchMissionTemplate(selectedGuildId).catch(() => null),
+      fetchMocoTemplate(selectedGuildId).catch(() => null),
     ])
-      .then(([cfg, chs, rls, ems]) => {
+      .then(([cfg, chs, rls, ems, mTmpl, mocoTmpl]) => {
         if (cfg) setConfig(cfg);
         setChannels(chs);
         setRoles(rls);
         setEmojis(ems);
+        if (mTmpl) setMissionTemplate(mTmpl);
+        if (mocoTmpl) setMocoTemplate(mocoTmpl);
         setConfigLoaded(true);
       })
       .catch(() => {})
@@ -146,6 +166,66 @@ export default function NewbieSettingsPage() {
     }
   };
 
+  const handleSaveMissionTemplate = async () => {
+    if (!selectedGuildId || isSavingMissionTemplate) return;
+
+    // 프론트엔드 유효성 검사
+    const errors = validateMissionTemplate(missionTemplate);
+    if (errors.size > 0) {
+      const msgs = [...errors.entries()].map(
+        ([field, vars]) => `${field}: 허용되지 않는 변수 ${vars.join(', ')}`,
+      );
+      setMissionTemplateSaveError(msgs.join('\n'));
+      return;
+    }
+
+    setIsSavingMissionTemplate(true);
+    setMissionTemplateSaveError(null);
+    setMissionTemplateSaveSuccess(false);
+
+    try {
+      await saveMissionTemplate(selectedGuildId, missionTemplate);
+      setMissionTemplateSaveSuccess(true);
+      setTimeout(() => setMissionTemplateSaveSuccess(false), 3000);
+    } catch (err) {
+      setMissionTemplateSaveError(
+        err instanceof Error ? err.message : '저장에 실패했습니다.',
+      );
+    } finally {
+      setIsSavingMissionTemplate(false);
+    }
+  };
+
+  const handleSaveMocoTemplate = async () => {
+    if (!selectedGuildId || isSavingMocoTemplate) return;
+
+    // 프론트엔드 유효성 검사
+    const errors = validateMocoTemplate(mocoTemplate);
+    if (errors.size > 0) {
+      const msgs = [...errors.entries()].map(
+        ([field, vars]) => `${field}: 허용되지 않는 변수 ${vars.join(', ')}`,
+      );
+      setMocoTemplateSaveError(msgs.join('\n'));
+      return;
+    }
+
+    setIsSavingMocoTemplate(true);
+    setMocoTemplateSaveError(null);
+    setMocoTemplateSaveSuccess(false);
+
+    try {
+      await saveMocoTemplate(selectedGuildId, mocoTemplate);
+      setMocoTemplateSaveSuccess(true);
+      setTimeout(() => setMocoTemplateSaveSuccess(false), 3000);
+    } catch (err) {
+      setMocoTemplateSaveError(
+        err instanceof Error ? err.message : '저장에 실패했습니다.',
+      );
+    } finally {
+      setIsSavingMocoTemplate(false);
+    }
+  };
+
   if (!selectedGuildId) {
     return (
       <div className="max-w-3xl">
@@ -191,6 +271,12 @@ export default function NewbieSettingsPage() {
             channels={channels}
             emojis={emojis}
             onChange={updateConfig}
+            missionTemplate={missionTemplate}
+            onMissionTemplateChange={setMissionTemplate}
+            onSaveMissionTemplate={handleSaveMissionTemplate}
+            isSavingMissionTemplate={isSavingMissionTemplate}
+            missionTemplateSaveError={missionTemplateSaveError}
+            missionTemplateSaveSuccess={missionTemplateSaveSuccess}
           />
         );
       case 'moco':
@@ -200,6 +286,12 @@ export default function NewbieSettingsPage() {
             channels={channels}
             emojis={emojis}
             onChange={updateConfig}
+            mocoTemplate={mocoTemplate}
+            onMocoTemplateChange={setMocoTemplate}
+            onSaveMocoTemplate={handleSaveMocoTemplate}
+            isSavingMocoTemplate={isSavingMocoTemplate}
+            mocoTemplateSaveError={mocoTemplateSaveError}
+            mocoTemplateSaveSuccess={mocoTemplateSaveSuccess}
           />
         );
       case 'role':

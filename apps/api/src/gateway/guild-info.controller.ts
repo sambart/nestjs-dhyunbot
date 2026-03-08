@@ -80,4 +80,22 @@ export class GuildInfoController {
         animated: emoji.animated ?? false,
       }));
   }
+
+  @Get('commands')
+  async getCommands(
+    @Param('guildId') guildId: string,
+  ) {
+    try {
+      const commands = await this.client.application?.commands.fetch({ guildId });
+      if (!commands) return [];
+
+      return commands.map((cmd) => ({
+        id: cmd.id,
+        name: cmd.name,
+        description: cmd.description,
+      }));
+    } catch {
+      return [];
+    }
+  }
 }

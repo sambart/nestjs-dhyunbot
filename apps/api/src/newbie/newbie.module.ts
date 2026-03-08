@@ -9,9 +9,13 @@ import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
 import { RedisModule } from '../redis/redis.module';
 import { NewbieConfig } from './domain/newbie-config.entity';
 import { NewbieMission } from './domain/newbie-mission.entity';
+import { NewbieMissionTemplate } from './domain/newbie-mission-template.entity';
+import { NewbieMocoTemplate } from './domain/newbie-moco-template.entity';
 import { NewbiePeriod } from './domain/newbie-period.entity';
 import { NewbieConfigRepository } from './infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from './infrastructure/newbie-mission.repository';
+import { NewbieMissionTemplateRepository } from './infrastructure/newbie-mission-template.repository';
+import { NewbieMocoTemplateRepository } from './infrastructure/newbie-moco-template.repository';
 import { NewbiePeriodRepository } from './infrastructure/newbie-period.repository';
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
 import { MissionScheduler } from './mission/mission.scheduler';
@@ -28,7 +32,9 @@ import { WelcomeService } from './welcome/welcome.service';
     DiscordModule.forFeature(),
     TypeOrmModule.forFeature([
       NewbieConfig,
+      NewbieMissionTemplate,
       NewbieMission,
+      NewbieMocoTemplate,
       NewbiePeriod,
       VoiceDailyEntity,
       VoiceChannelHistory,
@@ -42,6 +48,8 @@ import { WelcomeService } from './welcome/welcome.service';
     // 저장소
     NewbieConfigRepository,
     NewbieMissionRepository,
+    NewbieMissionTemplateRepository,
+    NewbieMocoTemplateRepository,
     NewbiePeriodRepository,
     NewbieRedisRepository,
     // 핵심 (Unit A)
@@ -60,6 +68,8 @@ import { WelcomeService } from './welcome/welcome.service';
   exports: [
     NewbieConfigRepository,
     NewbieMissionRepository,
+    NewbieMissionTemplateRepository,
+    NewbieMocoTemplateRepository,
     NewbiePeriodRepository,
     NewbieRedisRepository,
     MissionService,

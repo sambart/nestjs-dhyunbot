@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -12,11 +13,26 @@ import {
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { NewbieConfigSaveDto } from './dto/newbie-config-save.dto';
+import { NewbieMissionTemplateSaveDto } from './dto/newbie-mission-template-save.dto';
+import { NewbieMocoTemplateSaveDto } from './dto/newbie-moco-template-save.dto';
 import { NewbieConfigRepository } from './infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from './infrastructure/newbie-mission.repository';
+import { NewbieMissionTemplateRepository } from './infrastructure/newbie-mission-template.repository';
+import { NewbieMocoTemplateRepository } from './infrastructure/newbie-moco-template.repository';
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
+import {
+  MISSION_FOOTER_ALLOWED_VARS,
+  MISSION_HEADER_ALLOWED_VARS,
+  MISSION_ITEM_ALLOWED_VARS,
+  MISSION_TITLE_ALLOWED_VARS,
+  MOCO_BODY_ALLOWED_VARS,
+  MOCO_FOOTER_ALLOWED_VARS,
+  MOCO_ITEM_ALLOWED_VARS,
+  MOCO_TITLE_ALLOWED_VARS,
+} from './infrastructure/newbie-template.constants';
 import { MissionService } from './mission/mission.service';
 import { MocoService } from './moco/moco.service';
+import { findInvalidVars } from './util/newbie-template-validator.util';
 
 @Controller('api/guilds/:guildId/newbie')
 @UseGuards(JwtAuthGuard)
@@ -27,6 +43,8 @@ export class NewbieController {
     private readonly redisRepo: NewbieRedisRepository,
     private readonly missionService: MissionService,
     private readonly mocoService: MocoService,
+    private readonly missionTmplRepo: NewbieMissionTemplateRepository,
+    private readonly mocoTmplRepo: NewbieMocoTemplateRepository,
   ) {}
 
   /**
@@ -158,5 +176,105 @@ export class NewbieController {
     ]);
 
     return { items, total, page: resolvedPage, pageSize: resolvedPageSize };
+  }
+
+  /**
+   * GET /api/guilds/:guildId/newbie/mission-template
+   * 미션 템플릿 조회. 레코드 없으면 null 반환 (프론트에서 기본값 표시).
+   */
+  @Get('mission-template')
+  async getMissionTemplate(@Param('guildId') guildId: string) {
+    return this.missionTmplRepo.findByGuildId(guildId);
+  }
+
+  /**
+   * POST /api/guilds/:guildId/newbie/mission-template
+   * 미션 템플릿 저장. 허용 변수 검증 후 upsert.
+   * 검증 실패 시 400 응답.
+   */
+  @Post('mission-template')
+  @HttpCode(HttpStatus.OK)
+  async saveMissionTemplate(
+    @Param('guildId') guildId: string,
+    @Body() dto: NewbieMissionTemplateSaveDto,
+  ): Promise<{ ok: boolean }> {
+    this.validateMissionTemplate(dto);
+    await this.missionTmplRepo.upsert(guildId, dto);
+    return { ok: true };
+  }
+
+  /**
+   * GET /api/guilds/:guildId/newbie/moco-template
+   * 모코코 템플릿 조회. 레코드 없으면 null 반환.
+   */
+  @Get('moco-template')
+  async getMocoTemplate(@Param('guildId') guildId: string) {
+    return this.mocoTmplRepo.findByGuildId(guildId);
+  }
+
+  /**
+   * POST /api/guilds/:guildId/newbie/moco-template
+   * 모코코 템플릿 저장. 허용 변수 검증 후 upsert.
+   * 검증 실패 시 400 응답.
+   */
+  @Post('moco-template')
+  @HttpCode(HttpStatus.OK)
+  async saveMocoTemplate(
+    @Param('guildId') guildId: string,
+    @Body() dto: NewbieMocoTemplateSaveDto,
+  ): Promise<{ ok: boolean }> {
+    this.validateMocoTemplate(dto);
+    await this.mocoTmplRepo.upsert(guildId, dto);
+    return { ok: true };
+  }
+
+  private validateMissionTemplate(dto: NewbieMissionTemplateSaveDto): void {
+    const errors: Record<string, string[]> = {};
+
+    if (dto.titleTemplate) {
+      const invalid = findInvalidVars(dto.titleTemplate, MISSION_TITLE_ALLOWED_VARS);
+      if (invalid.length > 0) errors['titleTemplate'] = invalid;
+    }
+    if (dto.headerTemplate) {
+      const invalid = findInvalidVars(dto.headerTemplate, MISSION_HEADER_ALLOWED_VARS);
+      if (invalid.length > 0) errors['headerTemplate'] = invalid;
+    }
+    if (dto.itemTemplate) {
+      const invalid = findInvalidVars(dto.itemTemplate, MISSION_ITEM_ALLOWED_VARS);
+      if (invalid.length > 0) errors['itemTemplate'] = invalid;
+    }
+    if (dto.footerTemplate) {
+      const invalid = findInvalidVars(dto.footerTemplate, MISSION_FOOTER_ALLOWED_VARS);
+      if (invalid.length > 0) errors['footerTemplate'] = invalid;
+    }
+
+    if (Object.keys(errors).length > 0) {
+      throw new BadRequestException({ message: '허용되지 않은 변수가 포함되어 있습니다.', errors });
+    }
+  }
+
+  private validateMocoTemplate(dto: NewbieMocoTemplateSaveDto): void {
+    const errors: Record<string, string[]> = {};
+
+    if (dto.titleTemplate) {
+      const invalid = findInvalidVars(dto.titleTemplate, MOCO_TITLE_ALLOWED_VARS);
+      if (invalid.length > 0) errors['titleTemplate'] = invalid;
+    }
+    if (dto.bodyTemplate) {
+      const invalid = findInvalidVars(dto.bodyTemplate, MOCO_BODY_ALLOWED_VARS);
+      if (invalid.length > 0) errors['bodyTemplate'] = invalid;
+    }
+    if (dto.itemTemplate) {
+      const invalid = findInvalidVars(dto.itemTemplate, MOCO_ITEM_ALLOWED_VARS);
+      if (invalid.length > 0) errors['itemTemplate'] = invalid;
+    }
+    if (dto.footerTemplate) {
+      const invalid = findInvalidVars(dto.footerTemplate, MOCO_FOOTER_ALLOWED_VARS);
+      if (invalid.length > 0) errors['footerTemplate'] = invalid;
+    }
+
+    if (Object.keys(errors).length > 0) {
+      throw new BadRequestException({ message: '허용되지 않은 변수가 포함되어 있습니다.', errors });
+    }
   }
 }

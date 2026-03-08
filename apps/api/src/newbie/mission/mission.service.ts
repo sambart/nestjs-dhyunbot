@@ -18,9 +18,17 @@ import { VoiceDailyEntity } from '../../channel/voice/domain/voice-daily.entity'
 import { NewbieConfig } from '../domain/newbie-config.entity';
 import { NewbieMission } from '../domain/newbie-mission.entity';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
-import { MISSION_STATUS_EMOJI, MISSION_STATUS_TEXT } from '../infrastructure/newbie-mission.constants';
 import { NewbieMissionRepository } from '../infrastructure/newbie-mission.repository';
+import { NewbieMissionTemplateRepository } from '../infrastructure/newbie-mission-template.repository';
 import { NewbieRedisRepository } from '../infrastructure/newbie-redis.repository';
+import {
+  DEFAULT_MISSION_FOOTER_TEMPLATE,
+  DEFAULT_MISSION_HEADER_TEMPLATE,
+  DEFAULT_MISSION_ITEM_TEMPLATE,
+  DEFAULT_MISSION_TITLE_TEMPLATE,
+  DEFAULT_STATUS_MAPPING,
+} from '../infrastructure/newbie-template.constants';
+import { applyTemplate } from '../util/newbie-template.util';
 
 @Injectable()
 export class MissionService {
@@ -31,6 +39,7 @@ export class MissionService {
     private readonly configRepo: NewbieConfigRepository,
     private readonly newbieRedis: NewbieRedisRepository,
     private readonly voiceDailyFlushService: VoiceDailyFlushService,
+    private readonly missionTmplRepo: NewbieMissionTemplateRepository,
     @InjectRepository(VoiceDailyEntity)
     private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
     @InjectRepository(VoiceChannelHistory)
@@ -227,55 +236,106 @@ export class MissionService {
   }
 
   /**
-   * PRD F-NEWBIE-002 Embed 형식에 따라 미션 현황 EmbedBuilder 생성.
-   * 각 미션마다 플레이타임/횟수를 병렬 조회한다.
+   * PRD F-NEWBIE-002-TMPL 명세에 따라 미션 현황 EmbedBuilder 생성.
+   * NewbieMissionTemplate 테이블의 템플릿 필드를 사용하며, null이면 DEFAULT_* 상수로 fallback.
    */
   private async buildMissionEmbed(
     guildId: string,
     missions: NewbieMission[],
     config: NewbieConfig,
   ): Promise<EmbedBuilder> {
-    const lines: string[] = [
-      `🧑‍🌾 뉴비 멤버 (총 인원: ${missions.length}명)`,
-      '',
-    ];
+    // 1. 템플릿 조회 및 fallback
+    const tmpl = await this.missionTmplRepo.findByGuildId(guildId);
+    const titleTemplate = tmpl?.titleTemplate ?? DEFAULT_MISSION_TITLE_TEMPLATE;
+    const headerTemplate = tmpl?.headerTemplate ?? DEFAULT_MISSION_HEADER_TEMPLATE;
+    const itemTemplate = tmpl?.itemTemplate ?? DEFAULT_MISSION_ITEM_TEMPLATE;
+    const footerTemplate = tmpl?.footerTemplate ?? DEFAULT_MISSION_FOOTER_TEMPLATE;
+    const statusMapping = tmpl?.statusMapping ?? DEFAULT_STATUS_MAPPING;
 
+    // 2. 상태별 카운트 집계
+    const statusCounts = await this.missionRepo.countByStatusForGuild(guildId);
+    const totalCount = statusCounts.IN_PROGRESS + statusCounts.COMPLETED + statusCounts.FAILED;
+    const inProgressCount = statusCounts.IN_PROGRESS;
+    const completedCount = statusCounts.COMPLETED;
+    const failedCount = statusCounts.FAILED;
+
+    // 3. 헤더 렌더링
+    const resolvedHeader = applyTemplate(headerTemplate, {
+      totalCount: String(totalCount),
+      inProgressCount: String(inProgressCount),
+      completedCount: String(completedCount),
+      failedCount: String(failedCount),
+    });
+
+    // 4. 제목 렌더링
+    const resolvedTitle = applyTemplate(titleTemplate, {
+      totalCount: String(totalCount),
+    });
+
+    // 5. 각 미션 항목 렌더링 (병렬 조회)
+    const itemLines: string[] = [];
     for (const mission of missions) {
       const [playtimeSec, playCount] = await Promise.all([
         this.getPlaytimeSec(guildId, mission.memberId, mission.startDate, mission.endDate),
         this.getPlayCount(guildId, mission.memberId, mission.startDate, mission.endDate),
       ]);
 
-      const userName = await this.fetchMemberDisplayName(guildId, mission.memberId);
-      const statusEmoji = MISSION_STATUS_EMOJI[mission.status];
-      const statusText = MISSION_STATUS_TEXT[mission.status];
-      const playtimeStr = this.formatSeconds(playtimeSec);
+      const username = await this.fetchMemberDisplayName(guildId, mission.memberId);
+      const mention = `<@${mission.memberId}>`;
+      const statusEntry = statusMapping[mission.status];
+      const statusEmoji = statusEntry.emoji;
+      const statusText = statusEntry.text;
 
-      lines.push(`@${userName} 🌱`);
-      lines.push(`${this.formatDate(mission.startDate)} ~ ${this.formatDate(mission.endDate)}`);
-      lines.push(
-        `${statusEmoji} ${statusText} | 플레이타임: ${playtimeStr} | 플레이횟수: ${playCount}회`,
-      );
-      lines.push('');
+      // playtime 분해
+      const playtimeHour = Math.floor(playtimeSec / 3600);
+      const playtimeMin = Math.floor((playtimeSec % 3600) / 60);
+      const playtimeSecs = playtimeSec % 60;
+      const playtime = `${playtimeHour}시간 ${playtimeMin}분 ${playtimeSecs}초`;
+
+      // targetPlaytime 포맷
+      const targetPlaytime = this.formatTargetPlaytime(mission.targetPlaytimeSec);
+
+      // daysLeft
+      const daysLeft = this.calcDaysLeft(mission.endDate);
+
+      // startDate / endDate YYYY-MM-DD 포맷
+      const startDate = this.formatDateYYYYMMDD(mission.startDate);
+      const endDate = this.formatDateYYYYMMDD(mission.endDate);
+
+      const renderedItem = applyTemplate(itemTemplate, {
+        username,
+        mention,
+        startDate,
+        endDate,
+        statusEmoji,
+        statusText,
+        playtimeHour: String(playtimeHour),
+        playtimeMin: String(playtimeMin),
+        playtimeSec: String(playtimeSecs),
+        playtime,
+        playCount: String(playCount),
+        targetPlaytime,
+        daysLeft: String(daysLeft),
+      });
+
+      itemLines.push(renderedItem);
     }
 
-    const templateVars: Record<string, string> = {
-      count: String(missions.length),
-      missionList: lines.join('\n'),
-    };
+    // 6. description 조합: 헤더 + '\n\n' + 항목들 (항목 간 '\n\n' 구분)
+    const description = missions.length > 0
+      ? `${resolvedHeader}\n\n${itemLines.join('\n\n')}`
+      : resolvedHeader;
 
-    const titleTemplate = config.missionEmbedTitle ?? '🧑‍🌾 신입 미션 체크';
-    const resolvedTitle = this.applyTemplate(titleTemplate, templateVars);
+    // 7. 푸터 렌더링
+    const updatedAt = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+    const resolvedFooter = applyTemplate(footerTemplate, { updatedAt });
 
-    const descTemplate =
-      config.missionEmbedDescription ?? '{missionList}';
-    const resolvedDesc = this.applyTemplate(descTemplate, templateVars);
-
+    // 8. EmbedBuilder 구성
     const embed = new EmbedBuilder()
       .setTitle(resolvedTitle)
-      .setDescription(resolvedDesc)
+      .setDescription(description)
       .setColor(config.missionEmbedColor ? (config.missionEmbedColor as `#${string}`) : 0x57f287)
-      .setTimestamp();
+      .setFooter({ text: resolvedFooter });
 
     if (config.missionEmbedThumbnailUrl) {
       embed.setThumbnail(config.missionEmbedThumbnailUrl);
@@ -315,23 +375,51 @@ export class MissionService {
   }
 
   /**
-   * 초 단위를 'H시간 M분 S초' 형식으로 변환.
+   * YYYYMMDD 문자열을 'YYYY-MM-DD' 형식으로 변환.
+   * PRD 명세: 날짜 포맷 고정 YYYY-MM-DD
    */
-  private formatSeconds(totalSec: number): string {
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    return `${h}시간 ${m}분 ${s}초`;
+  private formatDateYYYYMMDD(yyyymmdd: string): string {
+    const year = yyyymmdd.slice(0, 4);
+    const month = yyyymmdd.slice(4, 6);
+    const day = yyyymmdd.slice(6, 8);
+    return `${year}-${month}-${day}`;
   }
 
   /**
-   * YYYYMMDD 문자열을 'M월 D일' 형식으로 변환.
-   * PRD 명세에 따라 날짜를 M월 D일 형식으로 표시한다.
+   * 목표 플레이타임 초를 'H시간' 또는 'H시간 M분' 형태로 변환.
    */
-  private formatDate(yyyymmdd: string): string {
-    const month = parseInt(yyyymmdd.slice(4, 6), 10);
-    const day = parseInt(yyyymmdd.slice(6, 8), 10);
-    return `${month}월 ${day}일`;
+  private formatTargetPlaytime(totalSec: number): string {
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    if (m === 0) return `${h}시간`;
+    return `${h}시간 ${m}분`;
+  }
+
+  /**
+   * 오늘 ~ endDate(YYYYMMDD) 남은 일수를 반환.
+   * 마감 당일 = 0, 이미 지난 경우 = 0.
+   */
+  private calcDaysLeft(endDate: string): number {
+    const todayStr = this.toDateString(new Date());
+    const todayNum = parseInt(todayStr, 10);
+    const endNum = parseInt(endDate, 10);
+    const diff = endNum - todayNum;
+    // YYYYMMDD 단순 숫자 차이는 일수와 다를 수 있으므로 Date 객체로 계산
+    const todayDate = new Date(
+      parseInt(todayStr.slice(0, 4), 10),
+      parseInt(todayStr.slice(4, 6), 10) - 1,
+      parseInt(todayStr.slice(6, 8), 10),
+    );
+    const endDateObj = new Date(
+      parseInt(endDate.slice(0, 4), 10),
+      parseInt(endDate.slice(4, 6), 10) - 1,
+      parseInt(endDate.slice(6, 8), 10),
+    );
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const days = Math.floor((endDateObj.getTime() - todayDate.getTime()) / msPerDay);
+    // diff 변수는 위에서 계산했지만 아래 days를 사용
+    void diff;
+    return Math.max(0, days);
   }
 
   /**
@@ -347,13 +435,6 @@ export class MissionService {
    * bound='start': 해당일 00:00:00.000 KST (UTC 기준으로 저장)
    * bound='end':   해당일 23:59:59.999 KST (UTC 기준으로 저장)
    */
-  private applyTemplate(template: string, vars: Record<string, string>): string {
-    return Object.entries(vars).reduce(
-      (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, 'g'), value),
-      template,
-    );
-  }
-
   private yyyymmddToKSTDate(yyyymmdd: string, bound: 'start' | 'end'): Date {
     const year = parseInt(yyyymmdd.slice(0, 4), 10);
     const month = parseInt(yyyymmdd.slice(4, 6), 10) - 1; // 0-indexed

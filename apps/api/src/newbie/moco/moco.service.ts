@@ -12,8 +12,17 @@ import {
 import { NewbieConfig } from '../domain/newbie-config.entity';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from '../infrastructure/newbie-mission.repository';
+import { NewbieMocoTemplateRepository } from '../infrastructure/newbie-moco-template.repository';
 import { NewbiePeriodRepository } from '../infrastructure/newbie-period.repository';
 import { NewbieRedisRepository } from '../infrastructure/newbie-redis.repository';
+import {
+  DEFAULT_MOCO_BODY_TEMPLATE,
+  DEFAULT_MOCO_FOOTER_TEMPLATE,
+  DEFAULT_MOCO_FOOTER_TEMPLATE_NO_INTERVAL,
+  DEFAULT_MOCO_ITEM_TEMPLATE,
+  DEFAULT_MOCO_TITLE_TEMPLATE,
+} from '../infrastructure/newbie-template.constants';
+import { applyTemplate } from '../util/newbie-template.util';
 
 /** 페이지당 사냥꾼 수 */
 const PAGE_SIZE = 1;
@@ -34,6 +43,7 @@ export class MocoService {
     private readonly missionRepo: NewbieMissionRepository,
     private readonly periodRepo: NewbiePeriodRepository,
     private readonly newbieRedis: NewbieRedisRepository,
+    private readonly mocoTmplRepo: NewbieMocoTemplateRepository,
     @InjectDiscordClient() private readonly discordClient: Client,
   ) {}
 
@@ -157,7 +167,7 @@ export class MocoService {
       newbieNames[newbieId] = m?.displayName ?? newbieId;
     }
 
-    const embed = this.buildHunterEmbed(
+    const embed = await this.buildHunterEmbed(
       safePage, // rank = 페이지 번호 = 순위
       hunterName,
       Math.round(totalMinutes),
@@ -166,6 +176,7 @@ export class MocoService {
       safePage,
       totalPages,
       config,
+      guildId,
     );
 
     const components = this.buildButtons(guildId, safePage, totalPages);
@@ -237,8 +248,12 @@ export class MocoService {
     await this.configRepo.updateMocoRankMessageId(guildId, sent.id);
   }
 
-  /** 내부: 사냥꾼 1명에 대한 순위 Embed 구성 */
-  private buildHunterEmbed(
+  /**
+   * 내부: 사냥꾼 1명에 대한 순위 Embed 구성.
+   * NewbieMocoTemplate 테이블의 템플릿 필드를 사용하며, null이면 DEFAULT_* 상수로 fallback.
+   * async로 변환: DB 조회가 필요하기 때문.
+   */
+  private async buildHunterEmbed(
     rank: number,
     hunterName: string,
     totalMinutes: number,
@@ -247,39 +262,59 @@ export class MocoService {
     currentPage: number,
     totalPages: number,
     config: NewbieConfig | null,
-  ): EmbedBuilder {
-    const detailLines = Object.entries(details)
-      .sort(([, a], [, b]) => b - a) // 많이 함께한 순 정렬
-      .map(([newbieId, minutes]) => {
-        const name = newbieNames[newbieId] ?? newbieId;
-        return `– ${name} 🌱: ${minutes}분`;
-      })
-      .join('\n');
+    guildId: string,
+  ): Promise<EmbedBuilder> {
+    // 1. 템플릿 조회 및 fallback
+    const tmpl = await this.mocoTmplRepo.findByGuildId(guildId);
+    const titleTemplate = tmpl?.titleTemplate ?? DEFAULT_MOCO_TITLE_TEMPLATE;
+    const bodyTemplate = tmpl?.bodyTemplate ?? DEFAULT_MOCO_BODY_TEMPLATE;
+    const itemTemplate = tmpl?.itemTemplate ?? DEFAULT_MOCO_ITEM_TEMPLATE;
 
+    // 2. footerTemplate: DB 값 없을 때 interval 유무에 따라 기본값 분기
     const autoRefreshMinutes = config?.mocoAutoRefreshMinutes ?? null;
-    const footer = autoRefreshMinutes
-      ? `페이지 ${currentPage}/${totalPages} | 자동 갱신 ${autoRefreshMinutes}분`
-      : `페이지 ${currentPage}/${totalPages}`;
+    const resolvedFooterTemplate =
+      tmpl?.footerTemplate ??
+      (autoRefreshMinutes !== null
+        ? DEFAULT_MOCO_FOOTER_TEMPLATE
+        : DEFAULT_MOCO_FOOTER_TEMPLATE_NO_INTERVAL);
 
-    const defaultDesc = `총 모코코 사냥 시간: ${totalMinutes}분\n\n도움을 받은 모코코들:\n${detailLines || '없음'}`;
+    // 3. 항목 렌더링 (details 각 항목, 많이 함께한 순 정렬)
+    const renderedItems = Object.entries(details)
+      .sort(([, a], [, b]) => b - a)
+      .map(([newbieId, minutes]) => {
+        const newbieName = newbieNames[newbieId] ?? newbieId;
+        return applyTemplate(itemTemplate, {
+          newbieName,
+          minutes: String(minutes),
+        });
+      });
 
-    const templateVars: Record<string, string> = {
+    const mocoList = renderedItems.join('\n') || '없음';
+
+    // 4. 본문 렌더링
+    const resolvedBody = applyTemplate(bodyTemplate, {
+      totalMinutes: String(totalMinutes),
+      mocoList,
+    });
+
+    // 5. 제목 렌더링
+    const resolvedTitle = applyTemplate(titleTemplate, {
       rank: String(rank),
       hunterName,
-      totalMinutes: String(totalMinutes),
-      rankDetails: defaultDesc,
-    };
+    });
 
-    const titleTemplate = config?.mocoEmbedTitle ?? '모코코 사냥 TOP {rank} — {hunterName} 🌱';
-    const resolvedTitle = this.applyTemplate(titleTemplate, templateVars);
+    // 6. 푸터 렌더링
+    const resolvedFooter = applyTemplate(resolvedFooterTemplate, {
+      currentPage: String(currentPage),
+      totalPages: String(totalPages),
+      interval: autoRefreshMinutes !== null ? String(autoRefreshMinutes) : '',
+    });
 
-    const descTemplate = config?.mocoEmbedDescription ?? '{rankDetails}';
-    const resolvedDesc = this.applyTemplate(descTemplate, templateVars);
-
+    // 7. EmbedBuilder 구성
     const embed = new EmbedBuilder()
       .setTitle(resolvedTitle)
-      .setDescription(resolvedDesc)
-      .setFooter({ text: footer })
+      .setDescription(resolvedBody)
+      .setFooter({ text: resolvedFooter })
       .setColor(config?.mocoEmbedColor ? (config.mocoEmbedColor as `#${string}`) : 0x5865f2);
 
     if (config?.mocoEmbedThumbnailUrl) {
@@ -287,13 +322,6 @@ export class MocoService {
     }
 
     return embed;
-  }
-
-  private applyTemplate(template: string, vars: Record<string, string>): string {
-    return Object.entries(vars).reduce(
-      (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, 'g'), value),
-      template,
-    );
   }
 
   /** 내부: 페이지네이션 + 갱신 버튼 ActionRow 구성 */
