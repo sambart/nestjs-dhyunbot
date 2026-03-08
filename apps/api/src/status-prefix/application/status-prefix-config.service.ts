@@ -1,5 +1,5 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -52,6 +52,18 @@ export class StatusPrefixConfigService {
    *   4. 전송된 messageId를 DB에 저장
    */
   async saveConfig(guildId: string, dto: StatusPrefixConfigSaveDto): Promise<StatusPrefixConfig> {
+    // 0. PREFIX 타입 버튼 간 접두사 중복 검증
+    const prefixButtons = dto.buttons.filter((b) => b.type === StatusPrefixButtonType.PREFIX);
+    const seen = new Set<string>();
+    for (const btn of prefixButtons) {
+      const trimmed = btn.prefix?.trim();
+      if (!trimmed) continue;
+      if (seen.has(trimmed)) {
+        throw new BadRequestException(`접두사 "${trimmed}"이(가) 중복됩니다.`);
+      }
+      seen.add(trimmed);
+    }
+
     // 1. DB upsert
     const config = await this.configRepo.upsert(guildId, dto);
 
