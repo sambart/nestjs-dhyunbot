@@ -6,6 +6,7 @@ import { ChannelModule } from '../channel/channel.module';
 import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
 import { NewbieModule } from '../newbie/newbie.module';
 import { StatusPrefixModule } from '../status-prefix/status-prefix.module';
+import { StickyMessageModule } from '../sticky-message/sticky-message.module';
 import { ChannelStateHandler } from './channel/channel-state.handler';
 import { NewbieInteractionHandler } from './newbie/newbie-interaction.handler';
 import { NewbieVoiceStateChangedHandler } from './newbie/newbie-voice-state-changed.handler';
@@ -23,6 +24,7 @@ import { VoiceStateDispatcher } from './voice/voice-state.dispatcher';
     VoiceChannelModule,
     NewbieModule,
     StatusPrefixModule,
+    StickyMessageModule,
     DiscordModule.forFeature(),
   ],
   providers: [

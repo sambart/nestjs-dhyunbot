@@ -20,6 +20,7 @@ import { MusicModule } from './music/music.module';
 import { NewbieModule } from './newbie/newbie.module';
 import { RedisModule } from './redis/redis.module';
 import { StatusPrefixModule } from './status-prefix/status-prefix.module';
+import { StickyMessageModule } from './sticky-message/sticky-message.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { StatusPrefixModule } from './status-prefix/status-prefix.module';
     AutoChannelModule,
     NewbieModule,
     StatusPrefixModule,
+    StickyMessageModule,
     MusicModule,
     DiscordEventsModule,
     RedisModule,

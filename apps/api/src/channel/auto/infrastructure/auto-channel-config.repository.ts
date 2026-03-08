@@ -80,6 +80,7 @@ export class AutoChannelConfigRepository {
 
       if (config) {
         // 2a. 기존 설정 업데이트
+        config.name = dto.name;
         config.guideChannelId = dto.guideChannelId;
         config.waitingRoomTemplate = dto.waitingRoomTemplate ?? null;
         config.guideMessage = dto.guideMessage;
@@ -93,6 +94,7 @@ export class AutoChannelConfigRepository {
         // 3. 신규 생성
         config = manager.create(AutoChannelConfig, {
           guildId,
+          name: dto.name,
           triggerChannelId: dto.triggerChannelId,
           guideChannelId: dto.guideChannelId,
           waitingRoomTemplate: dto.waitingRoomTemplate ?? null,
@@ -137,6 +139,15 @@ export class AutoChannelConfigRepository {
   }
 
   /**
+   * 설정 삭제 (guildId 소유권 검증 포함, CASCADE로 buttons, subOptions도 삭제됨).
+   * 반환값: 실제 삭제 여부 (false면 해당 configId+guildId 조합 없음).
+   */
+  async deleteByIdAndGuildId(configId: number, guildId: string): Promise<boolean> {
+    const result = await this.configRepo.delete({ id: configId, guildId });
+    return (result.affected ?? 0) > 0;
+  }
+
+  /**
    * 안내 메시지 Discord ID 저장.
    * F-VOICE-009에서 메시지 전송 후 호출.
    */
@@ -165,4 +176,5 @@ export class AutoChannelConfigRepository {
       relations: { button: { config: true } },
     });
   }
+
 }

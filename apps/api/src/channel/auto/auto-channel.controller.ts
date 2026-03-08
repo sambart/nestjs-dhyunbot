@@ -1,10 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
+  ParseIntPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -96,5 +99,36 @@ export class AutoChannelController {
   @Get()
   async findAll(@Param('guildId') guildId: string) {
     return this.configRepo.findAllByGuildId(guildId);
+  }
+
+  /**
+   * DELETE /api/guilds/:guildId/auto-channel/:configId
+   *
+   * 처리 순서:
+   *   1. configId로 설정 조회 (guildId 일치 확인)
+   *   2. guideMessageId가 있으면 Discord 안내 메시지 삭제 시도 (실패해도 무시)
+   *   3. DB에서 설정 삭제 (CASCADE로 buttons, subOptions도 삭제)
+   */
+  @Delete(':configId')
+  @HttpCode(HttpStatus.OK)
+  async remove(
+    @Param('guildId') guildId: string,
+    @Param('configId', ParseIntPipe) configId: number,
+  ): Promise<{ ok: boolean }> {
+    // 1. 설정 조회 및 guildId 일치 확인
+    const config = await this.configRepo.findById(configId);
+    if (!config || config.guildId !== guildId) {
+      throw new NotFoundException(`AutoChannelConfig not found: configId=${configId}`);
+    }
+
+    // 2. Discord 안내 메시지 삭제 시도 (실패 무시)
+    if (config.guideMessageId && config.guideChannelId) {
+      await this.discordGateway.deleteGuideMessage(config.guideChannelId, config.guideMessageId);
+    }
+
+    // 3. DB에서 설정 삭제 (guildId 재검증 포함)
+    await this.configRepo.deleteByIdAndGuildId(configId, guildId);
+
+    return { ok: true };
   }
 }

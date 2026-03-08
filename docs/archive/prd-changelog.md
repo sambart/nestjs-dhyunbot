@@ -7,11 +7,175 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v2.1 | 2026-03-08 | sticky-message: 고정메세지 도메인 PRD 신규 추가 | — |
+| v2.0 | 2026-03-08 | web/voice: 자동방 설정 다중 탭 UI 및 AutoChannelConfig name 컬럼 추가 | — |
+| v1.9 | 2026-03-08 | voice: Auto Channel 데이터 모델 및 Redis 키 구조 코드베이스 기준 동기화 | — |
+| v1.8 | 2026-03-08 | web: 라우트 경로 코드베이스 기준 수정 및 F-WEB-003/004 UI 명세 갱신 | — |
+| v1.7 | 2026-03-08 | newbie: Embed 커스터마이징 필드 추가 및 웹 경로 수정 | — |
+| v1.6 | 2026-03-08 | general: 커맨드 목록 API를 글로벌 커맨드 조회로 수정 | — |
 | v1.5 | 2026-03-08 | 일반설정(general) 도메인 PRD 신규 추가 | — |
 | v1.4 | 2026-03-08 | newbie: 미션/모코코 Embed 템플릿 커스터마이징 시스템 추가 | — |
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 11] sticky-message: 고정메세지 도메인 PRD 신규 추가 (STICKY-MESSAGE)
+
+**변경일**: 2026-03-08
+**티켓**: STICKY-MESSAGE
+
+**변경 파일**:
+- `docs/specs/prd/sticky-message.md` — sticky-message 도메인 PRD 신규 작성 (F-STICKY-001 ~ F-STICKY-007, F-WEB-005)
+- `docs/specs/prd/_index.md` — 도메인 목록, 핵심 기능 요약, 데이터베이스 엔티티 테이블에 sticky-message 항목 추가
+- `docs/specs/prd/web.md` — 관련 모듈, 구현 상태, F-WEB-005 고정메세지 설정 페이지 추가
+
+**변경 내용**:
+1. `docs/specs/prd/sticky-message.md` 신규 생성: 개요, 관련 모듈, 아키텍처, 기능 상세, 데이터 모델, Redis 키 구조, 슬래시 커맨드 목록, 외부 의존성, web 도메인 연계 명세 포함
+2. F-STICKY-001 (설정 목록 조회): `GET /api/guilds/{guildId}/sticky-message` 엔드포인트 응답 형식 명세
+3. F-STICKY-002 (고정메세지 등록/수정): 웹 설정 저장 시 DB upsert + Redis 캐시 갱신 + Discord 채널에 Embed 즉시 전송 명세
+4. F-STICKY-003 (고정메세지 삭제): Discord 채널 메시지 삭제 + DB 삭제 + Redis 캐시 무효화 명세
+5. F-STICKY-004 (messageCreate 감지 및 디바운스 재전송): 봇 메시지 무시, Redis 설정 캐시 조회, 3초 디바운스 타이머, 기존 메시지 삭제 후 재전송 플로우 명세
+6. F-STICKY-005~007 (슬래시 커맨드 3종): `/고정메세지등록` (웹 안내 Ephemeral), `/고정메세지목록` (Embed 목록 Ephemeral), `/고정메세지삭제` (채널 파라미터 선택, 전체 삭제) 명세
+7. 데이터 모델: `StickyMessageConfig` (`sticky_message_config`) PostgreSQL 엔티티 명세 (guildId, channelId, embedTitle, embedDescription, embedColor, messageId, enabled, sortOrder) 및 인덱스 3개 정의
+8. Redis 키 구조: `sticky_message:config:{guildId}` (설정 캐시 TTL 1h), `sticky_message:debounce:{channelId}` (디바운스 타이머 TTL 3s) 명세
+9. `_index.md` 도메인 목록에 sticky-message 행 추가
+10. `_index.md` 핵심 기능 요약 10번 항목(고정메세지) 추가
+11. `_index.md` 데이터베이스 엔티티 테이블에 StickyMessageConfig 행 추가
+12. `web.md` 관련 모듈, 구현 상태에 sticky-message 페이지 경로 추가
+13. `web.md` F-WEB-005 (고정메세지 설정 페이지) 신규 추가: 카드 목록 UI, 채널 선택, Embed 설정(제목/설명/색상/이모지 피커/실시간 미리보기), 카드별 개별 저장·삭제 동작, 초기 로드 명세
+
+**변경 사유**: 텍스트 채널 고정메세지(Sticky Message) 도메인 신규 요구사항 반영 (티켓 STICKY-MESSAGE)
+
+---
+
+## [수정 10] web/voice: 자동방 설정 다중 탭 UI 및 AutoChannelConfig name 컬럼 추가 (AUTO-CHANNEL-MULTI-TAB)
+
+**변경일**: 2026-03-08
+**티켓**: AUTO-CHANNEL-MULTI-TAB
+
+**변경 파일**:
+- `docs/specs/prd/web.md` — F-WEB-004 자동방 설정 페이지를 단일 폼에서 다중 탭 UI로 변경
+- `docs/specs/prd/voice.md` — AutoChannelConfig 데이터 모델에 `name` 컬럼 추가
+
+**변경 내용**:
+1. **web.md F-WEB-004** 구성 섹션 전면 재작성:
+   - 탭 바(Tab Bar) 섹션 신규 추가: 탭 목록, `+` 탭 추가 버튼, 탭 삭제 버튼(확인 모달 + `DELETE /api/guilds/{guildId}/auto-channel/{configId}` 호출), 탭 전환 동작 명세
+   - 설정 이름 섹션 신규 추가: 탭 라벨로 표시될 사용자 지정 `name` 입력 필드(필수)
+   - 저장 동작을 "탭별 개별 저장"으로 변경: 현재 탭 설정만 전송, 각 탭에 독립적인 저장 버튼 및 피드백 메시지
+   - 탭 삭제 동작 섹션 신규 추가: 확인 모달 표시 → DELETE API 호출 → 안내 메시지 즉시 삭제 → 탭 제거 플로우 명세
+   - 초기 로드 섹션 신규 추가: 기존 설정 전체를 탭으로 로드, 설정 없을 때 빈 탭 1개 기본 표시, 개수 제한 없음 명세
+   - 기존 "(수정)" 표기 규칙 제거 (탭 구조로 대체됨)
+2. **voice.md AutoChannelConfig** 데이터 모델 테이블에 `name` 컬럼 추가:
+   - `name` | string | 설정 이름 (웹 탭 라벨용, 예: "게임방", "스터디방")
+
+**변경 사유**: 하나의 서버에서 트리거 채널(대기방)을 여러 개 운용하는 요구사항을 지원하기 위해, 단일 폼 구조를 다중 탭 구조로 변경. 각 탭이 독립된 AutoChannelConfig를 나타내며, 사용자 지정 이름으로 탭을 식별할 수 있도록 `name` 필드를 추가함.
+
+---
+
+## [수정 9] voice: Auto Channel 데이터 모델 및 Redis 키 구조 코드베이스 기준 동기화 (VOICE-SYNC-001)
+
+**변경일**: 2026-03-08
+**티켓**: VOICE-SYNC-001
+
+**변경 파일**:
+- `docs/specs/prd/voice.md` — AutoChannelConfig/Button/SubOption 데이터 모델 및 AutoChannelState Redis 키 구조 수정, F-VOICE-007~011 기능 명세 갱신, 전체 흐름 다이어그램 수정
+
+**변경 내용**:
+1. **AutoChannelState (Redis)** 섹션 전면 재작성
+   - `auto_channel:waiting:{channelId}` 키 제거 — 코드에 미구현, 대기방은 `RedisTempChannelStore`가 관리
+   - `auto_channel:trigger:{guildId}` 키 제거 — 코드에 미구현, 트리거 채널은 DB 직접 조회
+   - 확정방 키(`auto_channel:confirmed:{channelId}`) TTL 12시간 명시
+   - `voice:temp:channels:{guildId}` (Set), `voice:temp:channel:{channelId}:members` (Set) 키 추가 (RedisTempChannelStore 관리)
+   - 트리거 채널 조회 방식(`findByTriggerChannel` DB 조회) 명시
+2. **AutoChannelSubOption** 데이터 모델: `channelSuffix` → `channelNameTemplate`으로 필드명 변경, `{name}` 템플릿 변수 동작 명세 추가
+3. **AutoChannelButton** 데이터 모델: `channelNameTemplate` (nullable) 필드 추가 — 확정방 채널명 템플릿
+4. **AutoChannelConfig** 데이터 모델: `guideChannelId` (nullable), `embedTitle` (nullable), `embedColor` (nullable) 필드 추가. `waitingRoomTemplate`을 nullable로 수정
+5. **F-VOICE-007** (트리거 채널 입장 감지): DB 조회 방식(`findByTriggerChannel`) 명시, Redis 캐싱 없음 명시
+6. **F-VOICE-008** (대기방 관련): "대기방 생성 및 사용자 이동"에서 "대기방 상태 관리"로 변경. 별도 채널 생성 없음을 명시하고 `RedisTempChannelStore` 키 패턴 기술
+7. **F-VOICE-009** (안내 메시지): 전송 대상을 `guideChannelId`(텍스트 채널)로 수정, Embed 형식(`embedTitle`/`embedColor`) 명세 추가, customId 형식(`auto_btn:{buttonId}`) 명시
+8. **F-VOICE-010** (하위 선택지): `channelSuffix` → `channelNameTemplate`으로 변경, `{name}` 변수 동작 설명 추가, customId 형식(`auto_sub:{subOptionId}`) 명시, 대기방 검증 방식 구체화
+9. **F-VOICE-011** (확정방 전환): 대기방 검증 방식 구체화, 채널명 결정 로직에 버튼/하위선택지 `channelNameTemplate` 적용 규칙 및 `{n}` 순번 변수 명세 추가, 확정방을 신규 생성(삭제+재생성 아님) 방식으로 수정
+10. **전체 흐름 다이어그램**: 실제 구현 흐름에 맞게 재작성
+
+**변경 사유**: v1.1에서 작성된 Auto Channel 명세가 실제 코드 구현과 불일치하여 코드베이스(`auto-channel-config.entity.ts`, `auto-channel-button.entity.ts`, `auto-channel-sub-option.entity.ts`, `auto-channel.keys.ts`, `auto-channel-redis.repository.ts`, `redis-temp-channel-store.ts`, `auto-channel.service.ts`) 기준으로 동기화
+
+---
+
+## [수정 8] web: 라우트 경로 코드베이스 기준 수정 및 F-WEB-003/004 UI 명세 갱신 (WEB-FIX-001)
+
+**변경일**: 2026-03-08
+**티켓**: WEB-FIX-001
+
+**변경 파일**:
+- `docs/specs/prd/web.md` — 라우트 경로 전면 수정, 관련 모듈 목록 갱신, 구현 상태 갱신, F-WEB-003 분리 및 F-WEB-004 UI 명세 코드 기준 재작성
+
+**변경 내용**:
+1. 관련 모듈 목록에 실제 구현된 파일 경로 7개 추가 (SettingsSidebar, select-guild, settings/guild/[guildId] 하위 4개 페이지)
+2. 구현 상태 "완료" 항목에 실제 구현된 6개 페이지 추가 (서버 선택, 설정 레이아웃, 일반설정, 자동방, 신입관리, 게임방상태)
+3. 구현 상태 "프로토타입/미구현"에서 "서버 설정 관리" 항목 제거, 대시보드를 "미구현/플레이스홀더 상태"로 명확히 기재
+4. F-WEB-003을 서버 선택 페이지(`/select-guild`) 명세로 변경: 접근 조건, 동작(단일 길드 자동 리다이렉트, 빈 길드 안내) 명세
+5. F-WEB-003-B를 대시보드(미구현) 항목으로 신규 추가, 향후 계획 기능 유지
+6. F-WEB-004 경로를 `/dashboard/servers/{guildId}/settings/auto-channel`에서 `/settings/guild/{guildId}/auto-channel`로 수정
+7. F-WEB-004 위치 표기를 "대시보드 > 서버 설정 > 자동방 설정"에서 "설정 사이드바 > 자동방 설정"으로 수정
+8. F-WEB-004 구성 섹션 전면 재작성 (코드 기준):
+   - "트리거 채널 설정(다중)"을 "대기 채널 설정(단일 음성 채널 선택)"으로 변경
+   - "대기방 설정" 섹션 제거, "안내 메시지 채널 설정" 섹션 신규 추가
+   - "안내 메시지 설정"을 "안내 메시지 (Embed) 설정"으로 변경하고 Embed 제목/색상 필드 및 실시간 미리보기 항목 추가
+   - 버튼 목록에 채널명 템플릿 필드(`{username}`, `{n}` 변수), 최대 25개 제한 명세 추가
+   - 하위 선택지에 `{name}` 변수 설명 추가
+   - 채널 새로고침 섹션 신규 추가
+   - 저장 동작에 클라이언트 유효성 검사 규칙, 저장 성공 피드백 방식, "(수정)" 표기 규칙 추가
+
+**변경 사유**: 실제 구현된 코드베이스의 라우트 구조(`/settings/guild/{guildId}/...`)와 PRD에 기재된 경로(`/dashboard/servers/{guildId}/settings/...`)가 불일치하여 코드 기준으로 정정. F-WEB-004 UI 명세도 실제 컴포넌트(`auto-channel/page.tsx`) 기준으로 재작성.
+
+---
+
+## [수정 7] newbie: Embed 커스터마이징 필드 추가 및 웹 경로 수정 (NEWBIE-FIX-001)
+
+**변경일**: 2026-03-08
+**티켓**: NEWBIE-FIX-001
+
+**변경 파일**:
+- `docs/specs/prd/newbie.md` — NewbieConfig 데이터 모델 필드 추가, F-WEB-NEWBIE-001 경로 및 UI 요소 수정
+
+**변경 내용**:
+1. `NewbieConfig` 데이터 모델 테이블에 미션 Embed 커스터마이징 필드 4개 추가
+   - `missionEmbedTitle` (varchar, NULLABLE) — 미션 현황 Embed 제목
+   - `missionEmbedDescription` (text, NULLABLE) — 미션 현황 Embed 설명
+   - `missionEmbedColor` (varchar, NULLABLE) — 미션 현황 Embed 색상
+   - `missionEmbedThumbnailUrl` (varchar, NULLABLE) — 미션 현황 Embed 썸네일 이미지 URL
+2. `NewbieConfig` 데이터 모델 테이블에 모코코 Embed 커스터마이징 필드 4개 추가
+   - `mocoEmbedTitle` (varchar, NULLABLE) — 모코코 순위 Embed 제목
+   - `mocoEmbedDescription` (text, NULLABLE) — 모코코 순위 Embed 설명
+   - `mocoEmbedColor` (varchar, NULLABLE) — 모코코 순위 Embed 색상
+   - `mocoEmbedThumbnailUrl` (varchar, NULLABLE) — 모코코 순위 Embed 썸네일 이미지 URL
+3. F-WEB-NEWBIE-001 경로 수정: `/dashboard/servers/{guildId}/settings/newbie` → `/settings/guild/{guildId}/newbie`
+4. F-WEB-NEWBIE-001 탭 2(미션 설정) UI 요소에 Embed 커스터마이징 입력 필드 4개 추가 (Embed 제목/설명/색상/썸네일)
+5. F-WEB-NEWBIE-001 탭 3(모코코 사냥 설정) UI 요소에 Embed 커스터마이징 입력 필드 4개 추가 (Embed 제목/설명/색상/썸네일)
+
+**변경 사유**: 코드베이스(`newbie-config.entity.ts`)에 실제 구현된 `missionEmbed*`, `mocoEmbed*` 필드가 PRD에 누락되어 있었고, 웹 앱의 실제 라우팅 경로(`/settings/guild/{guildId}/newbie`)와 PRD 기재 경로가 불일치하여 수정
+
+---
+
+## [수정 6] general: 커맨드 목록 API를 글로벌 커맨드 조회로 수정 (GENERAL-FIX-001)
+
+**변경일**: 2026-03-08
+**티켓**: GENERAL-FIX-001
+
+**변경 파일**:
+- `docs/specs/prd/general.md` — F-GENERAL-002 동작·오류처리·외부 의존성, 아키텍처 다이어그램 수정
+
+**변경 내용**:
+1. 아키텍처 다이어그램의 Discord REST API 호출 경로를 `GET /applications/{appId}/guilds/{guildId}/commands`에서 `GET /applications/{appId}/commands (글로벌 커맨드)`로 수정
+2. F-GENERAL-002 동작 2항을 길드 한정 커맨드 조회에서 글로벌 커맨드 조회(`GET /applications/{applicationId}/commands`)로 수정
+3. F-GENERAL-002 동작에 `application`이 null일 때 빈 배열 반환하는 3항 추가
+4. F-GENERAL-002 오류 처리에서 "봇이 해당 길드에 없는 경우" 항목을 삭제하고, `client.application` null 케이스로 교체. 로그 없이 빈 배열만 반환하는 실제 catch 블록 동작 반영
+5. 외부 의존성 테이블의 엔드포인트를 `GET /applications/{appId}/commands`로 수정, 용도를 "길드별"에서 "글로벌"로 수정
+6. 외부 의존성 설명의 `Client.application.commands.fetch({ guildId })`를 `Client.application.commands.fetch()`로 수정하고, 글로벌 커맨드 조회임을 명시
+
+**변경 사유**: 커밋 `b867572`에서 `GuildInfoController.getCommands()`가 `Client.application.commands.fetch({ guildId })`에서 `Client.application.commands.fetch()`로 변경되어 글로벌 커맨드를 조회하도록 의도적으로 수정됨. PRD를 실제 코드와 일치시키기 위해 업데이트.
 
 ---
 

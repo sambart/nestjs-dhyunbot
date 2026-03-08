@@ -215,7 +215,7 @@ Web Dashboard API
 
 ### F-WEB-NEWBIE-001: 신입 관리 설정 페이지
 
-- **경로**: `/dashboard/servers/{guildId}/settings/newbie`
+- **경로**: `/settings/guild/{guildId}/newbie`
 - **위치**: 대시보드 > 서버 설정 > 신입 관리
 - **접근 조건**: Discord OAuth 로그인 + 해당 서버 관리 권한
 
@@ -250,6 +250,10 @@ Web Dashboard API
 | 미션 기간 입력 (숫자) | 신규 멤버 가입 후 미션 기간 (일수, 예: 7) |
 | 목표 플레이타임 입력 (숫자) | 미션 완료 기준 최소 플레이타임 (시간 단위) |
 | 알림 채널 선택 드롭다운 | 미션 현황 Embed를 표시할 채널 선택 |
+| Embed 제목 입력 | 미션 현황 Embed 제목 |
+| Embed 설명 입력 (멀티라인) | 미션 현황 Embed 설명 본문 |
+| Embed 색상 선택 | 미션 현황 Embed 색상 (HEX 코드 입력 또는 컬러 피커) |
+| 썸네일 이미지 URL 입력 | 미션 현황 Embed 썸네일 이미지 URL |
 | 저장 버튼 | 설정 내용을 API로 전송 |
 
 ##### 템플릿 설정 섹션 (탭 2)
@@ -272,6 +276,10 @@ Web Dashboard API
 | 기능 활성화 토글 | 모코코 사냥 기능 ON/OFF |
 | 순위 표시 채널 선택 드롭다운 | 모코코 사냥 TOP N Embed를 표시할 채널 선택 |
 | 자동 갱신 간격 입력 (숫자) | Embed 자동 갱신 주기 (분 단위) |
+| Embed 제목 입력 | 모코코 순위 Embed 제목 |
+| Embed 설명 입력 (멀티라인) | 모코코 순위 Embed 설명 본문 |
+| Embed 색상 선택 | 모코코 순위 Embed 색상 (HEX 코드 입력 또는 컬러 피커) |
+| 썸네일 이미지 URL 입력 | 모코코 순위 Embed 썸네일 이미지 URL |
 | 저장 버튼 | 설정 내용을 API로 전송 |
 
 ##### 템플릿 설정 섹션 (탭 3)
@@ -332,10 +340,18 @@ Web Dashboard API
 | `missionTargetPlaytimeHours` | `int` | NULLABLE | 미션 목표 플레이타임 (시간) |
 | `missionNotifyChannelId` | `varchar` | NULLABLE | 미션 현황 알림 채널 ID |
 | `missionNotifyMessageId` | `varchar` | NULLABLE | 미션 현황 Embed 메시지 ID (Discord message ID) |
+| `missionEmbedTitle` | `varchar` | NULLABLE | 미션 현황 Embed 제목 |
+| `missionEmbedDescription` | `text` | NULLABLE | 미션 현황 Embed 설명 |
+| `missionEmbedColor` | `varchar` | NULLABLE | 미션 현황 Embed 색상 (HEX, 예: `#5865F2`) |
+| `missionEmbedThumbnailUrl` | `varchar` | NULLABLE | 미션 현황 Embed 썸네일 이미지 URL |
 | `mocoEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 모코코 사냥 기능 활성화 여부 |
 | `mocoRankChannelId` | `varchar` | NULLABLE | 모코코 사냥 순위 표시 채널 ID |
 | `mocoRankMessageId` | `varchar` | NULLABLE | 모코코 사냥 순위 Embed 메시지 ID |
 | `mocoAutoRefreshMinutes` | `int` | NULLABLE | 모코코 사냥 순위 자동 갱신 간격 (분) |
+| `mocoEmbedTitle` | `varchar` | NULLABLE | 모코코 순위 Embed 제목 |
+| `mocoEmbedDescription` | `text` | NULLABLE | 모코코 순위 Embed 설명 |
+| `mocoEmbedColor` | `varchar` | NULLABLE | 모코코 순위 Embed 색상 (HEX, 예: `#5865F2`) |
+| `mocoEmbedThumbnailUrl` | `varchar` | NULLABLE | 모코코 순위 Embed 썸네일 이미지 URL |
 | `roleEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 신입기간 역할 자동관리 활성화 여부 |
 | `roleDurationDays` | `int` | NULLABLE | 신입기간 (일수) |
 | `newbieRoleId` | `varchar` | NULLABLE | 자동 부여할 Discord 역할 ID |

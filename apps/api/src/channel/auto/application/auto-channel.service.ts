@@ -146,11 +146,13 @@ export class AutoChannelService {
       return;
     }
 
+    // DB 조회 전에 deferReply로 인터랙션 3초 타임아웃 방지
+    await interaction.deferReply({ ephemeral: true });
+
     const button = await this.configRepo.findButtonById(buttonId);
 
     if (!button?.config) {
-      await interaction.reply({
-        ephemeral: true,
+      await interaction.editReply({
         content: '설정을 찾을 수 없습니다. 관리자에게 문의하세요.',
       });
       return;
@@ -158,8 +160,7 @@ export class AutoChannelService {
 
     // 대기채널 검증: 유저가 등록된 대기채널(트리거 채널)에 있는지 확인
     if (voiceChannelId !== button.config.triggerChannelId) {
-      await interaction.reply({
-        ephemeral: true,
+      await interaction.editReply({
         content: '대기 채널에서만 선택할 수 있습니다.',
       });
       return;
@@ -167,15 +168,13 @@ export class AutoChannelService {
 
     if (button.subOptions.length === 0) {
       // 하위 선택지 없음 → 즉시 확정방 생성
-      await interaction.deferReply({ ephemeral: true });
       await this.convertToConfirmed(interaction, guildId, userId, member, button);
     } else {
       // 하위 선택지 있음 → Ephemeral로 하위 버튼 표시
       const sorted = [...button.subOptions].sort((a, b) => a.sortOrder - b.sortOrder);
       const rows = this.buildSubOptionActionRows(sorted);
 
-      await interaction.reply({
-        ephemeral: true,
+      await interaction.editReply({
         content: '선택지를 고르세요.',
         components: rows,
       });
@@ -209,11 +208,13 @@ export class AutoChannelService {
       return;
     }
 
+    // DB 조회 전에 deferReply로 인터랙션 3초 타임아웃 방지
+    await interaction.deferReply({ ephemeral: true });
+
     const subOption = await this.configRepo.findSubOptionById(subOptionId);
 
     if (!subOption?.button?.config) {
-      await interaction.reply({
-        ephemeral: true,
+      await interaction.editReply({
         content: '설정을 찾을 수 없습니다. 관리자에게 문의하세요.',
       });
       return;
@@ -221,14 +222,12 @@ export class AutoChannelService {
 
     // 대기채널 검증
     if (voiceChannelId !== subOption.button.config.triggerChannelId) {
-      await interaction.reply({
-        ephemeral: true,
+      await interaction.editReply({
         content: '대기 채널에서만 선택할 수 있습니다.',
       });
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
     await this.convertToConfirmed(
       interaction,
       guildId,
@@ -306,23 +305,24 @@ export class AutoChannelService {
 
   /**
    * 채널명 템플릿 적용.
-   * 버튼 템플릿으로 기본 이름을 만든 뒤,
-   * subOption이 있으면 channelNameTemplate 템플릿의 {name}을 기본 이름으로 치환.
-   * channelNameTemplate에 {name}이 없으면 기존처럼 뒤에 이어붙이기.
+   *
+   * subOption이 있으면 subOption 템플릿을 단독 사용한다.
+   *   - {name}: 버튼 기본 이름으로 치환 (opt-in)
+   *   - {username}: 유저 닉네임으로 치환
+   * subOption이 없으면 버튼 템플릿을 사용한다.
    */
   private buildChannelName(
     userName: string,
     button: AutoChannelButton,
     subOption?: AutoChannelSubOption,
   ): string {
-    const template = button.channelNameTemplate || `{username}의 ${button.label}`;
-    const baseName = template.replace(/{username}/g, userName);
+    const buttonTemplate = button.channelNameTemplate || `{username}의 ${button.label}`;
+    const baseName = buttonTemplate.replace(/{username}/g, userName);
 
     if (subOption && subOption.channelNameTemplate) {
-      if (subOption.channelNameTemplate.includes('{name}')) {
-        return subOption.channelNameTemplate.replace(/{name}/g, baseName);
-      }
-      return `${baseName} ${subOption.channelNameTemplate}`;
+      return subOption.channelNameTemplate
+        .replace(/{name}/g, baseName)
+        .replace(/{username}/g, userName);
     }
 
     return baseName;

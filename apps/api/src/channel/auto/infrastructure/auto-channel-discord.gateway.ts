@@ -88,6 +88,24 @@ export class AutoChannelDiscordGateway {
   }
 
   /**
+   * 안내 메시지 삭제.
+   * 실패 시 (메시지 이미 삭제됨 등) 오류를 무시한다.
+   */
+  async deleteGuideMessage(channelId: string, messageId: string): Promise<void> {
+    try {
+      const channel = await this.client.channels.fetch(channelId);
+      if (!channel || !channel.isTextBased()) return;
+
+      const message = await (channel as TextChannel).messages.fetch(messageId);
+      await message.delete();
+    } catch (error) {
+      this.logger.warn(
+        `Failed to delete guide message (channelId=${channelId}, messageId=${messageId}): ${(error as Error).message}`,
+      );
+    }
+  }
+
+  /**
    * 서버 내 음성 채널 이름 목록 조회.
    * 단위 B (버튼-확정방)에서 중복 채널명 순번 처리용으로 사용.
    */

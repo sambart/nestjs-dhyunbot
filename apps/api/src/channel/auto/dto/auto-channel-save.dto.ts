@@ -55,6 +55,10 @@ export class AutoChannelButtonDto {
 export class AutoChannelSaveDto {
   @IsString()
   @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsNotEmpty()
   triggerChannelId: string;
 
   @IsString()
