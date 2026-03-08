@@ -8,8 +8,8 @@ import { StickyMessageKeys } from './sticky-message-cache.keys';
 const TTL = {
   /** 설정 캐시: 1시간 */
   CONFIG: 60 * 60,
-  /** 디바운스 타이머: 3초 */
-  DEBOUNCE: 3,
+  /** 디바운스 타이머: 1초 */
+  DEBOUNCE: 1,
 } as const;
 
 @Injectable()

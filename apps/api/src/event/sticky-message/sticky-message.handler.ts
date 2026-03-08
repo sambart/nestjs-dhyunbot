@@ -1,6 +1,6 @@
-import { On } from '@discord-nestjs/core';
+import { InjectDiscordClient, On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Message } from 'discord.js';
+import { Client, Message } from 'discord.js';
 
 import { StickyMessageRefreshService } from '../../sticky-message/application/sticky-message-refresh.service';
 import { StickyMessageConfigRepository } from '../../sticky-message/infrastructure/sticky-message-config.repository';
@@ -15,12 +15,14 @@ export class StickyMessageHandler {
     private readonly redisRepo: StickyMessageRedisRepository,
     private readonly configRepo: StickyMessageConfigRepository,
     private readonly refreshService: StickyMessageRefreshService,
+    @InjectDiscordClient() private readonly client: Client,
   ) {}
 
   @On('messageCreate')
   async handleMessageCreate(message: Message): Promise<void> {
     try {
-      if (message.author.bot) return;
+      // 자기 자신의 메시지만 무시 (다른 봇의 메시지는 갱신 트리거)
+      if (message.author.id === this.client.user?.id) return;
 
       const guildId = message.guildId;
       if (!guildId) return;
@@ -47,7 +49,7 @@ export class StickyMessageHandler {
             err.stack,
           );
         });
-      }, 3000);
+      }, 1000);
       this.timers.set(channelId, timer);
 
       this.redisRepo.setDebounce(channelId).catch((err: Error) => {
