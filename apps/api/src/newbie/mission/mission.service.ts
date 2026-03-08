@@ -209,8 +209,14 @@ export class MissionService {
       return;
     }
 
+    // 미등록 멤버 자동 등록 (가입일 기준 missionDurationDays 이내)
+    await this.registerMissingMembers(guildId, resolvedConfig);
+
     // 진행중 미션 목록 조회 (Redis 캐시 우선)
-    const missions = await this.getActiveMissions(guildId);
+    let missions = await this.getActiveMissions(guildId);
+
+    // 봇·나간 멤버 미션 제거
+    missions = await this.removeInvalidMissions(guildId, missions);
 
     const embed = await this.buildMissionEmbed(guildId, missions, resolvedConfig);
     const row = this.buildRefreshButton(guildId);
@@ -296,6 +302,89 @@ export class MissionService {
 
     await this.newbieRedis.deleteMissionActive(guildId);
     await this.refreshMissionEmbed(guildId);
+  }
+
+  /**
+   * 가입일 기준 missionDurationDays 이내인데 미션이 없는 멤버를 자동 등록한다.
+   * 봇이 오프라인이었거나 기능 활성화 전에 가입한 멤버를 보완한다.
+   */
+  private async registerMissingMembers(
+    guildId: string,
+    config: NewbieConfig,
+  ): Promise<void> {
+    if (!config.missionDurationDays || !config.missionTargetPlaytimeHours) return;
+
+    const guild = await this.discord.guilds.fetch(guildId).catch(() => null);
+    if (!guild) return;
+
+    const cutoff = Date.now() - config.missionDurationDays * 86_400_000;
+
+    // 길드 전체 멤버 조회
+    const members = await guild.members.fetch().catch(() => null);
+    if (!members) return;
+
+    // 현재 활성 미션이 있는 멤버 Set
+    const activeMissions = await this.missionRepo.findActiveByGuild(guildId);
+    const hasMission = new Set(activeMissions.map((m) => m.memberId));
+
+    let created = 0;
+    for (const [, member] of members) {
+      if (member.user.bot) continue;
+      if (!member.joinedAt || member.joinedAt.getTime() < cutoff) continue;
+      if (hasMission.has(member.id)) continue;
+
+      const joinDate = this.toDateString(member.joinedAt);
+      const endDate = this.toDateString(
+        new Date(member.joinedAt.getTime() + config.missionDurationDays * 86_400_000),
+      );
+      const targetPlaytimeSec = config.missionTargetPlaytimeHours * 3600;
+
+      await this.missionRepo.create(guildId, member.id, joinDate, endDate, targetPlaytimeSec);
+      this.logger.log(
+        `[MISSION] Auto-registered missing member: guild=${guildId} member=${member.id} joined=${joinDate}`,
+      );
+      created++;
+    }
+
+    if (created > 0) {
+      await this.newbieRedis.deleteMissionActive(guildId);
+    }
+  }
+
+  /**
+   * 봇이거나 서버를 떠난 멤버의 미션 레코드를 삭제하고 목록에서 제거한다.
+   * 제거된 미션이 있으면 캐시를 무효화한다.
+   */
+  private async removeInvalidMissions(
+    guildId: string,
+    missions: NewbieMission[],
+  ): Promise<NewbieMission[]> {
+    if (missions.length === 0) return missions;
+
+    const guild = await this.discord.guilds.fetch(guildId).catch(() => null);
+    if (!guild) return missions; // 길드 조회 실패 시 필터 생략
+
+    const valid: NewbieMission[] = [];
+    let removed = 0;
+
+    for (const mission of missions) {
+      const member = await guild.members.fetch(mission.memberId).catch(() => null);
+      if (!member || member.user.bot) {
+        await this.missionRepo.delete(mission.id);
+        this.logger.log(
+          `[MISSION] Deleted invalid member mission: id=${mission.id} member=${mission.memberId} reason=${!member ? 'left' : 'bot'}`,
+        );
+        removed++;
+        continue;
+      }
+      valid.push(mission);
+    }
+
+    if (removed > 0) {
+      await this.newbieRedis.deleteMissionActive(guildId);
+    }
+
+    return valid;
   }
 
   /**

@@ -82,6 +82,12 @@ export class NewbieConfigSaveDto {
   mocoEnabled: boolean;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  mocoNewbieDays?: number | null;
+
+  @IsOptional()
   @IsBoolean()
   mocoAllowNewbieHunter?: boolean;
 

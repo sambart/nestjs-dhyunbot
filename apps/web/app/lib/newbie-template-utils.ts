@@ -14,7 +14,7 @@ export const MISSION_ALLOWED_VARS = {
 } as const;
 
 export const MOCO_ALLOWED_VARS = {
-  titleTemplate: ['{rank}', '{hunterName}', '{hunterMention}'],
+  titleTemplate: ['{rank}', '{hunterName}'],
   bodyTemplate: ['{totalMinutes}', '{mocoList}'],
   itemTemplate: ['{newbieName}', '{newbieMention}', '{minutes}'],
   footerTemplate: ['{currentPage}', '{totalPages}', '{interval}'],

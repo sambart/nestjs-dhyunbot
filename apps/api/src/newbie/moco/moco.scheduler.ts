@@ -4,8 +4,6 @@ import { Client, Guild, VoiceBasedChannel } from 'discord.js';
 
 import { VoiceExcludedChannelService } from '../../channel/voice/application/voice-excluded-channel.service';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
-import { NewbieMissionRepository } from '../infrastructure/newbie-mission.repository';
-import { NewbiePeriodRepository } from '../infrastructure/newbie-period.repository';
 import { NewbieRedisRepository } from '../infrastructure/newbie-redis.repository';
 
 /** 모코코 사냥 시간 누적 주기 (밀리초) */
@@ -18,8 +16,6 @@ export class MocoScheduler implements OnApplicationBootstrap, OnApplicationShutd
 
   constructor(
     private readonly configRepo: NewbieConfigRepository,
-    private readonly missionRepo: NewbieMissionRepository,
-    private readonly periodRepo: NewbiePeriodRepository,
     private readonly newbieRedis: NewbieRedisRepository,
     private readonly excludedChannelService: VoiceExcludedChannelService,
     @InjectDiscordClient() private readonly discord: Client,
@@ -60,32 +56,16 @@ export class MocoScheduler implements OnApplicationBootstrap, OnApplicationShutd
     const config = await this.configRepo.findByGuildId(guildId);
     if (!config?.mocoEnabled) return;
 
-    // 2. 신입기간 활성 멤버 조회 (Redis 캐시 우선)
-    let activePeriodMembers = await this.newbieRedis.getPeriodActiveMembers(guildId);
+    const newbieDays = config.mocoNewbieDays ?? 30;
+    const cutoff = Date.now() - newbieDays * 86_400_000;
 
-    if (activePeriodMembers === null) {
-      // 캐시 미스 — DB 조회 후 캐시 초기화
-      const periods = await this.periodRepo.findActiveByGuild(guildId);
-      const memberIds = periods.map((p) => p.memberId);
-      await this.newbieRedis.initPeriodActiveMembers(guildId, memberIds);
-      activePeriodMembers = memberIds;
-    }
-
-    if (activePeriodMembers.length === 0) return;
-
-    const activePeriodSet = new Set(activePeriodMembers);
-
-    // 3. 활성 미션 멤버 Set 구축 (길드 전체 한 번만 조회)
-    const activeMissions = await this.missionRepo.findActiveByGuild(guildId);
-    const activeMissionMemberSet = new Set(activeMissions.map((m) => m.memberId));
-
-    // 4. 음성 채널 순회
+    // 2. 음성 채널 순회
     for (const [, channel] of guild.channels.cache) {
       if (!channel.isVoiceBased()) continue;
 
       const voiceChannel = channel as VoiceBasedChannel;
-      const memberIds = [...voiceChannel.members.keys()];
-      if (memberIds.length < 2) continue;
+      const members = [...voiceChannel.members.values()];
+      if (members.length < 2) continue;
 
       // 제외 채널 확인
       const excluded = await this.excludedChannelService.isExcludedChannel(
@@ -95,29 +75,26 @@ export class MocoScheduler implements OnApplicationBootstrap, OnApplicationShutd
       );
       if (excluded) continue;
 
-      // 5. 신규사용자 식별 (신입기간 활성 ∩ 미션 IN_PROGRESS)
-      const confirmedNewbies = memberIds.filter(
-        (id) => activePeriodSet.has(id) && activeMissionMemberSet.has(id),
-      );
+      // 3. 신규사용자(모코코) 식별 — 서버 가입일이 cutoff 이후인 멤버
+      const confirmedNewbies = members
+        .filter((m) => m.joinedAt && m.joinedAt.getTime() >= cutoff)
+        .map((m) => m.id);
       if (confirmedNewbies.length === 0) continue;
 
-      // 6. 사냥꾼 식별
-      // mocoAllowNewbieHunter=true: 모코코도 다른 모코코의 사냥꾼이 될 수 있음 (전체 멤버)
-      // mocoAllowNewbieHunter=false(기본): 모코코를 제외한 기존 멤버만 사냥꾼
+      // 4. 사냥꾼 식별
+      const memberIds = members.map((m) => m.id);
       const newbieSet = new Set(confirmedNewbies);
       const hunters = config.mocoAllowNewbieHunter
         ? memberIds
         : memberIds.filter((id) => !newbieSet.has(id));
       if (hunters.length === 0) continue;
 
-      // 7. Redis 누적 (HINCRBY + ZINCRBY)
+      // 5. Redis 누적 (HINCRBY + ZINCRBY)
       for (const hunterId of hunters) {
         for (const newbieId of confirmedNewbies) {
-          // 자기 자신에 대한 사냥 시간은 누적하지 않음
           if (hunterId === newbieId) continue;
           await this.newbieRedis.incrMocoMinutes(guildId, hunterId, newbieId, 1);
         }
-        // 자기 자신을 제외한 모코코 수만큼 랭크 누적
         const targetCount = config.mocoAllowNewbieHunter && newbieSet.has(hunterId)
           ? confirmedNewbies.length - 1
           : confirmedNewbies.length;

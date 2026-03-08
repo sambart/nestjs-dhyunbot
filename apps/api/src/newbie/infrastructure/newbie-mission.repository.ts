@@ -64,6 +64,11 @@ export class NewbieMissionRepository {
     await this.repo.update(id, { status });
   }
 
+  /** 미션 레코드 삭제 */
+  async delete(id: number): Promise<void> {
+    await this.repo.delete(id);
+  }
+
   /**
    * 길드의 미션 상태별 카운트 집계.
    * headerTemplate의 {inProgressCount}, {completedCount}, {failedCount} 변수 렌더링에 사용.

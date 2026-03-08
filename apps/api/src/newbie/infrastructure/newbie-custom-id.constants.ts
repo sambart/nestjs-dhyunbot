@@ -4,4 +4,5 @@ export const NEWBIE_CUSTOM_ID = {
   MOCO_PREV: 'newbie_moco:prev:',
   MOCO_NEXT: 'newbie_moco:next:',
   MOCO_REFRESH: 'newbie_moco:refresh:',
+  MOCO_MY: 'newbie_moco:my:',
 } as const;

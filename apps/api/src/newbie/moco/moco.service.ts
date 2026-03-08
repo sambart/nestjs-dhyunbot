@@ -272,6 +272,48 @@ export class MocoService {
     return embed;
   }
 
+  /**
+   * 특정 사용자의 모코코 사냥 시간 Ephemeral 메시지 내용을 구성한다.
+   * 총 사냥 시간, 순위, 모코코별 상세 시간을 포함한다.
+   */
+  async buildMyHuntingMessage(guildId: string, userId: string): Promise<string> {
+    const [totalMinutes, rank, totalCount, details] = await Promise.all([
+      this.newbieRedis.getMocoHunterScore(guildId, userId),
+      this.newbieRedis.getMocoHunterRank(guildId, userId),
+      this.newbieRedis.getMocoRankCount(guildId),
+      this.newbieRedis.getMocoHunterDetail(guildId, userId),
+    ]);
+
+    if (totalMinutes === null || rank === null) {
+      return '아직 모코코 사냥 기록이 없습니다.';
+    }
+
+    const lines: string[] = [];
+    lines.push(`🏆 **순위**: ${rank}위 / ${totalCount}명`);
+    lines.push(`⏱️ **총 사냥 시간**: ${Math.round(totalMinutes)}분`);
+
+    const entries = Object.entries(details).sort(([, a], [, b]) => b - a);
+    if (entries.length > 0) {
+      lines.push('');
+      lines.push('🌱 **도움을 받은 모코코들:**');
+
+      try {
+        const guild = await this.discordClient.guilds.fetch(guildId);
+        for (const [newbieId, minutes] of entries) {
+          const member = await guild.members.fetch(newbieId).catch(() => null);
+          const name = member?.displayName ?? newbieId;
+          lines.push(`– ${name}: ${minutes}분`);
+        }
+      } catch {
+        for (const [newbieId, minutes] of entries) {
+          lines.push(`– ${newbieId}: ${minutes}분`);
+        }
+      }
+    }
+
+    return lines.join('\n');
+  }
+
   /** 내부: 페이지네이션 + 갱신 버튼 ActionRow 구성 */
   private buildButtons(
     guildId: string,
@@ -295,10 +337,16 @@ export class MocoService {
       .setLabel('갱신')
       .setStyle(ButtonStyle.Primary);
 
+    const myButton = new ButtonBuilder()
+      .setCustomId(`${NEWBIE_CUSTOM_ID.MOCO_MY}${guildId}`)
+      .setLabel('내 사냥 시간')
+      .setStyle(ButtonStyle.Success);
+
     return new ActionRowBuilder<ButtonBuilder>().addComponents(
       prevButton,
       nextButton,
       refreshButton,
+      myButton,
     );
   }
 }

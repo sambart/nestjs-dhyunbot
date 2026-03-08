@@ -73,6 +73,9 @@ export class NewbieConfig {
   @Column({ default: false })
   mocoEnabled: boolean;
 
+  @Column({ type: 'int', default: 30 })
+  mocoNewbieDays: number;
+
   @Column({ default: false })
   mocoAllowNewbieHunter: boolean;
 

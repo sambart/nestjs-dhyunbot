@@ -229,6 +229,38 @@ export default function MissionTab({
         )}
       </div>
 
+      {/* Embed 색상 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Embed 색상
+        </label>
+        <div className="flex items-center space-x-3">
+          <input
+            type="color"
+            value={config.missionEmbedColor ?? '#57F287'}
+            onChange={(e) => onChange({ missionEmbedColor: e.target.value })}
+            disabled={!isEnabled}
+            aria-label="Embed 색상 피커"
+            className="h-9 w-16 border border-gray-300 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed p-1"
+          />
+          <input
+            type="text"
+            value={config.missionEmbedColor ?? '#57F287'}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                onChange({ missionEmbedColor: val });
+              }
+            }}
+            disabled={!isEnabled}
+            maxLength={7}
+            placeholder="#57F287"
+            aria-label="Embed 색상 HEX 코드"
+            className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+          />
+        </div>
+      </div>
+
       <hr className="border-gray-200" />
 
       {/* 템플릿 설정 섹션 */}

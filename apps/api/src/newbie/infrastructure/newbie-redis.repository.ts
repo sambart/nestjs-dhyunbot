@@ -168,4 +168,22 @@ export class NewbieRedisRepository {
   async getMocoRankCount(guildId: string): Promise<number> {
     return this.client.zcard(NewbieKeys.mocoRank(guildId));
   }
+
+  /**
+   * 특정 사냥꾼의 순위 조회 (ZREVRANK, 0-indexed → 1-indexed 변환)
+   * 사냥꾼이 없으면 null 반환
+   */
+  async getMocoHunterRank(guildId: string, hunterId: string): Promise<number | null> {
+    const rank = await this.client.zrevrank(NewbieKeys.mocoRank(guildId), hunterId);
+    return rank !== null ? rank + 1 : null;
+  }
+
+  /**
+   * 특정 사냥꾼의 총 사냥 시간(분) 조회 (ZSCORE)
+   * 사냥꾼이 없으면 null 반환
+   */
+  async getMocoHunterScore(guildId: string, hunterId: string): Promise<number | null> {
+    const score = await this.client.zscore(NewbieKeys.mocoRank(guildId), hunterId);
+    return score !== null ? parseFloat(score) : null;
+  }
 }
