@@ -16,7 +16,7 @@ import { VoiceDailyFlushService } from '../../channel/voice/application/voice-da
 import { VoiceChannelHistory } from '../../channel/voice/domain/voice-channel-history.entity';
 import { VoiceDailyEntity } from '../../channel/voice/domain/voice-daily.entity';
 import { NewbieConfig } from '../domain/newbie-config.entity';
-import { NewbieMission } from '../domain/newbie-mission.entity';
+import { MissionStatus, NewbieMission } from '../domain/newbie-mission.entity';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from '../infrastructure/newbie-mission.repository';
 import { NewbieMissionTemplateRepository } from '../infrastructure/newbie-mission-template.repository';
@@ -119,29 +119,83 @@ export class MissionService {
   /**
    * 기간 내 플레이횟수 (VoiceChannelHistory 세션 수).
    * startDate/endDate는 YYYYMMDD 형식; KST 기준으로 Date 범위 변환.
+   * guildId 필터: VoiceDailyEntity를 통해 해당 길드에 속한 채널만 조회.
    */
   async getPlayCount(
     guildId: string,
     memberId: string,
     startDate: string,
     endDate: string,
+    config: NewbieConfig,
   ): Promise<number> {
-    // startDate/endDate (YYYYMMDD)를 KST 기준 날짜 범위로 변환
     const startDatetime = this.yyyymmddToKSTDate(startDate, 'start');
     const endDatetime = this.yyyymmddToKSTDate(endDate, 'end');
 
-    const result = await this.voiceHistoryRepo
+    // 해당 길드+멤버+기간에 해당하는 채널 ID 목록 조회 (guildId 필터용)
+    const guildChannelRows = await this.voiceDailyRepo
+      .createQueryBuilder('vd')
+      .select('DISTINCT vd.channelId', 'channelId')
+      .where('vd.guildId = :guildId', { guildId })
+      .andWhere('vd.userId = :memberId', { memberId })
+      .andWhere('vd.date BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .andWhere("vd.channelId != 'GLOBAL'")
+      .getRawMany<{ channelId: string }>();
+
+    const guildChannelIds = guildChannelRows.map((r) => r.channelId);
+    if (guildChannelIds.length === 0) return 0;
+
+    // 후보 세션 조회 (joinedAt, leftAt) — guildId에 속한 채널만 필터
+    const rows = await this.voiceHistoryRepo
       .createQueryBuilder('vch')
-      .select('COUNT(*)', 'count')
+      .select(['vch.joinedAt', 'vch.leftAt'])
       .innerJoin('vch.member', 'm')
+      .innerJoin('vch.channel', 'c')
       .where('m.discordMemberId = :memberId', { memberId })
+      .andWhere('c.discordChannelId IN (:...guildChannelIds)', { guildChannelIds })
       .andWhere('vch.joinedAt BETWEEN :startDatetime AND :endDatetime', {
         startDatetime,
         endDatetime,
       })
-      .getRawOne<{ count: string }>();
+      .orderBy('vch.joinedAt', 'ASC')
+      .getMany();
 
-    return parseInt(result?.count ?? '0', 10);
+    // 두 옵션 모두 null이면 단순 COUNT 반환
+    if (config.playCountMinDurationMin === null && config.playCountIntervalMin === null) {
+      return rows.length;
+    }
+
+    // Step 1: 최소 참여시간 필터 (playCountMinDurationMin NOT NULL)
+    let sessions = rows;
+    if (config.playCountMinDurationMin !== null) {
+      const minMs = config.playCountMinDurationMin * 60 * 1000;
+      sessions = sessions.filter((row) => {
+        if (!row.leftAt) return false; // 퇴장 기록 없는 세션은 제외
+        return row.leftAt.getTime() - row.joinedAt.getTime() >= minMs;
+      });
+    }
+
+    if (sessions.length === 0) return 0;
+
+    // Step 2: 시간 간격 병합 (playCountIntervalMin NOT NULL)
+    if (config.playCountIntervalMin === null) {
+      return sessions.length;
+    }
+
+    const intervalMs = config.playCountIntervalMin * 60 * 1000;
+    let count = 1;
+    let baseJoinedAt = sessions[0].joinedAt.getTime();
+
+    for (let i = 1; i < sessions.length; i++) {
+      const currentJoinedAt = sessions[i].joinedAt.getTime();
+      if (currentJoinedAt - baseJoinedAt >= intervalMs) {
+        // 간격 초과 → 새로운 1회로 카운트
+        count++;
+        baseJoinedAt = currentJoinedAt;
+      }
+      // 간격 이내 → 동일 1회로 병합 (baseJoinedAt 갱신 없음)
+    }
+
+    return count;
   }
 
   /**
@@ -214,10 +268,32 @@ export class MissionService {
   }
 
   /**
-   * 갱신 버튼 클릭 시 호출. 미션 캐시 무효화 후 Embed 갱신.
+   * 갱신 버튼 클릭 시 호출.
+   * 1. 음성 데이터 flush
+   * 2. 목표 달성 미션을 COMPLETED로 즉시 갱신
+   * 3. 미션 캐시 무효화 후 Embed 갱신
    */
   async invalidateAndRefresh(guildId: string): Promise<void> {
     await this.voiceDailyFlushService.safeFlushAll();
+
+    // 진행중 미션 중 목표 달성한 미션을 COMPLETED로 즉시 갱신
+    const activeMissions = await this.missionRepo.findActiveByGuild(guildId);
+    for (const mission of activeMissions) {
+      const playtimeSec = await this.getPlaytimeSec(
+        guildId,
+        mission.memberId,
+        mission.startDate,
+        mission.endDate,
+      );
+      if (playtimeSec >= mission.targetPlaytimeSec) {
+        await this.missionRepo.updateStatus(mission.id, MissionStatus.COMPLETED);
+        this.logger.log(
+          `[MISSION] Completed on refresh: id=${mission.id} member=${mission.memberId} ` +
+            `playtime=${playtimeSec}s target=${mission.targetPlaytimeSec}s`,
+        );
+      }
+    }
+
     await this.newbieRedis.deleteMissionActive(guildId);
     await this.refreshMissionEmbed(guildId);
   }
@@ -277,7 +353,7 @@ export class MissionService {
     for (const mission of missions) {
       const [playtimeSec, playCount] = await Promise.all([
         this.getPlaytimeSec(guildId, mission.memberId, mission.startDate, mission.endDate),
-        this.getPlayCount(guildId, mission.memberId, mission.startDate, mission.endDate),
+        this.getPlayCount(guildId, mission.memberId, mission.startDate, mission.endDate, config),
       ]);
 
       const username = await this.fetchMemberDisplayName(guildId, mission.memberId);
@@ -401,10 +477,6 @@ export class MissionService {
    */
   private calcDaysLeft(endDate: string): number {
     const todayStr = this.toDateString(new Date());
-    const todayNum = parseInt(todayStr, 10);
-    const endNum = parseInt(endDate, 10);
-    const diff = endNum - todayNum;
-    // YYYYMMDD 단순 숫자 차이는 일수와 다를 수 있으므로 Date 객체로 계산
     const todayDate = new Date(
       parseInt(todayStr.slice(0, 4), 10),
       parseInt(todayStr.slice(4, 6), 10) - 1,
@@ -417,8 +489,6 @@ export class MissionService {
     );
     const msPerDay = 24 * 60 * 60 * 1000;
     const days = Math.floor((endDateObj.getTime() - todayDate.getTime()) / msPerDay);
-    // diff 변수는 위에서 계산했지만 아래 days를 사용
-    void diff;
     return Math.max(0, days);
   }
 

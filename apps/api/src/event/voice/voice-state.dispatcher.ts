@@ -3,12 +3,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { VoiceState } from 'discord.js';
 
+import { VoiceExcludedChannelService } from '../../channel/voice/application/voice-excluded-channel.service';
 import { VoiceStateDto } from '../../channel/voice/infrastructure/voice-state.dto';
 import {
   AUTO_CHANNEL_EVENTS,
   AutoChannelChannelEmptyEvent,
 } from '../auto-channel/auto-channel-events';
-import { NEWBIE_EVENTS, NewbieVoiceStateChangedEvent } from '../newbie/newbie-events';
 import {
   VOICE_EVENTS,
   VoiceAloneChangedEvent,
@@ -22,7 +22,10 @@ import {
 export class VoiceStateDispatcher {
   private readonly logger = new Logger(VoiceStateDispatcher.name);
 
-  constructor(private readonly eventEmitter: EventEmitter2) {}
+  constructor(
+    private readonly eventEmitter: EventEmitter2,
+    private readonly excludedChannelService: VoiceExcludedChannelService,
+  ) {}
 
   @On('voiceStateUpdate')
   async dispatch(oldState: VoiceState, newState: VoiceState) {
@@ -34,9 +37,33 @@ export class VoiceStateDispatcher {
         oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId;
 
       if (isMove) {
-        const oldDto = VoiceStateDto.fromVoiceState(oldState);
-        const newDto = VoiceStateDto.fromVoiceState(newState);
-        await this.eventEmitter.emitAsync(VOICE_EVENTS.MOVE, new VoiceMoveEvent(oldDto, newDto));
+        const oldExcluded = await this.isExcluded(
+          oldState.guild.id,
+          oldState.channelId,
+          oldState.channel?.parentId ?? null,
+        );
+        const newExcluded = await this.isExcluded(
+          newState.guild.id,
+          newState.channelId,
+          newState.channel?.parentId ?? null,
+        );
+
+        if (!oldExcluded && !newExcluded) {
+          // 경우 D: 둘 다 일반 채널 — MOVE 이벤트 발행 (기존 동작)
+          const oldDto = VoiceStateDto.fromVoiceState(oldState);
+          const newDto = VoiceStateDto.fromVoiceState(newState);
+          await this.eventEmitter.emitAsync(VOICE_EVENTS.MOVE, new VoiceMoveEvent(oldDto, newDto));
+        } else if (oldExcluded && !newExcluded) {
+          // 경우 B: old만 제외 — JOIN(newState)만 발행
+          const newDto = VoiceStateDto.fromVoiceState(newState);
+          await this.eventEmitter.emitAsync(VOICE_EVENTS.JOIN, new VoiceJoinEvent(newDto));
+        } else if (!oldExcluded && newExcluded) {
+          // 경우 C: new만 제외 — LEAVE(oldState)만 발행
+          const oldDto = VoiceStateDto.fromVoiceState(oldState);
+          await this.eventEmitter.emitAsync(VOICE_EVENTS.LEAVE, new VoiceLeaveEvent(oldDto));
+        }
+        // 경우 A: 둘 다 제외 — MOVE/JOIN/LEAVE 모두 발행 안 함
+
         this.emitAloneChanged(oldState);
         this.emitAloneChanged(newState);
 
@@ -48,44 +75,35 @@ export class VoiceStateDispatcher {
           );
         }
 
-        // 모코코 사냥 이벤트 — 이동 후 새 채널 기준 (fire-and-forget)
-        if (newState.channelId && newState.channel) {
-          const memberIds = [...newState.channel.members.keys()];
-          this.eventEmitter.emit(
-            NEWBIE_EVENTS.VOICE_STATE_CHANGED,
-            new NewbieVoiceStateChangedEvent(
-              newState.guild.id,
-              newState.channelId,
-              oldState.channelId ?? null,
-              memberIds,
-            ),
-          );
-        }
       }
 
       if (isJoin) {
-        const dto = VoiceStateDto.fromVoiceState(newState);
-        await this.eventEmitter.emitAsync(VOICE_EVENTS.JOIN, new VoiceJoinEvent(dto));
-        this.emitAloneChanged(newState);
+        const excluded = await this.isExcluded(
+          newState.guild.id,
+          newState.channelId,
+          newState.channel?.parentId ?? null,
+        );
 
-        // 모코코 사냥 이벤트 — 입장한 채널 기준 (fire-and-forget)
-        if (newState.channelId && newState.channel) {
-          const memberIds = [...newState.channel.members.keys()];
-          this.eventEmitter.emit(
-            NEWBIE_EVENTS.VOICE_STATE_CHANGED,
-            new NewbieVoiceStateChangedEvent(
-              newState.guild.id,
-              newState.channelId,
-              null,
-              memberIds,
-            ),
-          );
+        if (!excluded) {
+          const dto = VoiceStateDto.fromVoiceState(newState);
+          await this.eventEmitter.emitAsync(VOICE_EVENTS.JOIN, new VoiceJoinEvent(dto));
         }
+
+        this.emitAloneChanged(newState);
       }
 
       if (isLeave) {
-        const dto = VoiceStateDto.fromVoiceState(oldState);
-        await this.eventEmitter.emitAsync(VOICE_EVENTS.LEAVE, new VoiceLeaveEvent(dto));
+        const excluded = await this.isExcluded(
+          oldState.guild.id,
+          oldState.channelId,
+          oldState.channel?.parentId ?? null,
+        );
+
+        if (!excluded) {
+          const dto = VoiceStateDto.fromVoiceState(oldState);
+          await this.eventEmitter.emitAsync(VOICE_EVENTS.LEAVE, new VoiceLeaveEvent(dto));
+        }
+
         this.emitAloneChanged(oldState);
 
         // 퇴장 후 채널이 비어있으면 자동방 삭제 이벤트 발행 (fire-and-forget)
@@ -96,19 +114,6 @@ export class VoiceStateDispatcher {
           );
         }
 
-        // 모코코 사냥 이벤트 — 퇴장 후 이전 채널 기준 (fire-and-forget)
-        if (oldState.channelId && oldState.channel) {
-          const memberIds = [...oldState.channel.members.keys()];
-          this.eventEmitter.emit(
-            NEWBIE_EVENTS.VOICE_STATE_CHANGED,
-            new NewbieVoiceStateChangedEvent(
-              oldState.guild.id,
-              null,
-              oldState.channelId,
-              memberIds,
-            ),
-          );
-        }
       }
 
       if (isMuteChanged && !isJoin && !isLeave && !isMove) {
@@ -124,6 +129,16 @@ export class VoiceStateDispatcher {
         (error as Error).stack,
       );
     }
+  }
+
+  /** 제외 채널 여부 확인. channelId가 null이면 false 반환. */
+  private async isExcluded(
+    guildId: string,
+    channelId: string | null,
+    parentCategoryId: string | null,
+  ): Promise<boolean> {
+    if (!channelId) return false;
+    return this.excludedChannelService.isExcludedChannel(guildId, channelId, parentCategoryId);
   }
 
   /** 이벤트 발생 후 해당 채널에 남은 유저들의 alone 상태 변경 이벤트 발행 */
