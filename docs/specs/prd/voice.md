@@ -133,6 +133,103 @@ Discord Voice Event
 
 ---
 
+## 음성 시간 제외 채널 (Voice Time Excluded Channels)
+
+> 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)
+
+### 개요
+
+길드별로 음성 시간 추적에서 제외할 채널 또는 카테고리를 설정한다. 제외 채널에 입장·퇴장·이동이 발생해도 VoiceChannelHistory 미생성, VoiceDailyEntity 미누적, Redis 세션 미생성이 보장된다.
+
+### F-VOICE-013: 제외 채널 설정 조회
+
+- **트리거**: 웹 대시보드 설정 페이지 초기 로드
+- **엔드포인트**: `GET /api/guilds/{guildId}/voice/excluded-channels`
+- **동작**:
+  1. `VoiceExcludedChannel` 레코드를 guildId 기준으로 전체 조회
+  2. `type` 및 `channelId` 목록 반환
+- **응답 형식**:
+  ```json
+  [
+    { "id": 1, "channelId": "111111111111111111", "type": "CHANNEL" },
+    { "id": 2, "channelId": "222222222222222222", "type": "CATEGORY" }
+  ]
+  ```
+
+### F-VOICE-014: 제외 채널 등록
+
+- **트리거**: 웹 대시보드에서 채널/카테고리 선택 후 저장
+- **엔드포인트**: `POST /api/guilds/{guildId}/voice/excluded-channels`
+- **요청 바디**:
+  ```json
+  { "channelId": "111111111111111111", "type": "CHANNEL" }
+  ```
+  - `type`: `CHANNEL` (개별 음성 채널) 또는 `CATEGORY` (카테고리)
+- **동작**:
+  1. 동일 guildId + channelId 조합이 이미 존재하면 409 응답
+  2. `VoiceExcludedChannel` 레코드 생성
+  3. `voice:excluded:{guildId}` Redis 캐시 무효화 (삭제)
+- **제약**:
+  - 카테고리를 등록하면 해당 카테고리 하위의 모든 음성 채널이 제외 대상이 됨 (하위 채널을 개별 등록할 필요 없음)
+
+### F-VOICE-015: 제외 채널 삭제
+
+- **트리거**: 웹 대시보드에서 항목 삭제 버튼 클릭
+- **엔드포인트**: `DELETE /api/guilds/{guildId}/voice/excluded-channels/{id}`
+- **동작**:
+  1. `VoiceExcludedChannel` 레코드 삭제 (id + guildId 일치 검증)
+  2. `voice:excluded:{guildId}` Redis 캐시 무효화 (삭제)
+- **예외**:
+  - 레코드가 존재하지 않으면 404 응답
+
+### F-VOICE-016: 음성 이벤트 처리 시 제외 채널 필터링
+
+- **트리거**: Discord `voiceStateUpdate` 이벤트 수신 (F-VOICE-001, F-VOICE-002, F-VOICE-003 실행 직전)
+- **동작**:
+  1. `voice:excluded:{guildId}` Redis 캐시 조회
+     - 캐시 미스: `VoiceExcludedChannel` 레코드를 DB에서 조회 후 Redis에 저장 (TTL 1시간)
+  2. 대상 채널이 제외 채널 목록에 포함되는지 확인:
+     - `type = CHANNEL`: channelId 직접 일치 여부 확인
+     - `type = CATEGORY`: Discord API로 해당 채널의 parentId(카테고리 ID) 조회 후 일치 여부 확인
+  3. 제외 대상이면 해당 이벤트 처리 중단 (VoiceChannelHistory 미생성, VoiceDailyEntity 미누적, Redis 세션 미생성)
+  4. 제외 대상이 아니면 기존 플로우(F-VOICE-001 ~ F-VOICE-003) 정상 수행
+- **이동(move) 이벤트 처리 세부 규칙**:
+  - 이전 채널(A)이 제외 채널이고 새 채널(B)이 일반 채널: B에 대한 입장(F-VOICE-001)만 수행, A 퇴장 처리 생략
+  - 이전 채널(A)이 일반 채널이고 새 채널(B)이 제외 채널: A에 대한 퇴장(F-VOICE-002)만 수행, B 입장 처리 생략
+  - 이전 채널(A)과 새 채널(B) 모두 제외 채널: 이동 이벤트 전체 무시
+- **자동방 트리거 채널과의 관계**:
+  - 트리거 채널은 F-VOICE-007에서 이미 세션 추적을 제외하므로 별도 처리 불필요
+  - 트리거 채널을 제외 채널로 추가 등록하더라도 동작 상 중복될 뿐 오류 없음
+
+## 음성 시간 제외 채널 데이터 모델
+
+### VoiceExcludedChannel (voice_excluded_channel)
+
+| 컬럼 | 타입 | 설명 |
+|-------|------|------|
+| id | PK, auto | 내부 ID |
+| guildId | string | 디스코드 서버 ID |
+| channelId | string | 제외할 채널 또는 카테고리 ID |
+| type | enum (CHANNEL/CATEGORY) | 제외 단위 (개별 채널 또는 카테고리) |
+| createdAt | timestamp | 생성일 |
+| updatedAt | timestamp | 수정일 |
+
+**인덱스**:
+- `(guildId, channelId)` unique — 서버+채널 단위 중복 방지
+- `(guildId)` — 서버별 전체 목록 조회
+
+## 음성 시간 제외 채널 Redis 키 구조
+
+| 키 패턴 | TTL | 자료구조 | 설명 |
+|---------|-----|----------|------|
+| `voice:excluded:{guildId}` | 1시간 | String (JSON) | 길드별 제외 채널 목록 캐시 (`VoiceExcludedChannel[]` JSON 직렬화) |
+
+- 설정 등록(`POST`) 또는 삭제(`DELETE`) 시 해당 키를 명시적으로 삭제하여 캐시를 무효화한다.
+- 캐시 미스 시 DB 조회 후 Redis에 1시간 TTL로 재저장한다.
+- 캐시 히트 시 parentId 확인을 위한 Discord API 호출은 여전히 발생할 수 있다 (`type = CATEGORY` 항목이 존재하는 경우).
+
+---
+
 ## 자동방 생성 (Auto Channel)
 
 > 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)

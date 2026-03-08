@@ -1,28 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
-
-import { MocoService } from '../../newbie/moco/moco.service';
-import { NEWBIE_EVENTS, NewbieVoiceStateChangedEvent } from './newbie-events';
-
-@Injectable()
-export class NewbieVoiceStateChangedHandler {
-  private readonly logger = new Logger(NewbieVoiceStateChangedHandler.name);
-
-  constructor(private readonly mocoService: MocoService) {}
-
-  @OnEvent(NEWBIE_EVENTS.VOICE_STATE_CHANGED)
-  async handle(event: NewbieVoiceStateChangedEvent): Promise<void> {
-    try {
-      await this.mocoService.handleVoiceStateChanged(
-        event.guildId,
-        event.channelId,
-        event.channelMemberIds,
-      );
-    } catch (error) {
-      this.logger.error(
-        `[MOCO] handleVoiceStateChanged failed: guild=${event.guildId} channel=${event.channelId}`,
-        (error as Error).stack,
-      );
-    }
-  }
-}
+/**
+ * @deprecated 모코코 사냥 시간 누적은 MocoScheduler(주기적 타이머)로 이관됨.
+ * 이벤트 기반 누적은 실제 동시접속 시간과 괴리가 발생하여 제거됨.
+ * 이 파일은 모듈에서 등록 해제되었으며 추후 정리 시 삭제 가능.
+ */

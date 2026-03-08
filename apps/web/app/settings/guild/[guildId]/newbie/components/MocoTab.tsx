@@ -57,6 +57,32 @@ export default function MocoTab({
         </button>
       </div>
 
+      {/* 모코코도 사냥꾼 허용 토글 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-700">모코코도 사냥꾼 허용</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            활성화하면 신입(모코코)도 다른 신입의 사냥꾼이 될 수 있습니다.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={config.mocoAllowNewbieHunter}
+          onClick={() => onChange({ mocoAllowNewbieHunter: !config.mocoAllowNewbieHunter })}
+          disabled={!isEnabled}
+          className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+            config.mocoAllowNewbieHunter ? 'bg-indigo-600' : 'bg-gray-200'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+              config.mocoAllowNewbieHunter ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
+      </div>
+
       {/* 순위 표시 채널 */}
       <div>
         <label

@@ -57,9 +57,16 @@ export class NewbieRedisRepository {
 
   // --- 신입기간 활성 멤버 집합 ---
 
-  /** 신입기간 활성 멤버 Set 전체 조회 (SMEMBERS) */
-  async getPeriodActiveMembers(guildId: string): Promise<string[]> {
-    return this.client.smembers(NewbieKeys.periodActive(guildId));
+  /**
+   * 신입기간 활성 멤버 Set 전체 조회 (SMEMBERS).
+   * 캐시 미스(키 없음)이면 null 반환, 빈 Set(센티널만 존재)이면 빈 배열 반환.
+   */
+  async getPeriodActiveMembers(guildId: string): Promise<string[] | null> {
+    const key = NewbieKeys.periodActive(guildId);
+    const exists = await this.client.exists(key);
+    if (exists === 0) return null;
+    const members = await this.client.smembers(key);
+    return members.filter((m) => m !== '__CHECKED__');
   }
 
   /** 신입기간 활성 멤버 추가 (SADD) */
@@ -74,13 +81,16 @@ export class NewbieRedisRepository {
 
   /**
    * 활성 멤버 집합 초기화 (DEL + SADD, TTL 1시간)
-   * 봇 기동 초기화 또는 스케줄러 실행 후 캐시 재구성 시 사용
+   * 봇 기동 초기화 또는 스케줄러 실행 후 캐시 재구성 시 사용.
+   * memberIds가 비어있으면 센티널 값으로 "조회 완료, 결과 없음"을 표시한다.
    */
   async initPeriodActiveMembers(guildId: string, memberIds: string[]): Promise<void> {
     const key = NewbieKeys.periodActive(guildId);
     await this.redis.del(key);
     if (memberIds.length > 0) {
       await this.redis.sadd(key, memberIds);
+    } else {
+      await this.client.sadd(key, '__CHECKED__');
     }
     await this.client.expire(key, TTL.PERIOD_ACTIVE);
   }

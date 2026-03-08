@@ -7,6 +7,9 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v2.4 | 2026-03-08 | web: 음성 설정 페이지(F-WEB-006) 추가 | — |
+| v2.3 | 2026-03-08 | voice: 음성 시간 제외 채널(VoiceExcludedChannel) 기능 추가 | — |
+| v2.2 | 2026-03-08 | newbie: 플레이횟수 카운팅 옵션(최소 참여시간/시간 간격) 추가 | — |
 | v2.1 | 2026-03-08 | sticky-message: 고정메세지 도메인 PRD 신규 추가 | — |
 | v2.0 | 2026-03-08 | web/voice: 자동방 설정 다중 탭 UI 및 AutoChannelConfig name 컬럼 추가 | — |
 | v1.9 | 2026-03-08 | voice: Auto Channel 데이터 모델 및 Redis 키 구조 코드베이스 기준 동기화 | — |
@@ -18,6 +21,84 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 14] voice: 음성 시간 제외 채널 기능 추가 (VOICE-EXCLUDED-CHANNELS)
+
+**변경일**: 2026-03-08
+**티켓**: VOICE-EXCLUDED-CHANNELS
+
+**변경 파일**:
+- `docs/specs/prd/voice.md` — F-VOICE-013 ~ F-VOICE-016, VoiceExcludedChannel 데이터 모델, Redis 키 구조 추가
+- `docs/specs/prd/_index.md` — 데이터베이스 엔티티 테이블에 VoiceExcludedChannel 행 추가
+
+**변경 내용**:
+1. **F-VOICE-013 (제외 채널 설정 조회)**: `GET /api/guilds/{guildId}/voice/excluded-channels` 엔드포인트 명세. guildId 기준 전체 조회 및 응답 형식 정의
+2. **F-VOICE-014 (제외 채널 등록)**: `POST /api/guilds/{guildId}/voice/excluded-channels` 엔드포인트 명세. `type` 필드(`CHANNEL`/`CATEGORY`) 정의, 중복 시 409 응답, 카테고리 등록 시 하위 채널 전체 제외 동작 명세, Redis 캐시 무효화 명세
+3. **F-VOICE-015 (제외 채널 삭제)**: `DELETE /api/guilds/{guildId}/voice/excluded-channels/{id}` 엔드포인트 명세. id+guildId 일치 검증, Redis 캐시 무효화, 404 예외 처리 명세
+4. **F-VOICE-016 (음성 이벤트 처리 시 제외 채널 필터링)**: `voiceStateUpdate` 이벤트 수신 직후 제외 채널 판별 로직 명세
+   - Redis 캐시 조회 (미스 시 DB 조회 후 1시간 TTL 캐싱)
+   - `CHANNEL` 타입: channelId 직접 비교
+   - `CATEGORY` 타입: Discord API로 parentId 조회 후 비교
+   - 이동(move) 이벤트 세부 처리 규칙 (A-제외/B-일반, A-일반/B-제외, 둘 다 제외, 둘 다 일반 케이스)
+   - 자동방 트리거 채널과의 관계 명세 (별도 처리 불필요)
+5. **VoiceExcludedChannel 데이터 모델** (`voice_excluded_channel`) 신규 추가: id, guildId, channelId, type(enum CHANNEL/CATEGORY), createdAt, updatedAt 컬럼 및 인덱스 2개 정의
+6. **Redis 키 구조 추가**: `voice:excluded:{guildId}` (1시간 TTL, String/JSON) — 제외 채널 목록 캐시, 등록/삭제 시 명시적 무효화 규칙 명세
+7. `_index.md` 데이터베이스 엔티티 테이블에 VoiceExcludedChannel 행 추가
+
+**변경 사유**: 특정 음성 채널(AFK 채널, 관전 채널, 대기 채널 등)을 음성 시간 추적에서 제외하는 요구사항 반영. 카테고리 단위 일괄 제외를 지원하여 설정 편의성을 높임.
+
+---
+
+## [수정 13] web: 음성 설정 페이지(F-WEB-006) 추가 (VOICE-SETTINGS-PAGE)
+
+**변경일**: 2026-03-08
+**티켓**: VOICE-SETTINGS-PAGE
+
+**변경 파일**:
+- `docs/specs/prd/web.md` — 관련 모듈, 구현 상태, F-WEB-006 음성 설정 페이지 추가
+
+**변경 내용**:
+1. 관련 모듈 목록에 `apps/web/app/settings/guild/[guildId]/voice/page.tsx` 경로 추가
+2. 구현 상태 "완료" 항목에 음성 설정 페이지(`/settings/guild/{guildId}/voice`) 추가
+3. F-WEB-006 (음성 설정 페이지) 신규 추가:
+   - 경로: `/settings/guild/{guildId}/voice`, 사이드바 > 음성 설정 (Mic 또는 Volume2 아이콘)
+   - 사이드바 메뉴 항목 명세
+   - 음성 시간 제외 채널 섹션: 멀티 셀렉트 드롭다운 (음성 채널 + 카테고리), 📁/🔊 아이콘 구분, 태그(칩) 형태 선택 항목 표시, 카테고리 선택 시 인라인 안내 문구, 채널 새로고침 버튼 명세
+   - 저장 동작: 필수 항목 없음(0개 선택도 허용), `POST /api/guilds/{guildId}/voice/excluded-channels` 전체 교체 방식, 성공/실패 인라인 메시지(3초 소멸) 명세
+   - 초기 로드: `GET /api/guilds/{guildId}/voice/excluded-channels` 조회 후 드롭다운 선택 상태 반영 명세
+   - API 테이블: GET/POST 엔드포인트 및 요청/응답 형식 명세
+
+**변경 사유**: 음성 시간 집계 시 특정 채널 또는 카테고리를 제외하는 기능을 웹 대시보드에서 설정할 수 있도록 음성 설정 전용 페이지를 신규 추가.
+
+---
+
+## [수정 12] newbie: 플레이횟수 카운팅 옵션 추가 (NEWBIE-PLAYCOUNT-OPTION)
+
+**변경일**: 2026-03-08
+**티켓**: NEWBIE-PLAYCOUNT-OPTION
+
+**변경 파일**:
+- `docs/specs/prd/newbie.md` — F-NEWBIE-002, NewbieConfig 데이터 모델, F-WEB-NEWBIE-001 탭 2, Voice 도메인 연계 섹션 수정
+
+**변경 내용**:
+1. **F-NEWBIE-002 동작 (플레이타임 측정)**: "플레이횟수" 정의에 카운팅 옵션 적용 후 집계임을 명시. 플레이횟수 카운팅 옵션 서브 항목 신규 추가
+   - 최소 참여시간 기준(`playCountMinDurationMin`): 세션 참여시간이 N분 이상인 경우만 유효 1회로 인정. NULL이면 비활성화. 예시 포함
+   - 시간 간격 기준(`playCountIntervalMin`): 이전 유효 세션 시작 후 N분 이내 재입장은 동일 1회로 병합. NULL이면 비활성화. 예시 포함
+   - 두 옵션 동시 적용 가능(AND 조건) 규칙, 기본값 30분, 최솟값 1분 명세
+2. **데이터 모델 NewbieConfig**: `missionNotifyChannelId` 컬럼 앞에 두 컬럼 추가
+   - `playCountMinDurationMin` | `int` | NULLABLE | 플레이횟수 카운팅 최소 참여시간 기준 (분). NULL이면 비활성화. 기본값 30, 최솟값 1
+   - `playCountIntervalMin` | `int` | NULLABLE | 플레이횟수 카운팅 시간 간격 기준 (분). NULL이면 비활성화. 기본값 30, 최솟값 1
+3. **F-WEB-NEWBIE-001 탭 2 (미션 설정)**: UI 요소 테이블에 두 항목 추가
+   - 플레이횟수 최소 참여시간 입력 (숫자 + 활성화 체크박스): 분 단위, 체크박스 OFF 시 NULL 저장, 기본값 30
+   - 플레이횟수 시간 간격 입력 (숫자 + 활성화 체크박스): 분 단위, 체크박스 OFF 시 NULL 저장, 기본값 30
+4. **Voice 도메인 연계 > 플레이횟수 조회 쿼리 조건**: 단순 `COUNT(*)` 쿼리 대신 기본 후보 세션 조회 쿼리 + 애플리케이션 레이어 2단계 필터링 로직으로 교체
+   - 1단계: 최소 참여시간 필터 (`playCountMinDurationMin` NOT NULL 시)
+   - 2단계: 시간 간격 병합 (`playCountIntervalMin` NOT NULL 시)
+   - 두 옵션 모두 NULL이면 전체 세션 수 그대로 사용
+
+**변경 사유**: 플레이횟수 1회의 기준을 설정할 수 있는 두 가지 옵션(최소 참여시간, 시간 간격 병합)을 추가하여 단순 세션 카운트의 한계를 보완. 짧은 참여나 연속 재입장을 의미 있는 단위로 집계할 수 있도록 확장.
 
 ---
 

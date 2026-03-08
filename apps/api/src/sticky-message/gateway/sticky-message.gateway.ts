@@ -40,14 +40,10 @@ export class StickyMessageGateway {
       const hasConfig = configs.some((c) => c.channelId === channelId && c.enabled);
       if (!hasConfig) return;
 
-      // 5. 기존 타이머 취소
+      // 5. 기존 타이머 취소 + 새 타이머 등록 (동기 블록 — await 없이 처리하여 race condition 방지)
       const existing = this.timers.get(channelId);
       if (existing) clearTimeout(existing);
 
-      // 6. Redis 디바운스 키 설정/리셋 (TTL 3초)
-      await this.redisRepo.setDebounce(channelId);
-
-      // 7. 새 타이머 등록 (3초 후 refresh)
       const timer = setTimeout(() => {
         this.timers.delete(channelId);
         this.refreshService.refresh(guildId, channelId).catch((err: Error) => {
@@ -57,8 +53,12 @@ export class StickyMessageGateway {
           );
         });
       }, 3000);
-
       this.timers.set(channelId, timer);
+
+      // 6. Redis 디바운스 키 설정/리셋 (TTL 3초) — 타이머 등록 후 비동기 처리
+      this.redisRepo.setDebounce(channelId).catch((err: Error) => {
+        this.logger.warn(`[messageCreate] setDebounce failed: channel=${channelId}`, err.stack);
+      });
     } catch (err) {
       this.logger.error(
         `[messageCreate] unhandled error: guild=${message.guildId} channel=${message.channelId}`,

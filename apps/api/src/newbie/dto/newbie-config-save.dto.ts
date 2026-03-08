@@ -48,6 +48,16 @@ export class NewbieConfigSaveDto {
   missionTargetPlaytimeHours?: number | null;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  playCountMinDurationMin?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  playCountIntervalMin?: number | null;
+
+  @IsOptional()
   @IsString()
   missionNotifyChannelId?: string | null;
 
@@ -70,6 +80,10 @@ export class NewbieConfigSaveDto {
   // 모코코 사냥
   @IsBoolean()
   mocoEnabled: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  mocoAllowNewbieHunter?: boolean;
 
   @IsOptional()
   @IsString()

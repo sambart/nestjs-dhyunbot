@@ -106,6 +106,7 @@ libs/shared/  → 공유 타입 및 상수
 | Channel | public.channel | 디스코드 채널 정보 (discordChannelId, channelName, status) |
 | VoiceChannelHistory | public.voice_channel_history | 음성 입/퇴장 이력 (joinAt, leftAt, duration) |
 | VoiceDailyEntity | voice_daily | 일별 집계 통계 (channelDurationSec, micOnSec, micOffSec, aloneSec) |
+| VoiceExcludedChannel | voice_excluded_channel | 음성 시간 제외 채널 설정 (guildId, channelId, type: CHANNEL/CATEGORY) |
 | AutoChannelConfig | auto_channel_config | 자동방 설정 (guildId, triggerChannelId, 대기방 템플릿, 안내 메시지) |
 | AutoChannelButton | auto_channel_button | 자동방 버튼 목록 (label, emoji, targetCategoryId) |
 | AutoChannelSubOption | auto_channel_sub_option | 버튼 하위 선택지 (label, emoji, channelSuffix) |

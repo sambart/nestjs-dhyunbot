@@ -26,6 +26,7 @@ export class WelcomeService {
 
     const vars: Record<string, string> = {
       username: member.displayName,
+      mention: `<@${member.id}>`,
       memberCount: String(member.guild.memberCount),
       serverName: member.guild.name,
     };

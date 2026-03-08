@@ -20,6 +20,7 @@ import { NewbiePeriodRepository } from './infrastructure/newbie-period.repositor
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
 import { MissionScheduler } from './mission/mission.scheduler';
 import { MissionService } from './mission/mission.service';
+import { MocoScheduler } from './moco/moco.scheduler';
 import { MocoService } from './moco/moco.service';
 import { NewbieController } from './newbie.controller';
 import { NewbieGateway } from './newbie.gateway';
@@ -61,6 +62,7 @@ import { WelcomeService } from './welcome/welcome.service';
     MissionScheduler,
     // Unit D
     MocoService,
+    MocoScheduler,
     // Unit E
     NewbieRoleService,
     NewbieRoleScheduler,

@@ -87,7 +87,14 @@ Web Dashboard API
 - **동작 (플레이타임 측정)**:
   1. voice 도메인의 `VoiceDailyEntity`에서 해당 멤버의 기간 내 `channelDurationSec` 합산
   2. 조회 범위: `startDate` ~ `endDate`, `channelId != 'GLOBAL'`인 레코드
-  3. "플레이횟수" = 해당 기간 내 `VoiceChannelHistory` 세션 수
+  3. "플레이횟수" = 해당 기간 내 `VoiceChannelHistory` 세션 수 (아래 카운팅 옵션 적용 후 집계)
+- **플레이횟수 카운팅 옵션**:
+  - **최소 참여시간 기준** (`playCountMinDurationMin`): 세션의 총 참여시간이 N분 이상인 세션만 유효한 1회로 인정. NULL이면 비활성화 (모든 세션 인정).
+    - 예: 30분 설정 시, 15분 참여 세션은 무시되고 45분 참여 세션만 1회로 카운트
+  - **시간 간격 기준** (`playCountIntervalMin`): 이전 유효 세션 시작 후 N분 이내에 다시 시작된 세션은 동일한 1회로 병합. NULL이면 비활성화 (모든 세션 독립 카운트).
+    - 예: 30분 설정 시, 10:00 입장(1회) → 10:20 재입장(병합, 1회 유지) → 11:30 입장(2회)
+  - **두 옵션은 동시 적용 가능** (AND 조건): 두 조건을 모두 통과한 세션만 1회로 카운트
+  - **기본값**: 둘 다 30 (분), 최솟값 1 (0 허용 안 함)
 - **미션 상태**:
 
   | 상태 | 코드 | 조건 |
@@ -154,11 +161,15 @@ Web Dashboard API
 
 - **개념**: "모코코" = 신규사용자(신입기간 내 멤버). 기존 멤버가 신규사용자와 같은 음성 채널에 동시 접속한 시간을 "모코코 사냥" 시간으로 기록한다.
 - **전제 조건**: `NewbieConfig.mocoEnabled = true`
+- **모코코도 사냥꾼 허용 옵션** (`mocoAllowNewbieHunter`):
+  - `false` (기본): 모코코(신규사용자)는 사냥꾼이 될 수 없음. 기존 멤버만 사냥꾼으로 집계
+  - `true`: 모코코도 다른 모코코의 사냥꾼이 될 수 있음 (단, 자기 자신에 대한 사냥 시간은 누적하지 않음)
 - **측정 방식**:
-  1. `voiceStateUpdate` 이벤트 발생 시 해당 채널의 현재 접속자 목록 조회
+  1. `MocoScheduler`가 매 1분마다 봇이 참여 중인 모든 길드의 음성 채널을 순회
   2. 채널 내 신규사용자(신입기간 중인 멤버) 존재 여부 확인
-  3. 신규사용자와 같은 채널에 있는 기존 멤버 각각에 대해 Redis에 시간 누적
+  3. 신규사용자와 같은 채널에 있는 사냥꾼 각각에 대해 Redis에 시간 1분 누적
   4. 신규사용자 기준: `NewbieMission` 상태가 `IN_PROGRESS`인 멤버
+  5. 사냥꾼 기준: `mocoAllowNewbieHunter` 설정에 따라 기존 멤버만 또는 전체 채널 멤버
 - **순위 기준**: 기존 멤버별 모코코 사냥 누적 시간(분) 내림차순
 - **알림 메시지 (채널 Embed)**:
   - 설정된 채널에 TOP N 순위 Embed 표시
@@ -249,6 +260,8 @@ Web Dashboard API
 | 기능 활성화 토글 | 미션 기능 ON/OFF |
 | 미션 기간 입력 (숫자) | 신규 멤버 가입 후 미션 기간 (일수, 예: 7) |
 | 목표 플레이타임 입력 (숫자) | 미션 완료 기준 최소 플레이타임 (시간 단위) |
+| 플레이횟수 최소 참여시간 입력 (숫자 + 활성화 체크박스) | 플레이횟수 카운팅 시 유효 세션으로 인정하는 최소 참여시간 (분 단위). 체크박스 OFF 시 NULL 저장 (비활성화). 기본값 30 |
+| 플레이횟수 시간 간격 입력 (숫자 + 활성화 체크박스) | 플레이횟수 카운팅 시 동일 1회로 병합하는 세션 간격 기준 (분 단위). 체크박스 OFF 시 NULL 저장 (비활성화). 기본값 30 |
 | 알림 채널 선택 드롭다운 | 미션 현황 Embed를 표시할 채널 선택 |
 | Embed 제목 입력 | 미션 현황 Embed 제목 |
 | Embed 설명 입력 (멀티라인) | 미션 현황 Embed 설명 본문 |
@@ -274,6 +287,7 @@ Web Dashboard API
 | UI 요소 | 설명 |
 |---------|------|
 | 기능 활성화 토글 | 모코코 사냥 기능 ON/OFF |
+| 모코코도 사냥꾼 허용 토글 | `true`이면 신입(모코코)도 다른 신입의 사냥꾼이 될 수 있음. 기본값 `false` |
 | 순위 표시 채널 선택 드롭다운 | 모코코 사냥 TOP N Embed를 표시할 채널 선택 |
 | 자동 갱신 간격 입력 (숫자) | Embed 자동 갱신 주기 (분 단위) |
 | Embed 제목 입력 | 모코코 순위 Embed 제목 |
@@ -338,6 +352,8 @@ Web Dashboard API
 | `missionEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 미션 기능 활성화 여부 |
 | `missionDurationDays` | `int` | NULLABLE | 미션 기간 (일수) |
 | `missionTargetPlaytimeHours` | `int` | NULLABLE | 미션 목표 플레이타임 (시간) |
+| `playCountMinDurationMin` | `int` | NULLABLE | 플레이횟수 카운팅 최소 참여시간 기준 (분). NULL이면 비활성화. 기본값 30, 최솟값 1 |
+| `playCountIntervalMin` | `int` | NULLABLE | 플레이횟수 카운팅 시간 간격 기준 (분). NULL이면 비활성화. 기본값 30, 최솟값 1 |
 | `missionNotifyChannelId` | `varchar` | NULLABLE | 미션 현황 알림 채널 ID |
 | `missionNotifyMessageId` | `varchar` | NULLABLE | 미션 현황 Embed 메시지 ID (Discord message ID) |
 | `missionEmbedTitle` | `varchar` | NULLABLE | 미션 현황 Embed 제목 |
@@ -345,6 +361,7 @@ Web Dashboard API
 | `missionEmbedColor` | `varchar` | NULLABLE | 미션 현황 Embed 색상 (HEX, 예: `#5865F2`) |
 | `missionEmbedThumbnailUrl` | `varchar` | NULLABLE | 미션 현황 Embed 썸네일 이미지 URL |
 | `mocoEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 모코코 사냥 기능 활성화 여부 |
+| `mocoAllowNewbieHunter` | `boolean` | NOT NULL, DEFAULT `false` | 모코코도 사냥꾼 허용 여부. `true`이면 신입도 다른 신입의 사냥꾼이 될 수 있음 |
 | `mocoRankChannelId` | `varchar` | NULLABLE | 모코코 사냥 순위 표시 채널 ID |
 | `mocoRankMessageId` | `varchar` | NULLABLE | 모코코 사냥 순위 Embed 메시지 ID |
 | `mocoAutoRefreshMinutes` | `int` | NULLABLE | 모코코 사냥 순위 자동 갱신 간격 (분) |
@@ -508,10 +525,21 @@ WHERE guildId = :guildId
 ```
 
 **플레이횟수 조회 쿼리 조건**:
+
+기본 후보 세션 조회:
 ```
-SELECT COUNT(*)
+SELECT vch.joinAt, vch.leavedAt,
+       TIMESTAMPDIFF(MINUTE, vch.joinAt, vch.leavedAt) AS durationMin
 FROM voice_channel_history vch
 JOIN member m ON m.id = vch.memberId
 WHERE m.discordMemberId = :memberId
   AND vch.joinAt BETWEEN :startDatetime AND :endDatetime
+ORDER BY vch.joinAt ASC
 ```
+
+조회 후 애플리케이션 레이어에서 두 옵션을 순차 적용하여 유효 횟수를 산출한다:
+
+1. **최소 참여시간 필터** (`playCountMinDurationMin` NOT NULL): `durationMin < playCountMinDurationMin`인 세션 제거
+2. **시간 간격 병합** (`playCountIntervalMin` NOT NULL): 앞 세션의 `joinAt`으로부터 `playCountIntervalMin`분 이내에 시작된 후속 세션을 동일 1회로 병합. 병합 기준 시각은 앞 세션의 `joinAt` 기준.
+
+두 옵션이 모두 NULL이면 후보 세션 전체 수(`COUNT(*)`)를 그대로 사용한다.

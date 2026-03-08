@@ -11,10 +11,13 @@ export interface NewbieConfig {
   missionEnabled: boolean;
   missionDurationDays: number | null;
   missionTargetPlaytimeHours: number | null;
+  playCountMinDurationMin: number | null;
+  playCountIntervalMin: number | null;
   missionNotifyChannelId: string | null;
 
   // 모코코 사냥
   mocoEnabled: boolean;
+  mocoAllowNewbieHunter: boolean;
   mocoRankChannelId: string | null;
   mocoAutoRefreshMinutes: number | null;
 

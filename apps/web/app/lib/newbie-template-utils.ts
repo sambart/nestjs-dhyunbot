@@ -14,9 +14,9 @@ export const MISSION_ALLOWED_VARS = {
 } as const;
 
 export const MOCO_ALLOWED_VARS = {
-  titleTemplate: ['{rank}', '{hunterName}'],
+  titleTemplate: ['{rank}', '{hunterName}', '{hunterMention}'],
   bodyTemplate: ['{totalMinutes}', '{mocoList}'],
-  itemTemplate: ['{newbieName}', '{minutes}'],
+  itemTemplate: ['{newbieName}', '{newbieMention}', '{minutes}'],
   footerTemplate: ['{currentPage}', '{totalPages}', '{interval}'],
 } as const;
 
@@ -123,9 +123,11 @@ export const MISSION_PREVIEW_DUMMY: Record<string, string> = {
 export const MOCO_PREVIEW_DUMMY: Record<string, string> = {
   '{rank}': '1',
   '{hunterName}': '사냥꾼닉네임',
+  '{hunterMention}': '@사냥꾼닉네임',
   '{totalMinutes}': '120',
   '{mocoList}': '– 신입1 🌱: 60분\n– 신입2 🌱: 60분',
   '{newbieName}': '신입1',
+  '{newbieMention}': '@신입1',
   '{minutes}': '60',
   '{currentPage}': '1',
   '{totalPages}': '5',

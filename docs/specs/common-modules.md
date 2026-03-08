@@ -2110,3 +2110,259 @@ Sticky Message 슬래시 커맨드는 버튼 인터랙션을 사용하지 않는
 - [x] **마이그레이션 파일이 필요한가**: `apps/api/src/migrations/1773900000000-AddStickyMessage.ts`가 이미 존재한다. 단위 A에서 마이그레이션 파일 신규 생성 불필요. 5절 "이미 존재하는 파일" 목록에 포함.
 - [x] **`DiscordEventsModule`에 `StickyMessageModule` import 추가 시 순환 의존이 생기지 않는가**: `StickyMessageModule`은 voice 도메인, newbie 도메인, status-prefix 도메인에 의존하지 않는다. `DiscordEventsModule` → `StickyMessageModule` 방향 단방향 의존이므로 순환 의존 없음
 - [x] **디바운스 구현(채널별 타이머 Map)이 Gateway 인스턴스 수명과 일치하는가**: NestJS 싱글턴 provider이므로 Gateway 인스턴스가 애플리케이션 수명 동안 유지된다. `Map<string, NodeJS.Timeout>` 채널별 타이머 상태가 인스턴스에 안전하게 유지됨. 단위 A 설계 시 이 점을 반영하여 Gateway를 싱글턴 provider로 등록
+
+---
+
+# 음성 시간 제외 채널 (Voice Excluded Channel) — 공통 모듈 판단 문서
+
+## 목적
+
+음성 시간 제외 채널 기능(F-VOICE-013~016, F-WEB-006) 구현에 필요한 공통 모듈을 식별하고 설계 방향을 확정한다.
+이 문서에 정의된 모듈은 모든 개발 단위 작업보다 선행하여 완성되어야 하며, 이후 단위 작업들이 conflict 없이 병렬로 진행될 수 있도록 공통 인터페이스와 파일 경로를 명시한다.
+
+---
+
+## VEC-1. 기존 모듈 중 재사용 가능한 것
+
+### VEC-1-1. 재사용 (수정 없음)
+
+| 모듈 | 파일 | 재사용 이유 |
+|------|------|-------------|
+| `RedisService` | `apps/api/src/redis/redis.service.ts` | `get`, `set`, `del` 메서드로 `voice:excluded:{guildId}` 키 CRUD 가능 |
+| `JwtAuthGuard` | `apps/api/src/auth/jwt-auth.guard.ts` | 제외 채널 REST API 엔드포인트 인증 보호 |
+| `VoiceExcludedChannel` 엔티티 | `apps/api/src/channel/voice/domain/voice-excluded-channel.entity.ts` | 이미 생성됨. `id`, `guildId`, `discordChannelId`, `type(CHANNEL/CATEGORY)`, `createdAt`, `updatedAt` |
+| `VoiceExcludedChannelType` enum | `apps/api/src/channel/voice/domain/voice-excluded-channel.entity.ts` | `CHANNEL`, `CATEGORY` 값 정의됨 |
+| 마이그레이션 파일 | `apps/api/src/migrations/1774100000000-AddVoiceExcludedChannel.ts` | 이미 생성됨. `up`/`down` 완비 |
+| `fetchGuildChannels` | `apps/web/app/lib/discord-api.ts` | 음성 채널 및 카테고리 목록 조회에 재사용. `type=2(GUILD_VOICE)`, `type=4(GUILD_CATEGORY)` 필터링 |
+| `DiscordChannel` 인터페이스 | `apps/web/app/lib/discord-api.ts` | `id`, `name`, `type` 필드 포함. 프론트엔드 채널 표현에 그대로 사용 |
+| `useSettings` hook | `apps/web/app/settings/SettingsContext.tsx` | `selectedGuildId` 획득 |
+
+### VEC-1-2. 재사용하되 수정이 필요한 것
+
+| 모듈 | 파일 | 필요한 수정 내용 |
+|------|------|-----------------|
+| `VoiceStateDispatcher` | `apps/api/src/event/voice/voice-state.dispatcher.ts` | `isJoin`, `isLeave`, `isMove` 세 분기 진입 직전에 `VoiceExcludedChannelService.isExcluded(guildId, channelId)` 호출 결과로 필터링. F-VOICE-016 이동 이벤트 세부 규칙(A 제외+B 일반 → B 입장만, A 일반+B 제외 → A 퇴장만, 둘 다 제외 → 전체 무시)을 이 파일에서 처리 |
+| `VoiceChannelModule` | `apps/api/src/channel/voice/voice-channel.module.ts` | `VoiceExcludedChannelRepository`, `VoiceExcludedChannelService`를 providers에 추가. `VoiceExcludedChannelService`를 exports에 추가 (Dispatcher가 사용하기 위함) |
+| `SettingsSidebar` | `apps/web/app/components/SettingsSidebar.tsx` | "음성 설정" 메뉴 항목 추가. `Mic` 또는 `Volume2` 아이콘 사용. href: `/settings/guild/${selectedGuildId}/voice` |
+
+---
+
+## VEC-2. 새로 만들어야 할 모듈/서비스/핸들러 목록
+
+### VEC-2-1. Redis 캐시 키 정의 — `VoiceKeys` 확장
+
+**파일**: `apps/api/src/channel/voice/infrastructure/voice-cache.keys.ts` (기존 파일 수정)
+
+기존 `VoiceKeys` 객체에 제외 채널 캐시 키를 추가한다.
+
+```typescript
+// 기존 VoiceKeys에 추가
+excludedChannels: (guildId: string) => `voice:excluded:${guildId}`,
+```
+
+TTL: 3,600초 (1시간). PRD F-VOICE-016 캐시 미스 시 DB 조회 후 재저장 패턴에 사용.
+
+### VEC-2-2. VoiceExcludedChannel Repository
+
+**파일**: `apps/api/src/channel/voice/infrastructure/voice-excluded-channel.repository.ts`
+
+TypeORM Repository 래퍼. `VoiceExcludedChannel` 엔티티에 대한 DB CRUD를 캡슐화한다.
+
+메서드 목록:
+
+| 메서드 | 설명 |
+|--------|------|
+| `findByGuildId(guildId: string): Promise<VoiceExcludedChannel[]>` | guildId 기준 전체 조회. F-VOICE-013, F-VOICE-016 캐시 미스 시 사용 |
+| `create(guildId: string, discordChannelId: string, type: VoiceExcludedChannelType): Promise<VoiceExcludedChannel>` | 제외 채널 레코드 생성. F-VOICE-014 |
+| `deleteById(id: number, guildId: string): Promise<void>` | id + guildId 일치 검증 후 삭제. F-VOICE-015 |
+| `existsByGuildAndChannel(guildId: string, discordChannelId: string): Promise<boolean>` | 중복 등록 검증. F-VOICE-014의 409 응답 판단에 사용 |
+
+### VEC-2-3. VoiceExcludedChannelService
+
+**파일**: `apps/api/src/channel/voice/application/voice-excluded-channel.service.ts`
+
+비즈니스 로직 + Redis 캐시 관리를 담당한다.
+
+메서드 목록:
+
+| 메서드 | 설명 |
+|--------|------|
+| `getExcludedChannels(guildId: string): Promise<VoiceExcludedChannel[]>` | F-VOICE-013. Redis 캐시 우선 조회 → 미스 시 DB 조회 후 캐시 저장 (TTL 1시간) |
+| `addExcludedChannel(guildId: string, discordChannelId: string, type: VoiceExcludedChannelType): Promise<VoiceExcludedChannel>` | F-VOICE-014. 중복 검증(409) → DB 생성 → Redis 캐시 무효화 |
+| `removeExcludedChannel(guildId: string, id: number): Promise<void>` | F-VOICE-015. DB 삭제(404 포함) → Redis 캐시 무효화 |
+| `replaceExcludedChannels(guildId: string, entries: Array<{discordChannelId: string, type: VoiceExcludedChannelType}>): Promise<void>` | F-WEB-006 저장 동작(전체 교체). 기존 전체 삭제 후 신규 목록 일괄 insert → Redis 캐시 무효화 |
+| `isExcluded(guildId: string, discordChannelId: string, parentCategoryId: string \| null): Promise<boolean>` | F-VOICE-016 필터링 판단. Redis 캐시 조회 → `CHANNEL` 타입은 직접 일치, `CATEGORY` 타입은 `parentCategoryId` 일치 확인 |
+
+캐시 무효화는 `redis.del(VoiceKeys.excludedChannels(guildId))` 호출.
+
+### VEC-2-4. VoiceExcludedChannel Controller
+
+**파일**: `apps/api/src/channel/voice/presentation/voice-excluded-channel.controller.ts`
+
+경로: `@Controller('api/guilds/:guildId/voice/excluded-channels')`, `@UseGuards(JwtAuthGuard)`
+
+엔드포인트 목록:
+
+| 메서드 | 경로 | 설명 | 응답 |
+|--------|------|------|------|
+| `GET` | `/api/guilds/:guildId/voice/excluded-channels` | 제외 채널 목록 조회 (F-VOICE-013). `getExcludedChannels` 호출 | `{ excludedChannelIds: string[] }` |
+| `POST` | `/api/guilds/:guildId/voice/excluded-channels` | 제외 채널 목록 저장 - 전체 교체 (F-WEB-006). `replaceExcludedChannels` 호출 | `{ ok: boolean }` |
+
+참고: 웹 PRD(F-WEB-006)는 단건 추가/삭제 대신 전체 교체(replace) 방식을 사용한다. 개별 추가/삭제 엔드포인트(F-VOICE-014/015)는 나중에 필요 시 추가.
+
+### VEC-2-5. 웹 API 클라이언트
+
+**파일**: `apps/web/app/lib/voice-api.ts`
+
+웹 페이지에서 사용할 API 호출 함수 및 타입 정의.
+
+```typescript
+/** GET /api/guilds/{guildId}/voice/excluded-channels 응답 형식 */
+export interface VoiceExcludedChannelsResponse {
+  excludedChannelIds: string[];
+}
+
+/** POST /api/guilds/{guildId}/voice/excluded-channels 요청 바디 */
+export interface VoiceExcludedChannelsSaveDto {
+  excludedChannelIds: string[];
+}
+
+/**
+ * 제외 채널 목록 조회 (F-VOICE-013).
+ * 실패 시 빈 배열 반환.
+ */
+export async function fetchVoiceExcludedChannels(
+  guildId: string,
+): Promise<string[]>
+
+/**
+ * 제외 채널 목록 저장 — 전체 교체 방식 (F-WEB-006).
+ * 실패 시 Error throw.
+ */
+export async function saveVoiceExcludedChannels(
+  guildId: string,
+  excludedChannelIds: string[],
+): Promise<void>
+```
+
+---
+
+## VEC-3. 수정이 필요한 기존 파일 목록 및 수정 내용
+
+### VEC-3-1. `VoiceKeys` 확장
+
+**파일**: `apps/api/src/channel/voice/infrastructure/voice-cache.keys.ts`
+
+기존 `VoiceKeys` 객체에 다음 항목을 추가한다.
+
+```typescript
+excludedChannels: (guildId: string) => `voice:excluded:${guildId}`,
+```
+
+### VEC-3-2. `VoiceChannelModule` 수정
+
+**파일**: `apps/api/src/channel/voice/voice-channel.module.ts`
+
+- `TypeOrmModule.forFeature([..., VoiceExcludedChannel])` 에 `VoiceExcludedChannel` 엔티티 추가
+- providers에 `VoiceExcludedChannelRepository`, `VoiceExcludedChannelService`, `VoiceExcludedChannelController` 추가
+- exports에 `VoiceExcludedChannelService` 추가 (`VoiceStateDispatcher`가 이를 사용하기 위함)
+
+### VEC-3-3. `VoiceStateDispatcher` 수정
+
+**파일**: `apps/api/src/event/voice/voice-state.dispatcher.ts`
+
+F-VOICE-016에 따라 세 분기(`isJoin`, `isLeave`, `isMove`) 진입 전에 제외 채널 필터링 로직을 추가한다.
+기존 NEWBIE, AUTO_CHANNEL 이벤트 발행 로직은 변경 없음 (append-only 수정).
+
+수정 개요:
+- constructor에 `VoiceExcludedChannelService` 주입 추가
+- `isJoin` 분기: `newState.channelId`가 제외 채널이면 해당 분기 전체 건너뜀
+- `isLeave` 분기: `oldState.channelId`가 제외 채널이면 해당 분기 전체 건너뜀
+- `isMove` 분기: 이동 이벤트 세부 규칙 적용
+  - oldChannelId 제외 + newChannelId 일반 → `isMove` 이벤트를 `isJoin`으로 대체 처리
+  - oldChannelId 일반 + newChannelId 제외 → `isMove` 이벤트를 `isLeave`로 대체 처리
+  - 둘 다 제외 → 해당 분기 전체 건너뜀
+
+`isExcluded` 호출 시 `parentCategoryId`는 `state.channel?.parentId ?? null`로 전달.
+
+### VEC-3-4. `SettingsSidebar` 수정
+
+**파일**: `apps/web/app/components/SettingsSidebar.tsx`
+
+`menuItems` 배열에 음성 설정 항목을 추가한다.
+
+```typescript
+{ href: `/settings/guild/${selectedGuildId}/voice`, label: "음성 설정", icon: Mic },
+```
+
+`Mic` 아이콘을 lucide-react에서 import 추가.
+
+---
+
+## VEC-4. 신규 페이지 파일 — 단위 작업에서 생성
+
+다음 파일은 이 공통 모듈 작업 완료 후 단위 개발에서 생성한다. 충돌 방지를 위해 경로만 사전 확정한다.
+
+| 파일 경로 | 생성 단위 | 설명 |
+|-----------|-----------|------|
+| `apps/web/app/settings/guild/[guildId]/voice/page.tsx` | 웹 페이지 단위 | 음성 설정 페이지 (F-WEB-006) |
+
+---
+
+## VEC-5. 전체 파일 경로 목록
+
+### 이미 존재하는 파일 (수정 대상)
+
+| 파일 경로 | 수정 내용 |
+|-----------|-----------|
+| `apps/api/src/channel/voice/domain/voice-excluded-channel.entity.ts` | 수정 없음, 재사용 |
+| `apps/api/src/migrations/1774100000000-AddVoiceExcludedChannel.ts` | 수정 없음, 재사용 |
+| `apps/api/src/channel/voice/infrastructure/voice-cache.keys.ts` | `excludedChannels` 키 추가 |
+| `apps/api/src/channel/voice/voice-channel.module.ts` | 엔티티/provider/exports 추가 |
+| `apps/api/src/event/voice/voice-state.dispatcher.ts` | 제외 채널 필터링 로직 추가 |
+| `apps/web/app/components/SettingsSidebar.tsx` | "음성 설정" 메뉴 항목 추가 |
+
+### 새로 만드는 파일
+
+| 파일 경로 | 소속 단위 |
+|-----------|-----------|
+| `apps/api/src/channel/voice/infrastructure/voice-excluded-channel.repository.ts` | 백엔드 공통 |
+| `apps/api/src/channel/voice/application/voice-excluded-channel.service.ts` | 백엔드 공통 |
+| `apps/api/src/channel/voice/presentation/voice-excluded-channel.controller.ts` | 백엔드 공통 |
+| `apps/web/app/lib/voice-api.ts` | 웹 공통 |
+| `apps/web/app/settings/guild/[guildId]/voice/page.tsx` | 웹 페이지 단위 (후행) |
+
+---
+
+## VEC-6. 검증 체크리스트
+
+이 문서가 "페이지 단위 병렬 개발 시 코드 conflict가 생길 공통 모듈을 모두 포함하는가"를 3회 확인한다.
+
+### 1차 확인
+
+- [x] **Redis 캐시 키**: `VoiceKeys.excludedChannels(guildId)` (VEC-2-1)에서 중앙화. 백엔드 Service와 Dispatcher 모두 이 키를 참조하며 동일 패턴 사용
+- [x] **Repository 인터페이스**: `VoiceExcludedChannelRepository` (VEC-2-2)에서 메서드 시그니처 사전 확정. Service와 Controller가 이 인터페이스에 의존
+- [x] **Service 인터페이스**: `VoiceExcludedChannelService` (VEC-2-3)에서 메서드 시그니처 사전 확정. Controller(VEC-2-4)와 Dispatcher 수정(VEC-3-3)이 이 Service에 의존
+- [x] **Controller API 명세**: `VoiceExcludedChannelController` (VEC-2-4)에서 엔드포인트 경로, HTTP 메서드, 요청/응답 형식 사전 확정. 웹 `voice-api.ts`가 이 명세에 의존
+- [x] **웹 API 클라이언트**: `voice-api.ts` (VEC-2-5)에서 함수 및 타입 시그니처 사전 확정. 웹 페이지(`voice/page.tsx`)가 이 함수에 의존
+- [x] **모듈 등록**: `VoiceChannelModule` 수정 (VEC-3-2)에서 `VoiceExcludedChannelService` exports 확정. `VoiceStateDispatcher`가 이를 주입받기 위해 필요
+- [x] **`SettingsSidebar` 수정**: VEC-3-4에서 수정 내용 확정. 웹 페이지 단위 개발과 동시에 이 파일을 건드리면 충돌 발생하므로 공통 작업에서 선행 수정
+- [x] **전체 교체(replace) 방식 통일**: F-WEB-006은 개별 추가/삭제 대신 `excludedChannelIds` 배열을 전체 교체하는 방식. `replaceExcludedChannels` 메서드(VEC-2-3)와 `POST` 엔드포인트(VEC-2-4)가 이 방식을 구현
+
+### 2차 확인
+
+- [x] **백엔드 공통 단위가 생성하는 파일 목록**: `voice-excluded-channel.repository.ts`, `voice-excluded-channel.service.ts`, `voice-excluded-channel.controller.ts` (VEC-5). 웹 페이지 단위 착수 전에 완성되어야 함
+- [x] **백엔드 공통 단위가 수정하는 기존 파일**: `voice-cache.keys.ts`, `voice-channel.module.ts`, `voice-state.dispatcher.ts`. 웹 페이지 단위는 이 파일들을 수정하지 않음 (충돌 없음)
+- [x] **웹 공통 단위가 생성하는 파일**: `voice-api.ts`. 웹 페이지 단위에서 import하므로 선행 생성 필요
+- [x] **웹 공통 단위가 수정하는 기존 파일**: `SettingsSidebar.tsx`. 웹 페이지 단위는 이 파일을 수정하지 않음 (충돌 없음)
+- [x] **웹 페이지 단위가 생성하는 파일**: `voice/page.tsx`. 백엔드 및 웹 공통 단위와 중복 없음
+- [x] **`AppModule` 수정 불필요 여부**: `VoiceExcludedChannel`은 기존 `VoiceChannelModule` 내부에서 등록되며, `AppModule`은 이미 `VoiceChannelModule`을 import하고 있음. `AppModule` 수정 불필요
+- [x] **`DiscordEventsModule` 수정 불필요 여부**: `VoiceExcludedChannelService`는 `VoiceChannelModule`이 export하며, `DiscordEventsModule`은 이미 `VoiceChannelModule`을 import하고 있음. `DiscordEventsModule` 수정 불필요
+
+### 3차 확인
+
+- [x] **모든 단위 간 동일 파일 동시 신규 생성 충돌이 없는가**: VEC-5 파일 경로 목록 기준으로 각 파일이 하나의 단위에만 귀속됨. `voice/page.tsx`는 웹 페이지 단위, 나머지 3개 백엔드 파일과 `voice-api.ts`는 공통 단위에서 생성 — 중복 없음
+- [x] **동일 파일 동시 수정 충돌이 없는가**: `voice-cache.keys.ts`, `voice-channel.module.ts`, `voice-state.dispatcher.ts`는 백엔드 공통 단위에서만 수정. `SettingsSidebar.tsx`는 웹 공통 단위에서만 수정. 웹 페이지 단위는 기존 파일을 수정하지 않음 — 충돌 없음
+- [x] **엔티티 및 마이그레이션 파일이 이미 존재함을 반영하였는가**: `voice-excluded-channel.entity.ts`와 `1774100000000-AddVoiceExcludedChannel.ts`는 VEC-5 "이미 존재하는 파일" 목록에 포함. 어느 단위에서도 재생성하지 않음
+- [x] **`VoiceStateDispatcher`에 `VoiceExcludedChannelService` 주입 시 순환 의존이 생기지 않는가**: `VoiceExcludedChannelService`는 `RedisService`와 `VoiceExcludedChannelRepository`에만 의존한다. `DiscordEventsModule` → `VoiceChannelModule`(export `VoiceExcludedChannelService`) 방향이며, 기존 의존 구조와 동일하게 단방향 — 순환 없음
+- [x] **전체 교체(replace) 방식이 F-VOICE-013/014/015 개별 엔드포인트와 혼재하지 않는가**: 웹 PRD(F-WEB-006)는 `POST` 1개로 전체 교체 방식을 사용한다. `replaceExcludedChannels`는 내부적으로 기존 전체 삭제 후 신규 insert로 구현한다. F-VOICE-014/015 개별 단건 API는 필요 시 추후 추가하는 것으로 이번 구현 범위에서 제외 — 현재 WebUI 요구사항 충족에 충분

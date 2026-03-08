@@ -11,9 +11,8 @@ import {
 
 import { NewbieConfig } from '../domain/newbie-config.entity';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
-import { NewbieMissionRepository } from '../infrastructure/newbie-mission.repository';
+import { NEWBIE_CUSTOM_ID } from '../infrastructure/newbie-custom-id.constants';
 import { NewbieMocoTemplateRepository } from '../infrastructure/newbie-moco-template.repository';
-import { NewbiePeriodRepository } from '../infrastructure/newbie-period.repository';
 import { NewbieRedisRepository } from '../infrastructure/newbie-redis.repository';
 import {
   DEFAULT_MOCO_BODY_TEMPLATE,
@@ -27,91 +26,16 @@ import { applyTemplate } from '../util/newbie-template.util';
 /** 페이지당 사냥꾼 수 */
 const PAGE_SIZE = 1;
 
-/** 모코코 사냥 버튼 customId 접두사 */
-const CUSTOM_ID = {
-  PREV: 'newbie_moco:prev:',
-  NEXT: 'newbie_moco:next:',
-  REFRESH: 'newbie_moco:refresh:',
-} as const;
-
 @Injectable()
 export class MocoService {
   private readonly logger = new Logger(MocoService.name);
 
   constructor(
     private readonly configRepo: NewbieConfigRepository,
-    private readonly missionRepo: NewbieMissionRepository,
-    private readonly periodRepo: NewbiePeriodRepository,
     private readonly newbieRedis: NewbieRedisRepository,
     private readonly mocoTmplRepo: NewbieMocoTemplateRepository,
     @InjectDiscordClient() private readonly discordClient: Client,
   ) {}
-
-  /**
-   * voiceStateUpdate 이벤트 수신 시 모코코 사냥 시간 1분 누적.
-   *
-   * 처리 흐름:
-   * 1. channelId가 없거나(퇴장) 채널 멤버가 2명 미만이면 Early Return
-   * 2. NewbieConfig 조회 — mocoEnabled 확인
-   * 3. 신입기간 활성 멤버 Set 조회 (Redis 캐시 우선, 미스 시 DB → 캐시 초기화)
-   * 4. 채널 내 신규사용자 식별 (channelMemberIds ∩ activePeriodMembers)
-   *    — 각 신규사용자의 미션 상태가 IN_PROGRESS인지 확인
-   * 5. 채널 내 기존 멤버(사냥꾼) 식별 (channelMemberIds - newbieMemberIds)
-   * 6. 각 기존 멤버(hunterId)에 대해:
-   *    - HINCRBY newbie:moco:total:{guildId}:{hunterId} {newbieMemberId} 1
-   *    - ZINCRBY newbie:moco:rank:{guildId} {confirmedNewbies.length} {hunterId}
-   */
-  async handleVoiceStateChanged(
-    guildId: string,
-    channelId: string | null,
-    channelMemberIds: string[],
-  ): Promise<void> {
-    // 1. 퇴장이거나 채널에 멤버가 2명 미만이면 처리 불필요
-    if (!channelId || channelMemberIds.length < 2) return;
-
-    // 2. NewbieConfig 조회 — mocoEnabled 확인
-    const config = await this.configRepo.findByGuildId(guildId);
-    if (!config?.mocoEnabled) return;
-
-    // 3. 신입기간 활성 멤버 Set 조회 (Redis Set)
-    let activePeriodMembers = await this.newbieRedis.getPeriodActiveMembers(guildId);
-
-    if (activePeriodMembers.length === 0) {
-      // 캐시 미스 또는 실제로 활성 멤버 없음 — DB 조회 후 캐시 초기화
-      const periods = await this.periodRepo.findActiveByGuild(guildId);
-      const memberIds = periods.map((p) => p.memberId);
-      if (memberIds.length > 0) {
-        await this.newbieRedis.initPeriodActiveMembers(guildId, memberIds);
-        activePeriodMembers = memberIds;
-      }
-    }
-
-    // 4. 채널 내 신규사용자 후보 식별 (신입기간 활성 멤버 ∩ 현재 채널 멤버)
-    const activePeriodSet = new Set(activePeriodMembers);
-    const newbieCandidates = channelMemberIds.filter((id) => activePeriodSet.has(id));
-    if (newbieCandidates.length === 0) return;
-
-    // 5. 각 신규사용자 후보의 미션 상태 IN_PROGRESS 확인 (병렬)
-    const missionChecks = await Promise.all(
-      newbieCandidates.map((id) => this.missionRepo.findActiveByMember(guildId, id)),
-    );
-    const confirmedNewbies = newbieCandidates.filter((_, i) => missionChecks[i] !== null);
-    if (confirmedNewbies.length === 0) return;
-
-    // 6. 기존 멤버(사냥꾼) 식별 — 확인된 신규사용자를 제외한 채널 멤버
-    const newbieSet = new Set(confirmedNewbies);
-    const hunters = channelMemberIds.filter((id) => !newbieSet.has(id));
-    if (hunters.length === 0) return;
-
-    // 7. Redis 누적 (HINCRBY + ZINCRBY)
-    for (const hunterId of hunters) {
-      for (const newbieId of confirmedNewbies) {
-        await this.newbieRedis.incrMocoMinutes(guildId, hunterId, newbieId, 1);
-      }
-      // score 증분 = confirmedNewbies.length (동시에 여러 신규사용자와 함께 있으면 그만큼 누적)
-      await this.newbieRedis.incrMocoRank(guildId, hunterId, confirmedNewbies.length);
-    }
-  }
 
   /**
    * 순위 Embed + 페이지네이션 버튼을 구성하여 반환한다.
@@ -157,19 +81,32 @@ export class MocoService {
     const details = await this.newbieRedis.getMocoHunterDetail(guildId, hunterId);
 
     // Discord displayName 조회
-    const guild = await this.discordClient.guilds.fetch(guildId);
-    const hunterMember = await guild.members.fetch(hunterId).catch(() => null);
-    const hunterName = hunterMember?.displayName ?? hunterId;
-
+    let hunterName = hunterId;
     const newbieNames: Record<string, string> = {};
-    for (const newbieId of Object.keys(details)) {
-      const m = await guild.members.fetch(newbieId).catch(() => null);
-      newbieNames[newbieId] = m?.displayName ?? newbieId;
+
+    try {
+      const guild = await this.discordClient.guilds.fetch(guildId);
+      const hunterMember = await guild.members.fetch(hunterId).catch(() => null);
+      hunterName = hunterMember?.displayName ?? hunterId;
+
+      for (const newbieId of Object.keys(details)) {
+        const m = await guild.members.fetch(newbieId).catch(() => null);
+        newbieNames[newbieId] = m?.displayName ?? newbieId;
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[MOCO] Failed to fetch guild ${guildId}, using fallback IDs`,
+        (err as Error).stack,
+      );
+      for (const newbieId of Object.keys(details)) {
+        newbieNames[newbieId] = newbieId;
+      }
     }
 
     const embed = await this.buildHunterEmbed(
       safePage, // rank = 페이지 번호 = 순위
       hunterName,
+      hunterId,
       Math.round(totalMinutes),
       details,
       newbieNames,
@@ -236,16 +173,24 @@ export class MocoService {
         await message.edit(payload);
         return;
       } catch {
-        // 메시지가 삭제된 경우 — 새로 전송
+        // 메시지가 삭제된 경우 — 기존 ID 초기화 후 새로 전송
         this.logger.warn(
           `[MOCO] Failed to edit message ${config.mocoRankMessageId}, sending new message`,
         );
+        await this.configRepo.updateMocoRankMessageId(guildId, null);
       }
     }
 
-    // 최초 전송
-    const sent = await channel.send(payload);
-    await this.configRepo.updateMocoRankMessageId(guildId, sent.id);
+    // 최초 전송 — send 성공 후 즉시 messageId 저장
+    try {
+      const sent = await channel.send(payload);
+      await this.configRepo.updateMocoRankMessageId(guildId, sent.id);
+    } catch (err) {
+      this.logger.error(
+        `[MOCO] Failed to send rank embed: guild=${guildId}`,
+        (err as Error).stack,
+      );
+    }
   }
 
   /**
@@ -256,6 +201,7 @@ export class MocoService {
   private async buildHunterEmbed(
     rank: number,
     hunterName: string,
+    hunterId: string,
     totalMinutes: number,
     details: Record<string, number>,
     newbieNames: Record<string, string>,
@@ -285,6 +231,7 @@ export class MocoService {
         const newbieName = newbieNames[newbieId] ?? newbieId;
         return applyTemplate(itemTemplate, {
           newbieName,
+          newbieMention: `<@${newbieId}>`,
           minutes: String(minutes),
         });
       });
@@ -301,6 +248,7 @@ export class MocoService {
     const resolvedTitle = applyTemplate(titleTemplate, {
       rank: String(rank),
       hunterName,
+      hunterMention: `<@${hunterId}>`,
     });
 
     // 6. 푸터 렌더링
@@ -331,19 +279,19 @@ export class MocoService {
     totalPages: number,
   ): ActionRowBuilder<ButtonBuilder> {
     const prevButton = new ButtonBuilder()
-      .setCustomId(`${CUSTOM_ID.PREV}${guildId}:${currentPage}`)
+      .setCustomId(`${NEWBIE_CUSTOM_ID.MOCO_PREV}${guildId}:${currentPage}`)
       .setLabel('◀ 이전')
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(currentPage <= 1);
 
     const nextButton = new ButtonBuilder()
-      .setCustomId(`${CUSTOM_ID.NEXT}${guildId}:${currentPage}`)
+      .setCustomId(`${NEWBIE_CUSTOM_ID.MOCO_NEXT}${guildId}:${currentPage}`)
       .setLabel('다음 ▶')
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(currentPage >= totalPages);
 
     const refreshButton = new ButtonBuilder()
-      .setCustomId(`${CUSTOM_ID.REFRESH}${guildId}`)
+      .setCustomId(`${NEWBIE_CUSTOM_ID.MOCO_REFRESH}${guildId}`)
       .setLabel('갱신')
       .setStyle(ButtonStyle.Primary);
 
