@@ -7,6 +7,8 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v2.1 | 2026-03-08 | sticky-message: 고정메세지 도메인 PRD 신규 추가 | — |
+| v2.0 | 2026-03-08 | web/voice: 자동방 설정 다중 탭 UI 및 AutoChannelConfig name 컬럼 추가 | — |
 | v1.9 | 2026-03-08 | voice: Auto Channel 데이터 모델 및 Redis 키 구조 코드베이스 기준 동기화 | — |
 | v1.8 | 2026-03-08 | web: 라우트 경로 코드베이스 기준 수정 및 F-WEB-003/004 UI 명세 갱신 | — |
 | v1.7 | 2026-03-08 | newbie: Embed 커스터마이징 필드 추가 및 웹 경로 수정 | — |
@@ -16,6 +18,59 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 11] sticky-message: 고정메세지 도메인 PRD 신규 추가 (STICKY-MESSAGE)
+
+**변경일**: 2026-03-08
+**티켓**: STICKY-MESSAGE
+
+**변경 파일**:
+- `docs/specs/prd/sticky-message.md` — sticky-message 도메인 PRD 신규 작성 (F-STICKY-001 ~ F-STICKY-007, F-WEB-005)
+- `docs/specs/prd/_index.md` — 도메인 목록, 핵심 기능 요약, 데이터베이스 엔티티 테이블에 sticky-message 항목 추가
+- `docs/specs/prd/web.md` — 관련 모듈, 구현 상태, F-WEB-005 고정메세지 설정 페이지 추가
+
+**변경 내용**:
+1. `docs/specs/prd/sticky-message.md` 신규 생성: 개요, 관련 모듈, 아키텍처, 기능 상세, 데이터 모델, Redis 키 구조, 슬래시 커맨드 목록, 외부 의존성, web 도메인 연계 명세 포함
+2. F-STICKY-001 (설정 목록 조회): `GET /api/guilds/{guildId}/sticky-message` 엔드포인트 응답 형식 명세
+3. F-STICKY-002 (고정메세지 등록/수정): 웹 설정 저장 시 DB upsert + Redis 캐시 갱신 + Discord 채널에 Embed 즉시 전송 명세
+4. F-STICKY-003 (고정메세지 삭제): Discord 채널 메시지 삭제 + DB 삭제 + Redis 캐시 무효화 명세
+5. F-STICKY-004 (messageCreate 감지 및 디바운스 재전송): 봇 메시지 무시, Redis 설정 캐시 조회, 3초 디바운스 타이머, 기존 메시지 삭제 후 재전송 플로우 명세
+6. F-STICKY-005~007 (슬래시 커맨드 3종): `/고정메세지등록` (웹 안내 Ephemeral), `/고정메세지목록` (Embed 목록 Ephemeral), `/고정메세지삭제` (채널 파라미터 선택, 전체 삭제) 명세
+7. 데이터 모델: `StickyMessageConfig` (`sticky_message_config`) PostgreSQL 엔티티 명세 (guildId, channelId, embedTitle, embedDescription, embedColor, messageId, enabled, sortOrder) 및 인덱스 3개 정의
+8. Redis 키 구조: `sticky_message:config:{guildId}` (설정 캐시 TTL 1h), `sticky_message:debounce:{channelId}` (디바운스 타이머 TTL 3s) 명세
+9. `_index.md` 도메인 목록에 sticky-message 행 추가
+10. `_index.md` 핵심 기능 요약 10번 항목(고정메세지) 추가
+11. `_index.md` 데이터베이스 엔티티 테이블에 StickyMessageConfig 행 추가
+12. `web.md` 관련 모듈, 구현 상태에 sticky-message 페이지 경로 추가
+13. `web.md` F-WEB-005 (고정메세지 설정 페이지) 신규 추가: 카드 목록 UI, 채널 선택, Embed 설정(제목/설명/색상/이모지 피커/실시간 미리보기), 카드별 개별 저장·삭제 동작, 초기 로드 명세
+
+**변경 사유**: 텍스트 채널 고정메세지(Sticky Message) 도메인 신규 요구사항 반영 (티켓 STICKY-MESSAGE)
+
+---
+
+## [수정 10] web/voice: 자동방 설정 다중 탭 UI 및 AutoChannelConfig name 컬럼 추가 (AUTO-CHANNEL-MULTI-TAB)
+
+**변경일**: 2026-03-08
+**티켓**: AUTO-CHANNEL-MULTI-TAB
+
+**변경 파일**:
+- `docs/specs/prd/web.md` — F-WEB-004 자동방 설정 페이지를 단일 폼에서 다중 탭 UI로 변경
+- `docs/specs/prd/voice.md` — AutoChannelConfig 데이터 모델에 `name` 컬럼 추가
+
+**변경 내용**:
+1. **web.md F-WEB-004** 구성 섹션 전면 재작성:
+   - 탭 바(Tab Bar) 섹션 신규 추가: 탭 목록, `+` 탭 추가 버튼, 탭 삭제 버튼(확인 모달 + `DELETE /api/guilds/{guildId}/auto-channel/{configId}` 호출), 탭 전환 동작 명세
+   - 설정 이름 섹션 신규 추가: 탭 라벨로 표시될 사용자 지정 `name` 입력 필드(필수)
+   - 저장 동작을 "탭별 개별 저장"으로 변경: 현재 탭 설정만 전송, 각 탭에 독립적인 저장 버튼 및 피드백 메시지
+   - 탭 삭제 동작 섹션 신규 추가: 확인 모달 표시 → DELETE API 호출 → 안내 메시지 즉시 삭제 → 탭 제거 플로우 명세
+   - 초기 로드 섹션 신규 추가: 기존 설정 전체를 탭으로 로드, 설정 없을 때 빈 탭 1개 기본 표시, 개수 제한 없음 명세
+   - 기존 "(수정)" 표기 규칙 제거 (탭 구조로 대체됨)
+2. **voice.md AutoChannelConfig** 데이터 모델 테이블에 `name` 컬럼 추가:
+   - `name` | string | 설정 이름 (웹 탭 라벨용, 예: "게임방", "스터디방")
+
+**변경 사유**: 하나의 서버에서 트리거 채널(대기방)을 여러 개 운용하는 요구사항을 지원하기 위해, 단일 폼 구조를 다중 탭 구조로 변경. 각 탭이 독립된 AutoChannelConfig를 나타내며, 사용자 지정 이름으로 탭을 식별할 수 있도록 `name` 필드를 추가함.
 
 ---
 

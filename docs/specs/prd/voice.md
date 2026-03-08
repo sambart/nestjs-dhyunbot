@@ -265,6 +265,7 @@ Discord Voice Event
 |-------|------|------|
 | id | PK, auto | 내부 ID |
 | guildId | string | 디스코드 서버 ID |
+| name | string | 설정 이름 (웹 탭 라벨용, 예: "게임방", "스터디방") |
 | triggerChannelId | string | 트리거 음성 채널 ID (대기방 역할) |
 | guideChannelId | string, nullable | 안내 메시지를 전송할 텍스트 채널 ID |
 | waitingRoomTemplate | string, nullable | 대기방 네이밍 템플릿 (예: `⌛ {username}의 대기방`) |

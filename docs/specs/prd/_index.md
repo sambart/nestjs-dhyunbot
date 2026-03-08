@@ -32,6 +32,7 @@ libs/shared/  → 공유 타입 및 상수
 | newbie | 신규사용자 관리 (환영인사, 미션 추적, 모코코 사냥, 신입기간 역할) | [newbie.md](newbie.md) |
 | status-prefix | 게임방 상태 접두사 설정 (버튼 클릭으로 닉네임 접두사 변경 및 자동 복원) | [status-prefix.md](status-prefix.md) |
 | general | 슬래시 커맨드 자동 등록, 커맨드 목록 API, 일반설정 페이지 동적 커맨드 렌더링 | [general.md](general.md) |
+| sticky-message | 텍스트 채널 고정메세지 (항상 최하단 유지, 디바운스 재전송, 웹/슬래시커맨드 관리) | [sticky-message.md](sticky-message.md) |
 | member | 디스코드 멤버 정보 관리 | (voice.md에 포함) |
 | channel | 디스코드 채널 정보 관리 | (voice.md에 포함) |
 | auto-channel | 트리거 채널 입장 기반 자동 음성 채널 생성 및 관리 | (voice.md에 포함) |
@@ -90,6 +91,13 @@ libs/shared/  → 공유 타입 및 상수
 - `GET /api/guilds/:guildId/commands` — Discord API에서 실제 등록된 슬래시 커맨드 목록 조회
 - 일반설정 페이지에서 하드코딩 커맨드 목록을 제거하고 API 기반 동적 렌더링으로 전환
 
+### 10. 고정메세지 (sticky-message)
+- 등록된 텍스트 채널에 새 메시지가 올라오면 기존 고정메세지를 삭제하고 재전송하여 항상 채널 최하단 유지
+- 디바운스(3초) 적용으로 연속 메시지 시 불필요한 재전송 방지
+- `/고정메세지등록`, `/고정메세지목록`, `/고정메세지삭제` 슬래시 커맨드 (관리자 전용)
+- 웹 대시보드에서 채널·Embed 설정(제목, 설명, 색상, 이모지 피커) 및 실시간 미리보기 제공
+- 채널당 여러 개 고정메세지 등록 가능, Redis 캐시 기반 고속 처리
+
 ## 데이터베이스 엔티티
 
 | 엔티티 | 테이블 | 역할 |
@@ -108,6 +116,7 @@ libs/shared/  → 공유 타입 및 상수
 | NewbiePeriod | newbie_period | 신입기간 역할 관리 이력 (startDate, expiresDate, isExpired) |
 | StatusPrefixConfig | status_prefix_config | 게임방 상태 접두사 길드별 설정 (channelId, messageId, embedTitle, prefixTemplate) |
 | StatusPrefixButton | status_prefix_button | 접두사 버튼 목록 (label, emoji, prefix, type, sortOrder) |
+| StickyMessageConfig | sticky_message_config | 고정메세지 설정 (guildId, channelId, embedTitle, embedDescription, embedColor, messageId, enabled, sortOrder) |
 
 ## 외부 의존성
 

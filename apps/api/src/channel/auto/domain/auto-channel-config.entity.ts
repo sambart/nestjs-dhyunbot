@@ -22,6 +22,9 @@ export class AutoChannelConfig {
   guildId: string;
 
   @Column()
+  name: string;
+
+  @Column()
   triggerChannelId: string;
 
   @Column({ nullable: true })
