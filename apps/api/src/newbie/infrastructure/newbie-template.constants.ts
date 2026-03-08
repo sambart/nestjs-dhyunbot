@@ -62,7 +62,7 @@ export const DEFAULT_MOCO_FOOTER_TEMPLATE_NO_INTERVAL = '페이지 {currentPage}
 
 // ---- 모코코 템플릿 허용 변수 ----
 
-export const MOCO_TITLE_ALLOWED_VARS = ['{rank}', '{hunterName}', '{hunterMention}'] as const;
+export const MOCO_TITLE_ALLOWED_VARS = ['{rank}', '{hunterName}'] as const;
 
 export const MOCO_BODY_ALLOWED_VARS = ['{totalMinutes}', '{mocoList}'] as const;
 

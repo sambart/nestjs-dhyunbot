@@ -14,12 +14,14 @@ export interface NewbieConfig {
   playCountMinDurationMin: number | null;
   playCountIntervalMin: number | null;
   missionNotifyChannelId: string | null;
+  missionEmbedColor: string | null;
 
   // 모코코 사냥
   mocoEnabled: boolean;
   mocoAllowNewbieHunter: boolean;
   mocoRankChannelId: string | null;
   mocoAutoRefreshMinutes: number | null;
+  mocoEmbedColor: string | null;
 
   // 신입기간 역할
   roleEnabled: boolean;
