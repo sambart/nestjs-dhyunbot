@@ -20,6 +20,6 @@ jobs:
             set -e
             cd ~/nestjs-dhyunbot
             git pull origin main
-            docker compose -f docker-compose.prod.yml up -d --build
-            docker compose -f docker-compose.prod.yml exec api npx typeorm migration:run -d dist/apps/api/src/data-source.js
+            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+            docker compose --env-file .env.prod -f docker-compose.prod.yml exec api npx typeorm migration:run -d dist/apps/api/src/data-source.js
             docker image prune -f
