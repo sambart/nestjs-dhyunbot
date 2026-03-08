@@ -36,7 +36,7 @@ GET /api/guilds/:guildId/commands   (Next.js 프록시 → NestJS)
     ▼
 [GuildInfoController.getCommands()]
     │
-    └── Discord REST API: GET /applications/{appId}/guilds/{guildId}/commands
+    └── Discord REST API: GET /applications/{appId}/commands (글로벌 커맨드)
               └── 등록된 슬래시 커맨드 목록 반환
 ```
 
@@ -78,8 +78,9 @@ GET /api/guilds/:guildId/commands   (Next.js 프록시 → NestJS)
 - **인증**: `JwtAuthGuard` 적용 (기존 `GuildInfoController`와 동일)
 - **동작**:
   1. `@InjectDiscordClient()` 로 주입된 `Client`에서 `application` 정보 조회
-  2. Discord REST API `GET /applications/{applicationId}/guilds/{guildId}/commands` 호출
-  3. 등록된 슬래시 커맨드 목록을 배열로 반환
+  2. Discord REST API `GET /applications/{applicationId}/commands` 호출 (글로벌 커맨드 조회, 길드 한정 아님)
+  3. `application`이 null이면 빈 배열 반환
+  4. 등록된 슬래시 커맨드 목록을 배열로 반환
 - **응답 형식**:
   ```json
   [
@@ -104,8 +105,8 @@ GET /api/guilds/:guildId/commands   (Next.js 프록시 → NestJS)
   | `description` | `string` | 커맨드 설명 |
 
 - **오류 처리**:
-  - 봇이 해당 길드에 없는 경우: 빈 배열 `[]` 반환
-  - Discord API 오류: 빈 배열 `[]` 반환 후 서버 로그 기록
+  - `client.application`이 null인 경우: 빈 배열 `[]` 반환
+  - Discord API 오류: 빈 배열 `[]` 반환 (catch 블록, 별도 로그 없음)
 
 ---
 
@@ -156,9 +157,9 @@ General 도메인은 별도의 PostgreSQL 엔티티를 갖지 않는다. Discord
 
 | 서비스 | 용도 | 엔드포인트 |
 |--------|------|-----------|
-| Discord REST API | 길드별 등록된 슬래시 커맨드 목록 조회 | `GET /applications/{appId}/guilds/{guildId}/commands` |
+| Discord REST API | 글로벌 등록된 슬래시 커맨드 목록 조회 | `GET /applications/{appId}/commands` |
 
-Discord REST API 호출은 `discord.js` `Client.application.commands.fetch({ guildId })` 메서드를 통해 수행한다.
+Discord REST API 호출은 `discord.js` `Client.application.commands.fetch()` 메서드를 통해 수행한다. 길드 한정 커맨드가 아닌 글로벌 커맨드를 조회하므로 `guildId` 인자를 전달하지 않는다.
 
 ---
 
