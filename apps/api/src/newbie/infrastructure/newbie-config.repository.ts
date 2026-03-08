@@ -43,6 +43,7 @@ export class NewbieConfigRepository {
       config.missionEmbedColor = dto.missionEmbedColor ?? null;
       config.missionEmbedThumbnailUrl = dto.missionEmbedThumbnailUrl ?? null;
       config.mocoEnabled = dto.mocoEnabled;
+      config.mocoNewbieDays = dto.mocoNewbieDays ?? 30;
       config.mocoAllowNewbieHunter = dto.mocoAllowNewbieHunter ?? false;
       config.mocoRankChannelId = dto.mocoRankChannelId ?? null;
       config.mocoAutoRefreshMinutes = dto.mocoAutoRefreshMinutes ?? null;
@@ -75,6 +76,7 @@ export class NewbieConfigRepository {
         missionEmbedColor: dto.missionEmbedColor ?? null,
         missionEmbedThumbnailUrl: dto.missionEmbedThumbnailUrl ?? null,
         mocoEnabled: dto.mocoEnabled,
+        mocoNewbieDays: dto.mocoNewbieDays ?? 30,
         mocoAllowNewbieHunter: dto.mocoAllowNewbieHunter ?? false,
         mocoRankChannelId: dto.mocoRankChannelId ?? null,
         mocoRankMessageId: null,
