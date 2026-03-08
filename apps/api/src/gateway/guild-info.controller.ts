@@ -82,11 +82,9 @@ export class GuildInfoController {
   }
 
   @Get('commands')
-  async getCommands(
-    @Param('guildId') guildId: string,
-  ) {
+  async getCommands() {
     try {
-      const commands = await this.client.application?.commands.fetch({ guildId });
+      const commands = await this.client.application?.commands.fetch();
       if (!commands) return [];
 
       return commands.map((cmd) => ({
