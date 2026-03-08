@@ -161,6 +161,7 @@ export default function StatusPrefixSettingsPage() {
     }
     if (config.enabled) {
       const sorted = [...config.buttons].sort((a, b) => a.sortOrder - b.sortOrder);
+      const seenPrefixes = new Set<string>();
       for (let i = 0; i < sorted.length; i++) {
         const btn = sorted[i];
         if (!btn.label.trim()) {
@@ -170,6 +171,14 @@ export default function StatusPrefixSettingsPage() {
         if (btn.type === 'PREFIX' && !btn.prefix?.trim()) {
           errors.push(`버튼 #${i + 1}의 접두사 텍스트를 입력해주세요.`);
           break;
+        }
+        if (btn.type === 'PREFIX' && btn.prefix) {
+          const trimmed = btn.prefix.trim();
+          if (seenPrefixes.has(trimmed)) {
+            errors.push(`접두사 "${trimmed}"이(가) 중복됩니다.`);
+            break;
+          }
+          seenPrefixes.add(trimmed);
         }
       }
     }
