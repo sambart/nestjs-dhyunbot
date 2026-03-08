@@ -1,7 +1,11 @@
 # compiled output
-/apps/api/dist
-/apps/api/node_modules
+/apps/*/dist
+/libs/*/dist
+/dist
 /build
+node_modules
+.next
+.turbo
 
 # Logs
 logs
@@ -35,8 +39,15 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Claude Code
+.claude
+
+# Next.js auto-generated
+next-env.d.ts
+
 # dotenv environment variable files
 .env
+.env.prod
 .env.development.local
 .env.test.local
 .env.production.local

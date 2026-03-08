@@ -1,13 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { VoiceState } from 'discord.js';
+import { OnEvent } from '@nestjs/event-emitter';
+
 import { VoiceChannelService } from '../../channel/voice/application/voice-channel.service';
-import { VoiceStateDTO } from '../../channel/voice/infrastructure/voice-state.dto';
+import { VOICE_EVENTS, VoiceJoinEvent } from './voice-events';
 
 @Injectable()
 export class VoiceJoinHandler {
   constructor(private readonly voiceChannelService: VoiceChannelService) {}
 
-  async handle(state: VoiceState) {
-    await this.voiceChannelService.onUserJoined(VoiceStateDTO.fromVoiceState(state));
+  @OnEvent(VOICE_EVENTS.JOIN)
+  async handle(event: VoiceJoinEvent) {
+    await this.voiceChannelService.onUserJoined(event.state);
   }
 }

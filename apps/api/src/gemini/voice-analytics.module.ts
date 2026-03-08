@@ -1,39 +1,40 @@
+import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { AuthModule } from '../auth/auth.module';
+import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
+import { VoiceRedisRepository } from '../channel/voice/infrastructure/voice-redis.repository';
+import { GatewayModule } from '../gateway/gateway.module';
+import { CommunityHealthCommand } from './commands/community-health.command';
+import { MyVoiceStatsCommand } from './commands/my-voice-stats.command';
+import { VoiceLeaderboardCommand } from './commands/voice-leaderboard.command';
+import { VoiceStatsCommand } from './commands/voice-stats.command';
 import { VoiceAnalyticsController } from './voice-analytics.controller';
-import { VoiceGeminiService } from './voice-gemini.service';
 import { VoiceAnalyticsService } from './voice-analytics.service';
-import { RedisModule } from '../redis/redis.module'; // Redis 모듈 import
-import {
-  VoiceStatsCommand,
-  MyVoiceStatsCommand,
-  CommunityHealthCommand,
-  VoiceLeaderboardCommand,
-} from './voice-analytics.commands';
-import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily-entity';
-import { DiscordGateway } from '../gateway/discord.gateway';
-import { VoiceRedisRepository } from '../channel/voice/infrastructure/voice.redis.repository';
-import { DiscordModule } from '@discord-nestjs/core';
+import { VoiceGeminiService } from './voice-gemini.service';
+import { VoiceNameEnricherService } from './voice-name-enricher.service';
 
 @Module({
   imports: [
+    DiscordModule.forFeature(),
     ConfigModule,
     TypeOrmModule.forFeature([VoiceDailyEntity]),
-    RedisModule, // Redis 모듈 추가,
-    DiscordModule.forFeature(),
+    GatewayModule,
+    AuthModule,
   ],
   controllers: [VoiceAnalyticsController],
   providers: [
     VoiceGeminiService,
     VoiceAnalyticsService,
-    DiscordGateway,
-    VoiceRedisRepository, // Redis Repository 추가
+    VoiceNameEnricherService,
+    VoiceRedisRepository,
     VoiceStatsCommand,
     MyVoiceStatsCommand,
     CommunityHealthCommand,
     VoiceLeaderboardCommand,
   ],
-  exports: [VoiceGeminiService, VoiceAnalyticsService, DiscordGateway, VoiceRedisRepository],
+  exports: [VoiceGeminiService, VoiceAnalyticsService, VoiceRedisRepository],
 })
 export class VoiceAnalyticsModule {}

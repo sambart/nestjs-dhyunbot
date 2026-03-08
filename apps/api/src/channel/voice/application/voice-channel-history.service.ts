@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
-import { VoiceChannelHistory } from '../domain/voice-channel-history.entity';
+import { DataSource,Repository } from 'typeorm';
+
 import { Member } from '../../../member/member.entity';
 import { Channel } from '../../channel.entity';
+import { VoiceChannelHistory } from '../domain/voice-channel-history.entity';
 
 @Injectable()
 export class VoiceChannelHistoryService {
@@ -17,7 +18,7 @@ export class VoiceChannelHistoryService {
     const log = this.voiceChannelHistoryRepository.create({
       member,
       channel,
-      joinAt: new Date(),
+      joinedAt: new Date(),
     });
     return this.voiceChannelHistoryRepository.save(log);
   }
@@ -30,7 +31,7 @@ export class VoiceChannelHistoryService {
         .from(VoiceChannelHistory, 'log')
         .where('log.memberId = :memberId', { memberId: member.id })
         .andWhere('log.channelId = :channelId', { channelId: channel.id })
-        .orderBy('log.joinAt', 'DESC')
+        .orderBy('log.joinedAt', 'DESC')
         .limit(1)
         .getRawOne();
 

@@ -1,37 +1,37 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { getKSTDateString } from '@dhyunbot/shared';
+import { Injectable, Logger } from '@nestjs/common';
+
 import { RedisService } from '../../../redis/redis.service';
-import { VoiceDailyEntity } from '../domain/voice-daily-entity';
-import { Repository } from 'typeorm';
-import { getKSTDateString } from '../../../common/helper';
-import { VoiceRedisRepository } from '../infrastructure/voice.redis.repository';
+import { VoiceDailyRepository } from '../infrastructure/voice-daily.repository';
+import { VoiceRedisRepository } from '../infrastructure/voice-redis.repository';
 
 @Injectable()
 export class VoiceDailyFlushService {
+  private readonly logger = new Logger(VoiceDailyFlushService.name);
+  private flushing = false;
+
   constructor(
     private readonly redis: RedisService,
-    @InjectRepository(VoiceDailyEntity)
-    private readonly repo: Repository<VoiceDailyEntity>,
+    private readonly voiceDailyRepository: VoiceDailyRepository,
     private readonly voiceRedisRepository: VoiceRedisRepository,
   ) {}
 
   async flushTodayAll() {
-    const today = getKSTDateString(); // 예: 2025-12-23
+    const today = getKSTDateString();
 
-    // guild 전체 scan
-    const guildKeys = await this.redis.scanKeys(`voice:duration:*`);
+    // voice:session:{guildId}:{userId} 패턴으로 활성 세션 탐색
+    const sessionKeys = await this.redis.scanKeys('voice:session:*');
 
-    // guild / user / date 파싱\
-    for (const entry of guildKeys) {
-      const [guild, user] = entry.split(':');
+    for (const key of sessionKeys) {
+      const parts = key.split(':');
+      const guild = parts[2];
+      const user = parts[3];
       await this.flushDate(guild, user, today);
     }
   }
 
   async flushDate(guild: string, user: string, date: string) {
-    /**
-     * 1️⃣ 채널별 체류 시간
-     */
+    // 1. 채널별 체류 시간
     const userName = (await this.voiceRedisRepository.getUserName(guild, user)) ?? 'UNKNOWN';
     const channelKeys = await this.redis.scanKeys(
       `voice:duration:channel:${guild}:${user}:${date}:*`,
@@ -43,77 +43,89 @@ export class VoiceDailyFlushService {
       const channelName =
         (await this.voiceRedisRepository.getChannelName(guild, channelId)) ?? 'UNKNOWN';
 
-      await this.repo.query(
-        `
-        INSERT INTO voice_daily AS vd
-            ("guildId","userId","userName","date","channelId","channelName","channelDurationSec")
-        VALUES ($1,$2,$3,$4,$5,$6,$7)
-        ON CONFLICT ("guildId","userId","date","channelId")
-        DO UPDATE SET
-          "channelDurationSec" =
-          vd."channelDurationSec" + EXCLUDED."channelDurationSec",
-          "channelName" = EXCLUDED."channelName",
-          "userName"    = EXCLUDED."userName"
-        `,
-        [
-          guild,
-          user,
-          userName, // fallback
-          date,
-          channelId,
-          channelName,
-          duration,
-        ],
+      await this.voiceDailyRepository.accumulateChannelDuration(
+        guild,
+        user,
+        userName,
+        date,
+        channelId,
+        channelName,
+        duration,
       );
 
       await this.redis.del(key);
     }
 
-    /**
-     * 2️⃣ 마이크 ON / OFF 누적
-     * - channelId = 'GLOBAL'
-     */
+    // 2. 마이크 ON / OFF 누적
     for (const state of ['on', 'off'] as const) {
       const key = `voice:duration:mic:${guild}:${user}:${date}:${state}`;
       const duration = Number((await this.redis.get(key)) || 0);
       if (duration <= 0) continue;
 
-      await this.repo.query(
-        `
-        INSERT INTO voice_daily AS vd
-            ("guildId","userId","date","channelId","micOnSec","micOffSec")
-        VALUES ($1,$2,$3,'GLOBAL',$4,$5)
-        ON CONFLICT ("guildId","userId","date","channelId")
-        DO UPDATE SET
-            "micOnSec"  = vd."micOnSec"  + EXCLUDED."micOnSec",
-            "micOffSec" = vd."micOffSec" + EXCLUDED."micOffSec"
-        `,
-        [guild, user, date, state === 'on' ? duration : 0, state === 'off' ? duration : 0],
+      await this.voiceDailyRepository.accumulateMicDuration(
+        guild,
+        user,
+        date,
+        state === 'on' ? duration : 0,
+        state === 'off' ? duration : 0,
       );
 
       await this.redis.del(key);
     }
 
-    /**
-     * 3️⃣ 혼자 있었던 시간
-     * - channelId = 'GLOBAL'
-     */
+    // 3. 혼자 있었던 시간
     const aloneKey = `voice:duration:alone:${guild}:${user}:${date}`;
     const aloneSec = Number((await this.redis.get(aloneKey)) || 0);
 
     if (aloneSec > 0) {
-      await this.repo.query(
-        `
-        INSERT INTO voice_daily AS vd
-            ("guildId","userId","date","channelId","aloneSec")
-        VALUES ($1,$2,$3,'GLOBAL',$4)
-        ON CONFLICT ("guildId","userId","date","channelId")
-        DO UPDATE SET
-            "aloneSec" = vd."aloneSec" + EXCLUDED."aloneSec"
-        `,
-        [guild, user, date, aloneSec],
-      );
+      await this.voiceDailyRepository.accumulateAloneDuration(guild, user, date, aloneSec);
       await this.redis.del(aloneKey);
+    }
+  }
+
+  /** 활성 세션의 미누적 구간을 포함하여 안전하게 전체 flush */
+  async safeFlushAll(): Promise<{ flushed: number; skipped: number }> {
+    if (this.flushing) throw new Error('이미 집계가 진행 중입니다.');
+    this.flushing = true;
+
+    try {
+      const sessionKeys = await this.redis.scanKeys('voice:session:*');
+      const now = Date.now();
+      let flushed = 0;
+      let skipped = 0;
+
+      for (const key of sessionKeys) {
+        try {
+          const parts = key.split(':');
+          const guildId = parts[2];
+          const userId = parts[3];
+
+          const session = await this.voiceRedisRepository.getSession(guildId, userId);
+          if (!session) {
+            skipped++;
+            continue;
+          }
+
+          // 1. 현재 시점까지 미누적 구간 누적
+          await this.voiceRedisRepository.accumulateDuration(guildId, userId, session, now);
+
+          // 2. DB flush
+          await this.flushDate(guildId, userId, session.date);
+
+          // 3. 세션 lastUpdatedAt 갱신 (이중 카운팅 방지, 세션 유지)
+          session.lastUpdatedAt = now;
+          await this.voiceRedisRepository.setSession(guildId, userId, session);
+
+          flushed++;
+        } catch (error) {
+          skipped++;
+          this.logger.error(`Failed to flush session: ${key}`, (error as Error).stack);
+        }
+      }
+
+      return { flushed, skipped };
+    } finally {
+      this.flushing = false;
     }
   }
 }

@@ -1,31 +1,48 @@
 import { VoiceState } from 'discord.js';
 
-export class VoiceStateDTO {
+export class InvalidVoiceStateError extends Error {
+  constructor(
+    message: string,
+    public readonly guildId?: string,
+    public readonly userId?: string,
+  ) {
+    super(message);
+    this.name = 'InvalidVoiceStateError';
+  }
+}
+
+export class VoiceStateDto {
   constructor(
     public readonly guildId: string,
     public readonly userId: string,
     public readonly channelId: string,
     public readonly userName: string,
     public readonly channelName: string,
-    public readonly parentCategoryId: string,
+    public readonly parentCategoryId: string | null,
     public readonly micOn: boolean,
     public readonly alone: boolean,
+    public readonly channelMemberCount: number,
   ) {}
 
-  static fromVoiceState(state: VoiceState): VoiceStateDTO {
-    if (!state.guild || !state.member || !state.channelId || !state.channel.parentId) {
-      throw new Error('Invalid VoiceState for JoinCommand');
+  static fromVoiceState(state: VoiceState): VoiceStateDto {
+    if (!state.guild || !state.member || !state.channelId || !state.channel) {
+      throw new InvalidVoiceStateError(
+        `Invalid VoiceState: guild=${!!state.guild} member=${!!state.member} channelId=${state.channelId}`,
+        state.guild?.id,
+        state.member?.id,
+      );
     }
 
-    return new VoiceStateDTO(
+    return new VoiceStateDto(
       state.guild.id,
       state.member.id,
       state.channelId,
       state.member.displayName,
       state.channel.name,
-      state.channel.parentId,
+      state.channel.parentId ?? null,
       !state.selfMute,
-      state.channel ? state.channel.members.size === 1 : false,
+      state.channel.members.size === 1,
+      state.channel.members.size,
     );
   }
 }

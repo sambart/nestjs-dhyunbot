@@ -1,6 +1,7 @@
 // redis.service.ts
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
+
 import { REDIS_CLIENT } from './redis.constants';
 
 @Injectable()
@@ -80,6 +81,19 @@ export class RedisService implements OnModuleDestroy {
 
   async exists(key: string): Promise<boolean> {
     return (await this.client.exists(key)) === 1;
+  }
+
+  /**
+   * Redis Pipeline — 여러 명령을 하나의 네트워크 왕복으로 일괄 실행
+   * 콜백 내에서 pipeline 객체에 명령을 체이닝하면 된다.
+   */
+  async pipeline(
+    build: (pipe: ReturnType<Redis['pipeline']>) => void,
+  ): Promise<Array<[Error | null, unknown]>> {
+    const pipe = this.client.pipeline();
+    build(pipe);
+    const results = await pipe.exec();
+    return (results ?? []) as Array<[Error | null, unknown]>;
   }
 
   async onModuleDestroy() {

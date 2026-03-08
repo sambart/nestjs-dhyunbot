@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build shared
+        run: npm run build --workspace=@dhyunbot/shared
+
+      - name: Build API
+        run: npm run build --workspace=@dhyunbot/api
+
+      - name: Build Web
+        run: npm run build --workspace=@dhyunbot/web

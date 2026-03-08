@@ -1,23 +1,13 @@
 FROM node:20-alpine
 
-WORKDIR /app
+# Global tools for API
+RUN npm install -g ts-node
 
-# api 패키지 파일만 복사
-COPY apps/api/package*.json ./
-RUN npm install
+# Shared entrypoint (handles npm install + shared lib build)
+COPY scripts/docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# 소스 복사
-COPY apps/api ./
+WORKDIR /workspace/apps/api
 
-
-# 빌드
-#RUN npm run build
-
-#CMD ["node", "dist/main.js"]
-
-
-# 개발용 nodemon 설치
-RUN npm install -g nodemon
-
-# 개발용 명령
-CMD ["nodemon", "--watch", "src", "--ext", "ts,js,json", "src/main.ts"]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["ts-node", "-r", "tsconfig-paths/register", "src/main.ts"]

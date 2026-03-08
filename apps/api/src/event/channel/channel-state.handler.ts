@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { InjectDiscordClient, On } from '@discord-nestjs/core';
-import { Client, Channel } from 'discord.js';
+import { Injectable, Logger } from '@nestjs/common';
+import { Channel,Client } from 'discord.js';
+
 import { ChannelService } from '../../channel/channel.service';
 
 @Injectable()
@@ -14,24 +15,34 @@ export class ChannelStateHandler {
 
   @On('channelCreate')
   handleChannelCreate(channel: Channel): void {
-    if ('name' in channel) {
-      this.logger.log(`New channel created: ${channel.name}`);
+    try {
+      if ('name' in channel) {
+        this.logger.log(`New channel created: ${channel.name}`);
+      }
+    } catch (error) {
+      this.logger.error('[channelCreate] Error', (error as Error).stack);
     }
   }
 
-  // 채널 삭제 이벤트 처리
   @On('channelDelete')
   handleChannelDelete(channel: Channel): void {
-    if ('name' in channel) {
-      this.logger.log(`Channel deleted: ${channel.name}`);
+    try {
+      if ('name' in channel) {
+        this.logger.log(`Channel deleted: ${channel.name}`);
+      }
+    } catch (error) {
+      this.logger.error('[channelDelete] Error', (error as Error).stack);
     }
   }
 
-  // 채널 업데이트 이벤트 처리
   @On('channelUpdate')
   handleChannelUpdate(oldChannel: Channel, newChannel: Channel): void {
-    if ('name' in oldChannel && 'name' in newChannel) {
-      this.logger.log(`Channel updated from ${oldChannel.name} to ${newChannel.name}`);
+    try {
+      if ('name' in oldChannel && 'name' in newChannel) {
+        this.logger.log(`Channel updated from ${oldChannel.name} to ${newChannel.name}`);
+      }
+    } catch (error) {
+      this.logger.error('[channelUpdate] Error', (error as Error).stack);
     }
   }
 }

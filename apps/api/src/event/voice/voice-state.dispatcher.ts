@@ -1,43 +1,142 @@
 import { On } from '@discord-nestjs/core';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { VoiceState } from 'discord.js';
-import { VoiceJoinHandler } from './voice-join.handler';
-import { VoiceLeaveHandler } from './voice-leave.handler';
-import { VoiceMoveHandler } from './voice-move.handler';
-import { MicToggleHandler } from './voice-mic-toggle.handler';
+
+import { VoiceStateDto } from '../../channel/voice/infrastructure/voice-state.dto';
+import {
+  AUTO_CHANNEL_EVENTS,
+  AutoChannelChannelEmptyEvent,
+} from '../auto-channel/auto-channel-events';
+import { NEWBIE_EVENTS, NewbieVoiceStateChangedEvent } from '../newbie/newbie-events';
+import {
+  VOICE_EVENTS,
+  VoiceAloneChangedEvent,
+  VoiceJoinEvent,
+  VoiceLeaveEvent,
+  VoiceMicToggleEvent,
+  VoiceMoveEvent,
+} from './voice-events';
 
 @Injectable()
 export class VoiceStateDispatcher {
-  constructor(
-    private readonly joinHandler: VoiceJoinHandler,
-    private readonly leaveHandler: VoiceLeaveHandler,
-    private readonly moveHandler: VoiceMoveHandler,
-    private readonly micToggleHandler: MicToggleHandler,
-  ) {}
+  private readonly logger = new Logger(VoiceStateDispatcher.name);
+
+  constructor(private readonly eventEmitter: EventEmitter2) {}
 
   @On('voiceStateUpdate')
   async dispatch(oldState: VoiceState, newState: VoiceState) {
-    // 마이크 켜짐/꺼짐 상태
-    const isMuteChanged = oldState.selfMute !== newState.selfMute;
-    const isJoin = !oldState.channelId && newState.channelId;
-    const isLeave = oldState.channelId && !newState.channelId;
-    const isMove =
-      oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId;
+    try {
+      const isMuteChanged = oldState.selfMute !== newState.selfMute;
+      const isJoin = !oldState.channelId && newState.channelId;
+      const isLeave = oldState.channelId && !newState.channelId;
+      const isMove =
+        oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId;
 
-    if (isMove) {
-      await this.moveHandler.handle(oldState, newState);
-    }
+      if (isMove) {
+        const oldDto = VoiceStateDto.fromVoiceState(oldState);
+        const newDto = VoiceStateDto.fromVoiceState(newState);
+        await this.eventEmitter.emitAsync(VOICE_EVENTS.MOVE, new VoiceMoveEvent(oldDto, newDto));
+        this.emitAloneChanged(oldState);
+        this.emitAloneChanged(newState);
 
-    if (isJoin) {
-      await this.joinHandler.handle(newState);
-    }
+        // 이동 후 이전 채널이 비어있으면 자동방 삭제 이벤트 발행 (fire-and-forget)
+        if (oldState.channel && oldState.channel.members.size === 0) {
+          this.eventEmitter.emit(
+            AUTO_CHANNEL_EVENTS.CHANNEL_EMPTY,
+            new AutoChannelChannelEmptyEvent(oldState.guild.id, oldState.channelId!),
+          );
+        }
 
-    if (isLeave) {
-      await this.leaveHandler.handle(oldState);
-    }
+        // 모코코 사냥 이벤트 — 이동 후 새 채널 기준 (fire-and-forget)
+        if (newState.channelId && newState.channel) {
+          const memberIds = [...newState.channel.members.keys()];
+          this.eventEmitter.emit(
+            NEWBIE_EVENTS.VOICE_STATE_CHANGED,
+            new NewbieVoiceStateChangedEvent(
+              newState.guild.id,
+              newState.channelId,
+              oldState.channelId ?? null,
+              memberIds,
+            ),
+          );
+        }
+      }
 
-    if (isMuteChanged) {
-      await this.micToggleHandler.handle(newState);
+      if (isJoin) {
+        const dto = VoiceStateDto.fromVoiceState(newState);
+        await this.eventEmitter.emitAsync(VOICE_EVENTS.JOIN, new VoiceJoinEvent(dto));
+        this.emitAloneChanged(newState);
+
+        // 모코코 사냥 이벤트 — 입장한 채널 기준 (fire-and-forget)
+        if (newState.channelId && newState.channel) {
+          const memberIds = [...newState.channel.members.keys()];
+          this.eventEmitter.emit(
+            NEWBIE_EVENTS.VOICE_STATE_CHANGED,
+            new NewbieVoiceStateChangedEvent(
+              newState.guild.id,
+              newState.channelId,
+              null,
+              memberIds,
+            ),
+          );
+        }
+      }
+
+      if (isLeave) {
+        const dto = VoiceStateDto.fromVoiceState(oldState);
+        await this.eventEmitter.emitAsync(VOICE_EVENTS.LEAVE, new VoiceLeaveEvent(dto));
+        this.emitAloneChanged(oldState);
+
+        // 퇴장 후 채널이 비어있으면 자동방 삭제 이벤트 발행 (fire-and-forget)
+        if (oldState.channel && oldState.channel.members.size === 0) {
+          this.eventEmitter.emit(
+            AUTO_CHANNEL_EVENTS.CHANNEL_EMPTY,
+            new AutoChannelChannelEmptyEvent(oldState.guild.id, oldState.channelId!),
+          );
+        }
+
+        // 모코코 사냥 이벤트 — 퇴장 후 이전 채널 기준 (fire-and-forget)
+        if (oldState.channelId && oldState.channel) {
+          const memberIds = [...oldState.channel.members.keys()];
+          this.eventEmitter.emit(
+            NEWBIE_EVENTS.VOICE_STATE_CHANGED,
+            new NewbieVoiceStateChangedEvent(
+              oldState.guild.id,
+              null,
+              oldState.channelId,
+              memberIds,
+            ),
+          );
+        }
+      }
+
+      if (isMuteChanged && !isJoin && !isLeave && !isMove) {
+        const dto = VoiceStateDto.fromVoiceState(newState);
+        await this.eventEmitter.emitAsync(
+          VOICE_EVENTS.MIC_TOGGLE,
+          new VoiceMicToggleEvent(dto),
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `[voiceStateUpdate] guild=${newState.guild?.id} user=${newState.member?.id ?? 'unknown'}`,
+        (error as Error).stack,
+      );
     }
+  }
+
+  /** 이벤트 발생 후 해당 채널에 남은 유저들의 alone 상태 변경 이벤트 발행 */
+  private emitAloneChanged(state: VoiceState): void {
+    if (!state.channel || !state.guild) return;
+
+    const memberIds = [...state.channel.members.keys()];
+    if (memberIds.length > 2) return;
+
+    const isAlone = memberIds.length === 1;
+    this.eventEmitter.emit(
+      VOICE_EVENTS.ALONE_CHANGED,
+      new VoiceAloneChangedEvent(state.guild.id, memberIds, isAlone),
+    );
   }
 }

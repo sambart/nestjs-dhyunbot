@@ -1,19 +1,12 @@
 FROM node:20-alpine
 
-WORKDIR /app
+# Shared entrypoint (handles npm install + shared lib build)
+COPY scripts/docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# web 패키지 파일만 복사
-COPY apps/web/package*.json ./
-RUN npm install
+WORKDIR /workspace/apps/web
 
-# 소스 복사
-COPY apps/web ./
+EXPOSE 4000
 
-# Next 빌드
-#RUN npm run build
-
-EXPOSE 3000
-#CMD ["npm", "start"]
-
-# 개발용 명령
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["npm", "run", "dev"]

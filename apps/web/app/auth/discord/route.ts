@@ -1,4 +1,6 @@
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const code = searchParams.get("code");
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  return NextResponse.redirect(`${apiUrl}/auth/discord`);
 }

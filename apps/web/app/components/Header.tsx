@@ -1,40 +1,76 @@
 "use client";
 
+import { Home, LayoutDashboard, Menu, Settings, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import { Menu, X, Home, LayoutDashboard } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+export interface Guild {
+  id: string;
+  name: string;
+  icon: string | null;
+}
+
+export interface User {
+  discordId: string;
+  username: string;
+  avatar: string | null;
+  guilds: Guild[];
+}
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // 실제로는 useSession 사용
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleLogin = () => {
-    // Discord OAuth 로그인 로직
-    console.log("Login clicked");
-    setIsLoggedIn(true);
-  };
+  useEffect(() => {
+    fetch("/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) setUser(data.user);
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-  };
+  const handleLogin = useCallback(() => {
+    window.location.href = "/auth/discord";
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await fetch("/auth/logout", { method: "POST" });
+    setUser(null);
+  }, []);
+
+  const showToast = useCallback((message: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(message);
+    toastTimer.current = setTimeout(() => setToast(null), 2000);
+  }, []);
+
+  const avatarUrl = user?.avatar
+    ? `https://cdn.discordapp.com/avatars/${user.discordId}/${user.avatar}.png`
+    : null;
+
+  const displayInitial = user?.username?.charAt(0).toUpperCase() ?? "U";
 
   return (
+    <>
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* 왼쪽: 로고 + 네비게이션 */}
           <div className="flex items-center space-x-8">
-            {/* 로고 */}
             <Link href="/" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-xl">D</span>
               </div>
               <span className="font-bold text-xl text-gray-900 hidden sm:block">
-                Discord Bot
+                Dhyunbot
               </span>
             </Link>
 
-            {/* 데스크톱 네비게이션 */}
             <div className="hidden md:flex items-center space-x-4">
               <Link
                 href="/"
@@ -44,27 +80,49 @@ export default function Header() {
                 <span>홈</span>
               </Link>
 
-              <Link
-                href="/dashboard"
+              <button
+                onClick={() => showToast("준비중입니다")}
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>대시보드</span>
-              </Link>
+              </button>
+
+              {user && (
+                <Link
+                  href="/select-guild"
+                  className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>설정</span>
+                </Link>
+              )}
             </div>
           </div>
 
-          {/* 오른쪽: 로그인 버튼 */}
+          {/* 오른쪽: 로그인/사용자 정보 */}
           <div className="hidden md:flex items-center space-x-4">
-            {isLoggedIn ? (
+            {isLoading ? (
+              <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />
+            ) : user ? (
               <>
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                    <span className="text-indigo-600 text-sm font-semibold">
-                      U
-                    </span>
-                  </div>
-                  <span className="text-sm text-gray-700">사용자</span>
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={user.username}
+                      width={32}
+                      height={32}
+                      className="rounded-full"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                      <span className="text-indigo-600 text-sm font-semibold">
+                        {displayInitial}
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-sm text-gray-700">{user.username}</span>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -109,17 +167,30 @@ export default function Header() {
                 <span>홈</span>
               </Link>
 
-              <Link
-                href="/dashboard"
+              <button
+                onClick={() => {
+                  showToast("준비중입니다");
+                  setIsMenuOpen(false);
+                }}
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
-                onClick={() => setIsMenuOpen(false)}
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>대시보드</span>
-              </Link>
+              </button>
+
+              {user && (
+                <Link
+                  href="/select-guild"
+                  className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>설정</span>
+                </Link>
+              )}
 
               <div className="pt-4 border-t border-gray-200">
-                {isLoggedIn ? (
+                {user ? (
                   <button
                     onClick={() => {
                       handleLogout();
@@ -146,5 +217,13 @@ export default function Header() {
         )}
       </nav>
     </header>
+
+    {/* Toast */}
+    {toast && (
+      <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-gray-800 text-white px-5 py-3 rounded-lg shadow-lg text-sm animate-fade-in">
+        {toast}
+      </div>
+    )}
+  </>
   );
 }

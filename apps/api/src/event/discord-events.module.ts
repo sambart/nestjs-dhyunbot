@@ -1,20 +1,28 @@
-import { Module } from '@nestjs/common';
-import { ChannelStateHandler } from './channel/channel-state.handler';
-import { ChannelModule } from '../channel/channel.module';
 import { DiscordModule } from '@discord-nestjs/core';
+import { Module } from '@nestjs/common';
+
+import { AutoChannelModule } from '../channel/auto/auto-channel.module';
+import { ChannelModule } from '../channel/channel.module';
 import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
-import { DiscordConfig } from '../config/discord.config';
-import { VoiceStateDispatcher } from './voice/voice-state.dispatcher';
+import { NewbieModule } from '../newbie/newbie.module';
+import { StatusPrefixModule } from '../status-prefix/status-prefix.module';
+import { ChannelStateHandler } from './channel/channel-state.handler';
+import { NewbieInteractionHandler } from './newbie/newbie-interaction.handler';
+import { NewbieVoiceStateChangedHandler } from './newbie/newbie-voice-state-changed.handler';
+import { VoiceAloneHandler } from './voice/voice-alone.handler';
 import { VoiceJoinHandler } from './voice/voice-join.handler';
 import { VoiceLeaveHandler } from './voice/voice-leave.handler';
-import { VoiceMoveHandler } from './voice/voice-move.handler';
 import { MicToggleHandler } from './voice/voice-mic-toggle.handler';
+import { VoiceMoveHandler } from './voice/voice-move.handler';
+import { VoiceStateDispatcher } from './voice/voice-state.dispatcher';
 
 @Module({
   imports: [
+    AutoChannelModule,
     ChannelModule,
     VoiceChannelModule,
-    DiscordModule.forRootAsync(DiscordConfig),
+    NewbieModule,
+    StatusPrefixModule,
     DiscordModule.forFeature(),
   ],
   providers: [
@@ -24,6 +32,9 @@ import { MicToggleHandler } from './voice/voice-mic-toggle.handler';
     VoiceLeaveHandler,
     VoiceMoveHandler,
     MicToggleHandler,
+    VoiceAloneHandler,
+    NewbieVoiceStateChangedHandler,
+    NewbieInteractionHandler,
   ],
 })
 export class DiscordEventsModule {}
