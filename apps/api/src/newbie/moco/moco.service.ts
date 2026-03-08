@@ -170,6 +170,7 @@ export class MocoService {
     const embed = await this.buildHunterEmbed(
       safePage, // rank = 페이지 번호 = 순위
       hunterName,
+      hunterId,
       Math.round(totalMinutes),
       details,
       newbieNames,
@@ -256,6 +257,7 @@ export class MocoService {
   private async buildHunterEmbed(
     rank: number,
     hunterName: string,
+    hunterId: string,
     totalMinutes: number,
     details: Record<string, number>,
     newbieNames: Record<string, string>,
@@ -285,6 +287,7 @@ export class MocoService {
         const newbieName = newbieNames[newbieId] ?? newbieId;
         return applyTemplate(itemTemplate, {
           newbieName,
+          newbieMention: `<@${newbieId}>`,
           minutes: String(minutes),
         });
       });
@@ -301,6 +304,7 @@ export class MocoService {
     const resolvedTitle = applyTemplate(titleTemplate, {
       rank: String(rank),
       hunterName,
+      hunterMention: `<@${hunterId}>`,
     });
 
     // 6. 푸터 렌더링

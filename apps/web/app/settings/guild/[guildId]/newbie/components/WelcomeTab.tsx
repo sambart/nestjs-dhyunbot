@@ -16,6 +16,7 @@ interface WelcomeTabProps {
 
 const TEMPLATE_VARIABLES = [
   { variable: '{username}', description: '신규 멤버의 닉네임' },
+  { variable: '{mention}', description: '신규 멤버 태그 (@멘션)' },
   { variable: '{memberCount}', description: '현재 서버 전체 멤버 수' },
   { variable: '{serverName}', description: '서버 이름' },
 ] as const;
