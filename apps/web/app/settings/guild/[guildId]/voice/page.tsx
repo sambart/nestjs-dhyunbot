@@ -1,0 +1,280 @@
+'use client';
+
+import { Check, ChevronDown, Loader2, Mic, RefreshCw, Server } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+
+import type { DiscordChannel } from '../../../../lib/discord-api';
+import { fetchGuildChannels } from '../../../../lib/discord-api';
+import type { ExcludedChannelEntry } from '../../../../lib/voice-api';
+import { fetchVoiceExcludedChannels, saveVoiceExcludedChannels } from '../../../../lib/voice-api';
+import { useSettings } from '../../../SettingsContext';
+
+// ─── 로컬 타입 ─────────────────────────────────────────────────────────────
+
+/** 멀티 셀렉트 드롭다운의 옵션 항목 */
+interface ChannelOption {
+  id: string;
+  name: string;
+  type: 2 | 4; // 2 = GUILD_VOICE, 4 = GUILD_CATEGORY
+}
+
+// ─── 컴포넌트 ───────────────────────────────────────────────────────────────
+
+export default function VoiceSettingsPage() {
+  const { selectedGuildId } = useSettings();
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [channelOptions, setChannelOptions] = useState<ChannelOption[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // ─── 드롭다운 외부 클릭 닫기 ─────────────────────────────────────────────
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // ─── 초기 데이터 로드 ─────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!selectedGuildId) return;
+
+    setIsLoading(true);
+    setSelectedIds([]);
+
+    Promise.all([
+      fetchVoiceExcludedChannels(selectedGuildId),
+      fetchGuildChannels(selectedGuildId),
+    ])
+      .then(([excludedIds, allChannels]) => {
+        const options: ChannelOption[] = allChannels
+          .filter((ch) => ch.type === 2 || ch.type === 4)
+          .map((ch) => ({ id: ch.id, name: ch.name, type: ch.type as 2 | 4 }));
+        setChannelOptions(options);
+        setSelectedIds(excludedIds);
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, [selectedGuildId]);
+
+  // ─── 채널 새로고침 ────────────────────────────────────────────────────────
+
+  const refreshChannels = async () => {
+    if (!selectedGuildId || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const allChannels = await fetchGuildChannels(selectedGuildId, true).catch(
+        (): DiscordChannel[] => [],
+      );
+      const options: ChannelOption[] = allChannels
+        .filter((ch) => ch.type === 2 || ch.type === 4)
+        .map((ch) => ({ id: ch.id, name: ch.name, type: ch.type as 2 | 4 }));
+      setChannelOptions(options);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // ─── 멀티 셀렉트 핸들러 ──────────────────────────────────────────────────
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const removeSelected = (id: string) => {
+    setSelectedIds((prev) => prev.filter((x) => x !== id));
+  };
+
+  // ─── 저장 핸들러 ──────────────────────────────────────────────────────────
+
+  const handleSave = async () => {
+    if (!selectedGuildId || isSaving) return;
+
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    try {
+      const channelMap = new Map(channelOptions.map((o) => [o.id, o]));
+      const entries: ExcludedChannelEntry[] = selectedIds
+        .map((id) => {
+          const opt = channelMap.get(id);
+          if (!opt) return null;
+          return { channelId: id, type: opt.type === 4 ? 'CATEGORY' : 'CHANNEL' } as ExcludedChannelEntry;
+        })
+        .filter((e): e is ExcludedChannelEntry => e !== null);
+      await saveVoiceExcludedChannels(selectedGuildId, entries);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : '저장에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ─── 파생 데이터 ──────────────────────────────────────────────────────────
+
+  const selectedOptions = channelOptions.filter((o) => selectedIds.includes(o.id));
+  const hasCategorySelected = selectedOptions.some((o) => o.type === 4);
+
+  // ─── 조건부 렌더링 ────────────────────────────────────────────────────────
+
+  if (!selectedGuildId) {
+    return (
+      <div className="max-w-3xl">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">음성 설정</h1>
+        <section className="bg-white rounded-xl border border-gray-200 p-8">
+          <div className="flex flex-col items-center text-center py-8">
+            <Server className="w-12 h-12 text-gray-300 mb-4" />
+            <p className="text-sm text-gray-500">사이드바에서 서버를 선택하세요.</p>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-3xl">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">음성 설정</h1>
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  // ─── 메인 렌더링 ──────────────────────────────────────────────────────────
+
+  return (
+    <div className="max-w-3xl">
+      {/* 페이지 헤더 */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-3">
+          <Mic className="w-6 h-6 text-indigo-600" />
+          <h1 className="text-2xl font-bold text-gray-900">음성 설정</h1>
+        </div>
+        <button
+          type="button"
+          onClick={refreshChannels}
+          disabled={isRefreshing}
+          title="채널 목록 새로고침"
+          className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>채널 새로고침</span>
+        </button>
+      </div>
+
+      {/* 설정 섹션 */}
+      <section className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="text-sm font-semibold text-gray-900 mb-4">음성 시간 제외 채널</h2>
+
+        {/* 선택된 태그 목록 */}
+        {selectedOptions.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {selectedOptions.map((opt) => (
+              <span
+                key={opt.id}
+                className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium"
+              >
+                {opt.type === 4 ? '📁' : '🔊'} {opt.name}
+                <button
+                  type="button"
+                  onClick={() => removeSelected(opt.id)}
+                  aria-label={`${opt.name} 선택 해제`}
+                  className="ml-1 text-indigo-400 hover:text-indigo-700"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* 멀티 셀렉트 드롭다운 */}
+        <div ref={dropdownRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setIsDropdownOpen((v) => !v)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <span className="text-gray-500">채널 또는 카테고리 선택...</span>
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {isDropdownOpen && (
+            <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              {channelOptions.length === 0 ? (
+                <li className="px-3 py-2 text-sm text-gray-400">
+                  채널 목록을 불러올 수 없습니다.
+                </li>
+              ) : (
+                channelOptions.map((opt) => {
+                  const isSelected = selectedIds.includes(opt.id);
+                  return (
+                    <li
+                      key={opt.id}
+                      onClick={() => toggleSelect(opt.id)}
+                      className={`flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${
+                        isSelected ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
+                      }`}
+                    >
+                      <span className="mr-2">{opt.type === 4 ? '📁' : '🔊'}</span>
+                      <span className="flex-1">{opt.name}</span>
+                      {isSelected && (
+                        <Check className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                      )}
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          )}
+        </div>
+
+        {/* 카테고리 선택 안내 문구 */}
+        {hasCategorySelected && (
+          <p className="text-xs text-amber-600 mt-2">
+            카테고리 선택 시 하위 음성 채널 전체가 제외됩니다.
+          </p>
+        )}
+
+        {/* 저장 피드백 + 저장 버튼 */}
+        <div className="flex items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-100">
+          <div className="flex-1">
+            {saveSuccess && (
+              <p className="text-sm text-green-600 font-medium">저장되었습니다.</p>
+            )}
+            {saveError && (
+              <p className="text-sm text-red-600 font-medium">{saveError}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+          >
+            {isSaving ? '저장 중...' : '저장'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}

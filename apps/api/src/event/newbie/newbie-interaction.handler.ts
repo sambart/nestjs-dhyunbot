@@ -2,16 +2,9 @@ import { On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { ButtonInteraction, Interaction } from 'discord.js';
 
+import { NEWBIE_CUSTOM_ID } from '../../newbie/infrastructure/newbie-custom-id.constants';
 import { MissionService } from '../../newbie/mission/mission.service';
 import { MocoService } from '../../newbie/moco/moco.service';
-
-/** 버튼 customId 접두사 */
-const CUSTOM_ID_PREFIX = {
-  MISSION_REFRESH: 'newbie_mission:refresh:',
-  MOCO_PREV: 'newbie_moco:prev:',
-  MOCO_NEXT: 'newbie_moco:next:',
-  MOCO_REFRESH: 'newbie_moco:refresh:',
-} as const;
 
 @Injectable()
 export class NewbieInteractionHandler {
@@ -32,11 +25,11 @@ export class NewbieInteractionHandler {
     if (!interaction.isButton()) return;
 
     const customId = interaction.customId;
-    const isMission = customId.startsWith(CUSTOM_ID_PREFIX.MISSION_REFRESH);
+    const isMission = customId.startsWith(NEWBIE_CUSTOM_ID.MISSION_REFRESH);
     const isMoco =
-      customId.startsWith(CUSTOM_ID_PREFIX.MOCO_PREV) ||
-      customId.startsWith(CUSTOM_ID_PREFIX.MOCO_NEXT) ||
-      customId.startsWith(CUSTOM_ID_PREFIX.MOCO_REFRESH);
+      customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_PREV) ||
+      customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_NEXT) ||
+      customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_REFRESH);
 
     if (!isMission && !isMoco) return;
 
@@ -75,9 +68,9 @@ export class NewbieInteractionHandler {
   private async handleMissionButton(interaction: ButtonInteraction): Promise<void> {
     const customId = interaction.customId;
 
-    if (customId.startsWith(CUSTOM_ID_PREFIX.MISSION_REFRESH)) {
+    if (customId.startsWith(NEWBIE_CUSTOM_ID.MISSION_REFRESH)) {
       // newbie_mission:refresh:{guildId}
-      const guildId = customId.slice(CUSTOM_ID_PREFIX.MISSION_REFRESH.length);
+      const guildId = customId.slice(NEWBIE_CUSTOM_ID.MISSION_REFRESH.length);
 
       if (!guildId) {
         await interaction.reply({ ephemeral: true, content: '잘못된 요청입니다.' });
@@ -93,17 +86,17 @@ export class NewbieInteractionHandler {
   private async handleMocoButton(interaction: ButtonInteraction): Promise<void> {
     const customId = interaction.customId;
 
-    if (customId.startsWith(CUSTOM_ID_PREFIX.MOCO_REFRESH)) {
+    if (customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_REFRESH)) {
       // newbie_moco:refresh:{guildId}
-      const guildId = customId.slice(CUSTOM_ID_PREFIX.MOCO_REFRESH.length);
+      const guildId = customId.slice(NEWBIE_CUSTOM_ID.MOCO_REFRESH.length);
       const payload = await this.mocoService.buildRankPayload(guildId, 1);
       await interaction.update(payload);
       return;
     }
 
-    if (customId.startsWith(CUSTOM_ID_PREFIX.MOCO_PREV)) {
+    if (customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_PREV)) {
       // newbie_moco:prev:{guildId}:{currentPage}
-      const rest = customId.slice(CUSTOM_ID_PREFIX.MOCO_PREV.length);
+      const rest = customId.slice(NEWBIE_CUSTOM_ID.MOCO_PREV.length);
       const lastColon = rest.lastIndexOf(':');
       const guildId = rest.slice(0, lastColon);
       const currentPage = parseInt(rest.slice(lastColon + 1), 10);
@@ -112,9 +105,9 @@ export class NewbieInteractionHandler {
       return;
     }
 
-    if (customId.startsWith(CUSTOM_ID_PREFIX.MOCO_NEXT)) {
+    if (customId.startsWith(NEWBIE_CUSTOM_ID.MOCO_NEXT)) {
       // newbie_moco:next:{guildId}:{currentPage}
-      const rest = customId.slice(CUSTOM_ID_PREFIX.MOCO_NEXT.length);
+      const rest = customId.slice(NEWBIE_CUSTOM_ID.MOCO_NEXT.length);
       const lastColon = rest.lastIndexOf(':');
       const guildId = rest.slice(0, lastColon);
       const currentPage = parseInt(rest.slice(lastColon + 1), 10);

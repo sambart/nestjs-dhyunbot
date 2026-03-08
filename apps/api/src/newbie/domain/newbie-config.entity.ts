@@ -45,6 +45,12 @@ export class NewbieConfig {
   @Column({ nullable: true })
   missionTargetPlaytimeHours: number | null;
 
+  @Column({ type: 'int', nullable: true })
+  playCountMinDurationMin: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  playCountIntervalMin: number | null;
+
   @Column({ nullable: true })
   missionNotifyChannelId: string | null;
 
@@ -66,6 +72,9 @@ export class NewbieConfig {
   // 모코코 사냥 설정
   @Column({ default: false })
   mocoEnabled: boolean;
+
+  @Column({ default: false })
+  mocoAllowNewbieHunter: boolean;
 
   @Column({ nullable: true })
   mocoRankChannelId: string | null;

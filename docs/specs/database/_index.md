@@ -71,7 +71,10 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 │ welcomeEnabled, welcomeChannelId, welcomeEmbedTitle                  │
 │ welcomeEmbedDescription, welcomeEmbedColor, welcomeEmbedThumbnailUrl │
 │ missionEnabled, missionDurationDays, missionTargetPlaytimeHours      │
+│ playCountMinDurationMin, playCountIntervalMin                        │
 │ missionNotifyChannelId, missionNotifyMessageId                       │
+│ missionEmbedTitle, missionEmbedDescription                           │
+│ missionEmbedColor, missionEmbedThumbnailUrl                          │
 │ mocoEnabled, mocoRankChannelId, mocoRankMessageId                    │
 │ mocoAutoRefreshMinutes                                               │
 │ roleEnabled, roleDurationDays, newbieRoleId                          │
@@ -111,6 +114,18 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 │ updatedAt                  │         ON DELETE CASCADE
 └────────────────────────────┘         IDX(configId, sortOrder)
   UNIQUE(guildId)
+
+┌──────────────────────────────────────────────┐
+│  VoiceExcludedChannel (voice_excluded_channel) │
+├──────────────────────────────────────────────┤
+│ PK id                                        │
+│ guildId                                      │
+│ discordChannelId                             │
+│ type (enum: CHANNEL | CATEGORY)              │
+│ createdAt, updatedAt                         │
+└──────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  UNIQUE(guildId, discordChannelId)
 
 ┌──────────────────────────────────┐       ┌──────────────────────────────────┐
 │    NewbieMission (newbie_mission) │       │    NewbiePeriod (newbie_period)   │
@@ -330,8 +345,14 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 | `missionEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 미션 기능 활성화 여부 |
 | `missionDurationDays` | `int` | NULLABLE | 미션 기간 (일수) |
 | `missionTargetPlaytimeHours` | `int` | NULLABLE | 미션 목표 플레이타임 (시간) |
+| `playCountMinDurationMin` | `int` | NULLABLE | 플레이횟수 카운팅 최소 참여시간 기준 (분). NULL이면 비활성화. 기본값 30, 최솟값 1 |
+| `playCountIntervalMin` | `int` | NULLABLE | 플레이횟수 카운팅 시간 간격 기준 (분). NULL이면 비활성화. 기본값 30, 최솟값 1 |
 | `missionNotifyChannelId` | `varchar` | NULLABLE | 미션 현황 알림 채널 ID |
 | `missionNotifyMessageId` | `varchar` | NULLABLE | 미션 현황 Embed 메시지 ID (Discord message ID) |
+| `missionEmbedTitle` | `varchar` | NULLABLE | 미션 현황 Embed 제목 |
+| `missionEmbedDescription` | `text` | NULLABLE | 미션 현황 Embed 설명 |
+| `missionEmbedColor` | `varchar` | NULLABLE | 미션 현황 Embed 색상 (HEX, 예: `#5865F2`) |
+| `missionEmbedThumbnailUrl` | `varchar` | NULLABLE | 미션 현황 Embed 썸네일 이미지 URL |
 | `mocoEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 모코코 사냥 기능 활성화 여부 |
 | `mocoRankChannelId` | `varchar` | NULLABLE | 모코코 사냥 순위 표시 채널 ID |
 | `mocoRankMessageId` | `varchar` | NULLABLE | 모코코 사냥 순위 Embed 메시지 ID |
@@ -506,7 +527,7 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 
 ---
 
-### 13. StickyMessageConfig (`sticky_message_config`)
+### 14. StickyMessageConfig (`sticky_message_config`)
 
 길드별 채널 고정메세지 설정을 저장한다. 채널당 여러 개의 고정메세지를 등록할 수 있으며, `messageCreate` 이벤트 수신 시 Redis 캐시를 통해 고속으로 해당 채널의 설정을 조회한다.
 
@@ -541,7 +562,36 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 
 ---
 
-### 14. StatusPrefixButton (`status_prefix_button`)
+### 15. VoiceExcludedChannel (`voice_excluded_channel`)
+
+길드별로 음성 시간 추적에서 제외할 채널 또는 카테고리를 저장한다. `type = CATEGORY`인 경우 Discord API로 해당 채널의 `parentId`를 조회하여 카테고리 하위 전체 채널을 제외 처리한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
+| `discordChannelId` | `varchar` | NOT NULL | 제외할 채널 또는 카테고리 ID |
+| `type` | `enum('CHANNEL','CATEGORY')` | NOT NULL | 제외 단위. `CHANNEL`: 개별 음성 채널 직접 일치, `CATEGORY`: 해당 카테고리 하위 전체 채널 제외 |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/channel/voice/domain/voice-excluded-channel.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `UQ_voice_excluded_channel_guild_channel` | `(guildId, discordChannelId)` UNIQUE | 서버+채널 단위 중복 방지 (F-VOICE-014의 409 응답 조건). `guildId` 선두 접두사로 F-VOICE-013, F-VOICE-016 캐시 미스 시 전체 목록 조회도 커버 |
+
+#### 인덱스 설계 근거
+
+`WHERE guildId = ?` 단순 조회(F-VOICE-013 목록 반환, F-VOICE-016 캐시 미스 시 DB 전체 조회)는 UNIQUE 복합 인덱스 `(guildId, discordChannelId)`의 선두 컬럼을 사용하므로 추가 단독 인덱스 없이 커버된다. `channelName`은 GET 응답에 포함되지 않으며(F-VOICE-013 응답: `id, channelId, type` 3개 필드) F-VOICE-016 필터링 로직에서도 참조하지 않으므로 저장하지 않는다.
+
+---
+
+### 16. StatusPrefixButton (`status_prefix_button`)
 
 길드별 접두사 버튼 목록을 저장한다. Discord 안내 메시지의 ActionRow에 표시되는 버튼 각각에 대응하며, 접두사 적용(PREFIX)과 원래대로 복원(RESET) 두 가지 타입을 가진다.
 
@@ -592,14 +642,15 @@ sticky_message:{category}:{...params}
 
 ### voice 키 정의
 
-| 키 패턴 | TTL | 설명 |
-|---------|-----|------|
-| `voice:session:{guildId}:{userId}` | 12시간 | 현재 음성 세션 정보 |
-| `voice:duration:channel:{guildId}:{userId}:{date}:{channelId}` | — | 채널별 체류 시간 누적 |
-| `voice:duration:mic:{guildId}:{userId}:{date}:{on\|off}` | — | 마이크 ON/OFF 시간 누적 |
-| `voice:duration:alone:{guildId}:{userId}:{date}` | — | 혼자 있던 시간 누적 |
-| `voice:channel:name:{guildId}:{channelId}` | 7일 | 채널명 캐시 |
-| `voice:user:name:{guildId}:{userId}` | 7일 | 유저명 캐시 |
+| 키 패턴 | TTL | 자료구조 | 설명 |
+|---------|-----|----------|------|
+| `voice:session:{guildId}:{userId}` | 12시간 | String (JSON) | 현재 음성 세션 정보 |
+| `voice:duration:channel:{guildId}:{userId}:{date}:{channelId}` | — | String | 채널별 체류 시간 누적 |
+| `voice:duration:mic:{guildId}:{userId}:{date}:{on\|off}` | — | String | 마이크 ON/OFF 시간 누적 |
+| `voice:duration:alone:{guildId}:{userId}:{date}` | — | String | 혼자 있던 시간 누적 |
+| `voice:channel:name:{guildId}:{channelId}` | 7일 | String | 채널명 캐시 |
+| `voice:user:name:{guildId}:{userId}` | 7일 | String | 유저명 캐시 |
+| `voice:excluded:{guildId}` | 1시간 | Set | 길드별 제외 채널 목록 캐시 (제외 대상 channelId/categoryId 집합) |
 
 - **키 생성 함수**: `apps/api/src/channel/voice/infrastructure/voice-cache.keys.ts`
 - **저장소**: `apps/api/src/channel/voice/infrastructure/voice-redis.repository.ts`
@@ -616,6 +667,18 @@ interface VoiceSession {
   date: string;           // 날짜 (YYYYMMDD)
 }
 ```
+
+#### voice:excluded 구조
+
+Redis Set 자료구조로 저장된다. 멤버는 제외 대상 채널 ID이다. `type = CHANNEL`이면 해당 `discordChannelId`를 직접 저장하고, `type = CATEGORY`이면 DB 조회 후 Set을 구성할 때 카테고리 ID를 저장한다. `voiceStateUpdate` 이벤트 처리 시 `type = CATEGORY` 항목은 Discord API로 채널의 `parentId`를 확인하여 일치 여부를 판단한다.
+
+```
+SADD voice:excluded:{guildId} {discordChannelId}
+EXPIRE voice:excluded:{guildId} 3600
+```
+
+- 설정 등록(`POST`) 또는 삭제(`DELETE`) 시 해당 키를 명시적으로 삭제하여 캐시를 무효화한다.
+- 캐시 미스 시 `VoiceExcludedChannel`을 DB에서 전체 조회 후 Redis에 1시간 TTL로 재저장한다.
 
 ### auto_channel 키 정의
 
@@ -748,6 +811,7 @@ SET sticky_message:debounce:{channelId} 1 EX 3
 
 | 대상 | TTL | 사유 |
 |------|-----|------|
+| 제외 채널 목록 캐시 | 1시간 (3,600초) | 설정 변경 빈도 낮음. 등록/삭제 시 명시적 무효화 |
 | 세션 데이터 | 12시간 (43,200초) | 서버 크래시 시 고아 세션 자동 정리 |
 | 이름 캐시 | 7일 (604,800초) | Discord API 호출 최소화 |
 | 시간 누적 데이터 | 없음 | 일별 flush 시 삭제 |
@@ -766,6 +830,46 @@ SET sticky_message:debounce:{channelId} 1 EX 3
 ---
 
 ## 데이터 흐름
+
+### 제외 채널 라이프사이클
+
+```
+[웹 대시보드 초기 로드 — GET /api/guilds/{guildId}/voice/excluded-channels]
+  1. VoiceExcludedChannel → PostgreSQL select WHERE guildId = ? (UQ_voice_excluded_channel_guild_channel 인덱스 선두 접두사 활용)
+  2. { id, channelId: discordChannelId, type }[] 반환
+
+[제외 채널 등록 (단건) — POST /api/guilds/{guildId}/voice/excluded-channels (F-VOICE-014)]
+  1. VoiceExcludedChannel → PostgreSQL select WHERE guildId = ? AND discordChannelId = ?
+     - 존재하면 409 응답 후 종료
+  2. VoiceExcludedChannel → PostgreSQL insert (guildId, discordChannelId, type)
+  3. voice:excluded:{guildId} → Redis delete (캐시 무효화)
+
+[제외 채널 전체 교체 — POST /api/guilds/{guildId}/voice/excluded-channels (F-WEB-006 저장)]
+  ※ 웹 대시보드 저장은 선택된 채널 목록 전체를 교체한다 (F-VOICE-014 단건 등록과 동일 엔드포인트, 다른 동작)
+  1. VoiceExcludedChannel → PostgreSQL delete WHERE guildId = ? (기존 전체 삭제)
+  2. VoiceExcludedChannel → PostgreSQL insert (선택된 채널 수만큼 bulk insert)
+  3. voice:excluded:{guildId} → Redis delete (캐시 무효화)
+
+[제외 채널 삭제 — DELETE /api/guilds/{guildId}/voice/excluded-channels/{id}]
+  1. VoiceExcludedChannel → PostgreSQL select WHERE id = ? AND guildId = ?
+     - 존재하지 않으면 404 응답 후 종료
+  2. VoiceExcludedChannel → PostgreSQL delete WHERE id = ?
+  3. voice:excluded:{guildId} → Redis delete (캐시 무효화)
+
+[음성 이벤트 처리 시 제외 채널 필터링 — voiceStateUpdate 이벤트 (F-VOICE-016)]
+  1. voice:excluded:{guildId} → Redis SMEMBERS (캐시 조회)
+     - 캐시 미스: VoiceExcludedChannel → PostgreSQL select WHERE guildId = ?
+                 → Redis SADD voice:excluded:{guildId} {discordChannelId} ... EXPIRE 3600 (캐시 저장, TTL 1h)
+  2. 대상 채널이 Set에 포함되는지 확인:
+     - type = CHANNEL: Set에 해당 channelId가 있으면 제외 대상
+     - type = CATEGORY: Discord API로 채널의 parentId 조회 → Set에 parentId가 있으면 제외 대상
+  3. 제외 대상이면 이벤트 처리 중단 (VoiceChannelHistory 미생성, VoiceDailyEntity 미누적, Redis 세션 미생성)
+  4. 제외 대상이 아니면 기존 플로우(F-VOICE-001 ~ F-VOICE-003) 정상 수행
+  - 이동(move) 이벤트 세부 규칙:
+    - 이전 채널(A)만 제외 채널: B 입장(F-VOICE-001)만 수행
+    - 새 채널(B)만 제외 채널: A 퇴장(F-VOICE-002)만 수행
+    - A, B 모두 제외 채널: 이벤트 전체 무시
+```
 
 ### 음성 세션 라이프사이클
 

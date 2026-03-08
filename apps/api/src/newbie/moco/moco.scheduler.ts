@@ -101,17 +101,29 @@ export class MocoScheduler implements OnApplicationBootstrap, OnApplicationShutd
       );
       if (confirmedNewbies.length === 0) continue;
 
-      // 6. 사냥꾼 식별 (채널 멤버 - 신규사용자)
+      // 6. 사냥꾼 식별
+      // mocoAllowNewbieHunter=true: 모코코도 다른 모코코의 사냥꾼이 될 수 있음 (전체 멤버)
+      // mocoAllowNewbieHunter=false(기본): 모코코를 제외한 기존 멤버만 사냥꾼
       const newbieSet = new Set(confirmedNewbies);
-      const hunters = memberIds.filter((id) => !newbieSet.has(id));
+      const hunters = config.mocoAllowNewbieHunter
+        ? memberIds
+        : memberIds.filter((id) => !newbieSet.has(id));
       if (hunters.length === 0) continue;
 
       // 7. Redis 누적 (HINCRBY + ZINCRBY)
       for (const hunterId of hunters) {
         for (const newbieId of confirmedNewbies) {
+          // 자기 자신에 대한 사냥 시간은 누적하지 않음
+          if (hunterId === newbieId) continue;
           await this.newbieRedis.incrMocoMinutes(guildId, hunterId, newbieId, 1);
         }
-        await this.newbieRedis.incrMocoRank(guildId, hunterId, confirmedNewbies.length);
+        // 자기 자신을 제외한 모코코 수만큼 랭크 누적
+        const targetCount = config.mocoAllowNewbieHunter && newbieSet.has(hunterId)
+          ? confirmedNewbies.length - 1
+          : confirmedNewbies.length;
+        if (targetCount > 0) {
+          await this.newbieRedis.incrMocoRank(guildId, hunterId, targetCount);
+        }
       }
     }
   }

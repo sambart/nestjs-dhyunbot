@@ -110,9 +110,10 @@ export class NewbieController {
     const savedConfig = await this.configRepo.upsert(guildId, dto);
     await this.redisRepo.setConfig(guildId, savedConfig);
 
-    // 미션 Embed: 설정이 변경되었을 때만 기존 메시지 삭제 후 새로 작성
-    if (missionChanged && savedConfig.missionEnabled && savedConfig.missionNotifyChannelId) {
-      if (prevMission.messageId && prevMission.channelId) {
+    // 미션 Embed: 기능이 활성화되고 채널이 설정되어 있으면 항상 Embed를 갱신한다.
+    // 설정이 변경되었으면 기존 메시지 삭제 후 새로 작성, 변경 없으면 기존 메시지 수정.
+    if (savedConfig.missionEnabled && savedConfig.missionNotifyChannelId) {
+      if (missionChanged && prevMission.messageId && prevMission.channelId) {
         await this.missionService.deleteEmbed(prevMission.channelId, prevMission.messageId);
         await this.configRepo.updateMissionNotifyMessageId(guildId, null);
         savedConfig.missionNotifyMessageId = null;
@@ -123,9 +124,9 @@ export class NewbieController {
       await this.configRepo.updateMissionNotifyMessageId(guildId, null);
     }
 
-    // 모코코 Embed: 설정이 변경되었을 때만 기존 메시지 삭제 후 새로 작성
-    if (mocoChanged && savedConfig.mocoEnabled && savedConfig.mocoRankChannelId) {
-      if (prevMoco.messageId && prevMoco.channelId) {
+    // 모코코 Embed: 기능이 활성화되고 채널이 설정되어 있으면 항상 Embed를 갱신한다.
+    if (savedConfig.mocoEnabled && savedConfig.mocoRankChannelId) {
+      if (mocoChanged && prevMoco.messageId && prevMoco.channelId) {
         await this.mocoService.deleteEmbed(prevMoco.channelId, prevMoco.messageId);
         await this.configRepo.updateMocoRankMessageId(guildId, null);
       }
@@ -170,12 +171,13 @@ export class NewbieController {
     const resolvedPage = isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
     const resolvedPageSize = isNaN(parsedPageSize) || parsedPageSize < 1 ? 10 : parsedPageSize;
 
-    const [items, total] = await Promise.all([
-      this.redisRepo.getMocoRankPage(guildId, resolvedPage, resolvedPageSize),
-      this.redisRepo.getMocoRankCount(guildId),
-    ]);
+    const total = await this.redisRepo.getMocoRankCount(guildId);
+    const totalPages = Math.max(1, Math.ceil(total / resolvedPageSize));
+    const clampedPage = Math.min(resolvedPage, totalPages);
 
-    return { items, total, page: resolvedPage, pageSize: resolvedPageSize };
+    const items = await this.redisRepo.getMocoRankPage(guildId, clampedPage, resolvedPageSize);
+
+    return { items, total, page: clampedPage, pageSize: resolvedPageSize };
   }
 
   /**

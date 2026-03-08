@@ -39,9 +39,8 @@ export class StickyMessageController {
   async saveConfig(
     @Param('guildId') guildId: string,
     @Body() dto: StickyMessageSaveDto,
-  ): Promise<{ ok: boolean }> {
-    await this.configService.saveConfig(guildId, dto);
-    return { ok: true };
+  ): Promise<StickyMessageConfig> {
+    return this.configService.saveConfig(guildId, dto);
   }
 
   /**

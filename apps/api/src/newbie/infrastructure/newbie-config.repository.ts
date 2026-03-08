@@ -35,12 +35,15 @@ export class NewbieConfigRepository {
       config.missionEnabled = dto.missionEnabled;
       config.missionDurationDays = dto.missionDurationDays ?? null;
       config.missionTargetPlaytimeHours = dto.missionTargetPlaytimeHours ?? null;
+      config.playCountMinDurationMin = dto.playCountMinDurationMin ?? null;
+      config.playCountIntervalMin = dto.playCountIntervalMin ?? null;
       config.missionNotifyChannelId = dto.missionNotifyChannelId ?? null;
       config.missionEmbedTitle = dto.missionEmbedTitle ?? null;
       config.missionEmbedDescription = dto.missionEmbedDescription ?? null;
       config.missionEmbedColor = dto.missionEmbedColor ?? null;
       config.missionEmbedThumbnailUrl = dto.missionEmbedThumbnailUrl ?? null;
       config.mocoEnabled = dto.mocoEnabled;
+      config.mocoAllowNewbieHunter = dto.mocoAllowNewbieHunter ?? false;
       config.mocoRankChannelId = dto.mocoRankChannelId ?? null;
       config.mocoAutoRefreshMinutes = dto.mocoAutoRefreshMinutes ?? null;
       config.mocoEmbedTitle = dto.mocoEmbedTitle ?? null;
@@ -63,6 +66,8 @@ export class NewbieConfigRepository {
         missionEnabled: dto.missionEnabled,
         missionDurationDays: dto.missionDurationDays ?? null,
         missionTargetPlaytimeHours: dto.missionTargetPlaytimeHours ?? null,
+        playCountMinDurationMin: dto.playCountMinDurationMin ?? null,
+        playCountIntervalMin: dto.playCountIntervalMin ?? null,
         missionNotifyChannelId: dto.missionNotifyChannelId ?? null,
         missionNotifyMessageId: null,
         missionEmbedTitle: dto.missionEmbedTitle ?? null,
@@ -70,6 +75,7 @@ export class NewbieConfigRepository {
         missionEmbedColor: dto.missionEmbedColor ?? null,
         missionEmbedThumbnailUrl: dto.missionEmbedThumbnailUrl ?? null,
         mocoEnabled: dto.mocoEnabled,
+        mocoAllowNewbieHunter: dto.mocoAllowNewbieHunter ?? false,
         mocoRankChannelId: dto.mocoRankChannelId ?? null,
         mocoRankMessageId: null,
         mocoAutoRefreshMinutes: dto.mocoAutoRefreshMinutes ?? null,
