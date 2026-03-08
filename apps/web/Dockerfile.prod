@@ -45,7 +45,7 @@ COPY --from=builder /workspace/libs/shared/package.json ./libs/shared/
 COPY --from=builder /workspace/apps/web/.next ./apps/web/.next
 COPY --from=builder /workspace/apps/web/public ./apps/web/public
 COPY --from=builder /workspace/apps/web/package.json ./apps/web/
-COPY --from=builder /workspace/apps/web/next.config.ts ./apps/web/
+COPY --from=builder /workspace/apps/web/next.config.mjs ./apps/web/
 
 WORKDIR /workspace/apps/web
 
