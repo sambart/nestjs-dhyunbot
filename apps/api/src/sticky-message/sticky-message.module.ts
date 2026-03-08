@@ -9,7 +9,6 @@ import { StickyMessageDeleteCommand } from './command/sticky-message-delete.comm
 import { StickyMessageListCommand } from './command/sticky-message-list.command';
 import { StickyMessageRegisterCommand } from './command/sticky-message-register.command';
 import { StickyMessageConfig } from './domain/sticky-message-config.entity';
-import { StickyMessageGateway } from './gateway/sticky-message.gateway';
 import { StickyMessageConfigRepository } from './infrastructure/sticky-message-config.repository';
 import { StickyMessageRedisRepository } from './infrastructure/sticky-message-redis.repository';
 import { StickyMessageController } from './presentation/sticky-message.controller';
@@ -26,13 +25,13 @@ import { StickyMessageController } from './presentation/sticky-message.controlle
     StickyMessageRedisRepository,
     StickyMessageConfigService,
     StickyMessageRefreshService,
-    StickyMessageGateway,
     StickyMessageRegisterCommand,
     StickyMessageListCommand,
     StickyMessageDeleteCommand,
   ],
   exports: [
     StickyMessageConfigService,
+    StickyMessageRefreshService,
     StickyMessageConfigRepository,
     StickyMessageRedisRepository,
   ],

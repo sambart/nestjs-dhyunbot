@@ -9,6 +9,7 @@ import { StatusPrefixModule } from '../status-prefix/status-prefix.module';
 import { StickyMessageModule } from '../sticky-message/sticky-message.module';
 import { ChannelStateHandler } from './channel/channel-state.handler';
 import { NewbieInteractionHandler } from './newbie/newbie-interaction.handler';
+import { StickyMessageHandler } from './sticky-message/sticky-message.handler';
 import { VoiceAloneHandler } from './voice/voice-alone.handler';
 import { VoiceJoinHandler } from './voice/voice-join.handler';
 import { VoiceLeaveHandler } from './voice/voice-leave.handler';
@@ -35,6 +36,7 @@ import { VoiceStateDispatcher } from './voice/voice-state.dispatcher';
     MicToggleHandler,
     VoiceAloneHandler,
     NewbieInteractionHandler,
+    StickyMessageHandler,
   ],
 })
 export class DiscordEventsModule {}
