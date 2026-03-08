@@ -17,7 +17,8 @@ jobs:
           username: ${{ secrets.LIGHTSAIL_USER }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           script: |
-            cd ~/nest-dhyunbot
+            set -e
+            cd ~/nestjs-dhyunbot
             git pull origin main
             docker compose -f docker-compose.prod.yml up -d --build
             docker compose -f docker-compose.prod.yml exec api npx typeorm migration:run -d dist/apps/api/src/data-source.js
