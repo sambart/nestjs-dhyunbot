@@ -11,7 +11,8 @@ async function proxy(request: NextRequest, { params }: { params: Promise<{ path:
   const token = cookieStore.get('token')?.value;
 
   const apiPath = `/api/guilds/${path.join('/')}`;
-  const url = `${API_BASE}${apiPath}`;
+  const queryString = request.nextUrl.search;
+  const url = `${API_BASE}${apiPath}${queryString}`;
 
   const headers: HeadersInit = {};
   if (token) {

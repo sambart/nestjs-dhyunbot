@@ -1,6 +1,6 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import { DefaultExtractors } from '@discord-player/extractor';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import {
   CacheType,
   ChatInputCommandInteraction,
@@ -11,13 +11,21 @@ import { Player, QueryType, useQueue } from 'discord-player';
 import * as ytSearch from 'yt-search';
 
 @Injectable()
-export class MusicService {
+export class MusicService implements OnApplicationShutdown {
   private readonly logger = new Logger(MusicService.name);
   private player: Player;
   private initialized = false;
 
   constructor(@InjectDiscordClient() private readonly client: Client) {
     this.player = new Player(client);
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    if (this.initialized) {
+      this.player.events.removeAllListeners();
+      await this.player.destroy();
+      this.initialized = false;
+    }
   }
 
   async init() {

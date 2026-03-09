@@ -1,7 +1,7 @@
 "use client";
 
 import { LogIn } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import DashboardSidebar from "../../../components/DashboardSidebar";
@@ -14,6 +14,7 @@ export default function DashboardGuildLayout({
 }) {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const guildId = params.guildId as string;
 
   const [guilds, setGuilds] = useState<Guild[]>([]);
@@ -58,7 +59,7 @@ export default function DashboardGuildLayout({
             대시보드를 보려면 Discord 계정으로 로그인하세요.
           </p>
           <a
-            href="/auth/discord"
+            href={`/auth/discord?returnTo=${encodeURIComponent(pathname)}`}
             className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium inline-block"
           >
             로그인

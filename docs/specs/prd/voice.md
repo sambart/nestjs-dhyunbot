@@ -131,6 +131,43 @@ Discord Voice Event
 - 임시 채널 저장소: 채널 정보 임시 보관
 - 자동방 대기방 키: 대기방 채널 ID → guildId/userId 매핑
 
+### F-VOICE-017: 음성 일별 통계 조회 API
+
+- **트리거**: FE 대시보드(`/dashboard/guild/{guildId}/voice`)의 초기 로드 및 기간 변경
+- **엔드포인트**: `GET /api/guilds/:guildId/voice/daily`
+- **인증**: JWT Bearer 토큰 필수 (JwtAuthGuard 적용)
+- **쿼리 파라미터**:
+  | 파라미터 | 타입 | 필수 | 설명 |
+  |----------|------|------|------|
+  | `from` | string (YYYYMMDD) | 필수 | 조회 시작 날짜 (예: `20260301`) |
+  | `to` | string (YYYYMMDD) | 필수 | 조회 종료 날짜 (예: `20260309`) |
+- **동작**:
+  1. `guildId` + `date BETWEEN from AND to` 조건으로 `VoiceDailyEntity` 레코드 전체 조회
+  2. 결과를 `VoiceDailyRecord[]` 형태로 직렬화하여 반환
+- **응답 형식**: `VoiceDailyRecord[]`
+  ```json
+  [
+    {
+      "guildId": "123456789012345678",
+      "userId": "111111111111111111",
+      "userName": "DHyun",
+      "date": "20260301",
+      "channelId": "222222222222222222",
+      "channelName": "일반",
+      "channelDurationSec": 3600,
+      "micOnSec": 1800,
+      "micOffSec": 1800,
+      "aloneSec": 600
+    }
+  ]
+  ```
+- **호출 경로**:
+  - FE(`apps/web/app/dashboard/guild/[guildId]/voice/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/voice/daily?from=&to=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/voice/daily?from=&to=`)
+- **관련 FE 파일**:
+  - `apps/web/app/dashboard/guild/[guildId]/voice/page.tsx` — 대시보드 페이지
+  - `apps/web/app/lib/voice-dashboard-api.ts` — API 클라이언트 함수
+  - 차트 컴포넌트 5종 (동일 디렉토리)
+
 ---
 
 ## 음성 시간 제외 채널 (Voice Time Excluded Channels)
