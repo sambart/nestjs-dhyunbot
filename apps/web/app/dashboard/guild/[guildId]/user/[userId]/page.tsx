@@ -10,8 +10,10 @@ import {
   fetchUserVoiceHistory,
 } from "@/app/lib/user-detail-api";
 import {
+  computeCategoryStats,
   computeChannelStats,
   computeDailyTrends,
+  type VoiceCategoryStat,
   type VoiceChannelStat,
   type VoiceDailyRecord,
   type VoiceDailyTrend,
@@ -163,6 +165,7 @@ export default function UserDetailPage() {
   const summary = computeUserSummary(dailyRecords);
   const trends: VoiceDailyTrend[] = computeDailyTrends(dailyRecords);
   const channelStats: VoiceChannelStat[] = computeChannelStats(dailyRecords);
+  const categoryStats: VoiceCategoryStat[] = computeCategoryStats(dailyRecords);
 
   const userName =
     profile?.userName ??
@@ -224,7 +227,10 @@ export default function UserDetailPage() {
           </div>
 
           {/* 채널별 도넛 차트 */}
-          <UserChannelPieChart data={channelStats} />
+          <UserChannelPieChart
+            channelStats={channelStats}
+            categoryStats={categoryStats}
+          />
 
           {/* 입퇴장 이력 테이블 */}
           <UserHistoryTable

@@ -1,9 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { Cell, Pie, PieChart } from "recharts";
 
-import type { VoiceChannelStat } from "@/app/lib/voice-dashboard-api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type {
+  VoiceCategoryStat,
+  VoiceChannelStat,
+} from "@/app/lib/voice-dashboard-api";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   type ChartConfig,
   ChartContainer,
@@ -12,6 +22,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { cn } from "@/lib/utils";
 
 const CHART_COLORS = [
   "var(--chart-1)",
@@ -22,78 +33,134 @@ const CHART_COLORS = [
   "var(--chart-6)",
 ];
 
-const MAX_CHANNELS = 6;
+const MAX_ITEMS = 6;
+const UNCLASSIFIED_ID = "__unclassified__";
+
+type TabValue = "channel" | "category";
+
+const TAB_BASE =
+  "rounded-md px-2 py-1 text-sm font-medium transition-colors";
+const TAB_ACTIVE = "bg-background text-foreground shadow-sm";
+const TAB_INACTIVE = "text-muted-foreground hover:text-foreground";
 
 interface Props {
-  data: VoiceChannelStat[];
+  channelStats: VoiceChannelStat[];
+  categoryStats: VoiceCategoryStat[];
 }
 
-export default function UserChannelPieChart({ data }: Props) {
-  // 상위 MAX_CHANNELS개 + 나머지는 "기타"로 묶기
-  let chartData: Array<{ name: string; label: string; value: number }>;
-
-  if (data.length <= MAX_CHANNELS) {
-    chartData = data.map((ch) => ({
-      name: ch.channelId,
-      label: ch.channelName,
-      value: Math.round(ch.totalDurationSec / 60),
+function toChartData(
+  items: Array<{ id: string; label: string; totalDurationSec: number }>,
+): Array<{ name: string; label: string; value: number }> {
+  if (items.length <= MAX_ITEMS) {
+    return items.map((item) => ({
+      name: item.id,
+      label: item.label,
+      value: Math.round(item.totalDurationSec / 60),
     }));
-  } else {
-    const top = data.slice(0, MAX_CHANNELS);
-    const rest = data.slice(MAX_CHANNELS);
-    const restTotal = rest.reduce((sum, ch) => sum + ch.totalDurationSec, 0);
-    chartData = [
-      ...top.map((ch) => ({
-        name: ch.channelId,
-        label: ch.channelName,
-        value: Math.round(ch.totalDurationSec / 60),
-      })),
-      {
-        name: "etc",
-        label: "기타",
-        value: Math.round(restTotal / 60),
-      },
-    ];
   }
+  const top = items.slice(0, MAX_ITEMS);
+  const restTotal = items
+    .slice(MAX_ITEMS)
+    .reduce((sum, item) => sum + item.totalDurationSec, 0);
+  return [
+    ...top.map((item) => ({
+      name: item.id,
+      label: item.label,
+      value: Math.round(item.totalDurationSec / 60),
+    })),
+    { name: "etc", label: "기타", value: Math.round(restTotal / 60) },
+  ];
+}
 
+function PieChartPanel({
+  chartData,
+}: {
+  chartData: Array<{ name: string; label: string; value: number }>;
+}) {
   const chartConfig = chartData.reduce<ChartConfig>((acc, item, index) => {
-    acc[item.name] = {
+    acc[item.label] = {
       label: item.label,
       color: CHART_COLORS[index % CHART_COLORS.length],
     };
     return acc;
   }, {});
-
-  const COLORS = chartData.map(
-    (_, index) => CHART_COLORS[index % CHART_COLORS.length],
+  const colors = chartData.map(
+    (_, i) => CHART_COLORS[i % CHART_COLORS.length],
   );
+
+  return (
+    <ChartContainer config={chartConfig} className="h-[300px] w-full">
+      <PieChart>
+        <ChartTooltip content={<ChartTooltipContent nameKey="label" />} />
+        <ChartLegend content={<ChartLegendContent nameKey="label" />} />
+        <Pie
+          data={chartData}
+          dataKey="value"
+          nameKey="label"
+          cx="50%"
+          cy="50%"
+          innerRadius={60}
+          outerRadius={100}
+          paddingAngle={2}
+        >
+          {chartData.map((_, index) => (
+            <Cell key={index} fill={colors[index]} />
+          ))}
+        </Pie>
+      </PieChart>
+    </ChartContainer>
+  );
+}
+
+export default function UserChannelPieChart({
+  channelStats,
+  categoryStats,
+}: Props) {
+  const [tab, setTab] = useState<TabValue>("channel");
+
+  const channelChartData = toChartData(
+    channelStats.map((ch) => ({
+      id: ch.channelId,
+      label: ch.channelName,
+      totalDurationSec: ch.totalDurationSec,
+    })),
+  );
+
+  const categoryChartData = toChartData(
+    categoryStats.map((cat) => ({
+      id: cat.categoryId ?? UNCLASSIFIED_ID,
+      label: cat.categoryName,
+      totalDurationSec: cat.totalDurationSec,
+    })),
+  );
+
+  const chartData = tab === "channel" ? channelChartData : categoryChartData;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>채널별 활동 비율</CardTitle>
+        <CardAction>
+          <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-[3px]">
+            <button
+              type="button"
+              className={cn(TAB_BASE, tab === "channel" ? TAB_ACTIVE : TAB_INACTIVE)}
+              onClick={() => setTab("channel")}
+            >
+              채널별
+            </button>
+            <button
+              type="button"
+              className={cn(TAB_BASE, tab === "category" ? TAB_ACTIVE : TAB_INACTIVE)}
+              onClick={() => setTab("category")}
+            >
+              카테고리별
+            </button>
+          </div>
+        </CardAction>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <PieChart>
-            <ChartTooltip content={<ChartTooltipContent nameKey="label" />} />
-            <ChartLegend content={<ChartLegendContent nameKey="name" />} />
-            <Pie
-              data={chartData}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={100}
-              paddingAngle={2}
-            >
-              {chartData.map((_, index) => (
-                <Cell key={index} fill={COLORS[index]} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ChartContainer>
+        <PieChartPanel chartData={chartData} />
       </CardContent>
     </Card>
   );

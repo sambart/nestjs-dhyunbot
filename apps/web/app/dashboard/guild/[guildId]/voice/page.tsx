@@ -11,6 +11,7 @@ import {
   computeUserStats,
   fetchVoiceDaily,
   type VoiceChannelStat,
+  type VoiceDailyRecord,
   type VoiceDailyTrend,
   type VoiceSummary,
   type VoiceUserStat,
@@ -57,6 +58,7 @@ export default function VoiceDashboardPage() {
   const [summary, setSummary] = useState<VoiceSummary | null>(null);
   const [trends, setTrends] = useState<VoiceDailyTrend[]>([]);
   const [channelStats, setChannelStats] = useState<VoiceChannelStat[]>([]);
+  const [rawRecords, setRawRecords] = useState<VoiceDailyRecord[]>([]);
   const [userStats, setUserStats] = useState<VoiceUserStat[]>([]);
   const [profiles, setProfiles] = useState<Record<string, { userName: string; avatarUrl: string | null }>>({});
 
@@ -68,6 +70,7 @@ export default function VoiceDashboardPage() {
       const { from, to } = getDateRange(period);
       const data = await fetchVoiceDaily(guildId, from, to);
       if (cancelled) return;
+      setRawRecords(data);
       setSummary(computeSummary(data));
       setTrends(computeDailyTrends(data));
       setChannelStats(computeChannelStats(data));
@@ -128,7 +131,7 @@ export default function VoiceDashboardPage() {
 
           {/* 채널별 통계 + 유저 랭킹 */}
           <div className="grid gap-6 lg:grid-cols-2">
-            <ChannelBarChart data={channelStats} />
+            <ChannelBarChart data={channelStats} records={rawRecords} />
             <UserRankingTable data={userStats} guildId={guildId} profiles={profiles} />
           </div>
         </>

@@ -35,7 +35,8 @@ export default function UserHistoryTable({
           <>
             <div className="space-y-2">
               {/* 헤더 */}
-              <div className="grid grid-cols-4 gap-2 border-b pb-2 text-sm font-medium text-muted-foreground">
+              <div className="grid grid-cols-5 gap-2 border-b pb-2 text-sm font-medium text-muted-foreground">
+                <span>카테고리</span>
                 <span>채널</span>
                 <span>입장 시각</span>
                 <span>퇴장 시각</span>
@@ -47,8 +48,11 @@ export default function UserHistoryTable({
                 data.items.map((item) => (
                   <div
                     key={item.id}
-                    className="grid grid-cols-4 gap-2 items-center text-sm py-1"
+                    className="grid grid-cols-5 gap-2 items-center text-sm py-1"
                   >
+                    <span className="truncate text-muted-foreground">
+                      {item.categoryName ?? "미분류"}
+                    </span>
                     <span className="truncate font-medium">
                       {item.channelName}
                     </span>

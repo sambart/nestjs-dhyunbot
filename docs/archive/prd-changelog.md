@@ -7,6 +7,7 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v2.8 | 2026-03-09 | web: F-WEB-003-B 채널별 바차트에 카테고리별 탭 추가, F-WEB-007 채널별 도넛차트에 카테고리별 탭 추가 및 입퇴장 이력 테이블에 카테고리 컬럼 추가 | — |
 | v2.7 | 2026-03-09 | voice: 채널 카테고리(parentId) 정보 추가 — Channel/VoiceDailyEntity 데이터 모델 확장, F-VOICE-017/018/020 응답 스키마 갱신, F-VOICE-021 신규 추가 | — |
 | v2.6 | 2026-03-09 | web: 유저 상세 페이지(F-WEB-007) 추가 / voice: 유저별 음성 일별 통계 API(F-VOICE-018), 멤버 검색 API(F-VOICE-019), 유저 입퇴장 이력 API(F-VOICE-020) 추가 | — |
 | v2.5 | 2026-03-09 | voice: 음성 일별 통계 조회 API(F-VOICE-017) 추가 / web: F-WEB-003-B 대시보드 상태 업데이트 | — |
@@ -24,6 +25,34 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 18] web: 카테고리별 탭 및 입퇴장 이력 카테고리 컬럼 추가 (WEB-CATEGORY-TAB)
+
+**변경일**: 2026-03-09
+**티켓**: WEB-CATEGORY-TAB
+
+**변경 파일**:
+- `docs/specs/prd/web.md` — F-WEB-003-B 채널별 바차트에 카테고리별 탭 추가, F-WEB-007 채널별 도넛차트에 카테고리별 탭 추가 및 입퇴장 이력 테이블 5열 구조로 변경
+
+**변경 내용**:
+1. **F-WEB-003-B (음성 대시보드) — ChannelBarChart 카테고리별 탭 추가**:
+   - 채널별 바차트(ChannelBarChart) 위에 [채널별 | 카테고리별] 탭 UI 추가
+   - "채널별" 탭: 기존과 동일 (채널별 channelDurationSec 바차트)
+   - "카테고리별" 탭: VoiceDailyRecord의 categoryId/categoryName으로 프론트엔드에서 집계하여 카테고리 단위 바차트 표시. categoryName이 null인 레코드는 "미분류" 등 별도 항목으로 묶어 표시
+   - API 변경 없음 (기존 응답의 categoryId, categoryName 필드 활용)
+2. **F-WEB-007 (유저 상세 페이지) — UserChannelPieChart 카테고리별 탭 추가**:
+   - 채널별 활동 비율 도넛차트(UserChannelPieChart) 위에 [채널별 | 카테고리별] 탭 UI 추가
+   - "채널별" 탭: 기존과 동일 (채널별 channelDurationSec 합계 비율 도넛 차트)
+   - "카테고리별" 탭: categoryId/categoryName으로 프론트엔드에서 집계하여 카테고리 단위 도넛 차트 표시. categoryName이 null인 레코드는 "미분류" 등 별도 항목으로 묶어 표시
+   - API 변경 없음
+3. **F-WEB-007 (유저 상세 페이지) — 입퇴장 이력 테이블 카테고리 컬럼 추가**:
+   - 기존 4열(채널명 | 입장 | 퇴장 | 시간) → 5열(카테고리 | 채널명 | 입장 | 퇴장 | 시간)로 변경
+   - categoryName을 첫 번째 컬럼으로 추가. null인 경우 "—" 또는 빈 값 표시
+   - API 변경 없음 (F-VOICE-020 응답에 이미 categoryId, categoryName 포함)
+
+**변경 사유**: F-VOICE-021에서 VoiceDailyRecord 및 VoiceChannelHistory 응답에 categoryId/categoryName이 추가됨에 따라, 웹 대시보드와 유저 상세 페이지에서 해당 정보를 카테고리 단위 집계 및 컬럼 표시로 활용하는 UI 요구사항 반영.
 
 ---
 
