@@ -1,20 +1,20 @@
 "use client";
 
-import { ArrowLeftRight, BarChart3, Mic, Pin, Radio, Settings, Tag, Users } from "lucide-react";
+import { ArrowLeftRight, Mic, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import type { Guild } from "./Header";
 
-interface SettingsSidebarProps {
+interface DashboardSidebarProps {
   guilds: Guild[];
   selectedGuildId: string;
 }
 
-export default function SettingsSidebar({
+export default function DashboardSidebar({
   guilds,
   selectedGuildId,
-}: SettingsSidebarProps) {
+}: DashboardSidebarProps) {
   const pathname = usePathname();
 
   const selectedGuild = guilds.find((g) => g.id === selectedGuildId);
@@ -25,12 +25,11 @@ export default function SettingsSidebar({
       : null;
 
   const menuItems = [
-    { href: `/settings/guild/${selectedGuildId}`, label: "일반 설정", icon: Settings },
-    { href: `/settings/guild/${selectedGuildId}/auto-channel`, label: "자동방 설정", icon: Radio },
-    { href: `/settings/guild/${selectedGuildId}/newbie`, label: "신입 관리", icon: Users },
-    { href: `/settings/guild/${selectedGuildId}/status-prefix`, label: "게임방 상태 설정", icon: Tag },
-    { href: `/settings/guild/${selectedGuildId}/sticky-message`, label: "고정메세지", icon: Pin },
-    { href: `/settings/guild/${selectedGuildId}/voice`, label: "음성 설정", icon: Mic },
+    {
+      href: `/dashboard/guild/${selectedGuildId}/voice`,
+      label: "음성 활동",
+      icon: Mic,
+    },
   ];
 
   return (
@@ -63,7 +62,7 @@ export default function SettingsSidebar({
           </div>
           {guilds.length > 1 && (
             <Link
-              href="/select-guild"
+              href="/select-guild?mode=dashboard"
               className="flex items-center space-x-2 mt-2 px-3 py-1.5 text-xs text-gray-500 hover:text-indigo-600 hover:bg-gray-50 rounded transition-colors"
             >
               <ArrowLeftRight className="w-3.5 h-3.5" />
@@ -72,9 +71,9 @@ export default function SettingsSidebar({
           )}
         </div>
 
-        {/* 설정 메뉴 */}
+        {/* 대시보드 메뉴 */}
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-          설정
+          대시보드
         </h2>
         <nav className="space-y-1">
           {menuItems.map((item) => {
@@ -97,14 +96,14 @@ export default function SettingsSidebar({
           })}
         </nav>
 
-        {/* 대시보드로 이동 */}
+        {/* 설정으로 이동 */}
         <div className="mt-6 pt-4 border-t border-gray-200">
           <Link
-            href={`/dashboard/guild/${selectedGuildId}/voice`}
+            href={`/settings/guild/${selectedGuildId}`}
             className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
           >
-            <BarChart3 className="w-5 h-5" />
-            <span>대시보드로 이동</span>
+            <Settings className="w-5 h-5" />
+            <span>설정으로 이동</span>
           </Link>
         </div>
       </div>

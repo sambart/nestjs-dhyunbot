@@ -1,15 +1,25 @@
 "use client";
 
 import { Loader2, Server, Shield } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 
 import type { Guild, User } from "../components/Header";
 
-export default function SelectGuildPage() {
+function SelectGuildContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const mode = searchParams.get("mode"); // "dashboard" | null (설정)
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const getGuildPath = useCallback(
+    (guildId: string) =>
+      mode === "dashboard"
+        ? `/dashboard/guild/${guildId}/voice`
+        : `/settings/guild/${guildId}`,
+    [mode],
+  );
 
   useEffect(() => {
     fetch("/auth/me")
@@ -21,12 +31,12 @@ export default function SelectGuildPage() {
         }
         setUser(data.user);
         if (data.user.guilds?.length === 1) {
-          router.replace(`/settings/guild/${data.user.guilds[0].id}`);
+          router.replace(getGuildPath(data.user.guilds[0].id));
         }
       })
       .catch(() => router.replace("/"))
       .finally(() => setIsLoading(false));
-  }, [router]);
+  }, [router, getGuildPath]);
 
   const guildIconUrl = (guild: Guild) =>
     guild.icon
@@ -64,14 +74,18 @@ export default function SelectGuildPage() {
       <div className="text-center mb-12">
         <Server className="w-12 h-12 text-indigo-500 mx-auto mb-4" />
         <h1 className="text-3xl font-bold text-gray-900 mb-2">서버 선택</h1>
-        <p className="text-gray-500">관리할 서버를 선택하세요</p>
+        <p className="text-gray-500">
+          {mode === "dashboard"
+            ? "대시보드를 확인할 서버를 선택하세요"
+            : "관리할 서버를 선택하세요"}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {user.guilds.map((guild) => (
           <button
             key={guild.id}
-            onClick={() => router.push(`/settings/guild/${guild.id}`)}
+            onClick={() => router.push(getGuildPath(guild.id))}
             className="flex items-center space-x-4 p-4 bg-white rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all text-left"
           >
             {guildIconUrl(guild) ? (
@@ -96,5 +110,19 @@ export default function SelectGuildPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+export default function SelectGuildPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+        </div>
+      }
+    >
+      <SelectGuildContent />
+    </Suspense>
   );
 }

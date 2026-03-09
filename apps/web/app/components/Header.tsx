@@ -43,7 +43,7 @@ export default function Header() {
     setUser(null);
   }, []);
 
-  const showToast = useCallback((message: string) => {
+  const _showToast = useCallback((message: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(message);
     toastTimer.current = setTimeout(() => setToast(null), 2000);
@@ -80,13 +80,13 @@ export default function Header() {
                 <span>홈</span>
               </Link>
 
-              <button
-                onClick={() => showToast("준비중입니다")}
+              <Link
+                href={user ? "/select-guild?mode=dashboard" : "/auth/discord"}
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>대시보드</span>
-              </button>
+              </Link>
 
               {user && (
                 <Link
@@ -167,16 +167,14 @@ export default function Header() {
                 <span>홈</span>
               </Link>
 
-              <button
-                onClick={() => {
-                  showToast("준비중입니다");
-                  setIsMenuOpen(false);
-                }}
+              <Link
+                href={user ? "/select-guild?mode=dashboard" : "/auth/discord"}
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
+                onClick={() => setIsMenuOpen(false)}
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>대시보드</span>
-              </button>
+              </Link>
 
               {user && (
                 <Link

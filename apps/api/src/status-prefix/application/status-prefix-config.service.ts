@@ -29,6 +29,49 @@ export class StatusPrefixConfigService {
   ) {}
 
   /**
+   * 닉네임에서 등록된 접두사 패턴을 제거하여 순수 닉네임을 추출한다.
+   * prefixTemplate에서 {prefix} 자리에 등록된 모든 접두사를 대입하여 매칭 후 제거.
+   *
+   * 예: template='[{prefix}] {nickname}', prefixes=['관전','대기']
+   *   - '[관전] 동현'  → '동현'
+   *   - '[관전] [관전] 동현' → '[관전] 동현' → '동현' (반복 제거)
+   *   - '동현' → '동현' (변경 없음)
+   */
+  stripPrefixFromNickname(nickname: string, config: StatusPrefixConfig): string {
+    if (!config.buttons?.length) return nickname;
+
+    const prefixes = config.buttons
+      .filter((b) => b.type === StatusPrefixButtonType.PREFIX && b.prefix?.trim())
+      .map((b) => b.prefix!.trim());
+
+    if (prefixes.length === 0) return nickname;
+
+    // 템플릿에서 정규식 패턴 생성
+    // '[{prefix}] {nickname}' → '^\\[(?:관전|대기)\\]\\s' (앞부분만 매칭)
+    const templateBefore = config.prefixTemplate.split('{nickname}')[0]; // '{prefix}' 포함 앞부분
+    const escapedPrefixes = prefixes.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const prefixAlt = escapedPrefixes.join('|');
+
+    // templateBefore의 리터럴 부분을 정규식 이스케이프 후, {prefix}를 접두사 대체 그룹으로 치환
+    const escapedTemplate = templateBefore
+      .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // 전체 이스케이프
+      .replace('\\{prefix\\}', `(?:${prefixAlt})`); // {prefix} 부분만 대체 그룹으로
+
+    const pattern = new RegExp(`^${escapedTemplate}`);
+
+    // 반복 제거 (중첩된 접두사 대응)
+    let result = nickname;
+    let prev: string;
+    do {
+      prev = result;
+      result = result.replace(pattern, '').trim();
+    } while (result !== prev);
+
+    // 스트립 결과가 빈 문자열이면 원본 유지 (닉네임 자체가 접두사 패턴인 극단 케이스)
+    return result || nickname;
+  }
+
+  /**
    * 설정 조회 (F-STATUS-PREFIX-001).
    * Redis 캐시 우선, 미스 시 DB 조회 후 캐시 저장.
    */

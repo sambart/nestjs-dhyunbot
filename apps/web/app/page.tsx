@@ -1,4 +1,5 @@
 import { Mic, Music, Settings, TrendingUp, UserPlus, Zap } from "lucide-react";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -16,12 +17,12 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <span
-              className="px-8 py-4 bg-gray-400 text-white rounded-lg cursor-not-allowed font-semibold text-lg select-none"
-              aria-disabled="true"
+            <Link
+              href="/select-guild?mode=dashboard"
+              className="px-8 py-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold text-lg"
             >
-              대시보드 (준비 중)
-            </span>
+              대시보드
+            </Link>
 
             <a
               href="#features"
