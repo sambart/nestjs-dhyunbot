@@ -2,8 +2,8 @@
 
 import { Home, LayoutDashboard, Menu, Settings, X } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface Guild {
   id: string;
