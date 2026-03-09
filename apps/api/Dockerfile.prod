@@ -25,6 +25,9 @@ RUN npm run build
 # Production stage
 FROM node:20-alpine
 
+# Fonts for canvas (Korean + Emoji support)
+RUN apk add --no-cache fontconfig font-noto-cjk font-noto-emoji
+
 WORKDIR /workspace
 
 # Copy root package.json
