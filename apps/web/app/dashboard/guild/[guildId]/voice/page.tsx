@@ -1,26 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+
 import {
-  fetchVoiceDaily,
-  computeSummary,
-  computeDailyTrends,
   computeChannelStats,
+  computeDailyTrends,
+  computeSummary,
   computeUserStats,
-  type VoiceDailyRecord,
-  type VoiceSummary,
-  type VoiceDailyTrend,
+  fetchVoiceDaily,
   type VoiceChannelStat,
+  type VoiceDailyTrend,
+  type VoiceSummary,
   type VoiceUserStat,
 } from "@/app/lib/voice-dashboard-api";
-
-import SummaryCards from "./components/SummaryCards";
-import DailyTrendChart from "./components/DailyTrendChart";
-import ChannelBarChart from "./components/ChannelBarChart";
-import UserRankingTable from "./components/UserRankingTable";
-import MicDistributionChart from "./components/MicDistributionChart";
-
 import {
   Select,
   SelectContent,
@@ -28,6 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import ChannelBarChart from "./components/ChannelBarChart";
+import DailyTrendChart from "./components/DailyTrendChart";
+import MicDistributionChart from "./components/MicDistributionChart";
+import SummaryCards from "./components/SummaryCards";
+import UserRankingTable from "./components/UserRankingTable";
 
 type Period = "7d" | "14d" | "30d";
 
@@ -54,28 +53,29 @@ export default function VoiceDashboardPage() {
 
   const [period, setPeriod] = useState<Period>("7d");
   const [loading, setLoading] = useState(true);
-  const [records, setRecords] = useState<VoiceDailyRecord[]>([]);
-
   const [summary, setSummary] = useState<VoiceSummary | null>(null);
   const [trends, setTrends] = useState<VoiceDailyTrend[]>([]);
   const [channelStats, setChannelStats] = useState<VoiceChannelStat[]>([]);
   const [userStats, setUserStats] = useState<VoiceUserStat[]>([]);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const { from, to } = getDateRange(period);
-    const data = await fetchVoiceDaily(guildId, from, to);
-    setRecords(data);
-    setSummary(computeSummary(data));
-    setTrends(computeDailyTrends(data));
-    setChannelStats(computeChannelStats(data));
-    setUserStats(computeUserStats(data));
-    setLoading(false);
-  }, [guildId, period]);
-
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadData() {
+      setLoading(true);
+      const { from, to } = getDateRange(period);
+      const data = await fetchVoiceDaily(guildId, from, to);
+      if (cancelled) return;
+      setSummary(computeSummary(data));
+      setTrends(computeDailyTrends(data));
+      setChannelStats(computeChannelStats(data));
+      setUserStats(computeUserStats(data));
+      setLoading(false);
+    }
+
     loadData();
-  }, [loadData]);
+    return () => { cancelled = true; };
+  }, [guildId, period]);
 
   return (
     <div className="space-y-6 p-6">

@@ -1,14 +1,15 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+
+import type { VoiceChannelStat } from "@/app/lib/voice-dashboard-api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  type ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  type ChartConfig,
 } from "@/components/ui/chart";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { VoiceChannelStat } from "@/app/lib/voice-dashboard-api";
 
 const chartConfig = {
   durationMin: {

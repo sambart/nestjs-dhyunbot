@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, BarChart3, Mic, Settings } from "lucide-react";
+import { ArrowLeftRight, Mic, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 

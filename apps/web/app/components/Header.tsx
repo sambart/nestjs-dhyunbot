@@ -43,7 +43,7 @@ export default function Header() {
     setUser(null);
   }, []);
 
-  const showToast = useCallback((message: string) => {
+  const _showToast = useCallback((message: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(message);
     toastTimer.current = setTimeout(() => setToast(null), 2000);

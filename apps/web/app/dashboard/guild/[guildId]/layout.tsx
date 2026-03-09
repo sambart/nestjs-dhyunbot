@@ -4,8 +4,8 @@ import { LogIn } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import type { Guild } from "../../../components/Header";
 import DashboardSidebar from "../../../components/DashboardSidebar";
+import type { Guild } from "../../../components/Header";
 
 export default function DashboardGuildLayout({
   children,

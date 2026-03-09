@@ -1,9 +1,10 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, Mic, MicOff, User, Hash, UserX } from "lucide-react";
+import { Clock, Hash, Mic, MicOff, User, UserX } from "lucide-react";
+
 import type { VoiceSummary } from "@/app/lib/voice-dashboard-api";
 import { formatDuration } from "@/app/lib/voice-dashboard-api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
   summary: VoiceSummary;
