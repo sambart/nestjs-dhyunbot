@@ -4,6 +4,7 @@ import { ButtonInteraction, Client, GuildMember } from 'discord.js';
 
 import { StatusPrefixConfigRepository } from '../infrastructure/status-prefix-config.repository';
 import { StatusPrefixRedisRepository } from '../infrastructure/status-prefix-redis.repository';
+import { StatusPrefixConfigService } from './status-prefix-config.service';
 
 @Injectable()
 export class StatusPrefixResetService {
@@ -12,6 +13,7 @@ export class StatusPrefixResetService {
   constructor(
     private readonly configRepo: StatusPrefixConfigRepository,
     private readonly redis: StatusPrefixRedisRepository,
+    private readonly configService: StatusPrefixConfigService,
     @InjectDiscordClient() private readonly discordClient: Client,
   ) {}
 
@@ -48,9 +50,15 @@ export class StatusPrefixResetService {
 
     const member = interaction.member as GuildMember;
 
+    // 2-1. 기존 데이터에 접두사가 남아있을 수 있으므로 스트립 적용 (안전장치)
+    const config = await this.configService.getConfig(guildId);
+    const cleanNickname = config
+      ? this.configService.stripPrefixFromNickname(originalNickname, config)
+      : originalNickname;
+
     // 3. Discord API 닉네임 복원
     try {
-      await member.setNickname(originalNickname);
+      await member.setNickname(cleanNickname);
     } catch (err) {
       this.logger.warn(
         `[STATUS_PREFIX] reset setNickname failed: guild=${guildId} member=${memberId}`,
@@ -73,7 +81,7 @@ export class StatusPrefixResetService {
     });
 
     this.logger.log(
-      `[STATUS_PREFIX] Reset: guild=${guildId} member=${memberId} restored="${originalNickname}"`,
+      `[STATUS_PREFIX] Reset: guild=${guildId} member=${memberId} restored="${cleanNickname}"`,
     );
   }
 
@@ -116,6 +124,12 @@ export class StatusPrefixResetService {
     // 4. 없으면 처리 중단
     if (!originalNickname) return;
 
+    // 4-1. 설정 조회하여 접두사 스트립 적용 (기존 데이터 안전장치)
+    const config = await this.configService.getConfig(guildId);
+    const cleanNickname = config
+      ? this.configService.stripPrefixFromNickname(originalNickname, config)
+      : originalNickname;
+
     // 5. Discord GuildMember fetch (인터랙션 컨텍스트 없이 Client 직접 사용)
     let member: GuildMember;
     try {
@@ -132,7 +146,7 @@ export class StatusPrefixResetService {
 
     // 6. 닉네임 복원
     try {
-      await member.setNickname(originalNickname);
+      await member.setNickname(cleanNickname);
     } catch (err) {
       this.logger.warn(
         `[STATUS_PREFIX] restoreOnLeave setNickname failed: guild=${guildId} member=${memberId}`,
@@ -145,7 +159,7 @@ export class StatusPrefixResetService {
     await this.redis.deleteOriginalNickname(guildId, memberId);
 
     this.logger.log(
-      `[STATUS_PREFIX] restoreOnLeave: guild=${guildId} member=${memberId} restored="${originalNickname}"`,
+      `[STATUS_PREFIX] restoreOnLeave: guild=${guildId} member=${memberId} restored="${cleanNickname}"`,
     );
   }
 }

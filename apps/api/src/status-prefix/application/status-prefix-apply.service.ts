@@ -77,9 +77,11 @@ export class StatusPrefixApplyService {
     let originalNickname = await this.redis.getOriginalNickname(guildId, memberId);
 
     if (!originalNickname) {
-      // 최초 접두사 적용 → 현재 displayName을 원래 닉네임으로 NX 저장
-      await this.redis.setOriginalNicknameNx(guildId, memberId, currentDisplayName);
-      originalNickname = currentDisplayName;
+      // 최초 접두사 적용 → 현재 displayName에서 기존 접두사 패턴 제거 후 원래 닉네임으로 저장
+      // 다른 봇이나 수동으로 접두사가 이미 붙어있는 경우 "[관전] [관전] 닉네임" 중복 방지
+      const strippedName = this.configService.stripPrefixFromNickname(currentDisplayName, config);
+      await this.redis.setOriginalNicknameNx(guildId, memberId, strippedName);
+      originalNickname = strippedName;
     }
     // originalNickname이 이미 있으면 기존 값 유지 (덮어쓰기 방지)
 
