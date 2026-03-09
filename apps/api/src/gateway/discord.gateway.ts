@@ -1,29 +1,86 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { Client, Guild } from 'discord.js';
+
+interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
 
 /**
  * Discord API와 통신하는 Gateway 클래스
  * Discord 관련 모든 API 호출은 이 클래스를 통해 수행
  */
 @Injectable()
-export class DiscordGateway {
+export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(DiscordGateway.name);
-  private static readonly MAX_CACHE_SIZE = 1000;
 
-  private guildCache = new Map<string, Guild>();
-  private userCache = new Map<string, string>();
-  private channelCache = new Map<string, string>();
+  /** Guild 객체는 크기가 크므로 캐시 한도를 낮게 설정 */
+  private static readonly GUILD_CACHE_MAX = 50;
+  private static readonly STRING_CACHE_MAX = 500;
+  /** 캐시 TTL (ms): 5분 */
+  private static readonly CACHE_TTL_MS = 5 * 60 * 1000;
+  /** 만료 엔트리 정리 주기 (ms): 10분 */
+  private static readonly CACHE_CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
+
+  private guildCache = new Map<string, CacheEntry<Guild>>();
+  private userCache = new Map<string, CacheEntry<string>>();
+  private channelCache = new Map<string, CacheEntry<string>>();
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(
     @InjectDiscordClient()
     private readonly client: Client,
   ) {}
 
-  /** LRU 방식으로 캐시의 가장 오래된 10% 항목을 제거 */
-  private evictIfNeeded(cache: Map<string, any>) {
-    if (cache.size < DiscordGateway.MAX_CACHE_SIZE) return;
+  onApplicationBootstrap(): void {
+    this.cleanupInterval = setInterval(
+      () => this.evictExpired(),
+      DiscordGateway.CACHE_CLEANUP_INTERVAL_MS,
+    );
+  }
 
+  onApplicationShutdown(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    this.clearCache();
+  }
+
+  /** 모든 캐시에서 TTL 만료된 엔트리를 일괄 제거 */
+  private evictExpired(): void {
+    const now = Date.now();
+    let evicted = 0;
+    for (const cache of [this.guildCache, this.userCache, this.channelCache]) {
+      for (const [key, entry] of cache) {
+        if (entry.expiresAt <= now) {
+          cache.delete(key);
+          evicted++;
+        }
+      }
+    }
+    if (evicted > 0) {
+      this.logger.debug(`Cache cleanup: evicted ${evicted} expired entries`);
+    }
+  }
+
+  /** 만료된 항목을 제거하고, 최대 크기 초과 시 LRU 방식으로 10% 제거 */
+  private evictIfNeeded<T>(cache: Map<string, CacheEntry<T>>, maxSize: number) {
+    const now = Date.now();
+
+    // 만료 항목 제거
+    for (const [key, entry] of cache) {
+      if (entry.expiresAt <= now) cache.delete(key);
+    }
+
+    // 크기 초과 시 LRU 제거
+    if (cache.size < maxSize) return;
     const evictCount = Math.ceil(cache.size * 0.1);
     let removed = 0;
     for (const key of cache.keys()) {
@@ -34,14 +91,24 @@ export class DiscordGateway {
     this.logger.debug(`Cache evicted ${removed} entries (LRU)`);
   }
 
-  /** 캐시 조회 시 LRU 순서를 갱신 (삭제 후 재삽입) */
-  private touchCache<T>(cache: Map<string, T>, key: string): T | undefined {
-    const value = cache.get(key);
-    if (value !== undefined) {
+  /** 캐시 조회 시 TTL 확인 및 LRU 순서 갱신 (삭제 후 재삽입) */
+  private touchCache<T>(cache: Map<string, CacheEntry<T>>, key: string): T | undefined {
+    const entry = cache.get(key);
+    if (!entry) return undefined;
+
+    if (entry.expiresAt <= Date.now()) {
       cache.delete(key);
-      cache.set(key, value);
+      return undefined;
     }
-    return value;
+
+    // LRU 순서 갱신
+    cache.delete(key);
+    cache.set(key, entry);
+    return entry.value;
+  }
+
+  private putCache<T>(cache: Map<string, CacheEntry<T>>, key: string, value: T): void {
+    cache.set(key, { value, expiresAt: Date.now() + DiscordGateway.CACHE_TTL_MS });
   }
 
   /**
@@ -53,8 +120,8 @@ export class DiscordGateway {
       if (cached) return cached;
 
       const guild = await this.client.guilds.fetch(guildId);
-      this.evictIfNeeded(this.guildCache);
-      this.guildCache.set(guildId, guild);
+      this.evictIfNeeded(this.guildCache, DiscordGateway.GUILD_CACHE_MAX);
+      this.putCache(this.guildCache, guildId, guild);
       return guild;
     } catch (error) {
       this.logger.warn(`Failed to fetch guild ${guildId}:`, (error as Error).message);
@@ -89,8 +156,8 @@ export class DiscordGateway {
       const member = await guild.members.fetch(userId).catch(() => null);
       const username = member ? member.user.displayName : `User-${userId.slice(0, 6)}`;
 
-      this.evictIfNeeded(this.userCache);
-      this.userCache.set(cacheKey, username);
+      this.evictIfNeeded(this.userCache, DiscordGateway.STRING_CACHE_MAX);
+      this.putCache(this.userCache, cacheKey, username);
       return username;
     } catch (error) {
       this.logger.warn(`Failed to fetch user ${userId}:`, (error as Error).message);
@@ -116,8 +183,8 @@ export class DiscordGateway {
       const channel = await guild.channels.fetch(channelId).catch(() => null);
       const channelName = channel ? channel.name : `Channel-${channelId.slice(0, 6)}`;
 
-      this.evictIfNeeded(this.channelCache);
-      this.channelCache.set(cacheKey, channelName);
+      this.evictIfNeeded(this.channelCache, DiscordGateway.STRING_CACHE_MAX);
+      this.putCache(this.channelCache, cacheKey, channelName);
       return channelName;
     } catch (error) {
       this.logger.warn(`Failed to fetch channel ${channelId}:`, (error as Error).message);
@@ -139,7 +206,11 @@ export class DiscordGateway {
       return result;
     }
 
-    const uncachedUserIds = userIds.filter((userId) => !this.userCache.has(`${guildId}:${userId}`));
+    const now = Date.now();
+    const uncachedUserIds = userIds.filter((userId) => {
+      const entry = this.userCache.get(`${guildId}:${userId}`);
+      return !entry || entry.expiresAt <= now;
+    });
 
     if (uncachedUserIds.length > 0) {
       try {
@@ -160,8 +231,8 @@ export class DiscordGateway {
       } else {
         const member = guild.members.cache.get(userId);
         const username = member ? member.user.displayName : `User-${userId.slice(0, 6)}`;
-        this.evictIfNeeded(this.userCache);
-        this.userCache.set(cacheKey, username);
+        this.evictIfNeeded(this.userCache, DiscordGateway.STRING_CACHE_MAX);
+        this.putCache(this.userCache, cacheKey, username);
         result.set(userId, username);
       }
     }
@@ -201,8 +272,8 @@ export class DiscordGateway {
       } else {
         const channel = guild.channels.cache.get(channelId);
         const channelName = channel ? channel.name : `Channel-${channelId.slice(0, 6)}`;
-        this.evictIfNeeded(this.channelCache);
-        this.channelCache.set(cacheKey, channelName);
+        this.evictIfNeeded(this.channelCache, DiscordGateway.STRING_CACHE_MAX);
+        this.putCache(this.channelCache, cacheKey, channelName);
         result.set(channelId, channelName);
       }
     }

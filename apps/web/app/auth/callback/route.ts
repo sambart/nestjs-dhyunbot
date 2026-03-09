@@ -14,7 +14,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=no_token', origin));
   }
 
-  const response = NextResponse.redirect(new URL('/select-guild', origin));
+  const returnTo = request.cookies.get('returnTo')?.value;
+  const redirectPath = returnTo || '/select-guild';
+  const response = NextResponse.redirect(new URL(redirectPath, origin));
   response.cookies.set('token', token, {
     httpOnly: true,
     secure: request.nextUrl.protocol === 'https:',
@@ -22,6 +24,10 @@ export async function GET(request: NextRequest) {
     maxAge: 60 * 60, // 1h
     path: '/',
   });
+
+  if (returnTo) {
+    response.cookies.delete('returnTo');
+  }
 
   return response;
 }

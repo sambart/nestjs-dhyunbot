@@ -8,8 +8,10 @@ import { StickyMessageConfigRepository } from '../infrastructure/sticky-message-
 export class StickyMessageRefreshService {
   private readonly logger = new Logger(StickyMessageRefreshService.name);
 
-  /** 채널별 잠금 — 동시 refresh 방지 */
-  private readonly refreshing = new Set<string>();
+  /** 채널별 잠금 — 동시 refresh 방지 (값: 잠금 시작 타임스탬프) */
+  private readonly refreshing = new Map<string, number>();
+  /** 잠금 타임아웃 (ms): 30초 — 이 시간이 지나면 stale 잠금으로 간주하여 강제 해제 */
+  private static readonly REFRESH_LOCK_TIMEOUT_MS = 30_000;
 
   constructor(
     private readonly configRepo: StickyMessageConfigRepository,
@@ -25,12 +27,16 @@ export class StickyMessageRefreshService {
    *   4. 각 설정에 대해: 기존 메시지 삭제 → 신규 Embed 전송 → messageId 갱신
    */
   async refresh(guildId: string, channelId: string): Promise<void> {
-    if (this.refreshing.has(channelId)) {
-      this.logger.debug(`[STICKY_MESSAGE] refresh skipped (already in progress): channel=${channelId}`);
-      return;
+    const lockedAt = this.refreshing.get(channelId);
+    if (lockedAt !== undefined) {
+      if (Date.now() - lockedAt < StickyMessageRefreshService.REFRESH_LOCK_TIMEOUT_MS) {
+        this.logger.debug(`[STICKY_MESSAGE] refresh skipped (already in progress): channel=${channelId}`);
+        return;
+      }
+      this.logger.warn(`[STICKY_MESSAGE] stale lock released (>${StickyMessageRefreshService.REFRESH_LOCK_TIMEOUT_MS}ms): channel=${channelId}`);
     }
 
-    this.refreshing.add(channelId);
+    this.refreshing.set(channelId, Date.now());
     try {
       await this.doRefresh(guildId, channelId);
     } finally {

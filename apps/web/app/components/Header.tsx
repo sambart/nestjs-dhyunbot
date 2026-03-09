@@ -3,6 +3,7 @@
 import { Home, LayoutDashboard, Menu, Settings, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export interface Guild {
   id: string;
@@ -17,7 +18,23 @@ export interface User {
   guilds: Guild[];
 }
 
+function getGuildPath(mode: "dashboard" | "settings"): string {
+  const savedGuildId =
+    typeof window !== "undefined"
+      ? localStorage.getItem("selectedGuildId")
+      : null;
+  if (savedGuildId) {
+    return mode === "dashboard"
+      ? `/dashboard/guild/${savedGuildId}/voice`
+      : `/settings/guild/${savedGuildId}`;
+  }
+  return mode === "dashboard"
+    ? "/select-guild?mode=dashboard"
+    : "/select-guild";
+}
+
 export default function Header() {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,12 +51,25 @@ export default function Header() {
       .finally(() => setIsLoading(false));
   }, []);
 
+  const handleNavigate = useCallback(
+    (mode: "dashboard" | "settings") => {
+      const path = getGuildPath(mode);
+      if (user) {
+        router.push(path);
+      } else {
+        window.location.href = `/auth/discord?returnTo=${encodeURIComponent(path)}`;
+      }
+    },
+    [user, router],
+  );
+
   const handleLogin = useCallback(() => {
     window.location.href = "/auth/discord";
   }, []);
 
   const handleLogout = useCallback(async () => {
     await fetch("/auth/logout", { method: "POST" });
+    localStorage.removeItem("selectedGuildId");
     setUser(null);
   }, []);
 
@@ -80,23 +110,21 @@ export default function Header() {
                 <span>홈</span>
               </Link>
 
-              <Link
-                href={user ? "/select-guild?mode=dashboard" : "/auth/discord"}
+              <button
+                onClick={() => handleNavigate("dashboard")}
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>대시보드</span>
-              </Link>
+              </button>
 
-              {user && (
-                <Link
-                  href="/select-guild"
-                  className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-                >
-                  <Settings className="w-4 h-4" />
-                  <span>설정</span>
-                </Link>
-              )}
+              <button
+                onClick={() => handleNavigate("settings")}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                <Settings className="w-4 h-4" />
+                <span>설정</span>
+              </button>
             </div>
           </div>
 
@@ -167,25 +195,27 @@ export default function Header() {
                 <span>홈</span>
               </Link>
 
-              <Link
-                href={user ? "/select-guild?mode=dashboard" : "/auth/discord"}
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
-                onClick={() => setIsMenuOpen(false)}
+              <button
+                onClick={() => {
+                  handleNavigate("dashboard");
+                  setIsMenuOpen(false);
+                }}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 text-left"
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>대시보드</span>
-              </Link>
+              </button>
 
-              {user && (
-                <Link
-                  href="/select-guild"
-                  className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <Settings className="w-4 h-4" />
-                  <span>설정</span>
-                </Link>
-              )}
+              <button
+                onClick={() => {
+                  handleNavigate("settings");
+                  setIsMenuOpen(false);
+                }}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 text-left"
+              >
+                <Settings className="w-4 h-4" />
+                <span>설정</span>
+              </button>
 
               <div className="pt-4 border-t border-gray-200">
                 {user ? (

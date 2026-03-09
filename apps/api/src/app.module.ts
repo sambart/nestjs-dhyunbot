@@ -21,6 +21,7 @@ import { NewbieModule } from './newbie/newbie.module';
 import { RedisModule } from './redis/redis.module';
 import { StatusPrefixModule } from './status-prefix/status-prefix.module';
 import { StickyMessageModule } from './sticky-message/sticky-message.module';
+import { VersionModule } from './version/version.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { StickyMessageModule } from './sticky-message/sticky-message.module';
     RedisModule,
     VoiceAnalyticsModule,
     AuthModule,
+    VersionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

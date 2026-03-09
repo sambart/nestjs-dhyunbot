@@ -5,6 +5,7 @@ import { Geist,Inter } from "next/font/google";
 
 import { cn } from "@/lib/utils";
 
+import Footer from "./components/Footer";
 import Header from "./components/Header";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
@@ -26,6 +27,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <Header />
         <main className="min-h-screen">{children}</main>
+        <Footer />
       </body>
     </html>
   );
