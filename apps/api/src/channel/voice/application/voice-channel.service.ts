@@ -21,8 +21,8 @@ export class VoiceChannelService {
 
   async onUserJoined(cmd: VoiceStateDto) {
     const [member, channel] = await Promise.all([
-      this.memberService.findOrCreateMember(cmd.userId, cmd.userName),
-      this.channelService.findOrCreateChannel(cmd.channelId, cmd.channelName, cmd.guildId),
+      this.memberService.findOrCreateMember(cmd.userId, cmd.userName, cmd.avatarUrl),
+      this.channelService.findOrCreateChannel(cmd.channelId, cmd.channelName, cmd.guildId, cmd.parentCategoryId, cmd.categoryName),
     ]);
 
     await Promise.all([
@@ -36,7 +36,7 @@ export class VoiceChannelService {
 
   async onUserLeave(cmd: VoiceStateDto) {
     const [member, channel] = await Promise.all([
-      this.memberService.findOrCreateMember(cmd.userId, cmd.userName),
+      this.memberService.findOrCreateMember(cmd.userId, cmd.userName, cmd.avatarUrl),
       this.channelService.findOrCreateChannel(cmd.channelId, cmd.channelName, cmd.guildId),
     ]);
 
@@ -49,9 +49,9 @@ export class VoiceChannelService {
 
   async onUserMove(oldCmd: VoiceStateDto, newCmd: VoiceStateDto) {
     const [member, oldChannel, newChannel] = await Promise.all([
-      this.memberService.findOrCreateMember(newCmd.userId, newCmd.userName),
+      this.memberService.findOrCreateMember(newCmd.userId, newCmd.userName, newCmd.avatarUrl),
       this.channelService.findOrCreateChannel(oldCmd.channelId, oldCmd.channelName, oldCmd.guildId),
-      this.channelService.findOrCreateChannel(newCmd.channelId, newCmd.channelName, newCmd.guildId),
+      this.channelService.findOrCreateChannel(newCmd.channelId, newCmd.channelName, newCmd.guildId, newCmd.parentCategoryId, newCmd.categoryName),
     ]);
 
     await this.historyService.logLeave(member, oldChannel);

@@ -22,6 +22,7 @@ export class VoiceSessionService {
     const today = getKSTDateString();
 
     await this.voiceRedisRepository.setChannelName(guildId, cmd.channelId, cmd.channelName);
+    await this.voiceRedisRepository.setCategoryInfo(guildId, cmd.channelId, cmd.parentCategoryId, cmd.categoryName);
     await this.voiceRedisRepository.setUserName(guildId, cmd.userId, cmd.userName);
 
     let session = await this.voiceRedisRepository.getSession(guildId, userId);
@@ -67,6 +68,7 @@ export class VoiceSessionService {
     const now = Date.now();
 
     await this.voiceRedisRepository.setChannelName(guildId, newCmd.channelId, newCmd.channelName);
+    await this.voiceRedisRepository.setCategoryInfo(guildId, newCmd.channelId, newCmd.parentCategoryId, newCmd.categoryName);
     await this.voiceRedisRepository.setUserName(guildId, newCmd.userId, newCmd.userName);
 
     const session = await this.voiceRedisRepository.getSession(guildId, userId);

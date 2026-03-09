@@ -20,6 +20,9 @@ export class Member {
   @Column({ name: 'nickName' })
   nickname: string;
 
+  @Column({ nullable: true })
+  avatarUrl: string | null;
+
   @OneToMany(() => VoiceChannelHistory, (history) => history.member)
   voiceHistories: VoiceChannelHistory[];
 

@@ -7,6 +7,7 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v2.7 | 2026-03-09 | voice: 채널 카테고리(parentId) 정보 추가 — Channel/VoiceDailyEntity 데이터 모델 확장, F-VOICE-017/018/020 응답 스키마 갱신, F-VOICE-021 신규 추가 | — |
 | v2.6 | 2026-03-09 | web: 유저 상세 페이지(F-WEB-007) 추가 / voice: 유저별 음성 일별 통계 API(F-VOICE-018), 멤버 검색 API(F-VOICE-019), 유저 입퇴장 이력 API(F-VOICE-020) 추가 | — |
 | v2.5 | 2026-03-09 | voice: 음성 일별 통계 조회 API(F-VOICE-017) 추가 / web: F-WEB-003-B 대시보드 상태 업데이트 | — |
 | v2.4 | 2026-03-08 | web: 음성 설정 페이지(F-WEB-006) 추가 | — |
@@ -23,6 +24,39 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 17] voice: 채널 카테고리(parentId) 정보 추가 (VOICE-CATEGORY)
+
+**변경일**: 2026-03-09
+**티켓**: VOICE-CATEGORY
+
+**변경 파일**:
+- `docs/specs/prd/voice.md` — Channel 데이터 모델 확장, VoiceDailyEntity 데이터 모델 확장, F-VOICE-001/002 동작 갱신, F-VOICE-017/018/020 응답 스키마 갱신, F-VOICE-021 신규 추가
+
+**변경 내용**:
+1. **Channel 데이터 모델** 컬럼 2개 추가:
+   - `categoryId` (string, nullable) — 디스코드 카테고리 채널 ID (parentId). 카테고리 없는 채널은 null
+   - `categoryName` (string, nullable) — 카테고리명 캐시. 카테고리 없는 채널은 null
+2. **VoiceDailyEntity 데이터 모델** 컬럼 2개 추가:
+   - `categoryId` (string, nullable) — 카테고리 채널 ID 캐시 (비정규화). GLOBAL 레코드는 null
+   - `categoryName` (string, nullable) — 카테고리명 캐시 (비정규화). GLOBAL 레코드 또는 카테고리 없는 채널은 null
+   - 비정규화 정책 명세 추가 (기존 channelName/userName 패턴과 동일)
+3. **F-VOICE-001** 동작 2항 갱신: Channel 생성/갱신 시 F-VOICE-021에 따라 Discord API에서 parentId와 카테고리명을 조회하여 저장
+4. **F-VOICE-002** 동작 3항 갱신: VoiceDailyEntity 개별 채널 레코드 upsert 시 `categoryId`, `categoryName` 함께 저장
+5. **F-VOICE-017** 응답 스키마 갱신: `categoryId`, `categoryName` 필드 추가 (null 케이스 명세 포함)
+6. **F-VOICE-018** 응답 스키마 갱신: `categoryId`, `categoryName` 필드 추가 (GLOBAL 레코드는 null)
+7. **F-VOICE-020** 응답 스키마 갱신: 히스토리 항목에 `categoryId`, `categoryName` 필드 추가 (Channel 엔티티 값 반환, null 케이스 명세 포함)
+8. **F-VOICE-021** (채널 카테고리 정보 수집 및 저장) 신규 추가:
+   - Discord API(`guild.channels.fetch`)로 채널의 `parentId` 조회
+   - `parentId` 유무에 따라 Channel 엔티티의 `categoryId`, `categoryName` 저장/갱신
+   - VoiceDailyEntity 개별 채널 레코드 upsert 시 Channel에서 읽은 카테고리 정보 함께 저장
+   - GLOBAL 레코드에는 카테고리 필드 null 설정
+   - 기존 데이터 처리 정책: 이전 레코드는 null 유지, 재입장 시점부터 갱신
+   - Discord API 실패 시 null 저장 후 입장 처리 계속 (non-blocking)
+
+**변경 사유**: 디스코드 카테고리(parentId) 정보를 음성기록 시스템에 추가하여, 채널별 음성 통계 조회 시 카테고리 단위 분류 및 필터링을 가능하게 함. 커스텀 태그가 아닌 디스코드 네이티브 카테고리를 활용하며, 기존 channelName/userName 비정규화 패턴을 일관되게 유지함.
 
 ---
 

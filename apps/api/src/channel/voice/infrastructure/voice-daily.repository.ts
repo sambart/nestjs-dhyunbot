@@ -19,20 +19,24 @@ export class VoiceDailyRepository {
     channelId: string,
     channelName: string,
     durationSec: number,
+    categoryId: string | null,
+    categoryName: string | null,
   ): Promise<void> {
     await this.repo.query(
       `
       INSERT INTO voice_daily AS vd
-          ("guildId","userId","userName","date","channelId","channelName","channelDurationSec")
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
+          ("guildId","userId","userName","date","channelId","channelName","channelDurationSec","categoryId","categoryName")
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
       ON CONFLICT ("guildId","userId","date","channelId")
       DO UPDATE SET
         "channelDurationSec" =
         vd."channelDurationSec" + EXCLUDED."channelDurationSec",
         "channelName" = EXCLUDED."channelName",
-        "userName"    = EXCLUDED."userName"
+        "userName"    = EXCLUDED."userName",
+        "categoryId"   = COALESCE(EXCLUDED."categoryId", vd."categoryId"),
+        "categoryName" = COALESCE(EXCLUDED."categoryName", vd."categoryName")
       `,
-      [guildId, userId, userName, date, channelId, channelName, durationSec],
+      [guildId, userId, userName, date, channelId, channelName, durationSec, categoryId, categoryName],
     );
   }
 
@@ -80,11 +84,17 @@ export class VoiceDailyRepository {
     guildId: string,
     from: string,
     to: string,
+    userId?: string,
   ): Promise<VoiceDailyEntity[]> {
-    return this.repo
+    const qb = this.repo
       .createQueryBuilder('vd')
       .where('vd."guildId" = :guildId', { guildId })
-      .andWhere('vd.date BETWEEN :from AND :to', { from, to })
-      .getMany();
+      .andWhere('vd.date BETWEEN :from AND :to', { from, to });
+
+    if (userId) {
+      qb.andWhere('vd."userId" = :userId', { userId });
+    }
+
+    return qb.getMany();
   }
 }

@@ -12,6 +12,8 @@ export const VoiceKeys = {
 
   channelName: (guild: string, channel: string) => `voice:channel:name:${guild}:${channel}`,
 
+  categoryInfo: (guild: string, channel: string) => `voice:channel:category:${guild}:${channel}`,
+
   userName: (guild: string, user: string) => `voice:user:name:${guild}:${user}`,
 
   /** 제외 채널 목록 캐시: voice:excluded:{guildId} — TTL 1시간 */

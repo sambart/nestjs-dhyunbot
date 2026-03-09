@@ -23,3 +23,29 @@ export function splitMessage(text: string, max: number): string[] {
 
   return chunks;
 }
+
+/**
+ * 줄 단위로 텍스트를 분할하여 마크다운 구조를 보존한다.
+ * 각 청크가 maxLength 이하가 되도록 줄(\n) 경계에서 분할한다.
+ */
+export function splitByLines(text: string, maxLength: number): string[] {
+  const lines = text.split('\n');
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const line of lines) {
+    const candidate = current ? current + '\n' + line : line;
+    if (candidate.length > maxLength && current) {
+      chunks.push(current);
+      current = line;
+    } else {
+      current = candidate;
+    }
+  }
+
+  if (current) {
+    chunks.push(current);
+  }
+
+  return chunks;
+}

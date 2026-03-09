@@ -42,6 +42,7 @@ export class VoiceDailyFlushService {
       const channelId = key.split(':').at(-1)!;
       const channelName =
         (await this.voiceRedisRepository.getChannelName(guild, channelId)) ?? 'UNKNOWN';
+      const categoryInfo = await this.voiceRedisRepository.getCategoryInfo(guild, channelId);
 
       await this.voiceDailyRepository.accumulateChannelDuration(
         guild,
@@ -51,6 +52,8 @@ export class VoiceDailyFlushService {
         channelId,
         channelName,
         duration,
+        categoryInfo?.categoryId ?? null,
+        categoryInfo?.categoryName ?? null,
       );
 
       await this.redis.del(key);

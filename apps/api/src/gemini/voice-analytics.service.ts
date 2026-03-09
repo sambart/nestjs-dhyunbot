@@ -9,6 +9,21 @@ import { UserAggregateData,VoiceNameEnricherService } from './voice-name-enriche
 
 export { VoiceActivityData } from '@dhyunbot/shared';
 
+interface ChannelAggregate {
+  channelId: string;
+  channelName: string | null;
+  totalVoiceTime: number;
+  uniqueUsers: Set<string>;
+  sessionCount: number;
+}
+
+interface DailyAggregate {
+  date: string;
+  totalVoiceTime: number;
+  activeUsers: Set<string>;
+  totalMicOnTime: number;
+}
+
 @Injectable()
 export class VoiceAnalyticsService {
   private readonly logger = new Logger(VoiceAnalyticsService.name);
@@ -187,7 +202,7 @@ export class VoiceAnalyticsService {
   }
 
   private async aggregateChannelStats(guildId: string, channelData: VoiceDailyEntity[]) {
-    const channelMap = new Map<string, any>();
+    const channelMap = new Map<string, ChannelAggregate>();
 
     channelData.forEach((record) => {
       if (!channelMap.has(record.channelId)) {
@@ -220,7 +235,7 @@ export class VoiceAnalyticsService {
   }
 
   private aggregateDailyTrends(globalData: VoiceDailyEntity[], channelData: VoiceDailyEntity[]) {
-    const dailyMap = new Map<string, any>();
+    const dailyMap = new Map<string, DailyAggregate>();
 
     globalData.forEach((record) => {
       if (!dailyMap.has(record.date)) {

@@ -1,17 +1,23 @@
 import { VoiceActivityData, VoiceAnalysisResult } from '@dhyunbot/shared';
-import { BadRequestException, Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Logger, Param, Query, UseGuards } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RedisService } from '../redis/redis.service';
 import { VoiceAnalyticsCompareQueryDto, VoiceAnalyticsQueryDto } from './dto/voice-analytics-query.dto';
 import { VoiceAnalyticsService } from './voice-analytics.service';
 import { VoiceGeminiService } from './voice-gemini.service';
 
+const ANALYSIS_CACHE_TTL = 60 * 30; // 30분
+
 @Controller('voice-analytics')
 @UseGuards(JwtAuthGuard)
 export class VoiceAnalyticsController {
+  private readonly logger = new Logger(VoiceAnalyticsController.name);
+
   constructor(
     private readonly geminiService: VoiceGeminiService,
     private readonly analyticsService: VoiceAnalyticsService,
+    private readonly redis: RedisService,
   ) {}
 
   @Get('guild/:guildId')
@@ -19,6 +25,13 @@ export class VoiceAnalyticsController {
     @Param('guildId') guildId: string,
     @Query() query: VoiceAnalyticsQueryDto,
   ): Promise<VoiceAnalysisResult> {
+    const cacheKey = `voice:analysis:guild:${guildId}:${query.days}`;
+    const cached = await this.redis.get<VoiceAnalysisResult>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Cache hit for guild analysis: ${cacheKey}`);
+      return cached;
+    }
+
     const { start, end } = VoiceAnalyticsService.getDateRange(query.days);
     const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
 
@@ -26,7 +39,9 @@ export class VoiceAnalyticsController {
       throw new BadRequestException('No voice activity data found for the specified period');
     }
 
-    return this.geminiService.analyzeVoiceActivity(activityData);
+    const result = await this.geminiService.analyzeVoiceActivity(activityData);
+    await this.redis.set(cacheKey, result, ANALYSIS_CACHE_TTL);
+    return result;
   }
 
   @Get('guild/:guildId/raw')
@@ -48,6 +63,13 @@ export class VoiceAnalyticsController {
       throw new BadRequestException('guildId query parameter is required');
     }
 
+    const cacheKey = `voice:analysis:user:${guildId}:${userId}:${query.days}`;
+    const cached = await this.redis.get<{ userData: VoiceActivityData['userActivities'][number]; analysis: string }>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Cache hit for user analysis: ${cacheKey}`);
+      return cached;
+    }
+
     const { start, end } = VoiceAnalyticsService.getDateRange(query.days);
     const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
 
@@ -57,11 +79,9 @@ export class VoiceAnalyticsController {
     }
 
     const analysis = await this.geminiService.analyzeSpecificUser(activityData, userId);
-
-    return {
-      userData: userActivity,
-      analysis,
-    };
+    const result = { userData: userActivity, analysis };
+    await this.redis.set(cacheKey, result, ANALYSIS_CACHE_TTL);
+    return result;
   }
 
   @Get('guild/:guildId/compare')

@@ -40,7 +40,7 @@ Discord Voice Event
 - **트리거**: 유저가 음성 채널에 입장
 - **동작**:
   1. Member가 DB에 없으면 생성 (discordMemberId, nickName)
-  2. Channel이 DB에 없으면 생성 (discordChannelId, channelName)
+  2. Channel이 DB에 없으면 생성 (discordChannelId, channelName). Channel 생성/갱신 시 F-VOICE-021에 따라 Discord API에서 parentId(카테고리 ID)와 카테고리명을 조회하여 `categoryId`, `categoryName` 저장
   3. VoiceChannelHistory 레코드 생성 (joinAt = now)
   4. Redis에 세션 시작 시간 저장
 
@@ -49,7 +49,7 @@ Discord Voice Event
 - **동작**:
   1. VoiceChannelHistory 레코드 업데이트 (leftAt = now)
   2. Redis 세션 종료, 체류 시간 계산
-  3. VoiceDailyEntity에 시간 누적 (GLOBAL + 개별 채널)
+  3. VoiceDailyEntity에 시간 누적 (GLOBAL + 개별 채널). 개별 채널 레코드 upsert 시 Channel 엔티티의 `categoryId`, `categoryName`을 함께 저장 (F-VOICE-021)
 
 ### F-VOICE-003: 음성 채널 이동 감지
 - **트리거**: 유저가 음성 채널 A → B로 이동
@@ -92,6 +92,8 @@ Discord Voice Event
 | id | PK, auto | 내부 ID |
 | discordChannelId | string, unique | 디스코드 채널 ID |
 | channelName | string | 채널명 |
+| categoryId | string, nullable | 디스코드 카테고리 채널 ID (parentId). 카테고리 없는 채널은 null |
+| categoryName | string, nullable | 카테고리명 캐시. 카테고리 없는 채널은 null |
 | status | enum (ACTIVE/DELETED) | 채널 상태 |
 | createdAt | timestamp | 생성일 |
 | updatedAt | timestamp | 수정일 |
@@ -115,15 +117,42 @@ Discord Voice Event
 | channelId | PK | 채널 ID 또는 'GLOBAL' |
 | channelName | string | 채널명 캐시 |
 | userName | string | 유저명 캐시 |
+| categoryId | string, nullable | 카테고리 채널 ID 캐시 (비정규화). GLOBAL 레코드는 null |
+| categoryName | string, nullable | 카테고리명 캐시 (비정규화). GLOBAL 레코드 또는 카테고리 없는 채널은 null |
 | channelDurationSec | int | 채널 체류 시간 (초) |
 | micOnSec | int | 마이크 ON 시간 (초) |
 | micOffSec | int | 마이크 OFF 시간 (초) |
 | aloneSec | int | 혼자 있던 시간 (초) |
 
+**비정규화 정책**:
+- `categoryId`, `categoryName`은 `channelName`, `userName`과 동일한 패턴으로 비정규화 저장한다.
+- GLOBAL 레코드(`channelId = 'GLOBAL'`)에는 카테고리 정보를 저장하지 않는다 (null).
+- 기존 데이터의 `categoryId`, `categoryName`은 null로 유지한다. 새로 생성되는 레코드부터만 채운다.
+
 **인덱스**:
 - `(guildId, date)` — 날짜별 조회
 - `(guildId, channelId, date)` — 채널별 조회
 - `(guildId, userId, date)` — 유저별 조회
+
+### F-VOICE-021: 채널 카테고리(parentId) 정보 수집 및 저장
+
+> 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)
+
+- **트리거**: 유저가 음성 채널에 입장 (F-VOICE-001)하여 Channel 엔티티를 생성하거나 갱신할 때
+- **동작**:
+  1. Discord API(`guild.channels.fetch(channelId)`)로 채널의 `parentId`(카테고리 채널 ID)를 조회
+  2. `parentId`가 존재하면 해당 카테고리 채널 정보(`guild.channels.cache.get(parentId)` 또는 추가 fetch)로 카테고리명 조회
+  3. Channel 엔티티의 `categoryId`, `categoryName`을 저장 또는 갱신
+     - `parentId` 없음: `categoryId = null`, `categoryName = null`
+     - `parentId` 있음: `categoryId = parentId`, `categoryName = 카테고리 채널명`
+  4. VoiceDailyEntity 개별 채널 레코드 upsert 시 Channel 엔티티에서 읽은 `categoryId`, `categoryName`을 함께 저장
+     - GLOBAL 레코드(`channelId = 'GLOBAL'`)는 카테고리 필드를 null로 설정
+- **기존 데이터 처리**:
+  - 이 기능 적용 이전에 생성된 Channel 레코드와 VoiceDailyEntity 레코드의 `categoryId`, `categoryName`은 null로 유지한다.
+  - 채널 재입장 시점에 Channel 엔티티가 갱신되면 이후 생성되는 VoiceDailyEntity 레코드부터 카테고리 정보가 채워진다.
+- **제약**:
+  - Discord API 호출 실패 시 `categoryId`, `categoryName`을 null로 저장하고 입장 처리는 계속 진행한다 (non-blocking).
+  - 카테고리 없는 최상위 채널은 `categoryId = null`, `categoryName = null`이 정상 상태다.
 
 ## Redis 키 구조
 - 세션 키: 유저별 현재 음성 세션 정보 (입장 시간, 채널 ID 등)
@@ -154,6 +183,8 @@ Discord Voice Event
       "date": "20260301",
       "channelId": "222222222222222222",
       "channelName": "일반",
+      "categoryId": "333333333333333333",
+      "categoryName": "게임",
       "channelDurationSec": 3600,
       "micOnSec": 1800,
       "micOffSec": 1800,
@@ -161,6 +192,7 @@ Discord Voice Event
     }
   ]
   ```
+  - `categoryId`, `categoryName`: 카테고리가 없는 채널이거나 GLOBAL 레코드인 경우 `null`
 - **호출 경로**:
   - FE(`apps/web/app/dashboard/guild/[guildId]/voice/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/voice/daily?from=&to=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/voice/daily?from=&to=`)
 - **관련 FE 파일**:
@@ -195,6 +227,8 @@ Discord Voice Event
       "date": "20260301",
       "channelId": "GLOBAL",
       "channelName": "GLOBAL",
+      "categoryId": null,
+      "categoryName": null,
       "channelDurationSec": 7200,
       "micOnSec": 3600,
       "micOffSec": 3600,
@@ -202,6 +236,7 @@ Discord Voice Event
     }
   ]
   ```
+  - `categoryId`, `categoryName`: GLOBAL 레코드이거나 카테고리가 없는 채널인 경우 `null`
 - **호출 경로**:
   - FE(`apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/voice/daily?from=&to=&userId=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/voice/daily?from=&to=&userId=`)
 - **관련 FE 파일**:
@@ -240,6 +275,38 @@ Discord Voice Event
 - **관련 FE 파일**:
   - `apps/web/app/lib/user-detail-api.ts` — API 클라이언트 함수
 
+### F-VOICE-021: 멤버 프로필 조회 API
+
+- **트리거**: FE 유저 상세 페이지 또는 랭킹 테이블에서 유저 프로필(닉네임, 아바타) 표시 시
+- **엔드포인트**:
+  - 단건: `GET /api/guilds/:guildId/members/:userId/profile`
+  - 일괄: `GET /api/guilds/:guildId/members/profiles?ids=id1,id2,...` (최대 50명)
+- **인증**: JWT Bearer 토큰 필수 (JwtAuthGuard 적용)
+- **동작**:
+  1. `Member` 테이블에서 `discordMemberId`로 조회
+  2. `nickname`(서버 닉네임)과 `avatarUrl`(Discord CDN URL) 반환
+  3. `avatarUrl`은 음성 채널 입퇴장 시 `VoiceStateDto.fromVoiceState()`에서 `displayAvatarURL()` 호출로 자동 갱신됨
+- **단건 응답 형식**:
+  ```json
+  {
+    "userId": "111111111111111111",
+    "userName": "DHyun",
+    "avatarUrl": "https://cdn.discordapp.com/avatars/111.../abc.webp?size=128"
+  }
+  ```
+- **일괄 응답 형식**: `Record<userId, { userName, avatarUrl }>`
+  ```json
+  {
+    "111111111111111111": { "userName": "DHyun", "avatarUrl": "https://..." },
+    "222222222222222222": { "userName": "User2", "avatarUrl": null }
+  }
+  ```
+- **예외**:
+  - 단건: 유저 미존재 시 404 응답
+  - 일괄: `ids` 파라미터 누락 시 400 응답
+- **관련 FE 파일**:
+  - `apps/web/app/lib/user-detail-api.ts` — `fetchMemberProfile`, `fetchMemberProfiles`
+
 ### F-VOICE-020: 유저 입퇴장 이력 조회 API
 
 > 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)
@@ -275,6 +342,8 @@ Discord Voice Event
         "id": 1234,
         "channelId": "222222222222222222",
         "channelName": "일반",
+        "categoryId": "333333333333333333",
+        "categoryName": "게임",
         "joinAt": "2026-03-09T10:00:00.000Z",
         "leftAt": "2026-03-09T11:30:00.000Z",
         "durationSec": 5400
@@ -284,6 +353,7 @@ Discord Voice Event
   ```
   - `leftAt`이 null이면 (아직 퇴장 전) `null`로 반환
   - `durationSec`은 `leftAt`이 null이면 null
+  - `categoryId`, `categoryName`: Channel 엔티티의 값을 그대로 반환. 카테고리가 없는 채널이거나 기존 데이터인 경우 `null`
 - **호출 경로**:
   - FE(`apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/voice/history/{userId}?from=&to=&page=&limit=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/voice/history/{userId}?from=&to=&page=&limit=`)
 - **관련 FE 파일**:

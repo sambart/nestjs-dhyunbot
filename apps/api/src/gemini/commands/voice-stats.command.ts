@@ -1,4 +1,4 @@
-import { truncate } from '@dhyunbot/shared';
+import { splitByLines, truncate } from '@dhyunbot/shared';
 import { SlashCommandPipe } from '@discord-nestjs/common';
 import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
@@ -66,15 +66,14 @@ export class VoiceStatsCommand {
 
       this.logger.debug('AI analysis result', analysis);
 
-      const BASE_DESCRIPTION =
+      const MAX_EMBED_DESCRIPTION = 4096;
+      const statsHeader =
         `📊 **기본 통계**\n` +
         `👥 총 활성 유저: ${activityData.totalStats.totalUsers}명\n` +
         `🎙️ 총 음성 시간: ${formatTime(activityData.totalStats.totalVoiceTime)}\n` +
         `🔊 마이크 사용 시간: ${formatTime(activityData.totalStats.totalMicOnTime)}\n` +
-        `📈 일평균 활성 유저: ${activityData.totalStats.avgDailyActiveUsers}명\n\n` +
-        `${analysis.text}`;
-      const MAX_EMBED_DESCRIPTION = 4096;
-      const fullDescription = BASE_DESCRIPTION + analysis.text;
+        `📈 일평균 활성 유저: ${activityData.totalStats.avgDailyActiveUsers}명\n\n`;
+      const fullDescription = statsHeader + analysis.text;
       const useInlineAnalysis = fullDescription.length <= MAX_EMBED_DESCRIPTION;
 
       const embed = new EmbedBuilder()
@@ -83,8 +82,8 @@ export class VoiceStatsCommand {
         .setDescription(
           useInlineAnalysis
             ? fullDescription
-            : BASE_DESCRIPTION +
-                truncate(analysis.text, MAX_EMBED_DESCRIPTION - BASE_DESCRIPTION.length - 100) +
+            : statsHeader +
+                truncate(analysis.text, MAX_EMBED_DESCRIPTION - statsHeader.length - 100) +
                 '\n\n📄 **전체 분석은 아래 메시지를 확인하세요.**',
         )
         .setTimestamp()
@@ -93,7 +92,7 @@ export class VoiceStatsCommand {
       await interaction.editReply({ embeds: [embed] });
 
       if (!useInlineAnalysis) {
-        const chunks = analysis.text.match(/[\s\S]{1,1900}/g) ?? [];
+        const chunks = splitByLines(analysis.text, 1900);
         for (const chunk of chunks) {
           await interaction.followUp({
             content: chunk,

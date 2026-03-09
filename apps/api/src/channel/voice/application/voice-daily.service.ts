@@ -13,11 +13,13 @@ export class VoiceDailyService {
     guildId: string,
     from: string,
     to: string,
+    userId?: string,
   ): Promise<VoiceDailyRecordDto[]> {
     const entities = await this.voiceDailyRepository.findByGuildIdAndDateRange(
       guildId,
       from,
       to,
+      userId,
     );
     return entities.map((e) => ({
       guildId: e.guildId,
@@ -26,6 +28,8 @@ export class VoiceDailyService {
       date: e.date,
       channelId: e.channelId,
       channelName: e.channelName,
+      categoryId: e.categoryId ?? null,
+      categoryName: e.categoryName ?? null,
       channelDurationSec: e.channelDurationSec,
       micOnSec: e.micOnSec,
       micOffSec: e.micOffSec,

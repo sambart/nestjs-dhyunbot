@@ -288,9 +288,11 @@ export class AutoChannelService {
       userName,
       finalName,
       button.targetCategoryId,
+      channel?.parent?.name ?? null,
       micOn,
       alone,
       memberCount,
+      member.displayAvatarURL({ size: 128 }),
     );
 
     await this.voiceChannelService.onUserJoined(voiceStateDto);

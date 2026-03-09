@@ -24,25 +24,36 @@ export class VoiceNameEnricherService {
   ) {}
 
   /**
-   * 유저명 보강: Redis → Discord API → Redis
+   * 유저명 보강: Redis MGET → Discord API → Redis
    */
   async enrichUserNames(guildId: string, userMap: Map<string, UserAggregateData>) {
+    // 1. 이름이 없는 유저 ID 수집
     const userIdsWithoutName: string[] = [];
-
     for (const [userId, user] of userMap) {
       if (!user.username || user.username.trim() === '') {
-        const cachedName = await this.voiceRedis.getUserName(guildId, userId);
-        if (cachedName) {
-          user.username = cachedName;
-        } else {
-          userIdsWithoutName.push(userId);
-        }
+        userIdsWithoutName.push(userId);
       }
     }
 
-    if (userIdsWithoutName.length > 0) {
-      this.logger.log(`Fetching ${userIdsWithoutName.length} usernames from Discord API`);
-      const userNames = await this.discordGateway.getUserNames(guildId, userIdsWithoutName);
+    if (userIdsWithoutName.length === 0) return;
+
+    // 2. Redis MGET으로 일괄 조회
+    const cachedNames = await this.voiceRedis.getUserNames(guildId, userIdsWithoutName);
+    const stillMissing: string[] = [];
+
+    for (const userId of userIdsWithoutName) {
+      const cachedName = cachedNames.get(userId);
+      if (cachedName) {
+        userMap.get(userId)!.username = cachedName;
+      } else {
+        stillMissing.push(userId);
+      }
+    }
+
+    // 3. 남은 것은 Discord API 배치 조회
+    if (stillMissing.length > 0) {
+      this.logger.log(`Fetching ${stillMissing.length} usernames from Discord API`);
+      const userNames = await this.discordGateway.getUserNames(guildId, stillMissing);
 
       for (const [userId, username] of userNames) {
         const user = userMap.get(userId);
@@ -55,30 +66,45 @@ export class VoiceNameEnricherService {
   }
 
   /**
-   * 채널명 보강: Redis → Discord API → Redis
+   * 채널명 보강: Redis MGET → Discord API → Redis
    */
   async enrichChannelNames(guildId: string, userMap: Map<string, UserAggregateData>) {
+    // 1. 이름이 없는 채널 ID 수집
     const channelIdsWithoutName = new Set<string>();
-
     for (const user of userMap.values()) {
       for (const [channelId, info] of user.channelMap) {
         if (!info.name || info.name.trim() === '') {
-          const cachedName = await this.voiceRedis.getChannelName(guildId, channelId);
-          if (cachedName) {
-            info.name = cachedName;
-          } else {
-            channelIdsWithoutName.add(channelId);
-          }
+          channelIdsWithoutName.add(channelId);
         }
       }
     }
 
-    if (channelIdsWithoutName.size > 0) {
-      this.logger.log(`Fetching ${channelIdsWithoutName.size} channel names from Discord API`);
-      const channelNames = await this.discordGateway.getChannelNames(
-        guildId,
-        Array.from(channelIdsWithoutName),
-      );
+    if (channelIdsWithoutName.size === 0) return;
+
+    // 2. Redis MGET으로 일괄 조회
+    const channelIdList = Array.from(channelIdsWithoutName);
+    const cachedNames = await this.voiceRedis.getChannelNames(guildId, channelIdList);
+    const stillMissing: string[] = [];
+
+    for (const channelId of channelIdList) {
+      const cachedName = cachedNames.get(channelId);
+      if (cachedName) {
+        // 모든 유저의 해당 채널에 이름 적용
+        for (const user of userMap.values()) {
+          const info = user.channelMap.get(channelId);
+          if (info && (!info.name || info.name.trim() === '')) {
+            info.name = cachedName;
+          }
+        }
+      } else {
+        stillMissing.push(channelId);
+      }
+    }
+
+    // 3. 남은 것은 Discord API 배치 조회
+    if (stillMissing.length > 0) {
+      this.logger.log(`Fetching ${stillMissing.length} channel names from Discord API`);
+      const channelNames = await this.discordGateway.getChannelNames(guildId, stillMissing);
 
       for (const [channelId, channelName] of channelNames) {
         await this.voiceRedis.setChannelName(guildId, channelId, channelName);
@@ -94,28 +120,39 @@ export class VoiceNameEnricherService {
   }
 
   /**
-   * 채널 통계의 채널명 보강: Redis → Discord API → Redis
+   * 채널 통계의 채널명 보강: Redis MGET → Discord API → Redis
    */
-  async enrichChannelStatsNames(guildId: string, channelMap: Map<string, any>) {
+  async enrichChannelStatsNames<T extends { channelName: string | null }>(
+    guildId: string,
+    channelMap: Map<string, T>,
+  ) {
+    // 1. 이름이 없는 채널 ID 수집
     const channelIdsWithoutName: string[] = [];
-
     for (const [channelId, channel] of channelMap) {
       if (!channel.channelName || channel.channelName.trim() === '') {
-        const cachedName = await this.voiceRedis.getChannelName(guildId, channelId);
-        if (cachedName) {
-          channel.channelName = cachedName;
-        } else {
-          channelIdsWithoutName.push(channelId);
-        }
+        channelIdsWithoutName.push(channelId);
       }
     }
 
-    if (channelIdsWithoutName.length > 0) {
-      this.logger.log(`Fetching ${channelIdsWithoutName.length} channel names from Discord API`);
-      const channelNames = await this.discordGateway.getChannelNames(
-        guildId,
-        channelIdsWithoutName,
-      );
+    if (channelIdsWithoutName.length === 0) return;
+
+    // 2. Redis MGET으로 일괄 조회
+    const cachedNames = await this.voiceRedis.getChannelNames(guildId, channelIdsWithoutName);
+    const stillMissing: string[] = [];
+
+    for (const channelId of channelIdsWithoutName) {
+      const cachedName = cachedNames.get(channelId);
+      if (cachedName) {
+        channelMap.get(channelId).channelName = cachedName;
+      } else {
+        stillMissing.push(channelId);
+      }
+    }
+
+    // 3. 남은 것은 Discord API 배치 조회
+    if (stillMissing.length > 0) {
+      this.logger.log(`Fetching ${stillMissing.length} channel names from Discord API`);
+      const channelNames = await this.discordGateway.getChannelNames(guildId, stillMissing);
 
       for (const [channelId, channelName] of channelNames) {
         const channel = channelMap.get(channelId);

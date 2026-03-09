@@ -30,6 +30,12 @@ export class Channel {
   @Column()
   channelName: string;
 
+  @Column({ nullable: true })
+  categoryId: string;
+
+  @Column({ nullable: true })
+  categoryName: string;
+
   @Column({
     type: 'enum',
     enum: ChannelStatus,

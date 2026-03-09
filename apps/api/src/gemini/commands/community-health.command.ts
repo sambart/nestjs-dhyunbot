@@ -1,3 +1,4 @@
+import { splitByLines, truncate } from '@dhyunbot/shared';
 import { SlashCommandPipe } from '@discord-nestjs/common';
 import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
@@ -57,10 +58,18 @@ export class CommunityHealthCommand {
 
       const healthText = await this.geminiService.calculateCommunityHealth(activityData);
 
+      const MAX_EMBED_DESCRIPTION = 4096;
+      const needsSplit = healthText.length > MAX_EMBED_DESCRIPTION;
+
       const embed = new EmbedBuilder()
         .setTitle('🏥 커뮤니티 건강도 진단')
         .setColor(Colors.Blue)
-        .setDescription(healthText)
+        .setDescription(
+          needsSplit
+            ? truncate(healthText, MAX_EMBED_DESCRIPTION - 80) +
+                '\n\n📄 **전체 분석은 아래 메시지를 확인하세요.**'
+            : healthText,
+        )
         .addFields({
           name: '📅 분석 기간',
           value: `최근 ${days}일`,
@@ -70,6 +79,13 @@ export class CommunityHealthCommand {
         .setFooter({ text: 'AI 기반 분석 결과' });
 
       await interaction.editReply({ embeds: [embed] });
+
+      if (needsSplit) {
+        const chunks = splitByLines(healthText, 1900);
+        for (const chunk of chunks) {
+          await interaction.followUp({ content: chunk, ephemeral: false });
+        }
+      }
     } catch (error) {
       this.logger.error('Community health command error:', error);
       await interaction.editReply({

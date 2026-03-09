@@ -17,7 +17,11 @@ export class MemberService {
     });
   }
 
-  async findOrCreateMember(memberId: string, nickname: string): Promise<Member> {
+  async findOrCreateMember(
+    memberId: string,
+    nickname: string,
+    avatarUrl?: string | null,
+  ): Promise<Member> {
     let member = await this.memberRepository.findOne({
       where: { discordMemberId: memberId },
     });
@@ -26,8 +30,22 @@ export class MemberService {
       member = this.memberRepository.create({
         discordMemberId: memberId,
         nickname: nickname || 'unknown',
+        avatarUrl: avatarUrl ?? null,
       });
       member = await this.memberRepository.save(member);
+    } else {
+      let updated = false;
+      if (nickname && member.nickname !== nickname) {
+        member.nickname = nickname;
+        updated = true;
+      }
+      if (avatarUrl && member.avatarUrl !== avatarUrl) {
+        member.avatarUrl = avatarUrl;
+        updated = true;
+      }
+      if (updated) {
+        member = await this.memberRepository.save(member);
+      }
     }
 
     return member;

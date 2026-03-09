@@ -23,6 +23,12 @@ export class VoiceDailyEntity {
   @Column({ default: '' })
   userName: string; // DB에 저장된 유저명 (없으면 '' 또는 null)
 
+  @Column({ nullable: true })
+  categoryId: string;
+
+  @Column({ nullable: true })
+  categoryName: string;
+
   @Column({ default: 0 })
   channelDurationSec: number;
 

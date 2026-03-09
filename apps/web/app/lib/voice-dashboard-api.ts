@@ -8,6 +8,8 @@ export interface VoiceDailyRecord {
   channelId: string; // 'GLOBAL' 또는 실제 채널 ID
   channelName: string;
   userName: string;
+  categoryId: string | null;
+  categoryName: string | null;
   channelDurationSec: number;
   micOnSec: number;
   micOffSec: number;

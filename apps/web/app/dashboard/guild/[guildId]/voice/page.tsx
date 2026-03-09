@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { fetchMemberProfiles } from "@/app/lib/user-detail-api";
 import {
   computeChannelStats,
   computeDailyTrends,
@@ -57,6 +58,7 @@ export default function VoiceDashboardPage() {
   const [trends, setTrends] = useState<VoiceDailyTrend[]>([]);
   const [channelStats, setChannelStats] = useState<VoiceChannelStat[]>([]);
   const [userStats, setUserStats] = useState<VoiceUserStat[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, { userName: string; avatarUrl: string | null }>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -69,8 +71,16 @@ export default function VoiceDashboardPage() {
       setSummary(computeSummary(data));
       setTrends(computeDailyTrends(data));
       setChannelStats(computeChannelStats(data));
-      setUserStats(computeUserStats(data));
+      const stats = computeUserStats(data);
+      setUserStats(stats);
       setLoading(false);
+
+      // 프로필 일괄 조회 (비동기, 랭킹 테이블 렌더링 차단하지 않음)
+      const userIds = stats.slice(0, 20).map((u) => u.userId);
+      if (userIds.length > 0) {
+        const p = await fetchMemberProfiles(guildId, userIds);
+        if (!cancelled) setProfiles(p);
+      }
     }
 
     loadData();
@@ -119,7 +129,7 @@ export default function VoiceDashboardPage() {
           {/* 채널별 통계 + 유저 랭킹 */}
           <div className="grid gap-6 lg:grid-cols-2">
             <ChannelBarChart data={channelStats} />
-            <UserRankingTable data={userStats} />
+            <UserRankingTable data={userStats} guildId={guildId} profiles={profiles} />
           </div>
         </>
       )}

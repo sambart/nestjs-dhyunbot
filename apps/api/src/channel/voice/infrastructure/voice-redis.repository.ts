@@ -79,6 +79,25 @@ export class VoiceRedisRepository {
     return this.redis.get<string>(key);
   }
 
+  /** 카테고리 정보 캐시 */
+  async setCategoryInfo(
+    guild: string,
+    channelId: string,
+    categoryId: string | null,
+    categoryName: string | null,
+  ): Promise<void> {
+    const key = VoiceKeys.categoryInfo(guild, channelId);
+    await this.redis.set(key, { categoryId, categoryName }, TTL.NAME_CACHE);
+  }
+
+  async getCategoryInfo(
+    guild: string,
+    channelId: string,
+  ): Promise<{ categoryId: string | null; categoryName: string | null } | null> {
+    const key = VoiceKeys.categoryInfo(guild, channelId);
+    return this.redis.get<{ categoryId: string | null; categoryName: string | null }>(key);
+  }
+
   /** 사용자명 캐시 */
   async setUserName(guild: string, userId: string, userName: string) {
     const key = VoiceKeys.userName(guild, userId);
@@ -88,5 +107,25 @@ export class VoiceRedisRepository {
   async getUserName(guild: string, userId: string): Promise<string | null> {
     const key = VoiceKeys.userName(guild, userId);
     return this.redis.get<string>(key);
+  }
+
+  /** 유저명 일괄 조회 (MGET) */
+  async getUserNames(guild: string, userIds: string[]): Promise<Map<string, string | null>> {
+    if (userIds.length === 0) return new Map();
+    const keys = userIds.map((id) => VoiceKeys.userName(guild, id));
+    const values = await this.redis.mget<string>(...keys);
+    const result = new Map<string, string | null>();
+    userIds.forEach((id, i) => result.set(id, values[i]));
+    return result;
+  }
+
+  /** 채널명 일괄 조회 (MGET) */
+  async getChannelNames(guild: string, channelIds: string[]): Promise<Map<string, string | null>> {
+    if (channelIds.length === 0) return new Map();
+    const keys = channelIds.map((id) => VoiceKeys.channelName(guild, id));
+    const values = await this.redis.mget<string>(...keys);
+    const result = new Map<string, string | null>();
+    channelIds.forEach((id, i) => result.set(id, values[i]));
+    return result;
   }
 }

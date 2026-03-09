@@ -32,19 +32,22 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 ├──────────────┤       ├─────────────────────────┤       ├──────────────┤
 │ PK id        │──1:N─►│ PK id                   │◄─N:1──│ PK id        │
 │ discordMem…  │       │ FK member               │       │ discordCha…  │
-│ nickname     │       │ FK channel              │       │ guildId ★    │
-│ createdAt    │       │ joinedAt                │       │ channelName  │
-│ updatedAt    │       │ leftAt                  │       │ status       │
-└──────────────┘       │ createdAt               │       │ createdAt    │
-                       │ updatedAt               │       │ updatedAt    │
-                       └─────────────────────────┘       └──────────────┘
-                         IDX(memberId, joinAt DESC)         IDX(guildId)
+│ nickname     │       │ FK channel              │       │ guildId ?    │
+│ avatarUrl    │       │ joinedAt                │       │ channelName  │
+│ createdAt    │       │ leftAt                  │       │ categoryId   │
+│ updatedAt    │       │ createdAt               │       │ categoryName │
+└──────────────┘       │ updatedAt               │       │ status       │
+                       └─────────────────────────┘       │ createdAt    │
+                         IDX(memberId, joinAt DESC)       │ updatedAt    │
+                                                          └──────────────┘
+                                                            IDX(guildId)
 
 ┌───────────────────────────────────────────────────┐
 │              VoiceDailyEntity (voice_daily)        │
 ├───────────────────────────────────────────────────┤
 │ PK guildId + userId + date + channelId            │
 │ channelName, userName                             │
+│ categoryId (nullable), categoryName (nullable)    │
 │ channelDurationSec, micOnSec, micOffSec, aloneSec │
 └───────────────────────────────────────────────────┘
   (독립 테이블 — FK 없음, Discord ID 직접 저장)
@@ -56,11 +59,14 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 │ guildId                │       │ FK configId            │       │ FK buttonId              │
 │ name                   │       │ label                  │       │ label                    │
 │ triggerChannelId       │       │ emoji                  │       │ emoji                    │
-│ waitingRoomTemplate    │       │ targetCategoryId       │       │ channelSuffix            │
-│ guideMessage           │       │ sortOrder              │       │ sortOrder                │
-│ guideMessageId         │
-│ createdAt              │         ON DELETE CASCADE                ON DELETE CASCADE
-│ updatedAt              │         IDX(configId)                    IDX(buttonId)
+│ guideChannelId ?       │       │ targetCategoryId       │       │ channelNameTemplate      │
+│ waitingRoomTemplate ?  │       │ channelNameTemplate ?  │       │ sortOrder                │
+│ guideMessage           │       │ sortOrder              │
+│ embedTitle ?           │
+│ embedColor ?           │         ON DELETE CASCADE                ON DELETE CASCADE
+│ guideMessageId ?       │         IDX(configId)                    IDX(buttonId)
+│ createdAt              │
+│ updatedAt              │
 └────────────────────────┘
   UNIQUE(guildId, triggerChannelId)
 
@@ -76,8 +82,10 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 │ missionNotifyChannelId, missionNotifyMessageId                       │
 │ missionEmbedTitle, missionEmbedDescription                           │
 │ missionEmbedColor, missionEmbedThumbnailUrl                          │
-│ mocoEnabled, mocoRankChannelId, mocoRankMessageId                    │
-│ mocoAutoRefreshMinutes                                               │
+│ mocoEnabled, mocoNewbieDays, mocoAllowNewbieHunter                   │
+│ mocoRankChannelId, mocoRankMessageId, mocoAutoRefreshMinutes         │
+│ mocoEmbedTitle, mocoEmbedDescription                                 │
+│ mocoEmbedColor, mocoEmbedThumbnailUrl                                │
 │ roleEnabled, roleDurationDays, newbieRoleId                          │
 │ createdAt, updatedAt                                                 │
 └──────────────────────────────────────────────────────────────────────┘
@@ -170,6 +178,7 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 | `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
 | `discordMemberId` | `varchar` | UNIQUE, NOT NULL | 디스코드 유저 ID |
 | `nickname` | `varchar` | NOT NULL (컬럼명: `nickName`) | 디스코드 닉네임 |
+| `avatarUrl` | `varchar` | NULLABLE | 디스코드 아바타 URL (Discord CDN). 음성 입퇴장 시 자동 갱신 |
 | `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
 | `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
 
@@ -187,8 +196,10 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 |-------|------|----------|------|
 | `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
 | `discordChannelId` | `varchar` | UNIQUE, NOT NULL | 디스코드 채널 ID |
-| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
+| `guildId` | `varchar` | NULLABLE | 디스코드 서버 ID. 기존 레코드 호환을 위해 nullable |
 | `channelName` | `varchar` | NOT NULL | 채널명 |
+| `categoryId` | `varchar` | NULLABLE | 디스코드 카테고리 채널 ID (Discord parentId). 카테고리 없는 채널은 null |
+| `categoryName` | `varchar` | NULLABLE | 카테고리명 캐시. 카테고리 없는 채널은 null |
 | `status` | `enum('ACTIVE','DELETED')` | NOT NULL, DEFAULT `'ACTIVE'` | 채널 상태 |
 | `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
 | `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
@@ -248,6 +259,8 @@ F-VOICE-020 쿼리는 `WHERE member.discordMemberId = ? AND channel.guildId = ?`
 | `channelId` | `varchar` | PK | 채널 ID 또는 `'GLOBAL'` |
 | `channelName` | `varchar` | DEFAULT `''` | 채널명 캐시 (비정규화) |
 | `userName` | `varchar` | DEFAULT `''` | 유저명 캐시 (비정규화) |
+| `categoryId` | `varchar` | NULLABLE | 카테고리 채널 ID 캐시 (비정규화). GLOBAL 레코드 또는 카테고리 없는 채널은 null |
+| `categoryName` | `varchar` | NULLABLE | 카테고리명 캐시 (비정규화). GLOBAL 레코드 또는 카테고리 없는 채널은 null |
 | `channelDurationSec` | `int` | DEFAULT `0` | 채널 체류 시간 (초) |
 | `micOnSec` | `int` | DEFAULT `0` | 마이크 ON 시간 (초) |
 | `micOffSec` | `int` | DEFAULT `0` | 마이크 OFF 시간 (초) |
@@ -288,8 +301,11 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 | `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
 | `name` | `varchar` | NOT NULL | 설정 이름 (웹 탭 라벨용, 예: `게임방`, `스터디방`) |
 | `triggerChannelId` | `varchar` | NOT NULL | 트리거 음성 채널 ID |
-| `waitingRoomTemplate` | `varchar` | NOT NULL | 대기방 네이밍 템플릿 (예: `⌛ {username}의 대기방`) |
+| `guideChannelId` | `varchar` | NULLABLE | 안내 메시지를 표시할 텍스트 채널 ID |
+| `waitingRoomTemplate` | `varchar` | NULLABLE | 대기방 네이밍 템플릿 (예: `⌛ {username}의 대기방`) |
 | `guideMessage` | `text` | NOT NULL | 트리거 채널 안내 메시지 텍스트 |
+| `embedTitle` | `varchar` | NULLABLE | 안내 Embed 제목 |
+| `embedColor` | `varchar` | NULLABLE | 안내 Embed 색상 (HEX, 예: `#5865F2`) |
 | `guideMessageId` | `varchar` | NULLABLE | 전송된 안내 메시지 ID (Discord message ID) |
 | `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
 | `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
@@ -317,6 +333,7 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 | `label` | `varchar` | NOT NULL | 버튼 표시 라벨 |
 | `emoji` | `varchar` | NULLABLE | 버튼 이모지 |
 | `targetCategoryId` | `varchar` | NOT NULL | 확정방이 이동할 Discord 카테고리 ID |
+| `channelNameTemplate` | `varchar` | NULLABLE | 확정방 채널명 템플릿 (하위 선택지 없을 때 사용) |
 | `sortOrder` | `int` | NOT NULL, DEFAULT `0` | 버튼 표시 순서 |
 
 - **스키마**: `public`
@@ -341,7 +358,7 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 | `buttonId` | `int` | FK → AutoChannelButton.id, NOT NULL, ON DELETE CASCADE | 소속 버튼 |
 | `label` | `varchar` | NOT NULL | 하위 선택지 표시 라벨 |
 | `emoji` | `varchar` | NULLABLE | 하위 선택지 이모지 |
-| `channelSuffix` | `varchar` | NOT NULL | 채널명 접미사 (예: `경쟁`) |
+| `channelNameTemplate` | `varchar` | NOT NULL | 확정방 채널명 템플릿 |
 | `sortOrder` | `int` | NOT NULL, DEFAULT `0` | 선택지 표시 순서 |
 
 - **스키마**: `public`
@@ -382,9 +399,15 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 | `missionEmbedColor` | `varchar` | NULLABLE | 미션 현황 Embed 색상 (HEX, 예: `#5865F2`) |
 | `missionEmbedThumbnailUrl` | `varchar` | NULLABLE | 미션 현황 Embed 썸네일 이미지 URL |
 | `mocoEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 모코코 사냥 기능 활성화 여부 |
+| `mocoNewbieDays` | `int` | NOT NULL, DEFAULT `30` | 신규사용자 판별 기준 일수 (가입 후 N일 이내) |
+| `mocoAllowNewbieHunter` | `boolean` | NOT NULL, DEFAULT `false` | 신규사용자도 사냥꾼이 될 수 있는지 여부 |
 | `mocoRankChannelId` | `varchar` | NULLABLE | 모코코 사냥 순위 표시 채널 ID |
 | `mocoRankMessageId` | `varchar` | NULLABLE | 모코코 사냥 순위 Embed 메시지 ID |
 | `mocoAutoRefreshMinutes` | `int` | NULLABLE | 모코코 사냥 순위 자동 갱신 간격 (분) |
+| `mocoEmbedTitle` | `varchar` | NULLABLE | 모코코 사냥 순위 Embed 제목 |
+| `mocoEmbedDescription` | `text` | NULLABLE | 모코코 사냥 순위 Embed 설명 |
+| `mocoEmbedColor` | `varchar` | NULLABLE | 모코코 사냥 순위 Embed 색상 (HEX, 예: `#5865F2`) |
+| `mocoEmbedThumbnailUrl` | `varchar` | NULLABLE | 모코코 사냥 순위 Embed 썸네일 이미지 URL |
 | `roleEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 신입기간 역할 자동관리 활성화 여부 |
 | `roleDurationDays` | `int` | NULLABLE | 신입기간 (일수) |
 | `newbieRoleId` | `varchar` | NULLABLE | 자동 부여할 Discord 역할 ID |
@@ -945,7 +968,7 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
 [유저 입퇴장 이력 — GET /api/guilds/:guildId/voice/history/:userId (F-VOICE-020)]
   1. Member → PostgreSQL select WHERE discordMemberId = ? → memberId(PK) 획득
   2. VoiceChannelHistory → PostgreSQL
-       SELECT vch.id, ch.discordChannelId, ch.channelName, vch.joinAt, vch.leftAt
+       SELECT vch.id, ch.discordChannelId, ch.channelName, ch.categoryId, ch.categoryName, vch.joinAt, vch.leftAt
        FROM voice_channel_history vch
        JOIN channel ch ON ch.id = vch.channelId AND ch.guildId = ?
        WHERE vch.memberId = ?

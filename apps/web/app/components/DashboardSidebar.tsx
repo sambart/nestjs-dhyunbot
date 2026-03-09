@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, Mic, Settings } from "lucide-react";
+import { ArrowLeftRight, Mic, Search, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -29,6 +29,11 @@ export default function DashboardSidebar({
       href: `/dashboard/guild/${selectedGuildId}/voice`,
       label: "음성 활동",
       icon: Mic,
+    },
+    {
+      href: `/dashboard/guild/${selectedGuildId}/user`,
+      label: "유저 검색",
+      icon: Search,
     },
   ];
 
@@ -77,7 +82,8 @@ export default function DashboardSidebar({
         </h2>
         <nav className="space-y-1">
           {menuItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive =
+              pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
             return (
               <Link

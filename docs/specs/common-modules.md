@@ -3005,3 +3005,300 @@ apps/web/app/dashboard/guild/[guildId]/layout.tsx
 - [x] **`MemberSearchService`가 기존 `MemberService`와 역할 중복 없는가**: `MemberService`(`apps/api/src/member/member.service.ts`)는 Discord 이벤트에서 멤버 DB 레코드를 생성/조회하는 용도. `MemberSearchService`는 `voice_daily` 테이블에서 닉네임 기반 검색만 수행. 테이블도 다르고 역할도 다름. 중복 없음
 - [x] **`VoiceHistoryService`가 기존 `VoiceChannelHistoryService`와 역할 중복 없는가**: `VoiceChannelHistoryService`는 Discord 이벤트 기반 입/퇴장 로그 write 용도(`logJoin`, `logLeave`). `VoiceHistoryService`는 웹 대시보드용 read 전용 페이지네이션 조회. 역할이 명확히 분리됨. 중복 없음
 - [x] **단일 단위(VD-1)로 처리하므로 병렬 개발 시 파일 충돌 우려 없음**: 5개 파일 모두 VD-1 단위에만 귀속. 다른 진행 중인 도메인(Newbie 등)과 경로 겹침 없음
+
+---
+
+# F-VOICE-021 — 음성 채널 카테고리(parentId) 정보 수집 공통 모듈 판단 문서
+
+## 목적
+
+Channel 엔티티 및 VoiceDailyEntity에 `categoryId`, `categoryName` 컬럼이 추가됨에 따라, 이미 구현된 공통 모듈 중 수정이 필요한 파일과 새로 추가해야 할 내용을 식별한다. 이 섹션에 정의된 수정 사항은 F-VOICE-021 관련 단위 작업보다 선행하여 완성되어야 하며, 이후 단위 작업들이 충돌 없이 병렬로 진행될 수 있도록 인터페이스와 파일 경로를 사전 확정한다.
+
+---
+
+## CAT-1. 이미 존재하며 수정 없이 재사용 가능한 것
+
+| 모듈 | 파일 | 재사용 이유 |
+|------|------|-------------|
+| `Channel` 엔티티 | `apps/api/src/channel/channel.entity.ts` | `categoryId`, `categoryName` 컬럼이 이미 추가됨. 수정 불필요 |
+| `VoiceDailyEntity` | `apps/api/src/channel/voice/domain/voice-daily.entity.ts` | `categoryId`, `categoryName` 컬럼이 이미 추가됨. 수정 불필요 |
+| Migration | `apps/api/src/migrations/1774500000000-AddCategoryColumns.ts` | Channel, voice_daily 두 테이블에 컬럼 추가 완료. 수정 불필요 |
+| `VoiceChannelModule` | `apps/api/src/channel/voice/voice-channel.module.ts` | 신규 등록 없음. 기존 providers/controllers 목록 유지 |
+
+---
+
+## CAT-2. 수정이 필요한 기존 파일 목록 및 수정 내용
+
+### CAT-2-1. `VoiceDailyRecordDto` 수정
+
+**파일**: `apps/api/src/channel/voice/dto/voice-daily-record.dto.ts`
+
+F-VOICE-017/018 응답 계약이 변경된다. `categoryId`, `categoryName` 두 필드를 추가한다.
+
+```typescript
+export class VoiceDailyRecordDto {
+  guildId: string;
+  userId: string;
+  userName: string;
+  date: string;
+  channelId: string;
+  channelName: string;
+  categoryId: string | null;    // 추가: GLOBAL 레코드이거나 카테고리 없는 채널은 null
+  categoryName: string | null;  // 추가: 동일 조건으로 null
+  channelDurationSec: number;
+  micOnSec: number;
+  micOffSec: number;
+  aloneSec: number;
+}
+```
+
+### CAT-2-2. `VoiceDailyService` 수정
+
+**파일**: `apps/api/src/channel/voice/application/voice-daily.service.ts`
+
+`getDailyRecords()` 내부의 entity → DTO 매핑에 `categoryId`, `categoryName` 필드를 추가한다.
+
+```typescript
+return entities.map((e) => ({
+  guildId: e.guildId,
+  userId: e.userId,
+  userName: e.userName,
+  date: e.date,
+  channelId: e.channelId,
+  channelName: e.channelName,
+  categoryId: e.categoryId ?? null,    // 추가
+  categoryName: e.categoryName ?? null, // 추가
+  channelDurationSec: e.channelDurationSec,
+  micOnSec: e.micOnSec,
+  micOffSec: e.micOffSec,
+  aloneSec: e.aloneSec,
+}));
+```
+
+### CAT-2-3. `VoiceHistoryItemDto` 수정
+
+**파일**: `apps/api/src/channel/voice/dto/voice-history-page.dto.ts`
+
+F-VOICE-020 응답 계약이 변경된다. `categoryId`, `categoryName` 두 필드를 추가한다.
+
+```typescript
+export class VoiceHistoryItemDto {
+  id: number;
+  channelId: string;
+  channelName: string;
+  categoryId: string | null;    // 추가: 기존 데이터이거나 카테고리 없는 채널은 null
+  categoryName: string | null;  // 추가: 동일 조건으로 null
+  joinAt: string;
+  leftAt: string | null;
+  durationSec: number | null;
+}
+```
+
+### CAT-2-4. `VoiceHistoryService` 수정
+
+**파일**: `apps/api/src/channel/voice/application/voice-history.service.ts`
+
+`toItemDto()` 내부의 Channel 엔티티 매핑에 `categoryId`, `categoryName`을 추가한다.
+
+QueryBuilder에서 `c.categoryId`, `c.categoryName`을 addSelect 하거나, `Channel` 전체를 select하도록 변경한다.
+
+```typescript
+// addSelect 목록에 추가
+.addSelect(['m.discordMemberId', 'c.discordChannelId', 'c.channelName', 'c.categoryId', 'c.categoryName'])
+
+// toItemDto 수정
+private toItemDto(h: VoiceChannelHistory): VoiceHistoryItemDto {
+  return {
+    id: h.id,
+    channelId: h.channel.discordChannelId,
+    channelName: h.channel.channelName,
+    categoryId: h.channel.categoryId ?? null,    // 추가
+    categoryName: h.channel.categoryName ?? null, // 추가
+    joinAt: h.joinedAt.toISOString(),
+    leftAt: h.leftAt ? h.leftAt.toISOString() : null,
+    durationSec: h.duration,
+  };
+}
+```
+
+### CAT-2-5. `VoiceDailyRepository.accumulateChannelDuration` 수정
+
+**파일**: `apps/api/src/channel/voice/infrastructure/voice-daily.repository.ts`
+
+F-VOICE-002에 따라 개별 채널 레코드 upsert 시 `categoryId`, `categoryName`을 저장한다. GLOBAL 레코드(`accumulateMicDuration`, `accumulateAloneDuration`)는 변경하지 않는다.
+
+메서드 시그니처 변경:
+
+```typescript
+async accumulateChannelDuration(
+  guildId: string,
+  userId: string,
+  userName: string,
+  date: string,
+  channelId: string,
+  channelName: string,
+  durationSec: number,
+  categoryId: string | null,    // 추가
+  categoryName: string | null,  // 추가
+): Promise<void>
+```
+
+SQL 변경: INSERT 컬럼 목록에 `"categoryId"`, `"categoryName"` 추가. ON CONFLICT DO UPDATE에도 `"categoryId" = EXCLUDED."categoryId"`, `"categoryName" = EXCLUDED."categoryName"` 추가.
+
+### CAT-2-6. `VoiceDailyFlushService.flushDate` 수정
+
+**파일**: `apps/api/src/channel/voice/application/voice-daily-flush-service.ts`
+
+`flushDate()` 내부의 채널별 체류 시간 누적 루프에서 `accumulateChannelDuration` 호출 시 카테고리 정보를 전달한다.
+
+카테고리 정보를 얻는 방법: `ChannelService.findOrCreateChannel()`이 반환하는 `Channel` 엔티티에 이미 `categoryId`, `categoryName`이 포함되어 있다. 그러나 `flushDate()`는 현재 `channelName`을 `VoiceRedisRepository.getChannelName()`에서 가져온다. 카테고리 정보는 Redis 캐시가 아닌 DB `Channel` 엔티티에만 존재하므로, 채널 ID에 대응하는 `Channel` 엔티티를 조회해야 한다.
+
+`ChannelService`를 `VoiceDailyFlushService` 생성자에 주입하고, 각 channelId에 대해 `channelService.findOrCreateChannel(channelId, channelName, guildId)` 반환값에서 `categoryId`, `categoryName`을 추출한다.
+
+변경 핵심:
+- 생성자에 `ChannelService` 추가 주입
+- 채널 루프 내에서 `ChannelService.findOrCreateChannel()` 호출하여 channel 엔티티 획득
+- `accumulateChannelDuration()` 호출 시 `channel.categoryId ?? null`, `channel.categoryName ?? null` 전달
+- Discord API 직접 호출은 하지 않는다. 카테고리 정보는 `VoiceChannelService`가 입장 시점에 DB에 저장하므로, flush 시점에는 DB 조회만 수행한다
+
+주의: `ChannelService`는 `ChannelModule`을 통해 export되고 있으며, `VoiceChannelModule`은 이미 `ChannelModule`을 import하고 있다. 의존성 추가 불필요.
+
+### CAT-2-7. `ChannelService.findOrCreateChannel` 수정
+
+**파일**: `apps/api/src/channel/channel.service.ts`
+
+F-VOICE-001/021에 따라 Channel 생성/갱신 시 카테고리 정보를 저장한다. 카테고리 정보를 선택적 파라미터로 받아 저장한다.
+
+메서드 시그니처 변경:
+
+```typescript
+async findOrCreateChannel(
+  channelId: string,
+  channelName: string,
+  guildId?: string,
+  categoryId?: string | null,    // 추가
+  categoryName?: string | null,  // 추가
+): Promise<Channel>
+```
+
+동작 변경:
+- 신규 생성 시: `categoryId`, `categoryName` 포함하여 저장
+- 기존 채널 갱신 시: `categoryId`, `categoryName`이 제공된 경우(undefined가 아닌 경우) 기존 값을 덮어쓴다. null이 명시적으로 전달되면 null로 저장(카테고리 없는 채널 정상 상태).
+
+이 메서드를 호출하는 기존 코드(`VoiceChannelService`, `VoiceRecoveryService` 등)는 카테고리 파라미터를 전달하지 않으면 기존 동작을 유지한다(하위 호환성 보장).
+
+### CAT-2-8. FE `VoiceDailyRecord` 인터페이스 수정
+
+**파일**: `apps/web/app/lib/voice-dashboard-api.ts`
+
+FE 타입 계약에 `categoryId`, `categoryName`을 추가한다. 기존 집계 함수(`computeSummary`, `computeChannelStats`, `computeUserStats` 등)는 이 필드를 사용하지 않으므로 수정 불필요하다.
+
+```typescript
+export interface VoiceDailyRecord {
+  guildId: string;
+  userId: string;
+  date: string;
+  channelId: string;
+  channelName: string;
+  categoryId: string | null;    // 추가
+  categoryName: string | null;  // 추가
+  userName: string;
+  channelDurationSec: number;
+  micOnSec: number;
+  micOffSec: number;
+  aloneSec: number;
+}
+```
+
+### CAT-2-9. FE `VoiceHistoryItem` 인터페이스 수정
+
+**파일**: `apps/web/app/lib/user-detail-api.ts`
+
+FE 타입 계약에 `categoryId`, `categoryName`을 추가한다.
+
+```typescript
+export interface VoiceHistoryItem {
+  id: number;
+  channelId: string;
+  channelName: string;
+  categoryId: string | null;    // 추가
+  categoryName: string | null;  // 추가
+  joinAt: string;
+  leftAt: string | null;
+  durationSec: number | null;
+}
+```
+
+---
+
+## CAT-3. 신규 파일 없음
+
+이번 카테고리 추가 작업은 기존 파일 수정만으로 처리된다. 신규 파일 생성은 없다.
+
+---
+
+## CAT-4. 구현 단위(Unit) 분류
+
+| 단위 | 기능 | 포함 파일 |
+|------|------|-----------|
+| CAT-A | 백엔드 DTO/Repository/Service 수정 | `voice-daily-record.dto.ts` (CAT-2-1), `voice-daily.service.ts` (CAT-2-2), `voice-history-page.dto.ts` (CAT-2-3), `voice-history.service.ts` (CAT-2-4), `voice-daily.repository.ts` (CAT-2-5), `voice-daily-flush-service.ts` (CAT-2-6), `channel.service.ts` (CAT-2-7) |
+| CAT-B | FE 타입 인터페이스 수정 | `voice-dashboard-api.ts` (CAT-2-8), `user-detail-api.ts` (CAT-2-9) |
+| CAT-C | Discord parentId 조회 로직 (F-VOICE-021) | `VoiceChannelService` 내부에서 `guild.channels.fetch()` 호출 후 `ChannelService.findOrCreateChannel()` 에 카테고리 정보 전달 |
+
+CAT-A와 CAT-B는 서로 다른 파일을 수정하므로 병렬 진행 가능하다. CAT-C는 CAT-A의 `ChannelService.findOrCreateChannel()` 시그니처 변경(CAT-2-7)이 완료된 이후 진행한다.
+
+---
+
+## CAT-5. 전체 파일 경로 목록 (충돌 방지용 사전 확정)
+
+### 기존 수정 (신규 파일 없음)
+
+```
+apps/api/src/channel/voice/dto/voice-daily-record.dto.ts          (CAT-2-1, 단위 A)
+apps/api/src/channel/voice/application/voice-daily.service.ts     (CAT-2-2, 단위 A)
+apps/api/src/channel/voice/dto/voice-history-page.dto.ts          (CAT-2-3, 단위 A)
+apps/api/src/channel/voice/application/voice-history.service.ts   (CAT-2-4, 단위 A)
+apps/api/src/channel/voice/infrastructure/voice-daily.repository.ts (CAT-2-5, 단위 A)
+apps/api/src/channel/voice/application/voice-daily-flush-service.ts (CAT-2-6, 단위 A)
+apps/api/src/channel/channel.service.ts                           (CAT-2-7, 단위 A)
+apps/web/app/lib/voice-dashboard-api.ts                           (CAT-2-8, 단위 B)
+apps/web/app/lib/user-detail-api.ts                               (CAT-2-9, 단위 B)
+```
+
+### 이미 존재하는 파일 (수정 없음, 확인만)
+
+```
+apps/api/src/channel/channel.entity.ts                            (categoryId/categoryName 컬럼 이미 추가됨)
+apps/api/src/channel/voice/domain/voice-daily.entity.ts           (categoryId/categoryName 컬럼 이미 추가됨)
+apps/api/src/migrations/1774500000000-AddCategoryColumns.ts       (마이그레이션 완료)
+apps/api/src/channel/voice/voice-channel.module.ts                (수정 불필요, ChannelModule 이미 import됨)
+```
+
+---
+
+## CAT-6. 검증 체크리스트 (3회 확인)
+
+### 1차 확인
+
+- [x] **API 응답 계약 변경 파일 모두 식별되었는가**: F-VOICE-017/018 응답인 `VoiceDailyRecordDto` (CAT-2-1), F-VOICE-020 응답인 `VoiceHistoryItemDto` (CAT-2-3) 두 파일이 식별됨
+- [x] **DTO 매핑 서비스 수정 파일 모두 식별되었는가**: `VoiceDailyService` (CAT-2-2)에서 entity → DTO 매핑, `VoiceHistoryService` (CAT-2-4)에서 Channel 엔티티 → DTO 매핑 모두 식별됨
+- [x] **데이터 write 경로 수정 파일 모두 식별되었는가**: `accumulateChannelDuration` 쿼리 변경(CAT-2-5), `flushDate` 호출부 변경(CAT-2-6), `findOrCreateChannel` 시그니처 변경(CAT-2-7) 세 파일이 모두 식별됨
+- [x] **FE 타입 계약 변경 파일 모두 식별되었는가**: `VoiceDailyRecord` 인터페이스(CAT-2-8), `VoiceHistoryItem` 인터페이스(CAT-2-9) 두 파일이 식별됨
+- [x] **카테고리 정보 조회 방식이 명확한가**: flush 시점에는 DB `Channel` 엔티티에서 조회(Redis 캐시 없음). 입장 시점(`VoiceChannelService`)에서 Discord API로 parentId를 조회하여 `Channel` 엔티티에 저장하는 것이 CAT-C 단위의 책임
+- [x] **`ChannelModule` 의존성 추가 불필요 확인**: `VoiceChannelModule`은 이미 `ChannelModule`을 import하고 있으므로 `VoiceDailyFlushService`에서 `ChannelService` 주입 시 모듈 수정 불필요
+- [x] **하위 호환성 확인**: `findOrCreateChannel` 시그니처에 선택적 파라미터를 추가하므로 기존 호출 코드(`VoiceChannelService`, `VoiceRecoveryService` 등)는 수정 없이 동작 유지
+
+### 2차 확인
+
+- [x] **CAT-A(백엔드)와 CAT-B(FE)가 동일 파일을 수정하지 않는가**: CAT-A는 `apps/api` 경로 7개 파일, CAT-B는 `apps/web/app/lib` 경로 2개 파일. 중복 없음
+- [x] **CAT-A 내 파일들 간 의존 관계가 명확한가**: `voice-daily.repository.ts`(CAT-2-5) 변경 → `voice-daily-flush-service.ts`(CAT-2-6) 변경 → `channel.service.ts`(CAT-2-7) 변경 순서로 진행해야 하지만, 같은 단위(CAT-A)이므로 단일 작업자가 순차 처리
+- [x] **기존 `VoiceDailyRepository` 누적 메서드 중 GLOBAL 레코드용 2개(`accumulateMicDuration`, `accumulateAloneDuration`)는 수정하지 않는가**: PRD에서 GLOBAL 레코드에는 카테고리를 저장하지 않는다고 명시. 이 두 메서드는 수정 대상에서 제외됨
+- [x] **`accumulateChannelDuration` 시그니처 변경 시 기존 호출부가 모두 업데이트되는가**: `VoiceDailyFlushService.flushDate()`가 유일한 호출부. CAT-2-6에서 함께 수정함
+- [x] **FE `VoiceDailyRecord`에 `categoryId/categoryName` 추가 시 기존 집계 함수에 영향이 없는가**: `computeSummary`, `computeChannelStats`, `computeUserStats`, `computeDailyTrends` 모두 `categoryId/categoryName` 필드를 참조하지 않으므로 영향 없음
+
+### 3차 확인
+
+- [x] **CAT-A~C 간에 동일 파일을 동시에 신규 생성하는 경우가 없는가**: 신규 파일이 없으므로 충돌 없음
+- [x] **CAT-A~C 간에 동일 파일을 동시에 수정하는 경우가 없는가**: CAT-5 파일 경로 목록 기준으로 각 파일은 단 하나의 단위에만 귀속됨. 중복 없음
+- [x] **F-VOICE-021의 Discord parentId 조회 로직(CAT-C)이 공통 모듈로 분리할 필요가 없는가**: parentId 조회는 `VoiceChannelService`(음성 입장 처리) 내부에서만 필요하며 다른 단위에서 재사용하지 않는다. PRD F-VOICE-016에서 `type=CATEGORY` 제외 채널 판단 시에도 parentId를 사용하지만, 이미 구현된 `VoiceExcludedChannelService.isExcluded()`에서 `parentCategoryId`를 파라미터로 받는 방식이므로 조회 자체는 Dispatcher에서 처리한다. 따라서 별도 공통 유틸로 분리할 이유가 없다
+- [x] **기존 데이터 처리 정책이 코드에 반영되는가**: PRD에서 "기존 데이터의 categoryId, categoryName은 null로 유지"를 명시. `accumulateChannelDuration` upsert 쿼리에서 `ON CONFLICT DO UPDATE SET "categoryId" = EXCLUDED."categoryId"`로 처리하면 새 입장 시점부터 채워진다. 기존 레코드에 null이 들어 있어도 이후 해당 채널에 재입장할 때 갱신된다

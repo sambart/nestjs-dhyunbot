@@ -5,6 +5,8 @@ export class VoiceDailyRecordDto {
   date: string;
   channelId: string;
   channelName: string;
+  categoryId: string | null;
+  categoryName: string | null;
   channelDurationSec: number;
   micOnSec: number;
   micOffSec: number;

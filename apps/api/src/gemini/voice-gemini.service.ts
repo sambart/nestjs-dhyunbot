@@ -1,13 +1,25 @@
 import { VoiceActivityData, VoiceAnalysisResult } from '@dhyunbot/shared';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
+const RETRY_CONFIG = {
+  MAX_RETRIES: 2,
+  BASE_DELAY_MS: 1000,
+} as const;
+
+const DEFAULT_GENERATION_CONFIG = {
+  temperature: 0.7,
+  topK: 40,
+  topP: 0.95,
+  maxOutputTokens: 8192,
+} as const;
 
 @Injectable()
 export class VoiceGeminiService {
   private readonly logger = new Logger(VoiceGeminiService.name);
   private genAI: GoogleGenerativeAI;
-  private model: any;
+  private model: GenerativeModel;
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -16,17 +28,40 @@ export class VoiceGeminiService {
       throw new Error('GEMINI_API_KEY is required');
     }
 
+    const modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-2.0-flash-exp';
+
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp',
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-        // responseMimeType 제거 - 일반 텍스트로 받기
-      },
+      model: modelName,
+      generationConfig: DEFAULT_GENERATION_CONFIG,
     });
+
+    this.logger.log(`Gemini model initialized: ${modelName}`);
+  }
+
+  /**
+   * 재시도 로직이 포함된 Gemini API 호출
+   */
+  private async generateWithRetry(prompt: string): Promise<string> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= RETRY_CONFIG.MAX_RETRIES; attempt++) {
+      try {
+        if (attempt > 0) {
+          const delay = RETRY_CONFIG.BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          this.logger.warn(`Gemini API retry attempt ${attempt}/${RETRY_CONFIG.MAX_RETRIES} after ${delay}ms`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+
+        const result = await this.model.generateContent(prompt);
+        return result.response.text();
+      } catch (error) {
+        lastError = error as Error;
+        this.logger.error(`Gemini API attempt ${attempt + 1} failed: ${lastError.message}`);
+      }
+    }
+
+    throw lastError;
   }
 
   /**
@@ -37,21 +72,14 @@ export class VoiceGeminiService {
       const prompt = this.buildVoiceAnalysisPrompt(activityData);
 
       this.logger.log('Sending voice activity data to Gemini API...');
-      const result = await this.model.generateContent(prompt);
-      const response = result.response;
-      const text = response.text();
+      const text = await this.generateWithRetry(prompt);
 
       this.logger.log('Successfully analyzed voice activity');
       return { text };
     } catch (error) {
-      this.logger.error('Failed to analyze voice activity', (error as Error).stack);
+      this.logger.error('Failed to analyze voice activity after retries', (error as Error).stack);
       return {
-        text:
-          '⚠️ 분석 중 오류가 발생했습니다.\n\n' +
-          '기본 통계:\n' +
-          `- 총 활성 유저: ${activityData.totalStats.totalUsers}명\n` +
-          `- 총 음성 시간: ${Math.floor(activityData.totalStats.totalVoiceTime / 3600)}시간\n` +
-          `- 일평균 활성 유저: ${activityData.totalStats.avgDailyActiveUsers}명`,
+        text: this.buildFallbackAnalysis(activityData),
       };
     }
   }
@@ -111,19 +139,34 @@ export class VoiceGeminiService {
   }
 
   /**
-   * 응답 유효성 검증
+   * AI 분석 실패 시 기본 통계 기반 폴백 응답 생성
    */
-  private isValidVoiceAnalysis(obj: any): obj is VoiceAnalysisResult {
+  private buildFallbackAnalysis(data: VoiceActivityData): string {
+    const formatTime = (seconds: number) => {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      return hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`;
+    };
+
+    const topUsers = data.userActivities
+      .slice(0, 5)
+      .map((u, i) => `${i + 1}. **${u.username}** — ${formatTime(u.totalVoiceTime)}`)
+      .join('\n');
+
+    const topChannels = data.channelStats
+      .slice(0, 3)
+      .map((c) => `- **${c.channelName}** — ${formatTime(c.totalVoiceTime)} (${c.uniqueUsers}명)`)
+      .join('\n');
+
     return (
-      typeof obj === 'object' &&
-      typeof obj.summary === 'string' &&
-      Array.isArray(obj.insights) &&
-      Array.isArray(obj.recommendations) &&
-      Array.isArray(obj.topActiveUsers) &&
-      typeof obj.channelUsageAnalysis === 'string' &&
-      typeof obj.micUsagePatterns === 'string' &&
-      Array.isArray(obj.trends) &&
-      Array.isArray(obj.concerns)
+      '> AI 분석을 일시적으로 사용할 수 없어 기본 통계를 표시합니다.\n\n' +
+      `**📊 전체 통계**\n` +
+      `- 총 활성 유저: ${data.totalStats.totalUsers}명\n` +
+      `- 총 음성 시간: ${formatTime(data.totalStats.totalVoiceTime)}\n` +
+      `- 총 마이크 사용: ${formatTime(data.totalStats.totalMicOnTime)}\n` +
+      `- 일평균 활성 유저: ${data.totalStats.avgDailyActiveUsers}명\n\n` +
+      `**👥 TOP 5 유저**\n${topUsers || '- 데이터 없음'}\n\n` +
+      `**📺 인기 채널**\n${topChannels || '- 데이터 없음'}`
     );
   }
 
@@ -169,11 +212,22 @@ ${JSON.stringify(userActivity, null, 2)}
 `;
 
     try {
-      const result = await this.model.generateContent(prompt);
-      return result.response.text();
+      return await this.generateWithRetry(prompt);
     } catch (error) {
-      this.logger.error('Failed to analyze user', error);
-      return '⚠️ 유저 분석 중 오류가 발생했습니다.';
+      this.logger.error('Failed to analyze user after retries', (error as Error).stack);
+      const formatTime = (seconds: number) => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`;
+      };
+
+      return (
+        '> AI 분석을 일시적으로 사용할 수 없어 기본 통계를 표시합니다.\n\n' +
+        `- 총 음성 시간: ${formatTime(userActivity.totalVoiceTime)}\n` +
+        `- 마이크 사용률: ${userActivity.micUsageRate}%\n` +
+        `- 활동 일수: ${userActivity.activeDays}일\n` +
+        `- 자주 사용 채널: ${userActivity.activeChannels.slice(0, 3).map((c) => c.channelName).join(', ') || '없음'}`
+      );
     }
   }
 
@@ -227,12 +281,15 @@ ${JSON.stringify(summarizedData, null, 2)}
 `;
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const text = result.response.text();
-      return text;
+      return await this.generateWithRetry(prompt);
     } catch (error) {
-      this.logger.error('Failed to calculate health score:', (error as Error).message);
-      return '⚠️ 건강도 분석 중 오류가 발생했습니다.';
+      this.logger.error('Failed to calculate health score after retries:', (error as Error).message);
+      return (
+        '> AI 분석을 일시적으로 사용할 수 없어 기본 통계를 표시합니다.\n\n' +
+        `- 총 활성 유저: ${activityData.totalStats.totalUsers}명\n` +
+        `- 일평균 활성 유저: ${activityData.totalStats.avgDailyActiveUsers}명\n` +
+        `- 총 음성 시간: ${Math.floor(activityData.totalStats.totalVoiceTime / 3600)}시간`
+      );
     }
   }
 }

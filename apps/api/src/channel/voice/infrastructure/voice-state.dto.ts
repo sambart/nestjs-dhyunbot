@@ -19,9 +19,11 @@ export class VoiceStateDto {
     public readonly userName: string,
     public readonly channelName: string,
     public readonly parentCategoryId: string | null,
+    public readonly categoryName: string | null,
     public readonly micOn: boolean,
     public readonly alone: boolean,
     public readonly channelMemberCount: number,
+    public readonly avatarUrl: string | null,
   ) {}
 
   static fromVoiceState(state: VoiceState): VoiceStateDto {
@@ -40,9 +42,11 @@ export class VoiceStateDto {
       state.member.displayName,
       state.channel.name,
       state.channel.parentId ?? null,
+      state.channel.parent?.name ?? null,
       !state.selfMute,
       state.channel.members.size === 1,
       state.channel.members.size,
+      state.member.displayAvatarURL({ size: 128 }),
     );
   }
 }

@@ -14,7 +14,11 @@ export class DiscordStrategy extends PassportStrategy(Strategy, 'discord') {
     });
   }
 
-  async validate(accessToken: string, refreshToken: string, profile: any) {
+  async validate(
+    accessToken: string,
+    refreshToken: string,
+    profile: { id: string; username: string; avatar: string; guilds: unknown[] },
+  ) {
     return {
       discordId: profile.id,
       username: profile.username,
