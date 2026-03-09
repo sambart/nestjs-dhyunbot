@@ -1,5 +1,8 @@
 FROM node:20-alpine
 
+# Fonts for canvas (Korean + Emoji support)
+RUN apk add --no-cache fontconfig font-noto-cjk font-noto-emoji
+
 # Global tools for API
 RUN npm install -g ts-node
 

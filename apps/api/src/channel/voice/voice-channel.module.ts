@@ -4,7 +4,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { MemberModule } from '../../member/member.module';
 import { ChannelModule } from '../channel.module';
+import { MeCommand } from './application/me.command';
+import { MeProfileService } from './application/me-profile.service';
 import { MemberSearchService } from './application/member-search.service';
+import { ProfileCardRenderer } from './application/profile-card-renderer';
 import { VoiceChannelPolicy } from './application/voice-channel.policy';
 import { VoiceChannelService } from './application/voice-channel.service';
 import { VoiceChannelHistoryService } from './application/voice-channel-history.service';
@@ -13,12 +16,10 @@ import { VoiceDailyFlushService } from './application/voice-daily-flush-service'
 import { VoiceExcludedChannelService } from './application/voice-excluded-channel.service';
 import { VoiceFlushCommand } from './application/voice-flush.command';
 import { VoiceHistoryService } from './application/voice-history.service';
-import { VoiceRankCommand } from './application/voice-rank.command';
 import { VoiceRecoveryService } from './application/voice-recovery.service';
 import { VoiceSessionService } from './application/voice-session.service';
 import { VoiceStatsQueryService } from './application/voice-stats-query.service';
 import { VoiceTempChannelService } from './application/voice-temp-channel.service';
-import { VoiceTimeCommand } from './application/voice-time.command';
 import { VoiceChannelHistory } from './domain/voice-channel-history.entity';
 import { VoiceDailyEntity } from './domain/voice-daily.entity';
 import { VoiceExcludedChannel } from './domain/voice-excluded-channel.entity';
@@ -62,8 +63,9 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
     VoiceFlushCommand,
     VoiceRecoveryService,
     VoiceStatsQueryService,
-    VoiceTimeCommand,
-    VoiceRankCommand,
+    MeProfileService,
+    ProfileCardRenderer,
+    MeCommand,
     VoiceExcludedChannelRepository,
     VoiceExcludedChannelService,
     VoiceDailyService,

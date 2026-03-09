@@ -360,6 +360,71 @@ Discord Voice Event
   - `apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx` — 유저 상세 페이지
   - `apps/web/app/lib/user-detail-api.ts` — API 클라이언트 함수
 
+### F-VOICE-022: `/me` 커맨드 — 개인 음성 프로필 카드
+
+> 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)
+
+- **커맨드명**: `/me`
+- **설명**: 내 프로필과 음성 활동을 확인합니다
+- **권한**: 모든 멤버 사용 가능 (관리자 제한 없음)
+- **응답**: 공개 (모든 멤버에게 표시)
+- **파라미터**: 없음 (15일 고정)
+
+- **동작**:
+  1. `MeProfileService`(신규)로 해당 유저의 최근 15일 `voice_daily` 레코드만 직접 쿼리 (서버 전체 조회 불필요)
+  2. GLOBAL 레코드에서 마이크 통계·혼자 있던 시간 집계
+  3. `voice_daily.date`에서 요일을 앱 레벨에서 추출하여 피크 요일 계산
+  4. 서버 내 전체 유저 순위를 산출하여 해당 유저의 순위 결정
+  5. 결과를 임베드 프로필 카드로 조립하여 공개 응답
+
+- **활동 없을 때**: `"최근 15일간 음성 채널 활동 기록이 없습니다."` 텍스트 공개 응답
+
+- **임베드 프로필 카드 구성**:
+
+  | 항목 | 값 |
+  |------|-----|
+  | Title | `👤 {닉네임}의 프로필` |
+  | Thumbnail | 유저 아바타 URL |
+  | Description | `🏆 #{순위} / {전체 유저}명 · 📅 최근 15일` |
+  | Color | Green |
+  | Footer | dhyunbot |
+  | Timestamp | 현재 시각 |
+
+  **Field 1 — 📊 음성 활동 요약**:
+  - 총 음성 시간
+  - 활동일 수
+  - 일평균 접속 시간
+
+  **Field 2 — 🎤 마이크 통계**:
+  - 마이크 ON 시간
+  - 마이크 OFF 시간
+  - 마이크 사용률 (%)
+  - 혼자 있던 시간
+
+  **Field 3 — 📅 최근 15일 활동**:
+  - 텍스트 기반 바 차트
+  - 형식: `MM/DD █████░░░░ Xh Ym`
+  - 활동 없는 날: `—` 표시
+
+  **Field 4 — 🕐 피크 요일**:
+  - 가장 활발한 요일 (`voice_daily.date`에서 요일 추출, 앱 레벨 계산)
+  - 주 평균 접속 시간
+
+- **데이터 소스**: `voice_daily` 테이블만 사용. 인덱스 `(guildId, userId, date)` 활용
+  - GLOBAL 레코드 (`channelId = 'GLOBAL'`): `micOnSec`, `micOffSec`, `aloneSec` 읽기
+  - 개별 채널 레코드: `channelDurationSec`, `channelName`, `categoryName` 읽기
+
+- **대체 관계**:
+  - `/voice-time` 커맨드를 대체하며 삭제
+  - `/voice-rank` 커맨드를 대체하며 삭제
+  - `/my-voice-stats`, `/voice-leaderboard` 커맨드는 변경 없이 유지
+
+- **관련 파일** (구현 예정):
+  - `apps/api/src/channel/voice/application/me.command.ts` — 커맨드 핸들러
+  - `apps/api/src/channel/voice/application/me-profile.service.ts` — 유저 단일 쿼리 서비스
+  - `apps/api/src/channel/voice/application/voice-time.command.ts` — 삭제 대상
+  - `apps/api/src/channel/voice/application/voice-rank.command.ts` — 삭제 대상
+
 ---
 
 ## 음성 시간 제외 채널 (Voice Time Excluded Channels)
