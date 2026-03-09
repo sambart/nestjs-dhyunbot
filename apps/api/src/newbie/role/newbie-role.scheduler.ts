@@ -21,12 +21,6 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
   private initialTimer: NodeJS.Timeout | null = null;
   private dailyInterval: NodeJS.Timeout | null = null;
 
-  /**
-   * processExpired 단일 실행 내에서 동일 guildId 설정 재조회를 방지하는 인메모리 캐시.
-   * processExpired 시작 시 초기화한다.
-   */
-  private readonly configCache = new Map<string, string | null>();
-
   constructor(
     @InjectDiscordClient() private readonly client: Client,
     private readonly periodRepository: NewbiePeriodRepository,
@@ -96,7 +90,7 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
    * 4. 영향받은 guildId의 Redis 캐시 무효화
    */
   async processExpired(): Promise<void> {
-    this.configCache.clear();
+    const configCache = new Map<string, string | null>();
     const today = getKSTDateString();
     this.logger.log(`[NEWBIE ROLE SCHEDULER] processExpired start: today=${today}`);
 
@@ -124,7 +118,7 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
     const affectedGuilds = new Set<string>();
 
     for (const period of expiredRecords) {
-      await this.processOne(period.guildId, period.memberId, period.id);
+      await this.processOne(period.guildId, period.memberId, period.id, configCache);
       affectedGuilds.add(period.guildId);
     }
 
@@ -154,10 +148,11 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
     guildId: string,
     memberId: string,
     periodId: number,
+    configCache: Map<string, string | null>,
   ): Promise<void> {
     // Discord API — 역할 제거 시도 (실패 시 warn 로그 후 DB 갱신 계속 진행)
     try {
-      const roleId = await this.getNewbieRoleId(guildId);
+      const roleId = await this.getNewbieRoleId(guildId, configCache);
 
       if (roleId) {
         try {
@@ -197,15 +192,18 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
   /**
    * guildId에 해당하는 newbieRoleId를 NewbieConfigRepository에서 조회한다.
    * 설정이 없거나 newbieRoleId가 null이면 null 반환.
-   * configCache를 통해 단일 processExpired 실행 내 중복 DB 조회를 방지한다.
+   * 로컬 configCache를 통해 단일 processExpired 실행 내 중복 DB 조회를 방지한다.
    */
-  private async getNewbieRoleId(guildId: string): Promise<string | null> {
-    if (this.configCache.has(guildId)) {
-      return this.configCache.get(guildId) ?? null;
+  private async getNewbieRoleId(
+    guildId: string,
+    configCache: Map<string, string | null>,
+  ): Promise<string | null> {
+    if (configCache.has(guildId)) {
+      return configCache.get(guildId) ?? null;
     }
     const config = await this.configRepository.findByGuildId(guildId);
     const roleId = config?.newbieRoleId ?? null;
-    this.configCache.set(guildId, roleId);
+    configCache.set(guildId, roleId);
     return roleId;
   }
 }

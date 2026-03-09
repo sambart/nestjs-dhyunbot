@@ -75,4 +75,16 @@ export class VoiceDailyRepository {
       [guildId, userId, date, aloneSec],
     );
   }
+
+  async findByGuildIdAndDateRange(
+    guildId: string,
+    from: string,
+    to: string,
+  ): Promise<VoiceDailyEntity[]> {
+    return this.repo
+      .createQueryBuilder('vd')
+      .where('vd."guildId" = :guildId', { guildId })
+      .andWhere('vd.date BETWEEN :from AND :to', { from, to })
+      .getMany();
+  }
 }

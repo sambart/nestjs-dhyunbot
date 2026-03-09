@@ -31,6 +31,7 @@ function SelectGuildContent() {
         }
         setUser(data.user);
         if (data.user.guilds?.length === 1) {
+          localStorage.setItem("selectedGuildId", data.user.guilds[0].id);
           router.replace(getGuildPath(data.user.guilds[0].id));
         }
       })
@@ -85,7 +86,10 @@ function SelectGuildContent() {
         {user.guilds.map((guild) => (
           <button
             key={guild.id}
-            onClick={() => router.push(getGuildPath(guild.id))}
+            onClick={() => {
+              localStorage.setItem("selectedGuildId", guild.id);
+              router.push(getGuildPath(guild.id));
+            }}
             className="flex items-center space-x-4 p-4 bg-white rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all text-left"
           >
             {guildIconUrl(guild) ? (

@@ -7,6 +7,7 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v2.5 | 2026-03-09 | voice: 음성 일별 통계 조회 API(F-VOICE-017) 추가 / web: F-WEB-003-B 대시보드 상태 업데이트 | — |
 | v2.4 | 2026-03-08 | web: 음성 설정 페이지(F-WEB-006) 추가 | — |
 | v2.3 | 2026-03-08 | voice: 음성 시간 제외 채널(VoiceExcludedChannel) 기능 추가 | — |
 | v2.2 | 2026-03-08 | newbie: 플레이횟수 카운팅 옵션(최소 참여시간/시간 간격) 추가 | — |
@@ -21,6 +22,33 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 15] voice: 음성 일별 통계 조회 API 추가 / web: 대시보드 상태 업데이트 (VOICE-DAILY-API)
+
+**변경일**: 2026-03-09
+**티켓**: VOICE-DAILY-API
+
+**변경 파일**:
+- `docs/specs/prd/voice.md` — F-VOICE-017 (음성 일별 통계 조회 API) 추가
+- `docs/specs/prd/web.md` — F-WEB-003-B 현재 상태 및 호출 API 업데이트
+
+**변경 내용**:
+1. **F-VOICE-017 (음성 일별 통계 조회 API)** 신규 추가:
+   - 엔드포인트: `GET /api/guilds/:guildId/voice/daily?from=YYYYMMDD&to=YYYYMMDD`
+   - 인증: JWT Bearer 토큰 필수 (JwtAuthGuard 적용)
+   - 쿼리 파라미터: `from`, `to` (YYYYMMDD 형식, 필수)
+   - 동작: `guildId` + `date BETWEEN from AND to` 조건으로 `VoiceDailyEntity` 조회 후 `VoiceDailyRecord[]` 반환
+   - 응답 스키마: `guildId`, `userId`, `userName`, `date`, `channelId`, `channelName`, `channelDurationSec`, `micOnSec`, `micOffSec`, `aloneSec`
+   - FE 호출 경로: `apps/web/app/dashboard/guild/[guildId]/voice/page.tsx` → Next.js 프록시 → `http://api:3000/api/guilds/{guildId}/voice/daily`
+   - 관련 FE 파일 목록 명시 (대시보드 페이지, API 클라이언트, 차트 컴포넌트 5종)
+2. **F-WEB-003-B** 업데이트:
+   - 현재 상태를 "미구현. 플레이스홀더 없음."에서 "음성 통계 대시보드 페이지 및 차트 컴포넌트 5종, API 클라이언트 구현 완료. 백엔드 API 구현 진행 중."으로 변경
+   - 경로를 `/dashboard`에서 `/dashboard/guild/{guildId}/voice`로 구체화
+   - 관련 FE 파일 목록 및 호출 API 테이블 추가
+
+**변경 사유**: FE 대시보드(`/dashboard/guild/{guildId}/voice`)가 호출하는 백엔드 음성 일별 통계 조회 API 구현 요구사항 반영. FE는 이미 완전히 구현되어 있으며 백엔드 API가 필요한 상태.
 
 ---
 

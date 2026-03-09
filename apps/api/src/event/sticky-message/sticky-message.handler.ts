@@ -1,5 +1,5 @@
 import { InjectDiscordClient, On } from '@discord-nestjs/core';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { Client, Message } from 'discord.js';
 
 import { StickyMessageRefreshService } from '../../sticky-message/application/sticky-message-refresh.service';
@@ -7,7 +7,7 @@ import { StickyMessageConfigRepository } from '../../sticky-message/infrastructu
 import { StickyMessageRedisRepository } from '../../sticky-message/infrastructure/sticky-message-redis.repository';
 
 @Injectable()
-export class StickyMessageHandler {
+export class StickyMessageHandler implements OnApplicationShutdown {
   private readonly logger = new Logger(StickyMessageHandler.name);
   private readonly timers = new Map<string, NodeJS.Timeout>();
 
@@ -17,6 +17,13 @@ export class StickyMessageHandler {
     private readonly refreshService: StickyMessageRefreshService,
     @InjectDiscordClient() private readonly client: Client,
   ) {}
+
+  onApplicationShutdown(): void {
+    for (const timer of this.timers.values()) {
+      clearTimeout(timer);
+    }
+    this.timers.clear();
+  }
 
   @On('messageCreate')
   async handleMessageCreate(message: Message): Promise<void> {

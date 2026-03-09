@@ -90,16 +90,16 @@ export async function fetchVoiceDaily(
 
 // ─── 클라이언트 집계 함수 ─────────────────────────────────────────────────────
 
-/** GLOBAL 레코드에서 요약 통계 계산 */
+/** 요약 통계 계산 */
 export function computeSummary(records: VoiceDailyRecord[]): VoiceSummary {
   const globalRecords = records.filter((r) => r.channelId === 'GLOBAL');
-  const userIds = new Set(globalRecords.map((r) => r.userId));
-
   const channelRecords = records.filter((r) => r.channelId !== 'GLOBAL');
+
+  const userIds = new Set(globalRecords.map((r) => r.userId));
   const channelIds = new Set(channelRecords.map((r) => r.channelId));
 
   return {
-    totalDurationSec: globalRecords.reduce(
+    totalDurationSec: channelRecords.reduce(
       (sum, r) => sum + r.channelDurationSec,
       0,
     ),
@@ -115,20 +115,37 @@ export function computeSummary(records: VoiceDailyRecord[]): VoiceSummary {
 export function computeDailyTrends(
   records: VoiceDailyRecord[],
 ): VoiceDailyTrend[] {
-  const globalRecords = records.filter((r) => r.channelId === 'GLOBAL');
   const byDate = new Map<string, VoiceDailyTrend>();
 
-  for (const r of globalRecords) {
+  // 채널 레코드에서 channelDurationSec 집계
+  const channelRecords = records.filter((r) => r.channelId !== 'GLOBAL');
+  for (const r of channelRecords) {
     const existing = byDate.get(r.date);
     if (existing) {
       existing.channelDurationSec += r.channelDurationSec;
+    } else {
+      byDate.set(r.date, {
+        date: r.date,
+        channelDurationSec: r.channelDurationSec,
+        micOnSec: 0,
+        micOffSec: 0,
+        aloneSec: 0,
+      });
+    }
+  }
+
+  // GLOBAL 레코드에서 마이크/혼자 시간 병합
+  const globalRecords = records.filter((r) => r.channelId === 'GLOBAL');
+  for (const r of globalRecords) {
+    const existing = byDate.get(r.date);
+    if (existing) {
       existing.micOnSec += r.micOnSec;
       existing.micOffSec += r.micOffSec;
       existing.aloneSec += r.aloneSec;
     } else {
       byDate.set(r.date, {
         date: r.date,
-        channelDurationSec: r.channelDurationSec,
+        channelDurationSec: 0,
         micOnSec: r.micOnSec,
         micOffSec: r.micOffSec,
         aloneSec: r.aloneSec,
@@ -176,21 +193,41 @@ export function computeChannelStats(
 export function computeUserStats(
   records: VoiceDailyRecord[],
 ): VoiceUserStat[] {
-  const globalRecords = records.filter((r) => r.channelId === 'GLOBAL');
   const byUser = new Map<string, VoiceUserStat>();
 
-  for (const r of globalRecords) {
+  // 개별 채널 레코드에서 userName과 channelDurationSec를 집계
+  const channelRecords = records.filter((r) => r.channelId !== 'GLOBAL');
+  for (const r of channelRecords) {
     const existing = byUser.get(r.userId);
     if (existing) {
       existing.totalDurationSec += r.channelDurationSec;
-      existing.micOnSec += r.micOnSec;
-      existing.micOffSec += r.micOffSec;
-      existing.aloneSec += r.aloneSec;
+      if (!existing.userName && r.userName) existing.userName = r.userName;
     } else {
       byUser.set(r.userId, {
         userId: r.userId,
         userName: r.userName,
         totalDurationSec: r.channelDurationSec,
+        micOnSec: 0,
+        micOffSec: 0,
+        aloneSec: 0,
+      });
+    }
+  }
+
+  // GLOBAL 레코드에서 마이크/혼자 시간을 병합
+  const globalRecords = records.filter((r) => r.channelId === 'GLOBAL');
+  for (const r of globalRecords) {
+    const existing = byUser.get(r.userId);
+    if (existing) {
+      existing.micOnSec += r.micOnSec;
+      existing.micOffSec += r.micOffSec;
+      existing.aloneSec += r.aloneSec;
+      if (!existing.userName && r.userName) existing.userName = r.userName;
+    } else {
+      byUser.set(r.userId, {
+        userId: r.userId,
+        userName: r.userName,
+        totalDurationSec: 0,
         micOnSec: r.micOnSec,
         micOffSec: r.micOffSec,
         aloneSec: r.aloneSec,
