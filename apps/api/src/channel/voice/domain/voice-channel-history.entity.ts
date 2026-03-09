@@ -2,7 +2,6 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  Index,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -11,10 +10,8 @@ import {
 import { Member } from '../../../member/member.entity';
 import { Channel } from '../../channel.entity';
 
+// IDX_voice_channel_history_member_join (memberId, joinedAt DESC) — 마이그레이션으로 생성
 @Entity({ schema: 'public' })
-@Index('IDX_voice_channel_history_member_join', ['member', 'joinedAt'], {
-  synchronize: false,
-})
 export class VoiceChannelHistory {
   @PrimaryGeneratedColumn()
   id: number;
