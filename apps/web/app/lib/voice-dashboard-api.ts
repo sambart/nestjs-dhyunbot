@@ -45,6 +45,16 @@ export interface VoiceChannelStat {
   aloneSec: number;
 }
 
+/** 카테고리별 통계 */
+export interface VoiceCategoryStat {
+  categoryId: string | null;
+  categoryName: string;
+  totalDurationSec: number;
+  micOnSec: number;
+  micOffSec: number;
+  aloneSec: number;
+}
+
 /** 유저별 통계 */
 export interface VoiceUserStat {
   userId: string;
@@ -187,6 +197,38 @@ export function computeChannelStats(
   }
 
   return Array.from(byChannel.values()).sort(
+    (a, b) => b.totalDurationSec - a.totalDurationSec,
+  );
+}
+
+/** 카테고리별 통계 집계 */
+export function computeCategoryStats(
+  records: VoiceDailyRecord[],
+): VoiceCategoryStat[] {
+  const channelRecords = records.filter((r) => r.channelId !== 'GLOBAL');
+  const byCategory = new Map<string, VoiceCategoryStat>();
+
+  for (const r of channelRecords) {
+    const key = r.categoryId ?? '__null__';
+    const existing = byCategory.get(key);
+    if (existing) {
+      existing.totalDurationSec += r.channelDurationSec;
+      existing.micOnSec += r.micOnSec;
+      existing.micOffSec += r.micOffSec;
+      existing.aloneSec += r.aloneSec;
+    } else {
+      byCategory.set(key, {
+        categoryId: r.categoryId,
+        categoryName: r.categoryName ?? '미분류',
+        totalDurationSec: r.channelDurationSec,
+        micOnSec: r.micOnSec,
+        micOffSec: r.micOffSec,
+        aloneSec: r.aloneSec,
+      });
+    }
+  }
+
+  return Array.from(byCategory.values()).sort(
     (a, b) => b.totalDurationSec - a.totalDurationSec,
   );
 }
