@@ -1,0 +1,64 @@
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import type { VoiceUserStat } from "@/app/lib/voice-dashboard-api";
+import { formatDuration } from "@/app/lib/voice-dashboard-api";
+
+interface Props {
+  data: VoiceUserStat[];
+}
+
+export default function UserRankingTable({ data }: Props) {
+  const top20 = data.slice(0, 20);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>유저별 음성 활동 랭킹</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          <div className="grid grid-cols-6 gap-2 text-sm font-medium text-muted-foreground border-b pb-2">
+            <span>#</span>
+            <span className="col-span-2">유저</span>
+            <span>체류 시간</span>
+            <span>마이크 ON</span>
+            <span>혼자</span>
+          </div>
+          {top20.map((user, index) => (
+            <div
+              key={user.userId}
+              className="grid grid-cols-6 gap-2 items-center text-sm py-1"
+            >
+              <span>
+                {index < 3 ? (
+                  <Badge variant={index === 0 ? "default" : "secondary"}>
+                    {index + 1}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground pl-2">
+                    {index + 1}
+                  </span>
+                )}
+              </span>
+              <span className="col-span-2 font-medium truncate">
+                {user.userName}
+              </span>
+              <span>{formatDuration(user.totalDurationSec)}</span>
+              <span>{formatDuration(user.micOnSec)}</span>
+              <span className="text-muted-foreground">
+                {formatDuration(user.aloneSec)}
+              </span>
+            </div>
+          ))}
+          {top20.length === 0 && (
+            <p className="text-center text-muted-foreground py-8">
+              데이터가 없습니다
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
