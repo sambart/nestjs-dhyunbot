@@ -2,7 +2,7 @@ import { Command, EventParams, Handler } from '@discord-nestjs/core';
 import { Injectable } from '@nestjs/common';
 import { ClientEvents, EmbedBuilder } from 'discord.js';
 
-import * as packageJson from '../../../package.json';
+import * as packageJson from '../../package.json';
 
 @Injectable()
 @Command({
