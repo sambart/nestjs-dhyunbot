@@ -1,9 +1,9 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import type { VoiceUserStat } from "@/app/lib/voice-dashboard-api";
 import { formatDuration } from "@/app/lib/voice-dashboard-api";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
   data: VoiceUserStat[];
