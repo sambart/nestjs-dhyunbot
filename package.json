@@ -1,6 +1,6 @@
 {
   "name": "nest-dhyunbot-monorepo",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Discord bot monorepo with NestJS API and Next.js Web",
   "private": true,
   "workspaces": [
