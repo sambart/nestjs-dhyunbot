@@ -7,6 +7,7 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v2.6 | 2026-03-09 | web: 유저 상세 페이지(F-WEB-007) 추가 / voice: 유저별 음성 일별 통계 API(F-VOICE-018), 멤버 검색 API(F-VOICE-019), 유저 입퇴장 이력 API(F-VOICE-020) 추가 | — |
 | v2.5 | 2026-03-09 | voice: 음성 일별 통계 조회 API(F-VOICE-017) 추가 / web: F-WEB-003-B 대시보드 상태 업데이트 | — |
 | v2.4 | 2026-03-08 | web: 음성 설정 페이지(F-WEB-006) 추가 | — |
 | v2.3 | 2026-03-08 | voice: 음성 시간 제외 채널(VoiceExcludedChannel) 기능 추가 | — |
@@ -22,6 +23,51 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 16] web: 유저 상세 페이지(F-WEB-007) 추가 / voice: 유저 데이터 조회 API 3종 추가 (USER-DETAIL-PAGE)
+
+**변경일**: 2026-03-09
+**티켓**: USER-DETAIL-PAGE
+
+**변경 파일**:
+- `docs/specs/prd/web.md` — F-WEB-007 (유저 상세 페이지) 추가
+- `docs/specs/prd/voice.md` — F-VOICE-018 (유저별 음성 일별 통계 조회 API), F-VOICE-019 (멤버 검색 API), F-VOICE-020 (유저 입퇴장 이력 조회 API) 추가
+
+**변경 내용**:
+1. **F-WEB-007 (유저 상세 페이지)** 신규 추가:
+   - 경로: `/dashboard/guild/{guildId}/user/{userId}`
+   - 접근 방식 2가지: UserRankingTable 유저 행 클릭 / 검색창 직접 입력
+   - 기간 선택 프리셋 버튼 (7일/14일/30일)
+   - 유저 기본 정보 섹션: 아바타, 닉네임, 디스코드 ID
+   - 음성 통계 요약 섹션: 총 음성시간, 마이크 ON/OFF 시간, 혼자 있던 시간
+   - 일별 음성 트렌드 바 차트 (날짜별 channelDurationSec)
+   - 채널별 사용 비율 파이/도넛 차트
+   - 마이크 ON/OFF 분포 파이/도넛 차트
+   - VoiceChannelHistory 기반 최근 입퇴장 이력 테이블 (채널명, 입장시각, 퇴장시각, 체류시간, 페이지네이션)
+   - 유저 검색창 (debounce 300ms, 검색 결과 드롭다운)
+   - 호출 API 테이블 3종 및 관련 FE 파일 목록 명시
+2. **F-VOICE-018 (유저별 음성 일별 통계 조회 API)** 신규 추가:
+   - 엔드포인트: `GET /api/guilds/:guildId/voice/daily` (기존 F-VOICE-017 확장)
+   - 선택 파라미터 `userId` 추가: 제공 시 해당 유저 필터, 미제공 시 전체 유저 조회 (기존 동작 유지)
+   - 인증: JWT Bearer 토큰 필수 (JwtAuthGuard 적용)
+   - 응답: `VoiceDailyRecord[]` (F-VOICE-017과 동일 스키마)
+3. **F-VOICE-019 (멤버 검색 API)** 신규 추가:
+   - 엔드포인트: `GET /api/guilds/:guildId/members/search?q={query}`
+   - `voice_daily` 테이블의 `userName` 컬럼 LIKE 매칭, guildId 필터
+   - 중복 userId 제거, userName 오름차순, 최대 20개 반환
+   - 응답: `MemberSearchResult[]` (`userId`, `userName`)
+   - `q` 누락 시 400 응답
+4. **F-VOICE-020 (유저 입퇴장 이력 조회 API)** 신규 추가:
+   - 엔드포인트: `GET /api/guilds/:guildId/voice/history/:userId`
+   - `VoiceChannelHistory` 기반 페이지네이션 조회
+   - 쿼리 파라미터: `from`, `to` (선택), `page` (기본 1), `limit` (기본 20, 최대 100)
+   - `joinAt` 내림차순 정렬
+   - 응답: `VoiceHistoryPage` (`total`, `page`, `limit`, `items[]`)
+   - `leftAt` null이면 접속 중 상태, `durationSec`도 null 반환
+
+**변경 사유**: 유저별 음성 활동 상세 조회 기능 신규 요구사항 반영. 기존 서버 전체 통계 대시보드에서 특정 유저의 상세 음성 데이터를 조회·시각화하는 페이지와 이를 지원하는 백엔드 API 3종을 추가.
 
 ---
 

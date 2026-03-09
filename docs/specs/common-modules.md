@@ -2586,4 +2586,422 @@ apps/api/src/auth/jwt-auth.guard.ts                               (인증 가드
 
 - [x] **`VoiceDailyService`가 `VoiceStatsQueryService`와 중복 기능을 갖지 않는가**: `VoiceStatsQueryService`는 Discord 봇 슬래시 명령용 집계 쿼리(SUM, 랭킹 등)를 제공하며 `VoiceDailyFlushService`에 의존한다. `VoiceDailyService`는 대시보드용 원시 레코드 조회만 수행하며 flush 의존성이 없다. 역할이 명확히 분리되어 있어 중복 없음
 - [x] **신규 DTO 파일이 FE와 계약한 응답 필드를 모두 포함하는가**: PRD F-VOICE-017 응답 형식 `VoiceDailyRecord[]`의 10개 필드(guildId, userId, userName, date, channelId, channelName, channelDurationSec, micOnSec, micOffSec, aloneSec)를 `VoiceDailyRecordDto`가 모두 포함함. `VoiceDailyEntity` 필드와 1:1 대응
+
+---
+
+# F-WEB-007 / F-VOICE-018 / F-VOICE-019 / F-VOICE-020 — 유저 상세 페이지 공통 모듈 판단 문서
+
+## 목적
+
+유저 상세 페이지(`/dashboard/guild/{guildId}/user/{userId}`) 및 관련 백엔드 API 3종(F-VOICE-018~020)의 병렬 구현을 시작하기 전에, 공통으로 선행 완성이 필요한 모듈을 식별한다. 이 문서에 정의된 모듈은 모든 단위 작업보다 먼저 완성되어야 하며, 이후 단위 작업들이 충돌 없이 병렬로 진행될 수 있도록 인터페이스와 파일 경로를 사전 확정한다.
+
+---
+
+## UD-1. 기존 모듈 중 재사용 가능한 것
+
+### UD-1-1. 재사용 (수정 없음)
+
+| 모듈 | 파일 | 재사용 이유 |
+|------|------|-------------|
+| `JwtAuthGuard` | `apps/api/src/auth/jwt-auth.guard.ts` | 신규 엔드포인트 3종 모두 `@UseGuards(JwtAuthGuard)` 적용 |
+| `VoiceDailyEntity` | `apps/api/src/channel/voice/domain/voice-daily.entity.ts` | F-VOICE-018 userId 필터 쿼리 및 F-VOICE-019 멤버 검색 쿼리에서 동일 엔티티 사용 |
+| `VoiceChannelHistory` | `apps/api/src/channel/voice/domain/voice-channel-history.entity.ts` | F-VOICE-020 입퇴장 이력 쿼리에서 동일 엔티티 사용 |
+| `VoiceDailyRecordDto` | `apps/api/src/channel/voice/dto/voice-daily-record.dto.ts` | F-VOICE-018 응답 DTO와 스키마 동일 (F-VOICE-017과 동일 형식) |
+| Next.js API 프록시 라우트 | `apps/web/app/api/guilds/[...path]/route.ts` | catch-all 패턴이므로 신규 엔드포인트 경로(`/voice/daily?userId=`, `/members/search`, `/voice/history/:userId`)를 수정 없이 자동으로 프록시 처리 |
+| `VoiceDailyRecord` 타입 | `apps/web/app/lib/voice-dashboard-api.ts` | 유저 상세 페이지에서 동일 응답 타입을 재사용 |
+| `formatDuration()` | `apps/web/app/lib/voice-dashboard-api.ts` | 유저 상세 페이지의 통계 요약 카드, 입퇴장 이력 체류 시간 표시에 재사용 |
+| `formatDate()` | `apps/web/app/lib/voice-dashboard-api.ts` | 유저 상세 페이지의 일별 바 차트 X축에 재사용 |
+| `DashboardSidebar` | `apps/web/app/components/DashboardSidebar.tsx` | 대시보드 레이아웃이 이미 사이드바를 포함하고 있어 유저 상세 페이지가 동일 레이아웃을 상속 |
+| 대시보드 레이아웃 | `apps/web/app/dashboard/guild/[guildId]/layout.tsx` | 유저 상세 페이지(`/dashboard/guild/[guildId]/user/[userId]/page.tsx`)는 이 레이아웃을 자동 상속. 인증 가드 및 사이드바가 이미 포함됨 |
+
+### UD-1-2. 재사용하되 수정이 필요한 것
+
+| 모듈 | 파일 | 필요한 수정 내용 |
+|------|------|-----------------|
+| `VoiceDailyQueryDto` | `apps/api/src/channel/voice/dto/voice-daily-query.dto.ts` | `userId` 선택 쿼리 파라미터 추가. 기존 `from`, `to` 필드는 시그니처 변경 없음. `@IsOptional()`, `@IsString()` 데코레이터만 추가 |
+| `VoiceDailyRepository` | `apps/api/src/channel/voice/infrastructure/voice-daily.repository.ts` | 기존 `findByGuildIdAndDateRange(guildId, from, to)` 메서드에 선택적 `userId` 파라미터 추가. 미제공 시 기존 동작(전체 조회) 유지. 새 메서드 `searchMembers(guildId, q)` 추가 (F-VOICE-019용) |
+| `VoiceDailyService` | `apps/api/src/channel/voice/application/voice-daily.service.ts` | `getDailyRecords(guildId, from, to, userId?)` 시그니처 변경. `userId` 미제공 시 기존 F-VOICE-017 동작 유지 |
+| `VoiceDailyController` | `apps/api/src/channel/voice/presentation/voice-daily.controller.ts` | `@Query() query: VoiceDailyQueryDto`에서 `userId` 파라미터를 서비스로 전달하도록 수정 |
+| `UserRankingTable` | `apps/web/app/dashboard/guild/[guildId]/voice/components/UserRankingTable.tsx` | 유저 행 클릭 시 `/dashboard/guild/[guildId]/user/[userId]`로 이동하는 `onClick` 핸들러 추가. `useRouter`와 `useParams` import 필요 |
+| `voice/page.tsx` | `apps/web/app/dashboard/guild/[guildId]/voice/page.tsx` | `formatYmd()` 함수가 이 파일에 로컬 정의되어 있음. 유저 상세 페이지에서도 동일 함수가 필요하므로 `voice-dashboard-api.ts`로 이동 후 re-export. 기존 `voice/page.tsx`의 import 경로 수정 |
+
+---
+
+## UD-2. 새로 만들어야 할 모듈/서비스/파일 목록
+
+### UD-2-1. `formatYmd` 유틸 이동
+
+**파일**: `apps/web/app/lib/voice-dashboard-api.ts` (기존 파일 수정)
+
+현재 `voice/page.tsx` 내부에 로컬 정의된 `formatYmd(date: Date): string` 함수를 `voice-dashboard-api.ts`로 이동하여 export한다. 유저 상세 페이지의 기간 계산 로직과 `getDateRange()` 헬퍼가 동일 함수를 필요로 한다.
+
+```typescript
+/** Date → YYYYMMDD 형식 */
+export function formatYmd(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}${m}${d}`;
+}
+```
+
+이동 후 `voice/page.tsx`에서 `import { formatYmd } from '@/app/lib/voice-dashboard-api'`로 교체한다.
+
+### UD-2-2. `MemberSearchResult` 타입 및 `VoiceHistoryItem` 타입 및 `VoiceHistoryPage` 타입
+
+**파일**: `apps/web/app/lib/user-detail-api.ts` (신규)
+
+F-VOICE-019, F-VOICE-020 응답 타입을 이 파일에 정의한다.
+
+```typescript
+/** F-VOICE-019: 멤버 검색 결과 */
+export interface MemberSearchResult {
+  userId: string;
+  userName: string;
+}
+
+/** F-VOICE-020: 입퇴장 이력 단건 */
+export interface VoiceHistoryItem {
+  id: number;
+  channelId: string;
+  channelName: string;
+  joinAt: string;   // ISO 8601
+  leftAt: string | null;
+  durationSec: number | null;
+}
+
+/** F-VOICE-020: 페이지네이션 응답 */
+export interface VoiceHistoryPage {
+  total: number;
+  page: number;
+  limit: number;
+  items: VoiceHistoryItem[];
+}
+```
+
+### UD-2-3. API 클라이언트 함수 3종
+
+**파일**: `apps/web/app/lib/user-detail-api.ts` (신규, UD-2-2와 동일 파일)
+
+```typescript
+/** F-VOICE-018: 유저별 음성 일별 통계 조회 */
+export async function fetchUserVoiceDaily(
+  guildId: string,
+  userId: string,
+  from: string,
+  to: string,
+): Promise<VoiceDailyRecord[]>
+
+/** F-VOICE-019: 멤버 닉네임/ID 검색 */
+export async function searchMembers(
+  guildId: string,
+  q: string,
+): Promise<MemberSearchResult[]>
+
+/** F-VOICE-020: 유저 입퇴장 이력 조회 */
+export async function fetchVoiceHistory(
+  guildId: string,
+  userId: string,
+  params: { from?: string; to?: string; page?: number; limit?: number },
+): Promise<VoiceHistoryPage>
+```
+
+`VoiceDailyRecord` 타입은 `voice-dashboard-api.ts`에서 import하여 사용한다.
+
+### UD-2-4. 멤버 검색 컨트롤러 및 서비스 (백엔드)
+
+**파일**: `apps/api/src/channel/voice/presentation/member-search.controller.ts` (신규)
+**파일**: `apps/api/src/channel/voice/application/member-search.service.ts` (신규)
+
+F-VOICE-019 멤버 검색 API. `voice_daily` 테이블의 `userName` 컬럼을 LIKE 검색한다. `MemberModule` 의존 없이 `VoiceDailyRepository`만 사용.
+
+컨트롤러 스펙:
+
+```typescript
+@Controller('api/guilds/:guildId/members')
+@UseGuards(JwtAuthGuard)
+export class MemberSearchController {
+  @Get('search')
+  async search(
+    @Param('guildId') guildId: string,
+    @Query('q') q: string,
+  ): Promise<MemberSearchResultDto[]>
+}
+```
+
+- `q` 미제공 또는 빈 문자열 시 `BadRequestException` (400)
+- 최대 20개 결과 반환
+
+서비스 스펙:
+
+```typescript
+@Injectable()
+export class MemberSearchService {
+  async searchMembers(
+    guildId: string,
+    q: string,
+  ): Promise<MemberSearchResultDto[]>
+}
+```
+
+### UD-2-5. 멤버 검색 응답 DTO (백엔드)
+
+**파일**: `apps/api/src/channel/voice/dto/member-search-result.dto.ts` (신규)
+
+```typescript
+export class MemberSearchResultDto {
+  userId: string;
+  userName: string;
+}
+```
+
+### UD-2-6. 유저 입퇴장 이력 조회 컨트롤러 및 서비스 (백엔드)
+
+**파일**: `apps/api/src/channel/voice/presentation/voice-history.controller.ts` (신규)
+**파일**: `apps/api/src/channel/voice/application/voice-history.service.ts` (신규)
+
+F-VOICE-020 입퇴장 이력 API. `VoiceChannelHistory` 엔티티를 `joinAt` 내림차순으로 페이지네이션 조회한다.
+
+컨트롤러 스펙:
+
+```typescript
+@Controller('api/guilds/:guildId/voice')
+@UseGuards(JwtAuthGuard)
+export class VoiceHistoryController {
+  @Get('history/:userId')
+  async getHistory(
+    @Param('guildId') guildId: string,
+    @Param('userId') userId: string,
+    @Query() query: VoiceHistoryQueryDto,
+  ): Promise<VoiceHistoryPageDto>
+}
+```
+
+서비스 스펙:
+
+```typescript
+@Injectable()
+export class VoiceHistoryService {
+  async getHistory(
+    guildId: string,
+    userId: string,
+    from?: string,
+    to?: string,
+    page?: number,
+    limit?: number,
+  ): Promise<VoiceHistoryPageDto>
+}
+```
+
+### UD-2-7. 이력 조회 DTO 2종 (백엔드)
+
+**파일**: `apps/api/src/channel/voice/dto/voice-history-query.dto.ts` (신규)
+
+```typescript
+export class VoiceHistoryQueryDto {
+  @IsOptional() @Matches(/^\d{8}$/) from?: string;
+  @IsOptional() @Matches(/^\d{8}$/) to?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
+}
+```
+
+**파일**: `apps/api/src/channel/voice/dto/voice-history-page.dto.ts` (신규)
+
+```typescript
+export class VoiceHistoryItemDto {
+  id: number;
+  channelId: string;
+  channelName: string;
+  joinAt: string;
+  leftAt: string | null;
+  durationSec: number | null;
+}
+
+export class VoiceHistoryPageDto {
+  total: number;
+  page: number;
+  limit: number;
+  items: VoiceHistoryItemDto[];
+}
+```
+
+---
+
+## UD-3. 수정이 필요한 기존 파일 목록 및 수정 내용
+
+### UD-3-1. `VoiceDailyQueryDto` 수정
+
+**파일**: `apps/api/src/channel/voice/dto/voice-daily-query.dto.ts`
+
+기존 `from`, `to` 필드는 변경 없음. 선택 파라미터 `userId` 추가.
+
+```typescript
+@IsOptional()
+@IsString()
+userId?: string;
+```
+
+### UD-3-2. `VoiceDailyRepository` 수정
+
+**파일**: `apps/api/src/channel/voice/infrastructure/voice-daily.repository.ts`
+
+기존 `findByGuildIdAndDateRange` 메서드 시그니처에 `userId?: string` 추가. `userId` 미제공 시 기존 쿼리 동작 유지.
+
+```typescript
+async findByGuildIdAndDateRange(
+  guildId: string,
+  from: string,
+  to: string,
+  userId?: string,  // 추가
+): Promise<VoiceDailyEntity[]>
+```
+
+`userId` 제공 시: `.andWhere('vd."userId" = :userId', { userId })` 조건 추가.
+
+신규 메서드 추가 (F-VOICE-019):
+
+```typescript
+async searchMembers(
+  guildId: string,
+  q: string,
+): Promise<Array<{ userId: string; userName: string }>>
+```
+
+구현: `voice_daily` 테이블에서 `guildId` 조건 + `userName ILIKE '%q%'` 조건으로 `DISTINCT ON (userId)` 조회, `userName` 오름차순 정렬, 최대 20개 반환.
+
+### UD-3-3. `VoiceDailyService` 수정
+
+**파일**: `apps/api/src/channel/voice/application/voice-daily.service.ts`
+
+```typescript
+async getDailyRecords(
+  guildId: string,
+  from: string,
+  to: string,
+  userId?: string,  // 추가
+): Promise<VoiceDailyRecordDto[]>
+```
+
+### UD-3-4. `VoiceDailyController` 수정
+
+**파일**: `apps/api/src/channel/voice/presentation/voice-daily.controller.ts`
+
+`query.userId`를 서비스 호출 시 전달하도록 수정.
+
+```typescript
+return this.voiceDailyService.getDailyRecords(
+  guildId,
+  query.from,
+  query.to,
+  query.userId,  // 추가
+);
+```
+
+### UD-3-5. `VoiceChannelModule` 수정
+
+**파일**: `apps/api/src/channel/voice/voice-channel.module.ts`
+
+`controllers` 배열에 `MemberSearchController`, `VoiceHistoryController` 추가.
+`providers` 배열에 `MemberSearchService`, `VoiceHistoryService` 추가.
+`TypeOrmModule.forFeature` 배열에 `VoiceChannelHistory`가 이미 등록되어 있으므로 추가 불필요.
+기존 `exports` 목록 변경 없음.
+
+### UD-3-6. `UserRankingTable` 수정
+
+**파일**: `apps/web/app/dashboard/guild/[guildId]/voice/components/UserRankingTable.tsx`
+
+각 유저 행에 클릭 이벤트 추가. `useRouter`, `useParams`를 import하고, 클릭 시 `/dashboard/guild/${guildId}/user/${user.userId}`로 `router.push()` 호출. 행에 `cursor-pointer hover:bg-muted/50` 클래스 추가.
+
+### UD-3-7. `voice/page.tsx` 수정
+
+**파일**: `apps/web/app/dashboard/guild/[guildId]/voice/page.tsx`
+
+로컬 정의된 `formatYmd` 함수를 삭제하고, `voice-dashboard-api.ts`에서 import하도록 변경. 기존 `getDateRange()` 함수는 해당 파일에 유지한다 (voice 대시보드에서만 사용).
+
+---
+
+## UD-4. 구현 단위(Unit) 분류
+
+병렬 진행 가능한 단위로 분류한다. 공통 모듈 작업이 완료된 이후 아래 단위들은 독립적으로 구현 가능하다.
+
+| 단위 | 기능 | 포함 파일 | 선행 조건 |
+|------|------|-----------|-----------|
+| UD-A | F-VOICE-018 백엔드 (userId 필터) | `voice-daily-query.dto.ts` 수정, `voice-daily.repository.ts` 수정, `voice-daily.service.ts` 수정, `voice-daily.controller.ts` 수정 | 공통 모듈 완료 |
+| UD-B | F-VOICE-019 백엔드 (멤버 검색) | `member-search-result.dto.ts` 신규, `member-search.service.ts` 신규, `member-search.controller.ts` 신규, `voice-daily.repository.ts` 메서드 추가, `voice-channel.module.ts` 수정 | UD-A와 동일 파일 수정 포함 — UD-A와 병렬 진행 불가, 순차 또는 단일 작업자 처리 권장 |
+| UD-C | F-VOICE-020 백엔드 (입퇴장 이력) | `voice-history-query.dto.ts` 신규, `voice-history-page.dto.ts` 신규, `voice-history.service.ts` 신규, `voice-history.controller.ts` 신규, `voice-channel.module.ts` 수정 | UD-A, UD-B와 `voice-channel.module.ts` 파일 공유 — 순차 또는 단일 작업자 처리 권장 |
+| UD-D | 유저 상세 페이지 FE | `user-detail-api.ts` 신규, `page.tsx` 신규, 차트 컴포넌트 신규 | `user-detail-api.ts` 타입 정의 완료 후 진행 가능 |
+| UD-E | UserRankingTable 클릭 연결 FE | `UserRankingTable.tsx` 수정 | 유저 상세 페이지 라우트 경로 확정 후 진행 가능 |
+
+**충돌 주의 파일**: `voice-channel.module.ts`와 `voice-daily.repository.ts`는 UD-A, UD-B, UD-C 모두에서 수정이 발생한다. 이 파일들은 단일 작업자가 순차 처리하거나, 공통 모듈 단계에서 미리 변경 사항을 모두 반영하는 것을 권장한다.
+
+---
+
+## UD-5. 파일 경로 전체 목록 (충돌 방지용 사전 확정)
+
+### 신규 생성
+
+```
+apps/api/src/channel/voice/dto/member-search-result.dto.ts         (UD-2-5)
+apps/api/src/channel/voice/dto/voice-history-query.dto.ts          (UD-2-7)
+apps/api/src/channel/voice/dto/voice-history-page.dto.ts           (UD-2-7)
+apps/api/src/channel/voice/application/member-search.service.ts    (UD-2-4)
+apps/api/src/channel/voice/application/voice-history.service.ts    (UD-2-6)
+apps/api/src/channel/voice/presentation/member-search.controller.ts (UD-2-4)
+apps/api/src/channel/voice/presentation/voice-history.controller.ts (UD-2-6)
+apps/web/app/lib/user-detail-api.ts                                (UD-2-2, UD-2-3)
+apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx      (UD-D)
+```
+
+### 기존 수정
+
+```
+apps/api/src/channel/voice/dto/voice-daily-query.dto.ts            (UD-3-1: userId 필드 추가)
+apps/api/src/channel/voice/infrastructure/voice-daily.repository.ts (UD-3-2: 메서드 시그니처 변경, searchMembers 추가)
+apps/api/src/channel/voice/application/voice-daily.service.ts      (UD-3-3: userId 파라미터 추가)
+apps/api/src/channel/voice/presentation/voice-daily.controller.ts  (UD-3-4: userId 전달 추가)
+apps/api/src/channel/voice/voice-channel.module.ts                 (UD-3-5: 컨트롤러·서비스 2종 등록)
+apps/web/app/dashboard/guild/[guildId]/voice/components/UserRankingTable.tsx (UD-3-6: 클릭 이벤트 추가)
+apps/web/app/dashboard/guild/[guildId]/voice/page.tsx              (UD-3-7: formatYmd import 경로 변경)
+apps/web/app/lib/voice-dashboard-api.ts                            (UD-2-1: formatYmd 이동 및 export)
+```
+
+### 이미 존재하는 파일 (수정 없음)
+
+```
+apps/api/src/channel/voice/domain/voice-daily.entity.ts
+apps/api/src/channel/voice/domain/voice-channel-history.entity.ts
+apps/api/src/channel/voice/dto/voice-daily-record.dto.ts
+apps/api/src/auth/jwt-auth.guard.ts
+apps/web/app/api/guilds/[...path]/route.ts
+apps/web/app/dashboard/guild/[guildId]/layout.tsx
+```
+
+---
+
+## UD-6. 검증 체크리스트 (3회 확인)
+
+### 1차 확인
+
+- [x] **신규 컨트롤러 라우트 경로 충돌 없음**: `MemberSearchController`는 `api/guilds/:guildId/members`, `VoiceHistoryController`는 `api/guilds/:guildId/voice`. 기존 `VoiceDailyController`(`api/guilds/:guildId/voice/daily`)와 `VoiceExcludedChannelController`(`api/guilds/:guildId/voice/excluded-channels`)와 경로 겹침 없음
+- [x] **신규 DTO 파일명 충돌 없음**: `member-search-result.dto.ts`, `voice-history-query.dto.ts`, `voice-history-page.dto.ts`는 기존 dto 디렉토리 내 파일(`voice-daily-record.dto.ts`, `voice-daily-query.dto.ts`, `voice-excluded-channel-save.dto.ts`, `voice-excluded-channel-sync.dto.ts`)과 이름 중복 없음
+- [x] **신규 서비스·컨트롤러 파일명 충돌 없음**: `member-search.service.ts`, `voice-history.service.ts`, `member-search.controller.ts`, `voice-history.controller.ts`는 기존 application 및 presentation 디렉토리 파일과 이름 중복 없음
+- [x] **FE 신규 파일 경로 충돌 없음**: `user-detail-api.ts`는 기존 lib 디렉토리 파일(`voice-dashboard-api.ts`, `voice-api.ts`, `discord-api.ts` 등)과 이름 중복 없음. `user/[userId]/page.tsx`는 기존 voice 디렉토리와 별개 경로
+- [x] **Next.js 프록시 라우트 자동 처리 확인**: `/api/guilds/[...path]/route.ts`의 catch-all 패턴이 `/api/guilds/{guildId}/members/search`, `/api/guilds/{guildId}/voice/history/{userId}` 경로를 모두 처리함. 프록시 파일 수정 불필요
+
+### 2차 확인
+
+- [x] **기존 F-VOICE-017 동작 유지**: `VoiceDailyQueryDto`에 `@IsOptional()` `userId` 추가는 기존 `from`, `to` 필드에 영향 없음. `VoiceDailyService.getDailyRecords()`의 `userId` 파라미터는 선택적이므로 기존 호출 코드(`voice/page.tsx`)에서 수정 없이 동작 유지
+- [x] **`voice-daily.repository.ts` 기존 메서드 시그니처 영향 없음**: `accumulateChannelDuration`, `accumulateMicDuration`, `accumulateAloneDuration` 3개 누적 메서드는 수정 없음. `findByGuildIdAndDateRange`에만 선택적 파라미터 추가
+- [x] **`VoiceChannelModule` exports 변경 없음**: `MemberSearchController`, `VoiceHistoryController`, `MemberSearchService`, `VoiceHistoryService`는 모두 내부 providers/controllers 등록만 수행. 기존 exports 목록(`VoiceChannelService`, `VoiceSessionService`, `VoiceDailyFlushService`, `VoiceRedisRepository`, `DiscordVoiceGateway`, `VoiceExcludedChannelService`) 변경 없음
+- [x] **`AppModule` 수정 불필요**: `VoiceChannelModule`은 이미 `AppModule`에서 import되어 있음. 신규 컨트롤러·서비스는 `VoiceChannelModule` 내부 등록이므로 상위 모듈 변경 불필요
+- [x] **FE 대시보드 레이아웃 상속 확인**: `/dashboard/guild/[guildId]/user/[userId]/page.tsx`는 `/dashboard/guild/[guildId]/layout.tsx`를 자동 상속. 인증 가드, 사이드바, 로그인 체크 로직이 이미 레이아웃에 포함됨. 페이지에서 별도 인증 처리 불필요
+- [x] **`formatYmd` 이동이 기존 코드에 미치는 영향**: `voice/page.tsx`에서만 사용되므로 이동 후 해당 파일의 import만 수정하면 됨. 다른 파일에서 사용되지 않아 사이드 이펙트 없음
+
+### 3차 확인
+
+- [x] **병렬 개발 시 충돌 가능 파일 모두 식별되었는가**: `voice-channel.module.ts`(UD-A·B·C 공통 수정), `voice-daily.repository.ts`(UD-A·B 공통 수정)가 충돌 위험 파일로 식별됨. UD-4에서 단일 작업자 처리 또는 공통 모듈 단계 선반영을 명시함
+- [x] **FE 타입 계약이 백엔드 응답 스키마와 일치하는가**: `MemberSearchResult`(userId, userName 2필드)는 F-VOICE-019 응답 스키마와 일치. `VoiceHistoryItem`(id, channelId, channelName, joinAt, leftAt, durationSec)은 F-VOICE-020 응답 스키마와 일치. `VoiceHistoryPage`(total, page, limit, items)는 F-VOICE-020 페이지네이션 응답과 일치
+- [x] **`MemberSearchService`가 기존 `MemberService`와 역할 중복 없는가**: `MemberService`(`apps/api/src/member/member.service.ts`)는 Discord 이벤트에서 멤버 DB 레코드를 생성/조회하는 용도. `MemberSearchService`는 `voice_daily` 테이블에서 닉네임 기반 검색만 수행. 테이블도 다르고 역할도 다름. 중복 없음
+- [x] **`VoiceHistoryService`가 기존 `VoiceChannelHistoryService`와 역할 중복 없는가**: `VoiceChannelHistoryService`는 Discord 이벤트 기반 입/퇴장 로그 write 용도(`logJoin`, `logLeave`). `VoiceHistoryService`는 웹 대시보드용 read 전용 페이지네이션 조회. 역할이 명확히 분리됨. 중복 없음
 - [x] **단일 단위(VD-1)로 처리하므로 병렬 개발 시 파일 충돌 우려 없음**: 5개 파일 모두 VD-1 단위에만 귀속. 다른 진행 중인 도메인(Newbie 등)과 경로 겹침 없음

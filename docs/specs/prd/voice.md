@@ -168,6 +168,128 @@ Discord Voice Event
   - `apps/web/app/lib/voice-dashboard-api.ts` — API 클라이언트 함수
   - 차트 컴포넌트 5종 (동일 디렉토리)
 
+### F-VOICE-018: 유저별 음성 일별 통계 조회 API
+
+> 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)
+
+- **트리거**: FE 유저 상세 페이지(`/dashboard/guild/{guildId}/user/{userId}`)의 초기 로드 및 기간 변경
+- **엔드포인트**: `GET /api/guilds/:guildId/voice/daily`
+- **인증**: JWT Bearer 토큰 필수 (JwtAuthGuard 적용)
+- **쿼리 파라미터**:
+  | 파라미터 | 타입 | 필수 | 설명 |
+  |----------|------|------|------|
+  | `from` | string (YYYYMMDD) | 필수 | 조회 시작 날짜 (예: `20260301`) |
+  | `to` | string (YYYYMMDD) | 필수 | 조회 종료 날짜 (예: `20260309`) |
+  | `userId` | string | 선택 | 특정 유저 필터. 미제공 시 전체 유저 조회 (기존 F-VOICE-017 동작) |
+- **동작**:
+  1. `guildId` + `date BETWEEN from AND to` 조건으로 `VoiceDailyEntity` 조회
+  2. `userId`가 제공된 경우 `userId` 조건을 추가하여 해당 유저 데이터만 필터링
+  3. 결과를 `VoiceDailyRecord[]` 형태로 직렬화하여 반환
+- **응답 형식**: `VoiceDailyRecord[]` (F-VOICE-017과 동일 스키마)
+  ```json
+  [
+    {
+      "guildId": "123456789012345678",
+      "userId": "111111111111111111",
+      "userName": "DHyun",
+      "date": "20260301",
+      "channelId": "GLOBAL",
+      "channelName": "GLOBAL",
+      "channelDurationSec": 7200,
+      "micOnSec": 3600,
+      "micOffSec": 3600,
+      "aloneSec": 1800
+    }
+  ]
+  ```
+- **호출 경로**:
+  - FE(`apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/voice/daily?from=&to=&userId=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/voice/daily?from=&to=&userId=`)
+- **관련 FE 파일**:
+  - `apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx` — 유저 상세 페이지
+  - `apps/web/app/lib/user-detail-api.ts` — API 클라이언트 함수
+
+### F-VOICE-019: 멤버 검색 API
+
+> 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)
+
+- **트리거**: FE 유저 상세 페이지 또는 대시보드의 검색창에서 닉네임/디스코드 ID 입력
+- **엔드포인트**: `GET /api/guilds/:guildId/members/search`
+- **인증**: JWT Bearer 토큰 필수 (JwtAuthGuard 적용)
+- **쿼리 파라미터**:
+  | 파라미터 | 타입 | 필수 | 설명 |
+  |----------|------|------|------|
+  | `q` | string | 필수 | 검색 키워드 (닉네임 또는 디스코드 ID). 최소 1자 |
+- **동작**:
+  1. `voice_daily` 테이블의 `userName` 컬럼에 LIKE 매칭 (`%q%`)으로 검색
+  2. `guildId` 조건을 함께 적용하여 해당 서버에 존재하는 유저만 반환
+  3. 중복 `userId`를 제거하고 `userName` 오름차순 정렬
+  4. 최대 20개 결과 반환
+- **응답 형식**: `MemberSearchResult[]`
+  ```json
+  [
+    {
+      "userId": "111111111111111111",
+      "userName": "DHyun"
+    }
+  ]
+  ```
+- **예외**:
+  - `q` 파라미터 누락 시 400 응답
+- **호출 경로**:
+  - FE(`apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/members/search?q=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/members/search?q=`)
+- **관련 FE 파일**:
+  - `apps/web/app/lib/user-detail-api.ts` — API 클라이언트 함수
+
+### F-VOICE-020: 유저 입퇴장 이력 조회 API
+
+> 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)
+
+- **트리거**: FE 유저 상세 페이지의 최근 입퇴장 이력 테이블 초기 로드 및 페이지 변경
+- **엔드포인트**: `GET /api/guilds/:guildId/voice/history/:userId`
+- **인증**: JWT Bearer 토큰 필수 (JwtAuthGuard 적용)
+- **경로 파라미터**:
+  | 파라미터 | 타입 | 설명 |
+  |----------|------|------|
+  | `guildId` | string | 디스코드 서버 ID |
+  | `userId` | string | 조회 대상 유저의 discordMemberId |
+- **쿼리 파라미터**:
+  | 파라미터 | 타입 | 필수 | 설명 |
+  |----------|------|------|------|
+  | `from` | string (YYYYMMDD) | 선택 | 조회 시작 날짜. 미제공 시 제한 없음 |
+  | `to` | string (YYYYMMDD) | 선택 | 조회 종료 날짜. 미제공 시 제한 없음 |
+  | `page` | number | 선택 | 페이지 번호 (1부터 시작). 기본값: 1 |
+  | `limit` | number | 선택 | 페이지당 항목 수. 기본값: 20, 최대: 100 |
+- **동작**:
+  1. `VoiceChannelHistory` 테이블에서 `member.discordMemberId = userId` AND `channel.guildId = guildId` 조건으로 조회
+  2. `from` / `to` 제공 시 `joinAt BETWEEN` 조건 추가
+  3. `joinAt` 내림차순 정렬 (최신 이력 우선)
+  4. 페이지네이션 적용 후 결과와 전체 건수 반환
+- **응답 형식**: `VoiceHistoryPage`
+  ```json
+  {
+    "total": 150,
+    "page": 1,
+    "limit": 20,
+    "items": [
+      {
+        "id": 1234,
+        "channelId": "222222222222222222",
+        "channelName": "일반",
+        "joinAt": "2026-03-09T10:00:00.000Z",
+        "leftAt": "2026-03-09T11:30:00.000Z",
+        "durationSec": 5400
+      }
+    ]
+  }
+  ```
+  - `leftAt`이 null이면 (아직 퇴장 전) `null`로 반환
+  - `durationSec`은 `leftAt`이 null이면 null
+- **호출 경로**:
+  - FE(`apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/voice/history/{userId}?from=&to=&page=&limit=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/voice/history/{userId}?from=&to=&page=&limit=`)
+- **관련 FE 파일**:
+  - `apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx` — 유저 상세 페이지
+  - `apps/web/app/lib/user-detail-api.ts` — API 클라이언트 함수
+
 ---
 
 ## 음성 시간 제외 채널 (Voice Time Excluded Channels)

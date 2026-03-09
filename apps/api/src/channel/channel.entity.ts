@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -15,12 +16,16 @@ export enum ChannelStatus {
 }
 
 @Entity({ schema: 'public' })
+@Index('IDX_channel_guild', ['guildId'])
 export class Channel {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ unique: true })
   discordChannelId: string;
+
+  @Column({ nullable: true })
+  guildId: string;
 
   @Column()
   channelName: string;

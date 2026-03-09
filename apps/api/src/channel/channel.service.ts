@@ -12,7 +12,7 @@ export class ChannelService {
     private readonly channelRepository: Repository<Channel>,
   ) {}
 
-  async findOrCreateChannel(channelId: string, channelName: string): Promise<Channel> {
+  async findOrCreateChannel(channelId: string, channelName: string, guildId?: string): Promise<Channel> {
     let channel = await this.channelRepository.findOne({
       where: { discordChannelId: channelId },
     });
@@ -21,7 +21,11 @@ export class ChannelService {
       channel = this.channelRepository.create({
         discordChannelId: channelId,
         channelName,
+        guildId: guildId ?? null,
       });
+      channel = await this.channelRepository.save(channel);
+    } else if (guildId && !channel.guildId) {
+      channel.guildId = guildId;
       channel = await this.channelRepository.save(channel);
     }
 

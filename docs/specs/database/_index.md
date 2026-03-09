@@ -32,12 +32,13 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 ├──────────────┤       ├─────────────────────────┤       ├──────────────┤
 │ PK id        │──1:N─►│ PK id                   │◄─N:1──│ PK id        │
 │ discordMem…  │       │ FK member               │       │ discordCha…  │
-│ nickname     │       │ FK channel              │       │ channelName  │
-│ createdAt    │       │ joinedAt                │       │ status       │
-│ updatedAt    │       │ leftAt                  │       │ createdAt    │
-└──────────────┘       │ createdAt               │       │ updatedAt    │
-                       │ updatedAt               │       └──────────────┘
-                       └─────────────────────────┘
+│ nickname     │       │ FK channel              │       │ guildId ★    │
+│ createdAt    │       │ joinedAt                │       │ channelName  │
+│ updatedAt    │       │ leftAt                  │       │ status       │
+└──────────────┘       │ createdAt               │       │ createdAt    │
+                       │ updatedAt               │       │ updatedAt    │
+                       └─────────────────────────┘       └──────────────┘
+                         IDX(memberId, joinAt DESC)         IDX(guildId)
 
 ┌───────────────────────────────────────────────────┐
 │              VoiceDailyEntity (voice_daily)        │
@@ -180,10 +181,13 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 
 ### 2. Channel
 
+> F-VOICE-020 대응: `guildId` 컬럼 추가. `VoiceChannelHistory` 조회 시 서버 범위 필터링에 사용한다.
+
 | 컬럼 | 타입 | 제약조건 | 설명 |
 |-------|------|----------|------|
 | `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
 | `discordChannelId` | `varchar` | UNIQUE, NOT NULL | 디스코드 채널 ID |
+| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
 | `channelName` | `varchar` | NOT NULL | 채널명 |
 | `status` | `enum('ACTIVE','DELETED')` | NOT NULL, DEFAULT `'ACTIVE'` | 채널 상태 |
 | `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
@@ -192,6 +196,16 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 - **스키마**: `public`
 - **관계**: `VoiceChannelHistory` (1:N)
 - **파일**: `apps/api/src/channel/channel.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_channel_guild` | `(guildId)` | F-VOICE-020에서 `JOIN channel ON channel.guildId = ?` 조건 처리 |
+
+#### 인덱스 설계 근거
+
+F-VOICE-020 쿼리는 `VoiceChannelHistory JOIN Channel ON channel.guildId = guildId AND member.discordMemberId = userId` 형태로 실행된다. `Channel`에 대한 `guildId` 단독 인덱스를 추가하여 조인 단계에서 풀스캔을 방지한다. `discordChannelId` UNIQUE 인덱스는 이미 존재하므로 채널 단건 조회는 별도 인덱스가 불필요하다.
 
 ---
 
@@ -211,6 +225,16 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 - **관계**: Channel (N:1), Member (N:1)
 - **계산 속성**: `duration` — `leftAt - joinedAt` (초 단위, getter)
 - **파일**: `apps/api/src/channel/voice/domain/voice-channel-history.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_voice_channel_history_member_join` | `(memberId, joinAt DESC)` | F-VOICE-020에서 특정 멤버의 이력을 최신순 페이지네이션 조회 |
+
+#### 인덱스 설계 근거
+
+F-VOICE-020 쿼리는 `WHERE member.discordMemberId = ? AND channel.guildId = ?` 조건으로 조회하고 `ORDER BY joinAt DESC`로 정렬 후 페이지네이션을 적용한다. `memberId`(FK)를 선두로 두고 `joinAt DESC`를 후위에 포함하여 필터링과 정렬을 인덱스 하나로 커버한다. `guildId` 조건은 `Channel` 테이블의 `IDX_channel_guild`를 통한 조인으로 처리되므로 `VoiceChannelHistory`에 별도 guildId 컬럼을 추가하지 않는다.
 
 ---
 
@@ -237,9 +261,13 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 
 | 인덱스 | 컬럼 | 용도 |
 |--------|------|------|
-| `IDX_voice_daily_guild_date` | `(guildId, date)` | 날짜별 전체 조회 |
+| `IDX_voice_daily_guild_date` | `(guildId, date)` | 날짜별 전체 조회 (F-VOICE-017, F-VOICE-018) |
 | `IDX_voice_daily_guild_channel_date` | `(guildId, channelId, date)` | 채널별 조회 |
-| `IDX_voice_daily_guild_user_date` | `(guildId, userId, date)` | 유저별 조회 |
+| `IDX_voice_daily_guild_user_date` | `(guildId, userId, date)` | 유저별 조회 (F-VOICE-018 userId 필터) |
+
+#### F-VOICE-019 멤버 검색 인덱스 검토
+
+F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%q%'` 형태로 실행된다. `LIKE '%q%'`는 선두 와일드카드이므로 B-tree 인덱스로 커버할 수 없다. 현재 스펙에서는 `guildId` 조건으로 먼저 서버 범위를 제한한 뒤 `userName` seq scan이 적용되며, 결과를 중복 제거 후 최대 20개만 반환한다. 서버당 `voice_daily` 레코드 규모가 크지 않은 현재 단계에서는 추가 인덱스 없이 운영한다. 향후 데이터가 대량 누적되면 pg_trgm GIN 인덱스(`CREATE INDEX ... USING GIN (userName gin_trgm_ops)`) 도입을 검토한다.
 
 #### channelId 규칙
 
@@ -895,6 +923,39 @@ SET sticky_message:debounce:{channelId} 1 EX 3
 Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
                       ├── GLOBAL 레코드: 전체 마이크/혼자시간
                       └── 채널별 레코드: 채널 체류 시간
+```
+
+### 유저 상세 페이지 데이터 흐름 (F-WEB-007)
+
+```
+[멤버 검색 — GET /api/guilds/:guildId/members/search?q= (F-VOICE-019)]
+  1. voice_daily → PostgreSQL
+       SELECT DISTINCT userId, userName
+       WHERE guildId = ? AND userName LIKE '%q%'
+       ORDER BY userName ASC
+       LIMIT 20
+  ※ 기존 테이블 조회만으로 처리. 새 테이블 불필요.
+
+[유저별 음성 일별 통계 — GET /api/guilds/:guildId/voice/daily?userId= (F-VOICE-018)]
+  1. voice_daily → PostgreSQL
+       SELECT * WHERE guildId = ? AND date BETWEEN ? AND ? AND userId = ?
+       인덱스: IDX_voice_daily_guild_user_date (guildId, userId, date)
+  ※ F-VOICE-017에서 userId 조건 추가만으로 처리. 스키마 변경 없음.
+
+[유저 입퇴장 이력 — GET /api/guilds/:guildId/voice/history/:userId (F-VOICE-020)]
+  1. Member → PostgreSQL select WHERE discordMemberId = ? → memberId(PK) 획득
+  2. VoiceChannelHistory → PostgreSQL
+       SELECT vch.id, ch.discordChannelId, ch.channelName, vch.joinAt, vch.leftAt
+       FROM voice_channel_history vch
+       JOIN channel ch ON ch.id = vch.channelId AND ch.guildId = ?
+       WHERE vch.memberId = ?
+         [AND vch.joinAt BETWEEN ? AND ?]
+       ORDER BY vch.joinAt DESC
+       LIMIT ? OFFSET ?
+  3. COUNT(*) 쿼리로 total 건수 조회 (페이지네이션용)
+  인덱스: IDX_voice_channel_history_member_join (memberId, joinAt DESC) — VoiceChannelHistory 필터+정렬 커버
+          IDX_channel_guild (guildId) — Channel 조인 조건 커버
+  ※ Channel 테이블에 guildId 컬럼 추가 필요 (마이그레이션 필요).
 ```
 
 ### Newbie 라이프사이클
