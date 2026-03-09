@@ -1,10 +1,7 @@
 services:
   api:
     container_name: nest-api-prod
-    image: nest-dhyunbot-api-prod
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile.prod
+    image: ghcr.io/sambart/nestjs-dhyunbot/api:latest
     ports:
       - "3000:3000"
     env_file:
@@ -20,10 +17,7 @@ services:
 
   web:
     container_name: next-web-prod
-    image: nest-dhyunbot-web-prod
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile.prod
+    image: ghcr.io/sambart/nestjs-dhyunbot/web:latest
     ports:
       - "4000:4000"
     env_file:
