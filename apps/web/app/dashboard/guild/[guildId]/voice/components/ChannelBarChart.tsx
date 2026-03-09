@@ -70,6 +70,7 @@ export default function ChannelBarChart({ data, records }: Props) {
     }));
 
   const chartData = tab === "channel" ? channelChartData : categoryChartData;
+  const chartHeight = Math.max(300, chartData.length * 40);
 
   return (
     <Card>
@@ -95,7 +96,11 @@ export default function ChannelBarChart({ data, records }: Props) {
         </CardAction>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer
+          config={chartConfig}
+          style={{ height: chartHeight }}
+          className="w-full"
+        >
           <BarChart data={chartData} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
             <XAxis type="number" tickLine={false} axisLine={false} />
@@ -104,7 +109,7 @@ export default function ChannelBarChart({ data, records }: Props) {
               dataKey="name"
               tickLine={false}
               axisLine={false}
-              width={100}
+              width={140}
             />
             <ChartTooltip content={<ChartTooltipContent />} />
             <Bar
