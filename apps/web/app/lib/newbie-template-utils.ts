@@ -3,7 +3,7 @@
  */
 export const MISSION_ALLOWED_VARS = {
   titleTemplate: ['{totalCount}'],
-  headerTemplate: ['{totalCount}', '{inProgressCount}', '{completedCount}', '{failedCount}'],
+  headerTemplate: ['{totalCount}', '{inProgressCount}', '{completedCount}', '{failedCount}', '{leftCount}'],
   itemTemplate: [
     '{username}', '{mention}', '{startDate}', '{endDate}',
     '{statusEmoji}', '{statusText}',
@@ -103,6 +103,7 @@ export const MISSION_PREVIEW_DUMMY: Record<string, string> = {
   '{inProgressCount}': '1',
   '{completedCount}': '1',
   '{failedCount}': '1',
+  '{leftCount}': '0',
   '{username}': '사용자1',
   '{mention}': '@사용자1',
   '{startDate}': '2025-03-01',

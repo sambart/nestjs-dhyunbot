@@ -11,6 +11,7 @@ export enum MissionStatus {
   IN_PROGRESS = 'IN_PROGRESS',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
+  LEFT = 'LEFT',
 }
 
 @Entity({ schema: 'public' })
@@ -42,6 +43,9 @@ export class NewbieMission {
     default: MissionStatus.IN_PROGRESS,
   })
   status: MissionStatus;
+
+  @Column({ default: false })
+  hiddenFromEmbed: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

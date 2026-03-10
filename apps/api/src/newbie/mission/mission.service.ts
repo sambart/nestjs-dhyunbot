@@ -1,5 +1,5 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   ActionRowBuilder,
@@ -212,8 +212,8 @@ export class MissionService {
     // 미등록 멤버 자동 등록 (가입일 기준 missionDurationDays 이내)
     await this.registerMissingMembers(guildId, resolvedConfig);
 
-    // 진행중 미션 목록 조회 (Redis 캐시 우선)
-    let missions = await this.getActiveMissions(guildId);
+    // Embed 표시 대상 미션 조회 (모든 상태, hiddenFromEmbed=false)
+    let missions = await this.missionRepo.findVisibleByGuild(guildId);
 
     // 봇·나간 멤버 미션 제거
     missions = await this.removeInvalidMissions(guildId, missions);
@@ -305,6 +305,121 @@ export class MissionService {
   }
 
   /**
+   * 미션 수동 성공 처리 (F-NEWBIE-005).
+   * 상태를 COMPLETED로 갱신하고, 옵션으로 Discord 역할을 부여한다.
+   */
+  async completeMission(
+    guildId: string,
+    missionId: number,
+    roleId?: string | null,
+  ): Promise<{ ok: true; warning?: string }> {
+    const mission = await this.missionRepo.findById(missionId);
+    if (!mission) throw new NotFoundException('미션을 찾을 수 없습니다.');
+    if (mission.guildId !== guildId) throw new NotFoundException('미션을 찾을 수 없습니다.');
+    if (mission.status !== MissionStatus.IN_PROGRESS) {
+      throw new BadRequestException('진행 중인 미션만 성공 처리할 수 있습니다.');
+    }
+
+    await this.missionRepo.updateStatus(missionId, MissionStatus.COMPLETED);
+    this.logger.log(`[MISSION] Manual complete: id=${missionId} member=${mission.memberId}`);
+
+    let warning: string | undefined;
+
+    if (roleId) {
+      try {
+        const guild = this.discord.guilds.cache.get(guildId);
+        if (!guild) throw new Error('Guild not found');
+        const member = await guild.members.fetch(mission.memberId).catch(() => null);
+        if (!member) throw new Error('Member not found');
+        await member.roles.add(roleId);
+        this.logger.log(`[MISSION] Role granted: member=${mission.memberId} role=${roleId}`);
+      } catch (err) {
+        warning = `역할 부여에 실패했습니다: ${(err as Error).message}`;
+        this.logger.warn(`[MISSION] Role grant failed: ${warning}`);
+      }
+    }
+
+    await this.newbieRedis.deleteMissionActive(guildId);
+    await this.refreshMissionEmbed(guildId).catch((err) => {
+      this.logger.error(`[MISSION] Embed refresh failed after complete`, (err as Error).stack);
+    });
+
+    return warning ? { ok: true, warning } : { ok: true };
+  }
+
+  /**
+   * 미션 수동 실패 처리 (F-NEWBIE-005).
+   * 상태를 FAILED로 갱신하고, 옵션으로 DM 전송 후 강퇴한다.
+   */
+  async failMission(
+    guildId: string,
+    missionId: number,
+    kick?: boolean,
+    dmReason?: string | null,
+  ): Promise<{ ok: true; warning?: string }> {
+    const mission = await this.missionRepo.findById(missionId);
+    if (!mission) throw new NotFoundException('미션을 찾을 수 없습니다.');
+    if (mission.guildId !== guildId) throw new NotFoundException('미션을 찾을 수 없습니다.');
+    if (mission.status !== MissionStatus.IN_PROGRESS) {
+      throw new BadRequestException('진행 중인 미션만 실패 처리할 수 있습니다.');
+    }
+
+    await this.missionRepo.updateStatus(missionId, MissionStatus.FAILED);
+    this.logger.log(`[MISSION] Manual fail: id=${missionId} member=${mission.memberId}`);
+
+    let warning: string | undefined;
+
+    if (kick) {
+      try {
+        const guild = this.discord.guilds.cache.get(guildId);
+        if (!guild) throw new Error('Guild not found');
+        const member = await guild.members.fetch(mission.memberId).catch(() => null);
+        if (!member) throw new Error('Member not found');
+
+        // DM 사유 전송 (실패해도 무시)
+        if (dmReason) {
+          await member.send(dmReason).catch(() => {
+            this.logger.warn(
+              `[MISSION] DM failed (blocked or unavailable): member=${mission.memberId}`,
+            );
+          });
+        }
+
+        await member.kick('미션 실패 처리');
+        this.logger.log(`[MISSION] Kicked: member=${mission.memberId}`);
+      } catch (err) {
+        warning = `강퇴에 실패했습니다: ${(err as Error).message}`;
+        this.logger.warn(`[MISSION] Kick failed: ${warning}`);
+      }
+    }
+
+    await this.newbieRedis.deleteMissionActive(guildId);
+    await this.refreshMissionEmbed(guildId).catch((err) => {
+      this.logger.error(`[MISSION] Embed refresh failed after fail`, (err as Error).stack);
+    });
+
+    return warning ? { ok: true, warning } : { ok: true };
+  }
+
+  /**
+   * 미션 Embed 숨김 처리 (F-NEWBIE-005).
+   * hiddenFromEmbed = true로 갱신하여 Embed에서 제외한다.
+   */
+  async hideMission(guildId: string, missionId: number): Promise<void> {
+    const mission = await this.missionRepo.findById(missionId);
+    if (!mission) throw new NotFoundException('미션을 찾을 수 없습니다.');
+    if (mission.guildId !== guildId) throw new NotFoundException('미션을 찾을 수 없습니다.');
+
+    await this.missionRepo.updateHidden(missionId, true);
+    this.logger.log(`[MISSION] Hidden from embed: id=${missionId} member=${mission.memberId}`);
+
+    await this.newbieRedis.deleteMissionActive(guildId);
+    await this.refreshMissionEmbed(guildId).catch((err) => {
+      this.logger.error(`[MISSION] Embed refresh failed after hide`, (err as Error).stack);
+    });
+  }
+
+  /**
    * 가입일 기준 missionDurationDays 이내인데 미션이 없는 멤버를 자동 등록한다.
    * 봇이 오프라인이었거나 기능 활성화 전에 가입한 멤버를 보완한다.
    */
@@ -323,9 +438,9 @@ export class MissionService {
     const members = await guild.members.fetch().catch(() => null);
     if (!members) return;
 
-    // 현재 활성 미션이 있는 멤버 Set
-    const activeMissions = await this.missionRepo.findActiveByGuild(guildId);
-    const hasMission = new Set(activeMissions.map((m) => m.memberId));
+    // 미션이 존재하는 멤버 Set (상태 무관 — 중복 미션 방지)
+    const memberIds = await this.missionRepo.findMemberIdsWithMission(guildId);
+    const hasMission = new Set(memberIds);
 
     let created = 0;
     for (const [, member] of members) {
@@ -352,8 +467,9 @@ export class MissionService {
   }
 
   /**
-   * 봇이거나 서버를 떠난 멤버의 미션 레코드를 삭제하고 목록에서 제거한다.
-   * 제거된 미션이 있으면 캐시를 무효화한다.
+   * 봇 멤버의 미션은 DB에서 삭제하고, 서버를 떠난 멤버의 미션은
+   * IN_PROGRESS → LEFT 상태로 변경 + hiddenFromEmbed = true 처리한다.
+   * 변경사항이 있으면 캐시를 무효화한다.
    */
   private async removeInvalidMissions(
     guildId: string,
@@ -365,22 +481,40 @@ export class MissionService {
     if (!guild) return missions; // 길드 조회 실패 시 필터 생략
 
     const valid: NewbieMission[] = [];
-    let removed = 0;
+    let changed = 0;
 
     for (const mission of missions) {
       const member = await guild.members.fetch(mission.memberId).catch(() => null);
-      if (!member || member.user.bot) {
+
+      if (member?.user.bot) {
+        // 봇 멤버: DB에서 삭제
         await this.missionRepo.delete(mission.id);
         this.logger.log(
-          `[MISSION] Deleted invalid member mission: id=${mission.id} member=${mission.memberId} reason=${!member ? 'left' : 'bot'}`,
+          `[MISSION] Deleted bot mission: id=${mission.id} member=${mission.memberId}`,
         );
-        removed++;
+        changed++;
         continue;
       }
+
+      if (!member) {
+        // 나간 멤버: DB 보존, embed에서만 제거
+        if (mission.status === MissionStatus.IN_PROGRESS) {
+          await this.missionRepo.updateStatus(mission.id, MissionStatus.LEFT);
+          this.logger.log(
+            `[MISSION] Member left (IN_PROGRESS → LEFT): id=${mission.id} member=${mission.memberId}`,
+          );
+        }
+        if (!mission.hiddenFromEmbed) {
+          await this.missionRepo.updateHidden(mission.id, true);
+        }
+        changed++;
+        continue;
+      }
+
       valid.push(mission);
     }
 
-    if (removed > 0) {
+    if (changed > 0) {
       await this.newbieRedis.deleteMissionActive(guildId);
     }
 
@@ -419,10 +553,11 @@ export class MissionService {
 
     // 2. 상태별 카운트 집계
     const statusCounts = await this.missionRepo.countByStatusForGuild(guildId);
-    const totalCount = statusCounts.IN_PROGRESS + statusCounts.COMPLETED + statusCounts.FAILED;
+    const totalCount = statusCounts.IN_PROGRESS + statusCounts.COMPLETED + statusCounts.FAILED + statusCounts.LEFT;
     const inProgressCount = statusCounts.IN_PROGRESS;
     const completedCount = statusCounts.COMPLETED;
     const failedCount = statusCounts.FAILED;
+    const leftCount = statusCounts.LEFT;
 
     // 3. 헤더 렌더링
     const resolvedHeader = applyTemplate(headerTemplate, {
@@ -430,6 +565,7 @@ export class MissionService {
       inProgressCount: String(inProgressCount),
       completedCount: String(completedCount),
       failedCount: String(failedCount),
+      leftCount: String(leftCount),
     });
 
     // 4. 제목 렌더링

@@ -12,9 +12,11 @@ import {
 } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { MissionCompleteDto, MissionFailDto, MissionHideDto } from './dto/mission-action.dto';
 import { NewbieConfigSaveDto } from './dto/newbie-config-save.dto';
 import { NewbieMissionTemplateSaveDto } from './dto/newbie-mission-template-save.dto';
 import { NewbieMocoTemplateSaveDto } from './dto/newbie-moco-template-save.dto';
+import { MissionStatus } from './domain/newbie-mission.entity';
 import { NewbieConfigRepository } from './infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from './infrastructure/newbie-mission.repository';
 import { NewbieMissionTemplateRepository } from './infrastructure/newbie-mission-template.repository';
@@ -152,6 +154,77 @@ export class NewbieController {
     const missions = await this.missionRepo.findActiveByGuild(guildId);
     await this.redisRepo.setMissionActive(guildId, missions);
     return missions;
+  }
+
+  /**
+   * GET /api/guilds/:guildId/newbie/missions/history
+   * 전체 미션 이력 조회 (페이지네이션 + 상태 필터). F-NEWBIE-005.
+   */
+  @Get('missions/history')
+  async getMissionHistory(
+    @Param('guildId') guildId: string,
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const parsedPage = parseInt(page ?? '', 10);
+    const parsedPageSize = parseInt(pageSize ?? '', 10);
+    const resolvedPage = isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+    const resolvedPageSize = isNaN(parsedPageSize) || parsedPageSize < 1 ? 10 : parsedPageSize;
+
+    const validStatuses = Object.values(MissionStatus);
+    const resolvedStatus = status && validStatuses.includes(status as MissionStatus)
+      ? (status as MissionStatus)
+      : undefined;
+
+    const { items, total } = await this.missionRepo.findAllByGuild(
+      guildId,
+      resolvedStatus,
+      resolvedPage,
+      resolvedPageSize,
+    );
+
+    return { items, total, page: resolvedPage, pageSize: resolvedPageSize };
+  }
+
+  /**
+   * POST /api/guilds/:guildId/newbie/missions/complete
+   * 미션 수동 성공 처리. F-NEWBIE-005.
+   */
+  @Post('missions/complete')
+  @HttpCode(HttpStatus.OK)
+  async completeMission(
+    @Param('guildId') guildId: string,
+    @Body() dto: MissionCompleteDto,
+  ) {
+    return this.missionService.completeMission(guildId, dto.missionId, dto.roleId);
+  }
+
+  /**
+   * POST /api/guilds/:guildId/newbie/missions/fail
+   * 미션 수동 실패 처리. F-NEWBIE-005.
+   */
+  @Post('missions/fail')
+  @HttpCode(HttpStatus.OK)
+  async failMission(
+    @Param('guildId') guildId: string,
+    @Body() dto: MissionFailDto,
+  ) {
+    return this.missionService.failMission(guildId, dto.missionId, dto.kick, dto.dmReason);
+  }
+
+  /**
+   * POST /api/guilds/:guildId/newbie/missions/hide
+   * 미션 Embed 숨김 처리. F-NEWBIE-005.
+   */
+  @Post('missions/hide')
+  @HttpCode(HttpStatus.OK)
+  async hideMission(
+    @Param('guildId') guildId: string,
+    @Body() dto: MissionHideDto,
+  ): Promise<{ ok: boolean }> {
+    await this.missionService.hideMission(guildId, dto.missionId);
+    return { ok: true };
   }
 
   /**

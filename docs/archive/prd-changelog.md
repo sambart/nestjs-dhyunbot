@@ -7,6 +7,7 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v3.0 | 2026-03-10 | newbie: F-NEWBIE-005 미션 수동 관리 (성공/실패 처리, Embed 숨김) 추가, Embed 전체 상태 표시로 변경 | — |
 | v2.9 | 2026-03-10 | voice: F-VOICE-022 `/me` 커맨드 (개인 음성 프로필 카드) 추가, `/voice-time`·`/voice-rank` 대체 삭제 명세 | — |
 | v2.8 | 2026-03-09 | web: F-WEB-003-B 채널별 바차트에 카테고리별 탭 추가, F-WEB-007 채널별 도넛차트에 카테고리별 탭 추가 및 입퇴장 이력 테이블에 카테고리 컬럼 추가 | — |
 | v2.7 | 2026-03-09 | voice: 채널 카테고리(parentId) 정보 추가 — Channel/VoiceDailyEntity 데이터 모델 확장, F-VOICE-017/018/020 응답 스키마 갱신, F-VOICE-021 신규 추가 | — |
@@ -26,6 +27,41 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 19] newbie: 미션 수동 관리 기능 추가 (NEWBIE-MISSION-MANAGE)
+
+**변경일**: 2026-03-10
+**티켓**: NEWBIE-MISSION-MANAGE
+
+**변경 파일**:
+- `docs/specs/prd/newbie.md` — F-NEWBIE-005 신규 추가, F-NEWBIE-002 Embed 표시 범위 변경, NewbieMission 데이터 모델 확장, F-WEB-NEWBIE-001 탭 구성 변경, 아키텍처 API 목록 갱신
+
+**변경 내용**:
+1. **F-NEWBIE-005 (미션 수동 관리)** 신규 추가:
+   - 관리자가 웹 대시보드에서 `IN_PROGRESS` 미션을 수동으로 성공/실패 처리
+   - 성공 처리 시 옵션: Discord 역할 부여 (서버 역할 드롭다운 선택)
+   - 실패 처리 시 옵션: 멤버 강퇴 (kick), 강퇴 전 DM 사유 메시지 전송
+   - Embed 숨김: 특정 미션을 Discord Embed에서 제거 (`hiddenFromEmbed` 플래그)
+   - 모든 옵션은 선택 사항 (역할 부여, 강퇴, DM 모두 옵션)
+   - F-NEWBIE-004(신입기간 역할 자동관리)와 독립 동작
+   - API 엔드포인트 4개: `GET missions/history`, `POST missions/complete`, `POST missions/fail`, `POST missions/hide`
+   - 요청/응답 본문 스키마 정의, 에러 처리 및 warning 응답 규칙 명세
+2. **F-NEWBIE-002 Embed 표시 범위 변경**:
+   - 기존: `IN_PROGRESS` 상태 미션만 Embed에 표시
+   - 변경: 모든 상태(IN_PROGRESS, COMPLETED, FAILED)의 미션을 Embed에 표시. `hiddenFromEmbed = true`인 미션은 제외
+3. **NewbieMission 데이터 모델** 컬럼 1개 추가:
+   - `hiddenFromEmbed` | `boolean` | NOT NULL, DEFAULT `false` | Embed 표시 제외 여부
+   - 인덱스 추가: `IDX_newbie_mission_guild_visible` — `(guildId, hiddenFromEmbed)` — Embed 표시 대상 미션 조회
+4. **F-WEB-NEWBIE-001 탭 구성 변경**:
+   - 기존 4개 탭 → 5개 탭으로 확장
+   - 탭 3 "미션 관리" 신규 추가 (F-NEWBIE-005 대응)
+   - 탭 3 UI: 진행 중 미션 섹션(액션 버튼 포함) + 전체 이력 섹션(상태 필터, 페이지네이션)
+   - 기존 모코코 사냥 설정 → 탭 4, 신입기간 설정 → 탭 5로 이동
+5. **아키텍처 다이어그램** Web Dashboard API 섹션에 신규 엔드포인트 4개 추가
+
+**변경 사유**: 관리자가 웹 대시보드에서 신입미션을 수동으로 관리(성공/실패 처리, 역할 부여, 강퇴, Embed 숨김)할 수 있는 기능 요구사항 반영. 미션 Embed가 완료/실패 멤버도 표시하도록 변경하고, 관리자가 특정 멤버를 Embed에서 수동 제거할 수 있도록 함.
 
 ---
 
