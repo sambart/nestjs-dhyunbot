@@ -28,6 +28,9 @@ export class NewbieMocoTemplate {
   @Column({ nullable: true })
   footerTemplate: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  scoringTemplate: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

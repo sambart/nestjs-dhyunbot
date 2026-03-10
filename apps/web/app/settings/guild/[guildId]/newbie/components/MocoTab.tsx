@@ -203,6 +203,151 @@ export default function MocoTab({
         </div>
       </div>
 
+      {/* 최소 동시접속 시간 */}
+      <div>
+        <label
+          htmlFor="moco-min-co-presence"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
+          최소 동시접속 시간 (분)
+        </label>
+        <input
+          id="moco-min-co-presence"
+          type="number"
+          min={1}
+          value={config.mocoMinCoPresenceMin ?? 10}
+          onChange={(e) => {
+            const val = parseInt(e.target.value, 10);
+            onChange({ mocoMinCoPresenceMin: isNaN(val) ? null : val });
+          }}
+          disabled={!isEnabled}
+          placeholder="10"
+          className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+        />
+        <p className="text-xs text-gray-400 mt-1">
+          이 시간 미만의 짧은 접속은 사냥 횟수에 포함되지 않습니다.
+        </p>
+      </div>
+
+      {/* 점수 가중치 설정 */}
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-gray-700">점수 가중치</p>
+        <p className="text-xs text-gray-500">
+          0으로 설정하면 해당 요소를 비활성화합니다.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label
+              htmlFor="moco-score-per-session"
+              className="block text-xs font-medium text-gray-600 mb-1"
+            >
+              세션당 점수
+            </label>
+            <input
+              id="moco-score-per-session"
+              type="number"
+              min={0}
+              value={config.mocoScorePerSession ?? 10}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                onChange({ mocoScorePerSession: isNaN(val) ? null : val });
+              }}
+              disabled={!isEnabled}
+              placeholder="10"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="moco-score-per-minute"
+              className="block text-xs font-medium text-gray-600 mb-1"
+            >
+              분당 점수
+            </label>
+            <input
+              id="moco-score-per-minute"
+              type="number"
+              min={0}
+              value={config.mocoScorePerMinute ?? 1}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                onChange({ mocoScorePerMinute: isNaN(val) ? null : val });
+              }}
+              disabled={!isEnabled}
+              placeholder="1"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="moco-score-per-unique"
+              className="block text-xs font-medium text-gray-600 mb-1"
+            >
+              고유 모코코당 점수
+            </label>
+            <input
+              id="moco-score-per-unique"
+              type="number"
+              min={0}
+              value={config.mocoScorePerUnique ?? 5}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                onChange({ mocoScorePerUnique: isNaN(val) ? null : val });
+              }}
+              disabled={!isEnabled}
+              placeholder="5"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 리셋 주기 */}
+      <div>
+        <label
+          htmlFor="moco-reset-period"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
+          리셋 주기
+        </label>
+        <select
+          id="moco-reset-period"
+          value={config.mocoResetPeriod ?? 'NONE'}
+          onChange={(e) =>
+            onChange({ mocoResetPeriod: e.target.value === 'NONE' ? null : e.target.value })
+          }
+          disabled={!isEnabled}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+        >
+          <option value="NONE">누적 (리셋 없음)</option>
+          <option value="MONTHLY">매월 1일</option>
+          <option value="CUSTOM">커스텀 간격</option>
+        </select>
+        {config.mocoResetPeriod === 'CUSTOM' && (
+          <div className="mt-2">
+            <label
+              htmlFor="moco-reset-interval-days"
+              className="block text-xs font-medium text-gray-600 mb-1"
+            >
+              리셋 간격 (일)
+            </label>
+            <input
+              id="moco-reset-interval-days"
+              type="number"
+              min={1}
+              value={config.mocoResetIntervalDays ?? 30}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                onChange({ mocoResetIntervalDays: isNaN(val) ? null : val });
+              }}
+              disabled={!isEnabled}
+              placeholder="30"
+              className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+            />
+          </div>
+        )}
+      </div>
+
       <hr className="border-gray-200" />
 
       {/* 템플릿 설정 섹션 */}

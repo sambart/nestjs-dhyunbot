@@ -7,6 +7,7 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v3.1 | 2026-03-10 | monitoring: 봇 모니터링 도메인 PRD 신규 추가 (F-MONITORING-001 ~ F-MONITORING-004, F-WEB-MONITORING-001) | — |
 | v3.0 | 2026-03-10 | newbie: F-NEWBIE-005 미션 수동 관리 (성공/실패 처리, Embed 숨김) 추가, Embed 전체 상태 표시로 변경 | — |
 | v2.9 | 2026-03-10 | voice: F-VOICE-022 `/me` 커맨드 (개인 음성 프로필 카드) 추가, `/voice-time`·`/voice-rank` 대체 삭제 명세 | — |
 | v2.8 | 2026-03-09 | web: F-WEB-003-B 채널별 바차트에 카테고리별 탭 추가, F-WEB-007 채널별 도넛차트에 카테고리별 탭 추가 및 입퇴장 이력 테이블에 카테고리 컬럼 추가 | — |
@@ -27,6 +28,32 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 20] monitoring: 봇 모니터링 도메인 PRD 신규 추가 (BOT-MONITORING)
+
+**변경일**: 2026-03-10
+**티켓**: BOT-MONITORING
+
+**변경 파일**:
+- `docs/specs/prd/monitoring.md` — monitoring 도메인 PRD 신규 작성 (F-MONITORING-001 ~ F-MONITORING-004, F-WEB-MONITORING-001)
+- `docs/specs/prd/_index.md` — 도메인 목록, 핵심 기능 요약, 데이터베이스 엔티티 테이블에 monitoring 항목 추가
+
+**변경 내용**:
+1. `docs/specs/prd/monitoring.md` 신규 생성: 개요, 관련 모듈, 아키텍처, 기능 상세, 데이터 모델, Redis 키 구조, 외부 의존성, web 도메인 연계 명세 포함
+2. F-MONITORING-001 (실시간 봇 상태 조회): `GET /api/guilds/{guildId}/bot/status` 엔드포인트 명세. Discord Client에서 online/uptime/ping/guildCount/memory/voiceUserCount 수집, Redis 10초 캐시
+3. F-MONITORING-002 (메트릭 수집 스케줄러): 1분 간격 Cron으로 길드별 BotMetric 레코드 INSERT. status/pingMs/heapUsedMb/heapTotalMb/voiceUserCount/guildCount 수집
+4. F-MONITORING-003 (시계열 메트릭 조회 API): `GET /api/guilds/{guildId}/bot/metrics` 엔드포인트 명세. from/to/interval 파라미터, date_trunc 기반 집계(1m/5m/1h/1d), availabilityPercent 계산
+5. F-MONITORING-004 (메트릭 보존 정책): 매일 03:00 Cron으로 30일 초과 레코드 일괄 삭제
+6. F-WEB-MONITORING-001 (모니터링 대시보드 페이지): `/dashboard/guild/{guildId}/monitoring` 경로, 상태 요약 카드 6개(봇 상태/업타임/핑/서버 수/메모리/음성 접속자), 차트 4개(업타임 히스토리 AreaChart, 핑 추이 LineChart, 메모리 추이 AreaChart, 시간대별 음성 접속자 BarChart), 기간 프리셋(24시간/7일/30일)
+7. BotMetric 데이터 모델: `bot_metric` PostgreSQL 엔티티 명세 (guildId, status enum, pingMs, heapUsedMb, heapTotalMb, voiceUserCount, guildCount, recordedAt) 및 인덱스 2개
+8. Redis 키 구조: `monitoring:status` (10초 TTL, 실시간 상태 캐시)
+9. `_index.md` 도메인 목록에 monitoring 행 추가
+10. `_index.md` 핵심 기능 요약 11번 항목(봇 모니터링) 추가
+11. `_index.md` 데이터베이스 엔티티 테이블에 BotMetric 행 추가
+
+**변경 사유**: 봇 상태(온라인/오프라인, 업타임, 핑, 메모리)와 서버 음성 접속자 추이를 웹 대시보드에서 시계열 차트로 모니터링하는 기능 요구사항 반영.
 
 ---
 

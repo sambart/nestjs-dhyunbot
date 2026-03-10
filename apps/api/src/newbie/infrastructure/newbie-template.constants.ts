@@ -54,9 +54,9 @@ export const MISSION_FOOTER_ALLOWED_VARS = ['{updatedAt}'] as const;
 export const DEFAULT_MOCO_TITLE_TEMPLATE = '모코코 사냥 TOP {rank} — {hunterName} 🌱';
 
 export const DEFAULT_MOCO_BODY_TEMPLATE =
-  '총 모코코 사냥 시간: {totalMinutes}분\n\n도움을 받은 모코코들:\n{mocoList}';
+  '🏆 총 점수: {score}점\n⏱️ 사냥 시간: {totalMinutes}분 | 🎮 게임 횟수: {sessionCount}회 | 🌱 모코코: {uniqueNewbieCount}명\n\n도움을 받은 모코코들:\n{mocoList}';
 
-export const DEFAULT_MOCO_ITEM_TEMPLATE = '– {newbieName} 🌱: {minutes}분';
+export const DEFAULT_MOCO_ITEM_TEMPLATE = '– {newbieName} 🌱: {minutes}분 ({sessions}회)';
 
 export const DEFAULT_MOCO_FOOTER_TEMPLATE = '페이지 {currentPage}/{totalPages} | 자동 갱신 {interval}분';
 
@@ -66,8 +66,15 @@ export const DEFAULT_MOCO_FOOTER_TEMPLATE_NO_INTERVAL = '페이지 {currentPage}
 
 export const MOCO_TITLE_ALLOWED_VARS = ['{rank}', '{hunterName}'] as const;
 
-export const MOCO_BODY_ALLOWED_VARS = ['{totalMinutes}', '{mocoList}'] as const;
+export const MOCO_BODY_ALLOWED_VARS = ['{totalMinutes}', '{mocoList}', '{score}', '{sessionCount}', '{uniqueNewbieCount}'] as const;
 
-export const MOCO_ITEM_ALLOWED_VARS = ['{newbieName}', '{newbieMention}', '{minutes}'] as const;
+export const MOCO_ITEM_ALLOWED_VARS = ['{newbieName}', '{newbieMention}', '{minutes}', '{sessions}'] as const;
 
-export const MOCO_FOOTER_ALLOWED_VARS = ['{currentPage}', '{totalPages}', '{interval}'] as const;
+export const MOCO_FOOTER_ALLOWED_VARS = ['{currentPage}', '{totalPages}', '{interval}', '{periodStart}', '{periodEnd}'] as const;
+
+// ---- 모코코 점수 산정 템플릿 ----
+
+export const DEFAULT_MOCO_SCORING_TEMPLATE =
+  '── 점수 산정 ──\n🎮 게임 1회: {scorePerSession}점 | ⏱️ 1분당: {scorePerMinute}점 | 🌱 신입 1명당: {scorePerUnique}점\n⏳ 최소 {minCoPresence}분 이상 함께해야 1회로 인정';
+
+export const MOCO_SCORING_ALLOWED_VARS = ['{scorePerSession}', '{scorePerMinute}', '{scorePerUnique}', '{minCoPresence}'] as const;

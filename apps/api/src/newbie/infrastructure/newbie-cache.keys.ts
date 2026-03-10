@@ -14,4 +14,20 @@ export const NewbieKeys = {
 
   /** 길드별 사냥꾼 순위 Sorted Set: newbie:moco:rank:{guildId} — TTL 없음 */
   mocoRank: (guildId: string) => `newbie:moco:rank:${guildId}`,
+
+  /** 사냥꾼별 채널 기반 누적 시간(분): newbie:moco:channel-min:{guildId}:{hunterId} — TTL 없음 */
+  mocoChannelMin: (guildId: string, hunterId: string) =>
+    `newbie:moco:channel-min:${guildId}:${hunterId}`,
+
+  /** 사냥꾼별 유효 세션 횟수: newbie:moco:sessions:{guildId}:{hunterId} — TTL 없음 */
+  mocoSessionCount: (guildId: string, hunterId: string) =>
+    `newbie:moco:sessions:${guildId}:${hunterId}`,
+
+  /** 사냥꾼별 메타 정보 Hash: newbie:moco:meta:{guildId}:{hunterId} — TTL 없음 */
+  mocoMeta: (guildId: string, hunterId: string) =>
+    `newbie:moco:meta:${guildId}:${hunterId}`,
+
+  /** 사냥꾼별 모코코별 세션 횟수 Hash: newbie:moco:newbie-sessions:{guildId}:{hunterId} — TTL 없음 */
+  mocoNewbieSessions: (guildId: string, hunterId: string) =>
+    `newbie:moco:newbie-sessions:${guildId}:${hunterId}`,
 } as const;

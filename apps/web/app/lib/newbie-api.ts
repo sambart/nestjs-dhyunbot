@@ -24,6 +24,14 @@ export interface NewbieConfig {
   mocoAutoRefreshMinutes: number | null;
   mocoEmbedColor: string | null;
 
+  // 모코코 사냥 — 점수/세션/리셋 (신규)
+  mocoMinCoPresenceMin: number | null;
+  mocoScorePerSession: number | null;
+  mocoScorePerMinute: number | null;
+  mocoScorePerUnique: number | null;
+  mocoResetPeriod: string | null;
+  mocoResetIntervalDays: number | null;
+
   // 신입기간 역할
   roleEnabled: boolean;
   roleDurationDays: number | null;
@@ -257,13 +265,15 @@ export interface MocoTemplate {
   bodyTemplate: string | null;
   itemTemplate: string | null;
   footerTemplate: string | null;
+  scoringTemplate: string | null;
 }
 
 export const DEFAULT_MOCO_TEMPLATE: MocoTemplate = {
   titleTemplate: '모코코 사냥 TOP {rank} — {hunterName} 🌱',
-  bodyTemplate: '총 모코코 사냥 시간: {totalMinutes}분\n\n도움을 받은 모코코들:\n{mocoList}',
-  itemTemplate: '– {newbieName} 🌱: {minutes}분',
+  bodyTemplate: '🏆 총 점수: {score}점\n⏱️ 사냥 시간: {totalMinutes}분 | 🎮 게임 횟수: {sessionCount}회 | 🌱 모코코: {uniqueNewbieCount}명\n\n도움을 받은 모코코들:\n{mocoList}',
+  itemTemplate: '– {newbieName} 🌱: {minutes}분 ({sessions}회)',
   footerTemplate: '페이지 {currentPage}/{totalPages} | 자동 갱신 {interval}분',
+  scoringTemplate: '── 점수 산정 ──\n🎮 게임 1회: {scorePerSession}점 | ⏱️ 1분당: {scorePerMinute}점 | 🌱 신입 1명당: {scorePerUnique}점\n⏳ 최소 {minCoPresence}분 이상 함께해야 1회로 인정',
 };
 
 export async function fetchMocoTemplate(

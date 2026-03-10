@@ -186,4 +186,91 @@ export class NewbieRedisRepository {
     const score = await this.client.zscore(NewbieKeys.mocoRank(guildId), hunterId);
     return score !== null ? parseFloat(score) : null;
   }
+
+  // --- 모코코 사냥 (점수 기반 신규) ---
+
+  /** 채널 기반 시간 누적/차감 (INCRBY). 음수 delta로 롤백 가능. */
+  async incrMocoChannelMinutes(guildId: string, hunterId: string, delta: number): Promise<number> {
+    return this.client.incrby(NewbieKeys.mocoChannelMin(guildId, hunterId), delta);
+  }
+
+  /** 채널 기반 누적 시간 조회 (GET) */
+  async getMocoChannelMinutes(guildId: string, hunterId: string): Promise<number> {
+    const val = await this.client.get(NewbieKeys.mocoChannelMin(guildId, hunterId));
+    return val ? parseInt(val, 10) : 0;
+  }
+
+  /** 유효 세션 횟수 증가 (INCRBY) */
+  async incrMocoSessionCount(guildId: string, hunterId: string, delta: number): Promise<number> {
+    return this.client.incrby(NewbieKeys.mocoSessionCount(guildId, hunterId), delta);
+  }
+
+  /** 유효 세션 횟수 조회 (GET) */
+  async getMocoSessionCount(guildId: string, hunterId: string): Promise<number> {
+    const val = await this.client.get(NewbieKeys.mocoSessionCount(guildId, hunterId));
+    return val ? parseInt(val, 10) : 0;
+  }
+
+  /** 사냥꾼 순위 점수 설정 (ZADD — 절대값 설정, ZINCRBY가 아님) */
+  async setMocoRankScore(guildId: string, hunterId: string, score: number): Promise<void> {
+    await this.client.zadd(NewbieKeys.mocoRank(guildId), score, hunterId);
+  }
+
+  /** 고유 모코코 수 조회 (HLEN on mocoTotal hash) */
+  async getMocoUniqueNewbieCount(guildId: string, hunterId: string): Promise<number> {
+    return this.client.hlen(NewbieKeys.mocoTotal(guildId, hunterId));
+  }
+
+  /** 사냥꾼 메타 정보 저장 (HMSET) */
+  async setMocoHunterMeta(
+    guildId: string,
+    hunterId: string,
+    meta: { score: number; sessionCount: number; uniqueNewbieCount: number; totalMinutes: number },
+  ): Promise<void> {
+    const key = NewbieKeys.mocoMeta(guildId, hunterId);
+    await this.client.hmset(key, {
+      score: String(meta.score),
+      sessionCount: String(meta.sessionCount),
+      uniqueNewbieCount: String(meta.uniqueNewbieCount),
+      totalMinutes: String(meta.totalMinutes),
+    });
+  }
+
+  /** 사냥꾼 메타 정보 조회 (HGETALL) */
+  async getMocoHunterMeta(
+    guildId: string,
+    hunterId: string,
+  ): Promise<{ score: number; sessionCount: number; uniqueNewbieCount: number; totalMinutes: number } | null> {
+    const raw = await this.client.hgetall(NewbieKeys.mocoMeta(guildId, hunterId));
+    if (!raw || Object.keys(raw).length === 0) return null;
+    return {
+      score: parseInt(raw.score ?? '0', 10),
+      sessionCount: parseInt(raw.sessionCount ?? '0', 10),
+      uniqueNewbieCount: parseInt(raw.uniqueNewbieCount ?? '0', 10),
+      totalMinutes: parseInt(raw.totalMinutes ?? '0', 10),
+    };
+  }
+
+  /** 모코코별 세션 횟수 증가 (HINCRBY) */
+  async incrMocoNewbieSession(
+    guildId: string,
+    hunterId: string,
+    newbieId: string,
+    count: number,
+  ): Promise<void> {
+    await this.client.hincrby(NewbieKeys.mocoNewbieSessions(guildId, hunterId), newbieId, count);
+  }
+
+  /** 모코코별 세션 횟수 전체 조회 (HGETALL) */
+  async getMocoNewbieSessions(
+    guildId: string,
+    hunterId: string,
+  ): Promise<Record<string, number>> {
+    const raw = await this.client.hgetall(NewbieKeys.mocoNewbieSessions(guildId, hunterId));
+    const result: Record<string, number> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      result[key] = parseInt(value, 10);
+    }
+    return result;
+  }
 }

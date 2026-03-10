@@ -16,4 +16,8 @@ export class NewbieMocoTemplateSaveDto {
   @IsOptional()
   @IsString()
   footerTemplate?: string | null;
+
+  @IsOptional()
+  @IsString()
+  scoringTemplate?: string | null;
 }

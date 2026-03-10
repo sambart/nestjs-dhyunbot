@@ -30,6 +30,7 @@ import {
   MOCO_BODY_ALLOWED_VARS,
   MOCO_FOOTER_ALLOWED_VARS,
   MOCO_ITEM_ALLOWED_VARS,
+  MOCO_SCORING_ALLOWED_VARS,
   MOCO_TITLE_ALLOWED_VARS,
 } from './infrastructure/newbie-template.constants';
 import { MissionService } from './mission/mission.service';
@@ -107,9 +108,29 @@ export class NewbieController {
       (dto.mocoEmbedDescription ?? null) !== (prevConfig.mocoEmbedDescription ?? null) ||
       (dto.mocoEmbedColor ?? null) !== (prevConfig.mocoEmbedColor ?? null) ||
       (dto.mocoEmbedThumbnailUrl ?? null) !== (prevConfig.mocoEmbedThumbnailUrl ?? null) ||
-      (dto.mocoAutoRefreshMinutes ?? null) !== (prevConfig.mocoAutoRefreshMinutes ?? null);
+      (dto.mocoAutoRefreshMinutes ?? null) !== (prevConfig.mocoAutoRefreshMinutes ?? null) ||
+      (dto.mocoMinCoPresenceMin ?? 10) !== (prevConfig.mocoMinCoPresenceMin ?? 10) ||
+      (dto.mocoScorePerSession ?? 10) !== (prevConfig.mocoScorePerSession ?? 10) ||
+      (dto.mocoScorePerMinute ?? 1) !== (prevConfig.mocoScorePerMinute ?? 1) ||
+      (dto.mocoScorePerUnique ?? 5) !== (prevConfig.mocoScorePerUnique ?? 5) ||
+      (dto.mocoResetPeriod ?? 'NONE') !== (prevConfig.mocoResetPeriod ?? 'NONE') ||
+      (dto.mocoResetIntervalDays ?? null) !== (prevConfig.mocoResetIntervalDays ?? null);
 
     const savedConfig = await this.configRepo.upsert(guildId, dto);
+
+    // mocoResetPeriod가 MONTHLY/CUSTOM으로 변경되었고 mocoCurrentPeriodStart가 아직 없으면 오늘 날짜로 초기화
+    const prevPeriod = prevConfig?.mocoResetPeriod ?? 'NONE';
+    const newPeriod = dto.mocoResetPeriod ?? 'NONE';
+    if (
+      newPeriod !== 'NONE' &&
+      (prevPeriod !== newPeriod || !savedConfig.mocoCurrentPeriodStart)
+    ) {
+      const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+      const today = kst.toISOString().slice(0, 10).replace(/-/g, '');
+      await this.configRepo.updateMocoCurrentPeriodStart(guildId, today);
+      savedConfig.mocoCurrentPeriodStart = today;
+    }
+
     await this.redisRepo.setConfig(guildId, savedConfig);
 
     // 미션 Embed: 기능이 활성화되고 채널이 설정되어 있으면 항상 Embed를 갱신한다.
@@ -248,7 +269,21 @@ export class NewbieController {
     const totalPages = Math.max(1, Math.ceil(total / resolvedPageSize));
     const clampedPage = Math.min(resolvedPage, totalPages);
 
-    const items = await this.redisRepo.getMocoRankPage(guildId, clampedPage, resolvedPageSize);
+    const rawItems = await this.redisRepo.getMocoRankPage(guildId, clampedPage, resolvedPageSize);
+
+    // Enrich each item with meta data (score, sessionCount, uniqueNewbieCount)
+    const items = await Promise.all(
+      rawItems.map(async (item) => {
+        const meta = await this.redisRepo.getMocoHunterMeta(guildId, item.hunterId);
+        return {
+          ...item,
+          score: meta?.score ?? Math.round(item.totalMinutes),
+          sessionCount: meta?.sessionCount ?? 0,
+          uniqueNewbieCount: meta?.uniqueNewbieCount ?? 0,
+          channelMinutes: meta?.totalMinutes ?? Math.round(item.totalMinutes),
+        };
+      }),
+    );
 
     return { items, total, page: clampedPage, pageSize: resolvedPageSize };
   }
@@ -346,6 +381,10 @@ export class NewbieController {
     if (dto.footerTemplate) {
       const invalid = findInvalidVars(dto.footerTemplate, MOCO_FOOTER_ALLOWED_VARS);
       if (invalid.length > 0) errors['footerTemplate'] = invalid;
+    }
+    if (dto.scoringTemplate) {
+      const invalid = findInvalidVars(dto.scoringTemplate, MOCO_SCORING_ALLOWED_VARS);
+      if (invalid.length > 0) errors['scoringTemplate'] = invalid;
     }
 
     if (Object.keys(errors).length > 0) {
