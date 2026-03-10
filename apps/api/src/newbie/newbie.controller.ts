@@ -33,6 +33,11 @@ import {
   MOCO_ITEM_ALLOWED_VARS,
   MOCO_SCORING_ALLOWED_VARS,
   MOCO_TITLE_ALLOWED_VARS,
+  DEFAULT_MOCO_TITLE_TEMPLATE,
+  DEFAULT_MOCO_BODY_TEMPLATE,
+  DEFAULT_MOCO_ITEM_TEMPLATE,
+  DEFAULT_MOCO_FOOTER_TEMPLATE,
+  DEFAULT_MOCO_SCORING_TEMPLATE,
 } from './infrastructure/newbie-template.constants';
 import { MissionService } from './mission/mission.service';
 import { MocoService } from './moco/moco.service';
@@ -321,7 +326,14 @@ export class NewbieController {
    */
   @Get('moco-template')
   async getMocoTemplate(@Param('guildId') guildId: string) {
-    return this.mocoTmplRepo.findByGuildId(guildId);
+    const tmpl = await this.mocoTmplRepo.findByGuildId(guildId);
+    return {
+      titleTemplate: tmpl?.titleTemplate ?? DEFAULT_MOCO_TITLE_TEMPLATE,
+      bodyTemplate: tmpl?.bodyTemplate ?? DEFAULT_MOCO_BODY_TEMPLATE,
+      itemTemplate: tmpl?.itemTemplate ?? DEFAULT_MOCO_ITEM_TEMPLATE,
+      footerTemplate: tmpl?.footerTemplate ?? DEFAULT_MOCO_FOOTER_TEMPLATE,
+      scoringTemplate: tmpl?.scoringTemplate ?? DEFAULT_MOCO_SCORING_TEMPLATE,
+    };
   }
 
   /**

@@ -51,12 +51,12 @@ export const MISSION_FOOTER_ALLOWED_VARS = ['{updatedAt}'] as const;
 
 // ---- 모코코 템플릿 기본값 ----
 
-export const DEFAULT_MOCO_TITLE_TEMPLATE = '모코코 사냥 TOP {rank} — {hunterName} 🌱';
+export const DEFAULT_MOCO_TITLE_TEMPLATE = '🌱 모코코 사냥 #{rank} — {hunterName}';
 
 export const DEFAULT_MOCO_BODY_TEMPLATE =
-  '🏆 총 점수: {score}점\n⏱️ 사냥 시간: {totalMinutes}분 | 🎮 게임 횟수: {sessionCount}회 | 🌱 모코코: {uniqueNewbieCount}명';
+  '**🏆 {score}점**\n⏱️ {totalMinutes}분 · 🎮 {sessionCount}회 · 🌱 {uniqueNewbieCount}명\n\n{mocoList}';
 
-export const DEFAULT_MOCO_ITEM_TEMPLATE = '– {newbieName} 🌱: {minutes}분 ({sessions}회)';
+export const DEFAULT_MOCO_ITEM_TEMPLATE = '🌱 **{newbieName}** — {minutes}분 ({sessions}회)';
 
 export const DEFAULT_MOCO_FOOTER_TEMPLATE = '페이지 {currentPage}/{totalPages} | 자동 갱신 {interval}분';
 
@@ -75,6 +75,6 @@ export const MOCO_FOOTER_ALLOWED_VARS = ['{currentPage}', '{totalPages}', '{inte
 // ---- 모코코 점수 산정 템플릿 ----
 
 export const DEFAULT_MOCO_SCORING_TEMPLATE =
-  '── 점수 산정 ──\n🎮 게임 1회: {scorePerSession}점 | ⏱️ 1분당: {scorePerMinute}점 | 🌱 신입 1명당: {scorePerUnique}점\n⏳ 최소 {minCoPresence}분 이상 함께해야 1회로 인정';
+  '── 점수 산정 ──\n🎮 {scorePerSession}점/회 · ⏱️ {scorePerMinute}점/분 · 🌱 {scorePerUnique}점/명\n⏳ 최소 {minCoPresence}분 동시접속';
 
 export const MOCO_SCORING_ALLOWED_VARS = ['{scorePerSession}', '{scorePerMinute}', '{scorePerUnique}', '{minCoPresence}'] as const;
