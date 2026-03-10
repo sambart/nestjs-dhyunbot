@@ -314,7 +314,7 @@ export class MissionService {
   ): Promise<void> {
     if (!config.missionDurationDays || !config.missionTargetPlaytimeHours) return;
 
-    const guild = await this.discord.guilds.fetch(guildId).catch(() => null);
+    const guild = this.discord.guilds.cache.get(guildId);
     if (!guild) return;
 
     const cutoff = Date.now() - config.missionDurationDays * 86_400_000;
@@ -361,7 +361,7 @@ export class MissionService {
   ): Promise<NewbieMission[]> {
     if (missions.length === 0) return missions;
 
-    const guild = await this.discord.guilds.fetch(guildId).catch(() => null);
+    const guild = this.discord.guilds.cache.get(guildId);
     if (!guild) return missions; // 길드 조회 실패 시 필터 생략
 
     const valid: NewbieMission[] = [];
@@ -531,7 +531,8 @@ export class MissionService {
     memberId: string,
   ): Promise<string> {
     try {
-      const guild = await this.discord.guilds.fetch(guildId);
+      const guild = this.discord.guilds.cache.get(guildId);
+      if (!guild) return `User-${memberId.slice(0, 6)}`;
       const member = await guild.members.fetch(memberId).catch(() => null);
       return member?.displayName ?? `User-${memberId.slice(0, 6)}`;
     } catch {

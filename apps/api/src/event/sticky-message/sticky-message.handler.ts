@@ -28,8 +28,14 @@ export class StickyMessageHandler implements OnApplicationShutdown {
   @On('messageCreate')
   async handleMessageCreate(message: Message): Promise<void> {
     try {
-      // 자기 자신의 메시지만 무시 (다른 봇의 메시지는 갱신 트리거)
-      if (message.author.id === this.client.user?.id) return;
+      // 봇 자신의 고정메세지 재전송만 무시 (무한루프 방지)
+      // 슬래시 커맨드 결과 등 봇의 다른 메시지는 갱신 트리거
+      if (
+        message.author.id === this.client.user?.id &&
+        this.refreshService.isStickyMessage(message.id)
+      ) {
+        return;
+      }
 
       const guildId = message.guildId;
       if (!guildId) return;

@@ -85,7 +85,8 @@ export class MocoService {
     const newbieNames: Record<string, string> = {};
 
     try {
-      const guild = await this.discordClient.guilds.fetch(guildId);
+      const guild = this.discordClient.guilds.cache.get(guildId);
+      if (!guild) throw new Error(`Guild ${guildId} not found in cache`);
       const hunterMember = await guild.members.fetch(hunterId).catch(() => null);
       hunterName = hunterMember?.displayName ?? hunterId;
 
@@ -298,7 +299,8 @@ export class MocoService {
       lines.push('🌱 **도움을 받은 모코코들:**');
 
       try {
-        const guild = await this.discordClient.guilds.fetch(guildId);
+        const guild = this.discordClient.guilds.cache.get(guildId);
+        if (!guild) throw new Error(`Guild ${guildId} not found in cache`);
         for (const [newbieId, minutes] of entries) {
           const member = await guild.members.fetch(newbieId).catch(() => null);
           const name = member?.displayName ?? newbieId;

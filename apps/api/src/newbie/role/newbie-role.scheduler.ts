@@ -156,7 +156,8 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
 
       if (roleId) {
         try {
-          const guild = await this.client.guilds.fetch(guildId);
+          const guild = this.client.guilds.cache.get(guildId);
+          if (!guild) throw new Error(`Guild ${guildId} not found in cache`);
           const member = await guild.members.fetch(memberId);
           await member.roles.remove(roleId);
           this.logger.log(

@@ -110,11 +110,11 @@ export class AutoChannelDiscordGateway {
    * 단위 B (버튼-확정방)에서 중복 채널명 순번 처리용으로 사용.
    */
   async fetchGuildVoiceChannelNames(guildId: string): Promise<string[]> {
-    const guild = await this.client.guilds.fetch(guildId);
-    const channels = await guild.channels.fetch();
-    return channels
-      .filter((ch) => ch?.isVoiceBased() ?? false)
-      .map((ch) => ch!.name);
+    const guild = this.client.guilds.cache.get(guildId);
+    if (!guild) return [];
+    return guild.channels.cache
+      .filter((ch) => ch.isVoiceBased())
+      .map((ch) => ch.name);
   }
 
   /**
