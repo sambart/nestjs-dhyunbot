@@ -13,17 +13,22 @@ import {
 } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { MissionStatus } from './domain/newbie-mission.entity';
 import { MissionCompleteDto, MissionFailDto, MissionHideDto } from './dto/mission-action.dto';
 import { NewbieConfigSaveDto } from './dto/newbie-config-save.dto';
 import { NewbieMissionTemplateSaveDto } from './dto/newbie-mission-template-save.dto';
 import { NewbieMocoTemplateSaveDto } from './dto/newbie-moco-template-save.dto';
-import { MissionStatus } from './domain/newbie-mission.entity';
 import { NewbieConfigRepository } from './infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from './infrastructure/newbie-mission.repository';
 import { NewbieMissionTemplateRepository } from './infrastructure/newbie-mission-template.repository';
 import { NewbieMocoTemplateRepository } from './infrastructure/newbie-moco-template.repository';
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
 import {
+  DEFAULT_MOCO_BODY_TEMPLATE,
+  DEFAULT_MOCO_FOOTER_TEMPLATE,
+  DEFAULT_MOCO_ITEM_TEMPLATE,
+  DEFAULT_MOCO_SCORING_TEMPLATE,
+  DEFAULT_MOCO_TITLE_TEMPLATE,
   MISSION_FOOTER_ALLOWED_VARS,
   MISSION_HEADER_ALLOWED_VARS,
   MISSION_ITEM_ALLOWED_VARS,
@@ -33,11 +38,6 @@ import {
   MOCO_ITEM_ALLOWED_VARS,
   MOCO_SCORING_ALLOWED_VARS,
   MOCO_TITLE_ALLOWED_VARS,
-  DEFAULT_MOCO_TITLE_TEMPLATE,
-  DEFAULT_MOCO_BODY_TEMPLATE,
-  DEFAULT_MOCO_ITEM_TEMPLATE,
-  DEFAULT_MOCO_FOOTER_TEMPLATE,
-  DEFAULT_MOCO_SCORING_TEMPLATE,
 } from './infrastructure/newbie-template.constants';
 import { MissionService } from './mission/mission.service';
 import { MocoService } from './moco/moco.service';

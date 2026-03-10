@@ -23,9 +23,9 @@ import { NewbiePeriodRepository } from './infrastructure/newbie-period.repositor
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
 import { MissionScheduler } from './mission/mission.scheduler';
 import { MissionService } from './mission/mission.service';
-import { MocoResetScheduler } from './moco/moco-reset.scheduler';
 import { MocoScheduler } from './moco/moco.scheduler';
 import { MocoService } from './moco/moco.service';
+import { MocoResetScheduler } from './moco/moco-reset.scheduler';
 import { NewbieController } from './newbie.controller';
 import { NewbieGateway } from './newbie.gateway';
 import { NewbieRoleScheduler } from './role/newbie-role.scheduler';
