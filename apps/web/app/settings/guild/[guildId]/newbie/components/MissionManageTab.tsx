@@ -370,8 +370,8 @@ export default function MissionManageTab({ guildId, roles }: MissionManageTabPro
     setHistoryLoading(false);
   }, [guildId, statusFilter, page]);
 
-  useEffect(() => { loadActive(); }, [loadActive]);
-  useEffect(() => { loadHistory(); }, [loadHistory]);
+  useEffect(() => { void loadActive(); }, [loadActive]); // eslint-disable-line react-hooks/set-state-in-effect -- data fetching on mount
+  useEffect(() => { void loadHistory(); }, [loadHistory]); // eslint-disable-line react-hooks/set-state-in-effect -- data fetching on dependency change
 
   const handleRefresh = () => {
     loadActive();
