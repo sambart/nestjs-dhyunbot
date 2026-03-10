@@ -41,6 +41,7 @@ const DEFAULT_CONFIG: NewbieConfig = {
   welcomeEmbedDescription: null,
   welcomeEmbedColor: '#5865F2',
   welcomeEmbedThumbnailUrl: null,
+  welcomeContent: null,
   missionEnabled: false,
   missionDurationDays: null,
   missionTargetPlaytimeHours: null,
