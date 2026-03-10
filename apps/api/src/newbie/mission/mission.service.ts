@@ -73,6 +73,7 @@ export class MissionService {
       today,
       endDate,
       targetPlaytimeSec,
+      member.displayName,
     );
 
     // 미션 목록 캐시 무효화
@@ -91,6 +92,25 @@ export class MissionService {
         );
       });
     }
+  }
+
+  /**
+   * 미션 목록에 memberName, currentPlaytimeSec을 추가하여 반환.
+   * 웹 대시보드 미션 관리 탭에서 사용.
+   */
+  async enrichMissions(
+    guildId: string,
+    missions: NewbieMission[],
+  ): Promise<(NewbieMission & { memberName: string; currentPlaytimeSec: number })[]> {
+    return Promise.all(
+      missions.map(async (mission) => {
+        const [memberName, currentPlaytimeSec] = await Promise.all([
+          this.fetchMemberDisplayName(guildId, mission.memberId),
+          this.getPlaytimeSec(guildId, mission.memberId, mission.startDate, mission.endDate),
+        ]);
+        return { ...mission, memberName, currentPlaytimeSec };
+      }),
+    );
   }
 
   /**
@@ -325,6 +345,13 @@ export class MissionService {
 
     let warning: string | undefined;
 
+    // memberName 갱신
+    {
+      const guild = this.discord.guilds.cache.get(guildId);
+      const mem = guild ? await guild.members.fetch(mission.memberId).catch(() => null) : null;
+      if (mem) await this.missionRepo.updateMemberName(missionId, mem.displayName);
+    }
+
     if (roleId) {
       try {
         const guild = this.discord.guilds.cache.get(guildId);
@@ -366,6 +393,13 @@ export class MissionService {
 
     await this.missionRepo.updateStatus(missionId, MissionStatus.FAILED);
     this.logger.log(`[MISSION] Manual fail: id=${missionId} member=${mission.memberId}`);
+
+    // memberName 갱신
+    {
+      const guild = this.discord.guilds.cache.get(guildId);
+      const mem = guild ? await guild.members.fetch(mission.memberId).catch(() => null) : null;
+      if (mem) await this.missionRepo.updateMemberName(missionId, mem.displayName);
+    }
 
     let warning: string | undefined;
 
@@ -416,6 +450,23 @@ export class MissionService {
     await this.newbieRedis.deleteMissionActive(guildId);
     await this.refreshMissionEmbed(guildId).catch((err) => {
       this.logger.error(`[MISSION] Embed refresh failed after hide`, (err as Error).stack);
+    });
+  }
+
+  /**
+   * hiddenFromEmbed = false로 갱신하여 Embed에 다시 표시한다.
+   */
+  async unhideMission(guildId: string, missionId: number): Promise<void> {
+    const mission = await this.missionRepo.findById(missionId);
+    if (!mission) throw new NotFoundException('미션을 찾을 수 없습니다.');
+    if (mission.guildId !== guildId) throw new NotFoundException('미션을 찾을 수 없습니다.');
+
+    await this.missionRepo.updateHidden(missionId, false);
+    this.logger.log(`[MISSION] Unhidden from embed: id=${missionId} member=${mission.memberId}`);
+
+    await this.newbieRedis.deleteMissionActive(guildId);
+    await this.refreshMissionEmbed(guildId).catch((err) => {
+      this.logger.error(`[MISSION] Embed refresh failed after unhide`, (err as Error).stack);
     });
   }
 

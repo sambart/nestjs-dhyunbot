@@ -114,6 +114,30 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
         )}
       </div>
 
+      {/* 메시지 본문 (content) */}
+      <div>
+        <label
+          htmlFor="welcome-content"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
+          메시지 본문
+        </label>
+        <input
+          id="welcome-content"
+          type="text"
+          value={config.welcomeContent ?? ''}
+          onChange={(e) =>
+            onChange({ welcomeContent: e.target.value || null })
+          }
+          disabled={!isEnabled}
+          placeholder="예: {mention}님 환영합니다!🎉"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Embed 바깥에 표시되는 텍스트입니다. 멘션(@)은 여기에 넣어야 정상 표시됩니다.
+        </p>
+      </div>
+
       {/* Embed 제목 */}
       <div>
         <label

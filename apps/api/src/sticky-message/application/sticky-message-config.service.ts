@@ -6,6 +6,7 @@ import { StickyMessageConfig } from '../domain/sticky-message-config.entity';
 import { StickyMessageSaveDto } from '../dto/sticky-message-save.dto';
 import { StickyMessageConfigRepository } from '../infrastructure/sticky-message-config.repository';
 import { StickyMessageRedisRepository } from '../infrastructure/sticky-message-redis.repository';
+import { STICKY_FOOTER_MARKER } from '../sticky-message.constants';
 
 @Injectable()
 export class StickyMessageConfigService {
@@ -130,6 +131,7 @@ export class StickyMessageConfigService {
     if (config.embedTitle) embed.setTitle(config.embedTitle);
     if (config.embedDescription) embed.setDescription(config.embedDescription);
     if (config.embedColor) embed.setColor(config.embedColor as `#${string}`);
+    embed.setFooter({ text: STICKY_FOOTER_MARKER });
 
     const message = await (channel as TextChannel).send({ embeds: [embed] });
     return message.id;

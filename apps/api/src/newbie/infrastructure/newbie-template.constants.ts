@@ -54,7 +54,7 @@ export const MISSION_FOOTER_ALLOWED_VARS = ['{updatedAt}'] as const;
 export const DEFAULT_MOCO_TITLE_TEMPLATE = '모코코 사냥 TOP {rank} — {hunterName} 🌱';
 
 export const DEFAULT_MOCO_BODY_TEMPLATE =
-  '🏆 총 점수: {score}점\n⏱️ 사냥 시간: {totalMinutes}분 | 🎮 게임 횟수: {sessionCount}회 | 🌱 모코코: {uniqueNewbieCount}명\n\n도움을 받은 모코코들:\n{mocoList}';
+  '🏆 총 점수: {score}점\n⏱️ 사냥 시간: {totalMinutes}분 | 🎮 게임 횟수: {sessionCount}회 | 🌱 모코코: {uniqueNewbieCount}명';
 
 export const DEFAULT_MOCO_ITEM_TEMPLATE = '– {newbieName} 🌱: {minutes}분 ({sessions}회)';
 

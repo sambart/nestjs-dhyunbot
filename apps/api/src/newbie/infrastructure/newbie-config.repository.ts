@@ -51,10 +51,12 @@ export class NewbieConfigRepository {
       config.mocoEmbedDescription = dto.mocoEmbedDescription ?? null;
       config.mocoEmbedColor = dto.mocoEmbedColor ?? null;
       config.mocoEmbedThumbnailUrl = dto.mocoEmbedThumbnailUrl ?? null;
-      config.mocoMinCoPresenceMin = dto.mocoMinCoPresenceMin ?? null;
-      config.mocoScorePerSession = dto.mocoScorePerSession ?? null;
-      config.mocoScorePerMinute = dto.mocoScorePerMinute ?? null;
-      config.mocoScorePerUnique = dto.mocoScorePerUnique ?? null;
+      config.mocoPlayCountMinDurationMin = dto.mocoPlayCountMinDurationMin ?? null;
+      config.mocoPlayCountIntervalMin = dto.mocoPlayCountIntervalMin ?? null;
+      config.mocoMinCoPresenceMin = dto.mocoMinCoPresenceMin ?? 10;
+      config.mocoScorePerSession = dto.mocoScorePerSession ?? 10;
+      config.mocoScorePerMinute = dto.mocoScorePerMinute ?? 1;
+      config.mocoScorePerUnique = dto.mocoScorePerUnique ?? 5;
       config.mocoResetPeriod = dto.mocoResetPeriod ?? 'NONE';
       config.mocoResetIntervalDays = dto.mocoResetIntervalDays ?? null;
       config.roleEnabled = dto.roleEnabled;
@@ -91,10 +93,12 @@ export class NewbieConfigRepository {
         mocoEmbedDescription: dto.mocoEmbedDescription ?? null,
         mocoEmbedColor: dto.mocoEmbedColor ?? null,
         mocoEmbedThumbnailUrl: dto.mocoEmbedThumbnailUrl ?? null,
-        mocoMinCoPresenceMin: dto.mocoMinCoPresenceMin ?? null,
-        mocoScorePerSession: dto.mocoScorePerSession ?? null,
-        mocoScorePerMinute: dto.mocoScorePerMinute ?? null,
-        mocoScorePerUnique: dto.mocoScorePerUnique ?? null,
+        mocoPlayCountMinDurationMin: dto.mocoPlayCountMinDurationMin ?? null,
+        mocoPlayCountIntervalMin: dto.mocoPlayCountIntervalMin ?? null,
+        mocoMinCoPresenceMin: dto.mocoMinCoPresenceMin ?? 10,
+        mocoScorePerSession: dto.mocoScorePerSession ?? 10,
+        mocoScorePerMinute: dto.mocoScorePerMinute ?? 1,
+        mocoScorePerUnique: dto.mocoScorePerUnique ?? 5,
         mocoResetPeriod: dto.mocoResetPeriod ?? 'NONE',
         mocoResetIntervalDays: dto.mocoResetIntervalDays ?? null,
         roleEnabled: dto.roleEnabled,

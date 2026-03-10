@@ -49,6 +49,7 @@ Web Dashboard API
     ├──► POST /api/guilds/{guildId}/newbie/missions/complete    → 미션 수동 성공 처리 (F-NEWBIE-005)
     ├──► POST /api/guilds/{guildId}/newbie/missions/fail        → 미션 수동 실패 처리 (F-NEWBIE-005)
     ├──► POST /api/guilds/{guildId}/newbie/missions/hide        → 미션 Embed 숨김 처리 (F-NEWBIE-005)
+    ├──► POST /api/guilds/{guildId}/newbie/missions/unhide      → 미션 Embed 숨김 해제 (F-NEWBIE-005)
     ├──► GET  /api/guilds/{guildId}/newbie/moco                 → 모코코 사냥 순위 조회
     └──► ...templates, moco-template
 ```
@@ -107,9 +108,11 @@ Web Dashboard API
   | 진행중 | `IN_PROGRESS` | 현재일 <= 마감일, 목표 미달성 |
   | 완료 | `COMPLETED` | 목표 플레이타임 달성 (마감일 이전 포함) |
   | 실패 | `FAILED` | 현재일 > 마감일, 목표 미달성 |
+  | 퇴장 | `LEFT` | 멤버가 서버를 떠남 (자동 감지) |
 
-- **Embed 표시 범위**: 모든 상태(IN_PROGRESS, COMPLETED, FAILED)의 미션을 Embed에 표시한다. `hiddenFromEmbed = true`인 미션은 Embed에서 제외된다. 관리자가 웹 대시보드에서 특정 미션을 Embed에서 숨길 수 있다 (F-NEWBIE-005).
-- **봇·탈퇴 멤버 자동 제거**: 미션 Embed 갱신 시 각 활성 미션의 멤버를 Discord API로 조회하여, 봇이거나 서버를 떠난 멤버의 미션 레코드를 삭제한다.
+- **멤버 닉네임 저장**: 미션 생성 시 `member.displayName`을 `memberName` 컬럼에 저장한다. 성공/실패 처리 시에도 최신 닉네임으로 갱신한다. 웹 대시보드 이력 탭에서 Discord API 호출 없이 DB에 저장된 닉네임을 사용한다.
+- **Embed 표시 범위**: 모든 상태(IN_PROGRESS, COMPLETED, FAILED, LEFT)의 미션을 Embed에 표시한다. `hiddenFromEmbed = true`인 미션은 Embed에서 제외된다. 관리자가 웹 대시보드에서 토글 버튼으로 특정 미션의 Embed 표시/숨김을 전환할 수 있다 (F-NEWBIE-005).
+- **봇·탈퇴 멤버 자동 처리**: 미션 Embed 갱신 시 각 활성 미션의 멤버를 Discord 캐시로 조회하여, 봇 멤버의 미션 레코드는 삭제하고, 서버를 떠난 멤버는 `LEFT` 상태로 변경 및 Embed에서 숨김 처리한다.
 - **스케줄러**: 매일 자정 `MissionScheduler` 실행
   1. `IN_PROGRESS` 상태 미션 중 마감일이 지난 항목 조회
   2. 목표 달성 여부 재확인 후 `COMPLETED` 또는 `FAILED`로 상태 갱신
@@ -156,7 +159,7 @@ Web Dashboard API
     - 사용 가능 변수: `{updatedAt}`
     - 기본값: `마지막 갱신: {updatedAt}`
   - **상태 이모지/텍스트 매핑** (`statusMapping`): JSON 컬럼 1개에 저장
-    - 구조: `{"IN_PROGRESS": {"emoji": "🟡", "text": "진행중"}, "COMPLETED": {"emoji": "✅", "text": "완료"}, "FAILED": {"emoji": "❌", "text": "실패"}}`
+    - 구조: `{"IN_PROGRESS": {"emoji": "🟡", "text": "진행중"}, "COMPLETED": {"emoji": "✅", "text": "완료"}, "FAILED": {"emoji": "❌", "text": "실패"}, "LEFT": {"emoji": "🚪", "text": "퇴장"}}`
     - 사용자가 이모지와 텍스트를 각각 변경 가능
   - **날짜 포맷**: 고정 (`YYYY-MM-DD`)
   - **유효성 검사**: 존재하지 않는 변수 사용 시 저장 차단 (프론트엔드 + 백엔드)
@@ -191,6 +194,11 @@ Web Dashboard API
 - **세션 종료**: 사냥꾼이 퇴장하거나 채널 내 모코코가 0명이 된 시점
 - **최소 동시접속 시간** (`mocoMinCoPresenceMin`): 세션의 총 시간이 이 값 미만이면 무효 처리 (시간·횟수 모두 롤백). 기본값 10분, 최솟값 1분. 이를 통해 우연한 짧은 접속이나 AFK를 필터링한다.
 - **세션 이력**: 유효 세션은 `MocoHuntingSession` 테이블에 영구 저장한다.
+- **플레이횟수 카운팅 옵션**: 미션 설정(F-NEWBIE-002)과 동일한 방식으로, 모코코 사냥 세션의 플레이횟수를 카운팅할 때 추가 필터를 적용한다.
+  - **최소 참여시간 기준** (`mocoPlayCountMinDurationMin`): 세션의 총 참여시간이 N분 이상인 세션만 유효한 1회로 인정. NULL이면 비활성화 (모든 세션 인정).
+  - **시간 간격 기준** (`mocoPlayCountIntervalMin`): 이전 유효 세션 시작 후 N분 이내에 다시 시작된 세션은 동일한 1회로 병합. NULL이면 비활성화 (모든 세션 독립 카운트).
+  - **두 옵션은 동시 적용 가능** (AND 조건): 두 조건을 모두 통과한 세션만 1회로 카운트
+  - **기본값**: 둘 다 30 (분), 최솟값 1 (0 허용 안 함)
 
 #### 음성 제외 채널 연동
 
@@ -366,11 +374,11 @@ Web Dashboard API
      a. (옵션) DM 사유: 강퇴 전 멤버에게 DM으로 사유 메시지 전송 (DM 차단 시 조용히 실패)
      b. Discord API로 멤버 강퇴 (`guild.members.kick(memberId)`)
   4. 미션 목록 Redis 캐시 무효화 및 Embed 갱신
-- **동작 (Embed 숨김)**:
-  1. 관리자가 특정 미션을 선택하여 "Embed에서 제거" 실행
-  2. `NewbieMission.hiddenFromEmbed = true`로 갱신
+- **동작 (Embed 숨김/표시 토글)**:
+  1. 관리자가 웹 대시보드에서 미션의 Embed 토글 버튼을 클릭
+  2. `NewbieMission.hiddenFromEmbed`를 `true`(숨김) 또는 `false`(표시)로 전환
   3. 미션 목록 Redis 캐시 무효화 및 Embed 갱신
-  4. 숨김 처리된 미션은 Embed에 표시되지 않으나, 웹 대시보드 이력에서는 확인 가능
+  4. 숨김 처리된 미션은 Embed에 표시되지 않으나, 웹 대시보드에서는 확인 가능
 - **유효성 검사**:
   - 성공/실패 처리는 `IN_PROGRESS` 상태 미션에만 허용
   - 미션이 해당 guildId에 속하는지 검증
@@ -383,10 +391,11 @@ Web Dashboard API
 
   | Method | Path | 설명 |
   |--------|------|------|
-  | `GET` | `/api/guilds/{guildId}/newbie/missions/history?status=&page=&pageSize=` | 전체 미션 이력 조회 (상태 필터 옵션, 페이지네이션) |
+  | `GET` | `/api/guilds/{guildId}/newbie/missions/history?status=&page=&pageSize=` | 미션 이력 조회 (IN_PROGRESS 제외, 상태 필터 옵션, 페이지네이션) |
   | `POST` | `/api/guilds/{guildId}/newbie/missions/complete` | 미션 수동 성공 처리 |
   | `POST` | `/api/guilds/{guildId}/newbie/missions/fail` | 미션 수동 실패 처리 |
   | `POST` | `/api/guilds/{guildId}/newbie/missions/hide` | 미션 Embed 숨김 처리 |
+  | `POST` | `/api/guilds/{guildId}/newbie/missions/unhide` | 미션 Embed 숨김 해제 |
 
 - **요청 본문**:
 
@@ -414,12 +423,19 @@ Web Dashboard API
   }
   ```
 
+  **POST /missions/unhide**:
+  ```json
+  {
+    "missionId": 123
+  }
+  ```
+
 - **응답 형식**:
 
   **GET /missions/history**:
   ```json
   {
-    "items": [{ "id", "guildId", "memberId", "startDate", "endDate", "targetPlaytimeSec", "status", "hiddenFromEmbed", "createdAt", "updatedAt" }],
+    "items": [{ "id", "guildId", "memberId", "memberName", "startDate", "endDate", "targetPlaytimeSec", "status", "hiddenFromEmbed", "createdAt", "updatedAt" }],
     "total": 25,
     "page": 1,
     "pageSize": 10
@@ -434,7 +450,7 @@ Web Dashboard API
   }
   ```
 
-  **POST /missions/hide**:
+  **POST /missions/hide, /missions/unhide**:
   ```json
   { "ok": true }
   ```
@@ -504,20 +520,21 @@ Web Dashboard API
 
 #### 탭 3: 미션 관리
 
+탭 형식으로 "진행 중" / "이력" 두 뷰를 전환한다.
+
 | UI 요소 | 설명 |
 |---------|------|
-| **섹션 1: 진행 중 미션** | |
-| 진행 중 미션 테이블 | `IN_PROGRESS` 상태 미션 목록 (멤버 ID, 시작일, 마감일, 목표 플레이타임, 남은 일수 표시) |
-| "성공 처리" 버튼 | 각 행마다 표시. 클릭 시 역할 선택 드롭다운(옵션) + 확인 모달 표시 |
-| 역할 선택 드롭다운 | 성공 처리 시 부여할 Discord 역할 선택. 서버 역할 목록에서 선택. 선택하지 않으면 역할 부여 안함 |
-| "실패 처리" 버튼 | 각 행마다 표시. 클릭 시 강퇴 옵션 + DM 사유 입력 + 확인 모달 표시 |
-| 강퇴 체크박스 | 실패 처리 시 멤버 강퇴 여부 선택. 기본값 OFF |
-| DM 사유 입력 | 강퇴 체크박스 ON 시 표시. 강퇴 전 멤버에게 보낼 DM 메시지 입력 (옵션) |
-| "Embed에서 제거" 버튼 | 각 행마다 표시. 해당 미션을 Discord Embed에서 숨김 처리 |
-| **섹션 2: 전체 이력** | |
-| 상태 필터 드롭다운 | 전체 / 진행중 / 완료 / 실패 선택 |
-| 전체 이력 테이블 | 모든 상태의 미션 목록 (멤버 ID, 시작일, 마감일, 목표 플레이타임, 상태, Embed 숨김 여부 표시). 페이지네이션 지원 |
-| 액션 버튼 | `IN_PROGRESS` 상태 항목에만 성공/실패/숨김 버튼 표시 |
+| **탭: 진행 중** | |
+| 진행 중 미션 테이블 | `IN_PROGRESS` 상태 미션 목록 (멤버 닉네임, 시작일(YY/MM/DD), 마감일(YY/MM/DD), 플레이타임(분단위)/목표, 상태, Embed 토글) |
+| 상태 뱃지 드롭다운 | `IN_PROGRESS` 상태 뱃지 클릭 시 완료/실패 뱃지 드롭다운 표시. 완료 선택 시 역할 선택 모달, 실패 선택 시 강퇴 옵션 모달 |
+| 역할 선택 모달 | 성공 처리 시 부여할 Discord 역할 선택. 서버 역할 목록에서 선택. 선택하지 않으면 역할 부여 안함 |
+| 강퇴 옵션 모달 | 실패 처리 시 강퇴 체크박스(기본 OFF) + DM 사유 입력(옵션) |
+| Embed 토글 버튼 | 각 행마다 표시. 토글 ON(인디고)=Embed 표시, OFF(회색)=Embed 숨김. 클릭 시 즉시 전환 |
+| **탭: 이력** | |
+| 상태 필터 드롭다운 | 전체 / 완료 / 실패 / 퇴장 선택 (IN_PROGRESS 제외) |
+| 이력 테이블 | COMPLETED/FAILED/LEFT 상태 미션 목록 (멤버 닉네임, 시작일, 마감일, 플레이타임/목표, 상태, Embed 토글). 페이지네이션 지원. Discord API 호출 없이 DB 저장된 memberName 사용 |
+| Embed 토글 버튼 | 진행 중 탭과 동일. 이력에서도 Embed 표시/숨김 전환 가능 |
+| Embed 컬럼 헤더 툴팁 | 마우스 호버 시 "디스코드 임베드 메시지에 표시 여부" 안내 |
 
 #### 탭 4: 모코코 사냥 설정
 
@@ -526,6 +543,8 @@ Web Dashboard API
 | 기능 활성화 토글 | 모코코 사냥 기능 ON/OFF |
 | 모코코 기준 일수 입력 (숫자) | 서버 가입 후 이 일수 이내인 멤버를 모코코로 판정. 1~365, 기본값 30 |
 | 모코코도 사냥꾼 허용 토글 | `true`이면 신입(모코코)도 다른 신입의 사냥꾼이 될 수 있음. 기본값 `false` |
+| 플레이횟수 최소 참여시간 입력 (숫자 + 활성화 체크박스) | 플레이횟수 카운팅 시 유효 세션으로 인정하는 최소 참여시간 (분 단위). 체크박스 OFF 시 NULL 저장 (비활성화). 기본값 30 |
+| 플레이횟수 시간 간격 입력 (숫자 + 활성화 체크박스) | 플레이횟수 카운팅 시 동일 1회로 병합하는 세션 간격 기준 (분 단위). 체크박스 OFF 시 NULL 저장 (비활성화). 기본값 30 |
 | 최소 동시접속 시간 입력 (숫자) | 유효 세션 인정 최소 동시접속 시간 (분). 기본값 10, 최솟값 1 |
 | 세션당 점수 입력 (숫자) | 유효 세션 1회당 점수. 기본값 10. 0이면 비활성화 |
 | 분당 점수 입력 (숫자) | 채널 기반 실제 동시접속 1분당 점수. 기본값 1. 0이면 비활성화 |
@@ -608,6 +627,8 @@ Web Dashboard API
 | `mocoEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 모코코 사냥 기능 활성화 여부 |
 | `mocoNewbieDays` | `int` | NOT NULL, DEFAULT `30` | 모코코 기준 일수. 서버 가입 후 이 일수 이내인 멤버를 모코코로 판정. 1~365 |
 | `mocoAllowNewbieHunter` | `boolean` | NOT NULL, DEFAULT `false` | 모코코도 사냥꾼 허용 여부. `true`이면 신입도 다른 신입의 사냥꾼이 될 수 있음 |
+| `mocoPlayCountMinDurationMin` | `int` | NULLABLE | 모코코 사냥 플레이횟수 카운팅 최소 참여시간 기준 (분). NULL이면 비활성화 (모든 세션 인정). 기본값 30, 최솟값 1 |
+| `mocoPlayCountIntervalMin` | `int` | NULLABLE | 모코코 사냥 플레이횟수 카운팅 시간 간격 기준 (분). NULL이면 비활성화 (모든 세션 독립 카운트). 기본값 30, 최솟값 1 |
 | `mocoMinCoPresenceMin` | `int` | NOT NULL, DEFAULT `10` | 유효 세션 인정 최소 동시접속 시간(분). 이 시간 미만 세션은 무효 처리. 최솟값 1 |
 | `mocoScorePerSession` | `int` | NOT NULL, DEFAULT `10` | 유효 세션 1회당 점수. 0이면 세션 점수 비활성화 |
 | `mocoScorePerMinute` | `int` | NOT NULL, DEFAULT `1` | 채널 기반 실제 동시접속 1분당 점수. 0이면 시간 점수 비활성화 |
@@ -684,10 +705,11 @@ Web Dashboard API
 | `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
 | `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
 | `memberId` | `varchar` | NOT NULL | 디스코드 유저 ID |
+| `memberName` | `varchar` | NULLABLE | 디스코드 서버 닉네임. 미션 생성/상태변경 시 저장·갱신. 웹 대시보드 이력에서 Discord API 없이 표시 |
 | `startDate` | `varchar` | NOT NULL | 미션 시작일 (`YYYYMMDD`) |
 | `endDate` | `varchar` | NOT NULL | 미션 마감일 (`YYYYMMDD`) |
 | `targetPlaytimeSec` | `int` | NOT NULL | 목표 플레이타임 (초 단위로 저장) |
-| `status` | `enum('IN_PROGRESS','COMPLETED','FAILED')` | NOT NULL, DEFAULT `'IN_PROGRESS'` | 미션 상태 |
+| `status` | `enum('IN_PROGRESS','COMPLETED','FAILED','LEFT')` | NOT NULL, DEFAULT `'IN_PROGRESS'` | 미션 상태 |
 | `hiddenFromEmbed` | `boolean` | NOT NULL, DEFAULT `false` | Embed 표시 제외 여부. `true`이면 Discord Embed에서 숨김 처리됨 (F-NEWBIE-005) |
 | `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
 | `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |

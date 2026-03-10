@@ -35,6 +35,9 @@ export class NewbieConfig {
   @Column({ nullable: true })
   welcomeEmbedThumbnailUrl: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  welcomeContent: string | null;
+
   // 미션 설정
   @Column({ default: false })
   missionEnabled: boolean;
@@ -99,6 +102,12 @@ export class NewbieConfig {
 
   @Column({ nullable: true })
   mocoEmbedThumbnailUrl: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  mocoPlayCountMinDurationMin: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  mocoPlayCountIntervalMin: number | null;
 
   @Column({ type: 'int', default: 10 })
   mocoMinCoPresenceMin: number;

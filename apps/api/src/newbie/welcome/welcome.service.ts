@@ -46,7 +46,11 @@ export class WelcomeService {
       embed.setThumbnail(config.welcomeEmbedThumbnailUrl);
     }
 
-    await (channel as TextChannel).send({ embeds: [embed] });
+    const content = config.welcomeContent
+      ? this.applyTemplate(config.welcomeContent, vars)
+      : undefined;
+
+    await (channel as TextChannel).send({ content, embeds: [embed] });
 
     this.logger.log(
       `[WELCOME] Sent welcome message: guild=${member.guild.id} member=${member.id} channel=${config.welcomeChannelId}`,

@@ -33,6 +33,10 @@ export class NewbieConfigSaveDto {
   @IsUrl()
   welcomeEmbedThumbnailUrl?: string | null;
 
+  @IsOptional()
+  @IsString()
+  welcomeContent?: string | null;
+
   // 미션
   @IsBoolean()
   missionEnabled: boolean;
@@ -116,6 +120,17 @@ export class NewbieConfigSaveDto {
   @IsOptional()
   @IsUrl()
   mocoEmbedThumbnailUrl?: string | null;
+
+  // 모코코 사냥 — 플레이횟수 카운팅
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  mocoPlayCountMinDurationMin?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  mocoPlayCountIntervalMin?: number | null;
 
   // 모코코 사냥 — 점수/세션/리셋
   @IsOptional()

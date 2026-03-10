@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Client, EmbedBuilder, TextChannel } from 'discord.js';
 
 import { StickyMessageConfigRepository } from '../infrastructure/sticky-message-config.repository';
+import { STICKY_FOOTER_MARKER } from '../sticky-message.constants';
 
 @Injectable()
 export class StickyMessageRefreshService {
@@ -30,7 +31,7 @@ export class StickyMessageRefreshService {
    * 처리 순서:
    *   1. 채널 잠금 확인 (이미 진행 중이면 스킵)
    *   2. enabled=true 설정 목록 조회 (sortOrder ASC)
-   *   3. 고아 메세지 정리 (DB에 추적되지 않는 봇 Embed 삭제)
+   *   3. 고아 메세지 정리 (스티키 footer 마커가 있지만 DB에 추적되지 않는 메시지 삭제)
    *   4. 각 설정에 대해: 기존 메시지 삭제 → 신규 Embed 전송 → messageId 갱신
    */
   async refresh(guildId: string, channelId: string): Promise<void> {
@@ -55,7 +56,7 @@ export class StickyMessageRefreshService {
     const configs = await this.configRepo.findByGuildAndChannel(guildId, channelId);
     if (configs.length === 0) return;
 
-    // 고아 메세지 정리: DB에 기록된 messageId 외의 봇 Embed 메세지 삭제
+    // 고아 메세지 정리: 스티키 footer 마커가 있지만 DB에 추적되지 않는 메시지 삭제
     const trackedIds = new Set(configs.map((c) => c.messageId).filter(Boolean));
     await this.cleanupOrphanedMessages(channelId, trackedIds as Set<string>);
 
@@ -76,7 +77,7 @@ export class StickyMessageRefreshService {
     }
   }
 
-  /** Discord 텍스트 채널에 Embed 메시지 전송. 전송된 메시지 ID 반환. */
+  /** Discord 텍스트 채널에 Embed 메시지 전송. 스티키 식별용 footer를 포함한다. */
   private async sendEmbed(
     channelId: string,
     config: { embedTitle: string | null; embedDescription: string | null; embedColor: string | null },
@@ -91,14 +92,16 @@ export class StickyMessageRefreshService {
     if (config.embedTitle) embed.setTitle(config.embedTitle);
     if (config.embedDescription) embed.setDescription(config.embedDescription);
     if (config.embedColor) embed.setColor(config.embedColor as `#${string}`);
+    embed.setFooter({ text: STICKY_FOOTER_MARKER });
 
     const message = await (channel as TextChannel).send({ embeds: [embed] });
     return message.id;
   }
 
   /**
-   * 고아 메세지 정리: 채널 최근 메세지에서 봇이 보낸 Embed 전용 메세지 중
-   * DB에 추적되지 않는 것을 삭제한다.
+   * 고아 메세지 정리: 채널 최근 메세지에서 스티키 footer 마커를 가진 봇 메시지 중
+   * DB에 추적되지 않는 것을 삭제한다. 다른 시스템(미션, 모코코 등)의 Embed는
+   * footer 마커가 다르므로 영향받지 않는다.
    */
   private async cleanupOrphanedMessages(channelId: string, trackedIds: Set<string>): Promise<void> {
     try {
@@ -114,7 +117,7 @@ export class StickyMessageRefreshService {
         (msg) =>
           msg.author.id === botId &&
           msg.embeds.length > 0 &&
-          !msg.content &&
+          msg.embeds.some((e) => e.footer?.text === STICKY_FOOTER_MARKER) &&
           !trackedIds.has(msg.id),
       );
 

@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Post,
   Query,
@@ -40,6 +41,8 @@ import { findInvalidVars } from './util/newbie-template-validator.util';
 @Controller('api/guilds/:guildId/newbie')
 @UseGuards(JwtAuthGuard)
 export class NewbieController {
+  private readonly logger = new Logger(NewbieController.name);
+
   constructor(
     private readonly configRepo: NewbieConfigRepository,
     private readonly missionRepo: NewbieMissionRepository,
@@ -88,34 +91,6 @@ export class NewbieController {
       messageId: prevConfig?.mocoRankMessageId ?? null,
     };
 
-    // dto(요청 body)와 prevConfig를 비교하여 각 섹션 변경 여부 판단
-    const missionChanged =
-      !prevConfig ||
-      (dto.missionEnabled ?? false) !== (prevConfig.missionEnabled ?? false) ||
-      (dto.missionNotifyChannelId ?? null) !== (prevConfig.missionNotifyChannelId ?? null) ||
-      (dto.missionEmbedTitle ?? null) !== (prevConfig.missionEmbedTitle ?? null) ||
-      (dto.missionEmbedDescription ?? null) !== (prevConfig.missionEmbedDescription ?? null) ||
-      (dto.missionEmbedColor ?? null) !== (prevConfig.missionEmbedColor ?? null) ||
-      (dto.missionEmbedThumbnailUrl ?? null) !== (prevConfig.missionEmbedThumbnailUrl ?? null) ||
-      (dto.missionDurationDays ?? null) !== (prevConfig.missionDurationDays ?? null) ||
-      (dto.missionTargetPlaytimeHours ?? null) !== (prevConfig.missionTargetPlaytimeHours ?? null);
-
-    const mocoChanged =
-      !prevConfig ||
-      (dto.mocoEnabled ?? false) !== (prevConfig.mocoEnabled ?? false) ||
-      (dto.mocoRankChannelId ?? null) !== (prevConfig.mocoRankChannelId ?? null) ||
-      (dto.mocoEmbedTitle ?? null) !== (prevConfig.mocoEmbedTitle ?? null) ||
-      (dto.mocoEmbedDescription ?? null) !== (prevConfig.mocoEmbedDescription ?? null) ||
-      (dto.mocoEmbedColor ?? null) !== (prevConfig.mocoEmbedColor ?? null) ||
-      (dto.mocoEmbedThumbnailUrl ?? null) !== (prevConfig.mocoEmbedThumbnailUrl ?? null) ||
-      (dto.mocoAutoRefreshMinutes ?? null) !== (prevConfig.mocoAutoRefreshMinutes ?? null) ||
-      (dto.mocoMinCoPresenceMin ?? 10) !== (prevConfig.mocoMinCoPresenceMin ?? 10) ||
-      (dto.mocoScorePerSession ?? 10) !== (prevConfig.mocoScorePerSession ?? 10) ||
-      (dto.mocoScorePerMinute ?? 1) !== (prevConfig.mocoScorePerMinute ?? 1) ||
-      (dto.mocoScorePerUnique ?? 5) !== (prevConfig.mocoScorePerUnique ?? 5) ||
-      (dto.mocoResetPeriod ?? 'NONE') !== (prevConfig.mocoResetPeriod ?? 'NONE') ||
-      (dto.mocoResetIntervalDays ?? null) !== (prevConfig.mocoResetIntervalDays ?? null);
-
     const savedConfig = await this.configRepo.upsert(guildId, dto);
 
     // mocoResetPeriod가 MONTHLY/CUSTOM으로 변경되었고 mocoCurrentPeriodStart가 아직 없으면 오늘 날짜로 초기화
@@ -133,30 +108,45 @@ export class NewbieController {
 
     await this.redisRepo.setConfig(guildId, savedConfig);
 
-    // 미션 Embed: 기능이 활성화되고 채널이 설정되어 있으면 항상 Embed를 갱신한다.
-    // 설정이 변경되었으면 기존 메시지 삭제 후 새로 작성, 변경 없으면 기존 메시지 수정.
-    if (savedConfig.missionEnabled && savedConfig.missionNotifyChannelId) {
-      if (missionChanged && prevMission.messageId && prevMission.channelId) {
+    // 미션 Embed: 저장 시 항상 기존 메시지 삭제 후 새로 전송한다.
+    // Discord API 오류가 설정 저장 자체를 실패시키지 않도록 try-catch 처리.
+    try {
+      if (savedConfig.missionEnabled && savedConfig.missionNotifyChannelId) {
+        if (prevMission.messageId && prevMission.channelId) {
+          await this.missionService.deleteEmbed(prevMission.channelId, prevMission.messageId);
+          await this.configRepo.updateMissionNotifyMessageId(guildId, null);
+          savedConfig.missionNotifyMessageId = null;
+        }
+        await this.missionService.refreshMissionEmbed(guildId, savedConfig);
+      } else if (prevMission.messageId && prevMission.channelId && !savedConfig.missionNotifyChannelId) {
         await this.missionService.deleteEmbed(prevMission.channelId, prevMission.messageId);
         await this.configRepo.updateMissionNotifyMessageId(guildId, null);
-        savedConfig.missionNotifyMessageId = null;
       }
-      await this.missionService.refreshMissionEmbed(guildId, savedConfig);
-    } else if (prevMission.messageId && prevMission.channelId && !savedConfig.missionNotifyChannelId) {
-      await this.missionService.deleteEmbed(prevMission.channelId, prevMission.messageId);
-      await this.configRepo.updateMissionNotifyMessageId(guildId, null);
+    } catch (err) {
+      this.logger.error(
+        `[MISSION] Embed 갱신 실패: guild=${guildId}`,
+        (err as Error).stack,
+      );
     }
 
-    // 모코코 Embed: 기능이 활성화되고 채널이 설정되어 있으면 항상 Embed를 갱신한다.
-    if (savedConfig.mocoEnabled && savedConfig.mocoRankChannelId) {
-      if (mocoChanged && prevMoco.messageId && prevMoco.channelId) {
+    // 모코코 Embed: 저장 시 항상 기존 메시지 삭제 후 새로 전송한다.
+    try {
+      if (savedConfig.mocoEnabled && savedConfig.mocoRankChannelId) {
+        if (prevMoco.messageId && prevMoco.channelId) {
+          await this.mocoService.deleteEmbed(prevMoco.channelId, prevMoco.messageId);
+          await this.configRepo.updateMocoRankMessageId(guildId, null);
+          savedConfig.mocoRankMessageId = null;
+        }
+        await this.mocoService.sendOrUpdateRankEmbed(guildId, 1);
+      } else if (prevMoco.messageId && prevMoco.channelId && !savedConfig.mocoRankChannelId) {
         await this.mocoService.deleteEmbed(prevMoco.channelId, prevMoco.messageId);
         await this.configRepo.updateMocoRankMessageId(guildId, null);
       }
-      await this.mocoService.sendOrUpdateRankEmbed(guildId, 1);
-    } else if (prevMoco.messageId && prevMoco.channelId && !savedConfig.mocoRankChannelId) {
-      await this.mocoService.deleteEmbed(prevMoco.channelId, prevMoco.messageId);
-      await this.configRepo.updateMocoRankMessageId(guildId, null);
+    } catch (err) {
+      this.logger.error(
+        `[MOCO] Embed 갱신 실패: guild=${guildId}`,
+        (err as Error).stack,
+      );
     }
 
     return { ok: true };
@@ -170,16 +160,14 @@ export class NewbieController {
   @Get('missions')
   async getMissions(@Param('guildId') guildId: string) {
     const cached = await this.redisRepo.getMissionActive(guildId);
-    if (cached) return cached;
-
-    const missions = await this.missionRepo.findActiveByGuild(guildId);
-    await this.redisRepo.setMissionActive(guildId, missions);
-    return missions;
+    const missions = cached ?? await this.missionRepo.findActiveByGuild(guildId);
+    if (!cached) await this.redisRepo.setMissionActive(guildId, missions);
+    return this.missionService.enrichMissions(guildId, missions);
   }
 
   /**
    * GET /api/guilds/:guildId/newbie/missions/history
-   * 전체 미션 이력 조회 (페이지네이션 + 상태 필터). F-NEWBIE-005.
+   * 미션 이력 조회 (IN_PROGRESS 제외, 페이지네이션 + 상태 필터). F-NEWBIE-005.
    */
   @Get('missions/history')
   async getMissionHistory(
@@ -193,12 +181,12 @@ export class NewbieController {
     const resolvedPage = isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
     const resolvedPageSize = isNaN(parsedPageSize) || parsedPageSize < 1 ? 10 : parsedPageSize;
 
-    const validStatuses = Object.values(MissionStatus);
+    const validStatuses = [MissionStatus.COMPLETED, MissionStatus.FAILED, MissionStatus.LEFT];
     const resolvedStatus = status && validStatuses.includes(status as MissionStatus)
       ? (status as MissionStatus)
       : undefined;
 
-    const { items, total } = await this.missionRepo.findAllByGuild(
+    const { items, total } = await this.missionRepo.findHistoryByGuild(
       guildId,
       resolvedStatus,
       resolvedPage,
@@ -245,6 +233,20 @@ export class NewbieController {
     @Body() dto: MissionHideDto,
   ): Promise<{ ok: boolean }> {
     await this.missionService.hideMission(guildId, dto.missionId);
+    return { ok: true };
+  }
+
+  /**
+   * POST /api/guilds/:guildId/newbie/missions/unhide
+   * 미션 Embed 숨김 해제. F-NEWBIE-005.
+   */
+  @Post('missions/unhide')
+  @HttpCode(HttpStatus.OK)
+  async unhideMission(
+    @Param('guildId') guildId: string,
+    @Body() dto: MissionHideDto,
+  ): Promise<{ ok: boolean }> {
+    await this.missionService.unhideMission(guildId, dto.missionId);
     return { ok: true };
   }
 
