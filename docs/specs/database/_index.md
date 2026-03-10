@@ -83,6 +83,7 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 │ missionEmbedTitle, missionEmbedDescription                           │
 │ missionEmbedColor, missionEmbedThumbnailUrl                          │
 │ mocoEnabled, mocoNewbieDays, mocoAllowNewbieHunter                   │
+│ mocoPlayCountMinDurationMin, mocoPlayCountIntervalMin                │
 │ mocoMinCoPresenceMin, mocoScorePerSession                            │
 │ mocoScorePerMinute, mocoScorePerUnique                               │
 │ mocoResetPeriod, mocoResetIntervalDays, mocoCurrentPeriodStart       │
@@ -145,11 +146,12 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 │ PK id                            │       │ PK id                            │
 │ guildId                          │       │ guildId                          │
 │ memberId                         │       │ memberId                         │
-│ startDate (YYYYMMDD)             │       │ startDate (YYYYMMDD)             │
-│ endDate (YYYYMMDD)               │       │ expiresDate (YYYYMMDD)           │
-│ targetPlaytimeSec                │       │ isExpired                        │
-│ status (enum)                    │       │ createdAt, updatedAt             │
-│ hiddenFromEmbed (default false)  │       └──────────────────────────────────┘
+│ memberName (nullable)            │       │ startDate (YYYYMMDD)             │
+│ startDate (YYYYMMDD)             │       │ expiresDate (YYYYMMDD)           │
+│ endDate (YYYYMMDD)               │       │ isExpired                        │
+│ targetPlaytimeSec                │       │ createdAt, updatedAt             │
+│ status (enum, +LEFT)             │       └──────────────────────────────────┘
+│ hiddenFromEmbed (default false)  │
 │ createdAt, updatedAt             │         IDX(guildId, memberId)
 └──────────────────────────────────┘         IDX(guildId, isExpired)
   IDX(guildId, memberId)                      IDX(expiresDate, isExpired)
@@ -450,6 +452,8 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 | `mocoEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 모코코 사냥 기능 활성화 여부 |
 | `mocoNewbieDays` | `int` | NOT NULL, DEFAULT `30` | 신규사용자 판별 기준 일수 (가입 후 N일 이내) |
 | `mocoAllowNewbieHunter` | `boolean` | NOT NULL, DEFAULT `false` | 신규사용자도 사냥꾼이 될 수 있는지 여부 |
+| `mocoPlayCountMinDurationMin` | `int` | NULLABLE | 모코코 사냥 플레이횟수 카운팅 최소 참여시간 기준 (분). NULL이면 비활성화. 기본값 30, 최솟값 1 |
+| `mocoPlayCountIntervalMin` | `int` | NULLABLE | 모코코 사냥 플레이횟수 카운팅 시간 간격 기준 (분). NULL이면 비활성화. 기본값 30, 최솟값 1 |
 | `mocoMinCoPresenceMin` | `int` | NOT NULL, DEFAULT `10` | 유효 세션 인정 최소 동시접속 시간(분) |
 | `mocoScorePerSession` | `int` | NOT NULL, DEFAULT `10` | 유효 세션 1회당 점수 |
 | `mocoScorePerMinute` | `int` | NOT NULL, DEFAULT `1` | 1분당 점수 |
@@ -491,10 +495,11 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 | `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
 | `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
 | `memberId` | `varchar` | NOT NULL | 디스코드 유저 ID |
+| `memberName` | `varchar` | NULLABLE | 디스코드 서버 닉네임. 미션 생성/상태변경 시 저장·갱신 |
 | `startDate` | `varchar` | NOT NULL | 미션 시작일 (`YYYYMMDD`) |
 | `endDate` | `varchar` | NOT NULL | 미션 마감일 (`YYYYMMDD`) |
 | `targetPlaytimeSec` | `int` | NOT NULL | 목표 플레이타임 (초 단위로 변환 저장) |
-| `status` | `enum('IN_PROGRESS','COMPLETED','FAILED')` | NOT NULL, DEFAULT `'IN_PROGRESS'` | 미션 상태 |
+| `status` | `enum('IN_PROGRESS','COMPLETED','FAILED','LEFT')` | NOT NULL, DEFAULT `'IN_PROGRESS'` | 미션 상태 |
 | `hiddenFromEmbed` | `boolean` | NOT NULL, DEFAULT `false` | Embed 표시 제외 여부. `true`이면 Discord Embed에서 숨김 처리됨 (F-NEWBIE-005) |
 | `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
 | `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
@@ -1183,7 +1188,7 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
   3. Discord API → 환영 채널에 Embed 메시지 전송
 
   [미션 생성 — missionEnabled = true]
-  4. NewbieMission → PostgreSQL insert (guildId, memberId, startDate, endDate, targetPlaytimeSec, status='IN_PROGRESS')
+  4. NewbieMission → PostgreSQL insert (guildId, memberId, memberName, startDate, endDate, targetPlaytimeSec, status='IN_PROGRESS')
   5. newbie:mission:active:{guildId} → Redis delete (캐시 무효화)
 
   [신입기간 역할 부여 — roleEnabled = true]

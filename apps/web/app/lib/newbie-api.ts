@@ -6,6 +6,7 @@ export interface NewbieConfig {
   welcomeEmbedDescription: string | null;
   welcomeEmbedColor: string | null;
   welcomeEmbedThumbnailUrl: string | null;
+  welcomeContent: string | null;
 
   // 미션
   missionEnabled: boolean;
@@ -23,6 +24,10 @@ export interface NewbieConfig {
   mocoRankChannelId: string | null;
   mocoAutoRefreshMinutes: number | null;
   mocoEmbedColor: string | null;
+
+  // 모코코 사냥 — 플레이횟수 카운팅
+  mocoPlayCountMinDurationMin: number | null;
+  mocoPlayCountIntervalMin: number | null;
 
   // 모코코 사냥 — 점수/세션/리셋 (신규)
   mocoMinCoPresenceMin: number | null;
@@ -77,6 +82,8 @@ export interface MissionItem {
   id: number;
   guildId: string;
   memberId: string;
+  memberName?: string;
+  currentPlaytimeSec?: number;
   startDate: string;
   endDate: string;
   targetPlaytimeSec: number;
@@ -180,6 +187,19 @@ export async function hideMission(
     body: JSON.stringify({ missionId }),
   });
   if (!res.ok) throw new Error(`Embed 숨김 처리 실패: ${res.status}`);
+}
+
+/** 미션 Embed 숨김 해제 */
+export async function unhideMission(
+  guildId: string,
+  missionId: number,
+): Promise<void> {
+  const res = await fetch(`/api/guilds/${guildId}/newbie/missions/unhide`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ missionId }),
+  });
+  if (!res.ok) throw new Error(`Embed 숨김 해제 실패: ${res.status}`);
 }
 
 // ─── 미션 템플릿 ─────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
+import { In, LessThan, Not, Repository } from 'typeorm';
 
 import { MissionStatus, NewbieMission } from '../domain/newbie-mission.entity';
 
@@ -18,10 +18,12 @@ export class NewbieMissionRepository {
     startDate: string,
     endDate: string,
     targetPlaytimeSec: number,
+    memberName?: string | null,
   ): Promise<NewbieMission> {
     const mission = this.repo.create({
       guildId,
       memberId,
+      memberName: memberName ?? null,
       startDate,
       endDate,
       targetPlaytimeSec,
@@ -64,6 +66,11 @@ export class NewbieMissionRepository {
     await this.repo.update(id, { status });
   }
 
+  /** memberName 갱신 */
+  async updateMemberName(id: number, memberName: string): Promise<void> {
+    await this.repo.update(id, { memberName });
+  }
+
   /** 미션 단건 조회 */
   async findById(id: number): Promise<NewbieMission | null> {
     return this.repo.findOne({ where: { id } });
@@ -89,16 +96,20 @@ export class NewbieMissionRepository {
   }
 
   /**
-   * 길드의 전체 미션 이력 조회 (페이지네이션 + 상태 필터 옵션)
+   * 길드의 미션 이력 조회 (IN_PROGRESS 제외, 페이지네이션 + 상태 필터 옵션)
    */
-  async findAllByGuild(
+  async findHistoryByGuild(
     guildId: string,
     status: MissionStatus | undefined,
     page: number,
     pageSize: number,
   ): Promise<{ items: NewbieMission[]; total: number }> {
     const where: Record<string, unknown> = { guildId };
-    if (status) where.status = status;
+    if (status) {
+      where.status = status;
+    } else {
+      where.status = In([MissionStatus.COMPLETED, MissionStatus.FAILED, MissionStatus.LEFT]);
+    }
 
     const [items, total] = await this.repo.findAndCount({
       where,

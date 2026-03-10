@@ -30,6 +30,9 @@ export class MocoScheduler implements OnApplicationBootstrap, OnApplicationShutd
   /** key: `${guildId}:${hunterId}` */
   private activeSessions = new Map<string, ActiveSession>();
 
+  /** 마지막 유효 세션 시작 시각 (플레이횟수 시간 간격 병합용). key: `${guildId}:${hunterId}` */
+  private lastSessionStartedAt = new Map<string, number>();
+
   constructor(
     private readonly configRepo: NewbieConfigRepository,
     private readonly newbieRedis: NewbieRedisRepository,
@@ -259,10 +262,21 @@ export class MocoScheduler implements OnApplicationBootstrap, OnApplicationShutd
         isValid: true,
       });
 
-      await this.newbieRedis.incrMocoSessionCount(guildId, hunterId, 1);
+      // 플레이횟수 카운팅: 최소 참여시간 및 시간 간격 필터 적용
+      const countsAsPlay = this.shouldCountAsPlay(
+        guildId,
+        hunterId,
+        startedAt,
+        accumulatedMinutes,
+        config,
+      );
 
-      for (const newbieId of session.newbiesSeen) {
-        await this.newbieRedis.incrMocoNewbieSession(guildId, hunterId, newbieId, 1);
+      if (countsAsPlay) {
+        await this.newbieRedis.incrMocoSessionCount(guildId, hunterId, 1);
+
+        for (const newbieId of session.newbiesSeen) {
+          await this.newbieRedis.incrMocoNewbieSession(guildId, hunterId, newbieId, 1);
+        }
       }
 
       // 일별 집계 upsert
@@ -278,7 +292,7 @@ export class MocoScheduler implements OnApplicationBootstrap, OnApplicationShutd
         this.toDateString(),
         {
           channelMinutes: accumulatedMinutes,
-          sessionCount: 1,
+          sessionCount: countsAsPlay ? 1 : 0,
           uniqueNewbieCount: session.newbiesSeen.size,
         },
         scoreWeights,
@@ -306,6 +320,41 @@ export class MocoScheduler implements OnApplicationBootstrap, OnApplicationShutd
         isValid: false,
       });
     }
+  }
+
+  /**
+   * 플레이횟수 카운팅 조건을 판정한다.
+   * - mocoPlayCountMinDurationMin: 세션이 이 시간 미만이면 플레이 횟수에 불포함
+   * - mocoPlayCountIntervalMin: 직전 세션 시작으로부터 이 시간 이내에 시작된 세션은 동일 1회로 병합
+   */
+  private shouldCountAsPlay(
+    guildId: string,
+    hunterId: string,
+    startedAt: Date,
+    durationMin: number,
+    config: NewbieConfig,
+  ): boolean {
+    const key = `${guildId}:${hunterId}`;
+
+    // 최소 참여시간 필터
+    const minDuration = config.mocoPlayCountMinDurationMin;
+    if (minDuration !== null && minDuration !== undefined && durationMin < minDuration) {
+      return false;
+    }
+
+    // 시간 간격 병합
+    const intervalMin = config.mocoPlayCountIntervalMin;
+    if (intervalMin !== null && intervalMin !== undefined) {
+      const lastStart = this.lastSessionStartedAt.get(key);
+      if (lastStart && startedAt.getTime() - lastStart < intervalMin * 60_000) {
+        // 간격 이내 → 동일 1회로 병합 (lastSessionStartedAt 갱신하지 않음)
+        return false;
+      }
+    }
+
+    // 새로운 플레이로 카운트 → 기준 시각 갱신
+    this.lastSessionStartedAt.set(key, startedAt.getTime());
+    return true;
   }
 
   /**
@@ -350,6 +399,7 @@ export class MocoScheduler implements OnApplicationBootstrap, OnApplicationShutd
         await this.endSession(session, config);
       }
       this.activeSessions.delete(key);
+      this.lastSessionStartedAt.delete(key);
     }
   }
 

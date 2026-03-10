@@ -28,6 +28,9 @@ export class NewbieMission {
   @Column()
   memberId: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  memberName: string | null;
+
   @Column()
   startDate: string;
 

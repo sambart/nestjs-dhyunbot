@@ -138,14 +138,19 @@ export class ProfileCardRenderer {
     ctx.font = 'bold 28px "NotoSansCJK", "NotoColorEmoji", sans-serif';
     ctx.fillText(displayName, PADDING + 96, headerY + 30);
 
-    // 랭킹 + 기간
+    // 랭킹 배지 (닉네임 옆)
+    const nameWidth = ctx.measureText(displayName).width;
+    const rankEmoji = profile.rank === 1 ? '👑 ' : profile.rank <= 3 ? '🏅 ' : '🎖️ ';
+    const rankText = `${rankEmoji}#${profile.rank}`;
     ctx.fillStyle = BLURPLE;
-    ctx.font = '18px "NotoSansCJK", "NotoColorEmoji", sans-serif';
-    ctx.fillText(`#${profile.rank} / ${profile.totalUsers}명`, PADDING + 96, headerY + 58);
+    ctx.font = 'bold 18px "NotoSansCJK", "NotoColorEmoji", sans-serif';
+    const badgeX = PADDING + 96 + nameWidth + 12;
+    ctx.fillText(rankText, badgeX, headerY + 30);
 
+    // 기간 + 전체 유저
     ctx.fillStyle = TEXT_SECONDARY;
     ctx.font = '14px "NotoSansCJK", "NotoColorEmoji", sans-serif';
-    ctx.fillText('최근 15일', PADDING + 250, headerY + 58);
+    ctx.fillText(`최근 15일 · ${profile.totalUsers}명 중`, PADDING + 96, headerY + 58);
 
     // 구분선
     ctx.beginPath();
