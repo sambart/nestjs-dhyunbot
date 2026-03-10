@@ -154,6 +154,40 @@ Discord Voice Event
   - Discord API 호출 실패 시 `categoryId`, `categoryName`을 null로 저장하고 입장 처리는 계속 진행한다 (non-blocking).
   - 카테고리 없는 최상위 채널은 `categoryId = null`, `categoryName = null`이 정상 상태다.
 
+### F-VOICE-023: 봇 재시작 시 음성 세션 복구
+
+- **배경**: 봇이 재시작(배포/크래시)되면 음성 채널에 있던 유저들의 `VoiceChannelHistory.leftAt`이 기록되지 않고 `null`로 남는다. 또한 Discord 재연결 시 이미 음성 채널에 있는 유저들에 대해 `voiceStateUpdate` 이벤트가 발생하지 않아 새 세션이 생성되지 않는다.
+- **동작**:
+
+  **1단계 — 정상 종료 시 (`onApplicationShutdown`)**:
+  1. 기존 Redis 세션 flush (현행 유지)
+  2. `VoiceChannelHistory`에서 `leftAt IS NULL`인 레코드를 일괄 업데이트 (`leftAt = NOW()`)
+
+  **2단계 — 부팅 시 (`onApplicationBootstrap`)**:
+  1. `VoiceChannelHistory`에서 `leftAt IS NULL`인 레코드를 일괄 업데이트 (`leftAt = NOW()`) — 크래시 시 1단계가 실행되지 않으므로 여기서 보완
+  2. 기존 Redis orphan 세션 flush (현행 유지)
+
+  **3단계 — Discord ready 후 음성 상태 동기화**:
+  1. Discord 클라이언트 `ready` 이벤트 수신 후 실행
+  2. 모든 길드의 `voiceStates` 캐시를 순회
+  3. 음성 채널에 있는 각 유저에 대해 제외 채널 필터링 적용
+  4. 제외 대상이 아닌 유저에 대해 `VoiceChannelService.onUserJoined()` 호출 → 새 `VoiceChannelHistory` 레코드 + Redis 세션 생성
+  5. 동기화 완료 로그 출력
+
+- **제약**:
+  - 크래시 시 `leftAt`은 실제 퇴장 시각이 아닌 봇 재시작 시각으로 기록된다 (정확한 퇴장 시각을 알 수 없으므로 허용)
+  - 3단계는 Discord 클라이언트가 `ready` 상태가 된 후에만 실행한다
+  - 3단계에서 제외 채널 확인 시 `VoiceExcludedChannelService.isExcludedChannel()`을 사용한다
+- **관련 파일**:
+  - `apps/api/src/channel/voice/application/voice-recovery.service.ts` — 1~3단계 구현
+  - `apps/api/src/channel/voice/application/voice-channel-history.service.ts` — 고아 레코드 일괄 종료 메서드
+  - `apps/api/src/channel/voice/application/voice-channel.service.ts` — `onUserJoined()` 재사용
+
+### F-VOICE-024: logLeave 쿼리 안전성 개선
+
+- **배경**: `VoiceChannelHistoryService.logLeave()`의 쿼리에 `leftAt IS NULL` 조건이 없어, 이미 종료된 레코드를 다시 업데이트하거나 고아 레코드가 존재할 때 엉뚱한 레코드가 갱신될 수 있다.
+- **동작**: `logLeave()` 쿼리에 `.andWhere('log.leftAt IS NULL')` 조건을 추가하여, 아직 종료되지 않은 레코드만 대상으로 한다.
+
 ## Redis 키 구조
 - 세션 키: 유저별 현재 음성 세션 정보 (입장 시간, 채널 ID 등)
 - 캐시 키: 유저명/채널명 캐시 (7일 TTL)
