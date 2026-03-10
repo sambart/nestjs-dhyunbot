@@ -28,11 +28,11 @@ export class StickyMessageHandler implements OnApplicationShutdown {
   @On('messageCreate')
   async handleMessageCreate(message: Message): Promise<void> {
     try {
-      // 봇 자신의 고정메세지 재전송만 무시 (무한루프 방지)
+      // 봇 자신의 메시지 && 해당 채널에서 고정메세지 재전송 진행 중 → 무시 (무한루프 방지)
       // 슬래시 커맨드 결과 등 봇의 다른 메시지는 갱신 트리거
       if (
         message.author.id === this.client.user?.id &&
-        this.refreshService.isStickyMessage(message.id)
+        this.refreshService.isRefreshing(message.channelId)
       ) {
         return;
       }
