@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, Mic, Search, Settings } from "lucide-react";
+import { Activity, ArrowLeftRight, Mic, Search, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -34,6 +34,11 @@ export default function DashboardSidebar({
       href: `/dashboard/guild/${selectedGuildId}/user`,
       label: "유저 검색",
       icon: Search,
+    },
+    {
+      href: `/dashboard/guild/${selectedGuildId}/monitoring`,
+      label: "모니터링",
+      icon: Activity,
     },
   ];
 
