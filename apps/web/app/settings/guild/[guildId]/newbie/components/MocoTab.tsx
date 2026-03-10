@@ -2,6 +2,7 @@
 
 import type { DiscordChannel, DiscordEmoji } from '../../../../../lib/discord-api';
 import type { MocoTemplate, NewbieConfig } from '../../../../../lib/newbie-api';
+import CollapsibleSection from './CollapsibleSection';
 import MocoTemplateSection from './MocoTemplateSection';
 
 interface MocoTabProps {
@@ -17,6 +18,12 @@ interface MocoTabProps {
   mocoTemplateSaveSuccess: boolean;
 }
 
+const RESET_PERIOD_LABELS: Record<string, string> = {
+  NONE: '누적',
+  MONTHLY: '매월',
+  CUSTOM: '커스텀',
+};
+
 export default function MocoTab({
   config,
   channels,
@@ -30,8 +37,43 @@ export default function MocoTab({
 }: MocoTabProps) {
   const isEnabled = config.mocoEnabled;
 
+  /* ── 요약 텍스트 생성 ── */
+  const basicSummary = [
+    `${config.mocoNewbieDays ?? 30}일`,
+    config.mocoAllowNewbieHunter && '사냥꾼 허용',
+    config.mocoRankChannelId
+      ? `# ${channels.find((c) => c.id === config.mocoRankChannelId)?.name ?? '...'}`
+      : null,
+    config.mocoAutoRefreshMinutes != null &&
+      `${config.mocoAutoRefreshMinutes}분 갱신`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const playCountParts: string[] = [];
+  if (config.mocoPlayCountMinDurationMin != null)
+    playCountParts.push(`최소 ${config.mocoPlayCountMinDurationMin}분`);
+  if (config.mocoPlayCountIntervalMin != null)
+    playCountParts.push(`간격 ${config.mocoPlayCountIntervalMin}분`);
+  const playCountSummary =
+    playCountParts.length > 0 ? playCountParts.join(' · ') : '비활성';
+
+  const resetLabel =
+    RESET_PERIOD_LABELS[config.mocoResetPeriod ?? 'NONE'] ?? '누적';
+  const scoreSummary = `세션 ${config.mocoScorePerSession ?? 10} · 분 ${config.mocoScorePerMinute ?? 1} · 고유 ${config.mocoScorePerUnique ?? 5} · ${resetLabel}`;
+
+  const embedSummary = (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className="inline-block w-3 h-3 rounded-sm border border-gray-300"
+        style={{ backgroundColor: config.mocoEmbedColor ?? '#5865F2' }}
+      />
+      <span>{config.mocoEmbedColor ?? '#5865F2'}</span>
+    </span>
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 기능 활성화 토글 */}
       <div className="flex items-center justify-between">
         <div>
@@ -57,393 +99,429 @@ export default function MocoTab({
         </button>
       </div>
 
-      {/* 모코코 기준 일수 */}
-      <div>
-        <label
-          htmlFor="moco-newbie-days"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          모코코 기준 (가입 후 일수)
-        </label>
-        <input
-          id="moco-newbie-days"
-          type="number"
-          min={1}
-          max={365}
-          value={config.mocoNewbieDays ?? 30}
-          onChange={(e) => {
-            const val = parseInt(e.target.value, 10);
-            onChange({ mocoNewbieDays: isNaN(val) ? null : val });
-          }}
-          disabled={!isEnabled}
-          placeholder="30"
-          className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-        />
-        <p className="text-xs text-gray-400 mt-1">
-          서버 가입 후 이 일수 이내인 멤버를 모코코(신입)로 판정합니다.
-        </p>
-      </div>
-
-      {/* 모코코도 사냥꾼 허용 토글 */}
-      <div className="flex items-center justify-between">
+      {/* ── 그룹 1: 기본 설정 (기본 펼침) ── */}
+      <CollapsibleSection
+        title="기본 설정"
+        summary={basicSummary || undefined}
+        defaultOpen
+      >
+        {/* 모코코 기준 일수 */}
         <div>
-          <p className="text-sm font-medium text-gray-700">모코코도 사냥꾼 허용</p>
-          <p className="text-xs text-gray-500 mt-0.5">
-            활성화하면 신입(모코코)도 다른 신입의 사냥꾼이 될 수 있습니다.
+          <label
+            htmlFor="moco-newbie-days"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            모코코 기준 (가입 후 일수)
+          </label>
+          <input
+            id="moco-newbie-days"
+            type="number"
+            min={1}
+            max={365}
+            value={config.mocoNewbieDays ?? 30}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              onChange({ mocoNewbieDays: isNaN(val) ? null : val });
+            }}
+            disabled={!isEnabled}
+            placeholder="30"
+            className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            서버 가입 후 이 일수 이내인 멤버를 모코코(신입)로 판정합니다.
           </p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={config.mocoAllowNewbieHunter}
-          onClick={() => onChange({ mocoAllowNewbieHunter: !config.mocoAllowNewbieHunter })}
-          disabled={!isEnabled}
-          className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-            config.mocoAllowNewbieHunter ? 'bg-indigo-600' : 'bg-gray-200'
-          }`}
-        >
-          <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-              config.mocoAllowNewbieHunter ? 'translate-x-6' : 'translate-x-1'
+
+        {/* 모코코도 사냥꾼 허용 토글 */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-700">
+              모코코도 사냥꾼 허용
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              활성화하면 신입(모코코)도 다른 신입의 사냥꾼이 될 수 있습니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={config.mocoAllowNewbieHunter}
+            onClick={() =>
+              onChange({ mocoAllowNewbieHunter: !config.mocoAllowNewbieHunter })
+            }
+            disabled={!isEnabled}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+              config.mocoAllowNewbieHunter ? 'bg-indigo-600' : 'bg-gray-200'
             }`}
-          />
-        </button>
-      </div>
-
-      {/* 플레이횟수 최소 참여시간 */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <input
-            id="moco-play-count-min-duration-enabled"
-            type="checkbox"
-            checked={config.mocoPlayCountMinDurationMin !== null}
-            onChange={(e) => {
-              if (e.target.checked) {
-                onChange({ mocoPlayCountMinDurationMin: 30 });
-              } else {
-                onChange({ mocoPlayCountMinDurationMin: null });
-              }
-            }}
-            disabled={!isEnabled}
-            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:cursor-not-allowed"
-          />
-          <label
-            htmlFor="moco-play-count-min-duration-enabled"
-            className="text-sm font-medium text-gray-700"
           >
-            플레이횟수 최소 참여시간 (분)
-          </label>
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                config.mocoAllowNewbieHunter ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
         </div>
-        <input
-          id="moco-play-count-min-duration"
-          type="number"
-          min={1}
-          max={9999}
-          value={config.mocoPlayCountMinDurationMin ?? 30}
-          onChange={(e) => {
-            const val = parseInt(e.target.value, 10);
-            onChange({ mocoPlayCountMinDurationMin: isNaN(val) || val < 1 ? 30 : val });
-          }}
-          disabled={!isEnabled || config.mocoPlayCountMinDurationMin === null}
-          className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-        />
-        <p className="text-xs text-gray-400 mt-1">
-          세션의 총 참여시간이 N분 이상인 세션만 유효한 1회로 인정합니다. 체크 해제 시 비활성화 (모든 세션 인정).
-        </p>
-      </div>
 
-      {/* 플레이횟수 시간 간격 */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <input
-            id="moco-play-count-interval-enabled"
-            type="checkbox"
-            checked={config.mocoPlayCountIntervalMin !== null}
-            onChange={(e) => {
-              if (e.target.checked) {
-                onChange({ mocoPlayCountIntervalMin: 30 });
-              } else {
-                onChange({ mocoPlayCountIntervalMin: null });
-              }
-            }}
-            disabled={!isEnabled}
-            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:cursor-not-allowed"
-          />
+        {/* 순위 표시 채널 */}
+        <div>
           <label
-            htmlFor="moco-play-count-interval-enabled"
-            className="text-sm font-medium text-gray-700"
+            htmlFor="moco-rank-channel"
+            className="block text-sm font-medium text-gray-700 mb-1"
           >
-            플레이횟수 시간 간격 (분)
+            순위 표시 채널
           </label>
-        </div>
-        <input
-          id="moco-play-count-interval"
-          type="number"
-          min={1}
-          max={9999}
-          value={config.mocoPlayCountIntervalMin ?? 30}
-          onChange={(e) => {
-            const val = parseInt(e.target.value, 10);
-            onChange({ mocoPlayCountIntervalMin: isNaN(val) || val < 1 ? 30 : val });
-          }}
-          disabled={!isEnabled || config.mocoPlayCountIntervalMin === null}
-          className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-        />
-        <p className="text-xs text-gray-400 mt-1">
-          이전 유효 세션 시작 후 N분 이내에 재입장한 세션은 동일 1회로 병합합니다. 체크 해제 시 비활성화 (독립 카운트).
-        </p>
-      </div>
-
-      {/* 순위 표시 채널 */}
-      <div>
-        <label
-          htmlFor="moco-rank-channel"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          순위 표시 채널
-        </label>
-        <select
-          id="moco-rank-channel"
-          value={config.mocoRankChannelId ?? ''}
-          onChange={(e) =>
-            onChange({ mocoRankChannelId: e.target.value || null })
-          }
-          disabled={!isEnabled}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-        >
-          <option value="">채널을 선택하세요</option>
-          {channels.map((ch) => (
-            <option key={ch.id} value={ch.id}>
-              # {ch.name}
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-gray-400 mt-1">
-          모코코 사냥 TOP N 순위 Embed를 표시할 채널
-        </p>
-        {channels.length === 0 && (
-          <p className="text-xs text-amber-500 mt-1">
-            채널 목록을 불러올 수 없습니다. 백엔드 연동 후 사용 가능합니다.
+          <select
+            id="moco-rank-channel"
+            value={config.mocoRankChannelId ?? ''}
+            onChange={(e) =>
+              onChange({ mocoRankChannelId: e.target.value || null })
+            }
+            disabled={!isEnabled}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+          >
+            <option value="">채널을 선택하세요</option>
+            {channels.map((ch) => (
+              <option key={ch.id} value={ch.id}>
+                # {ch.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">
+            모코코 사냥 TOP N 순위 Embed를 표시할 채널
           </p>
-        )}
-      </div>
+          {channels.length === 0 && (
+            <p className="text-xs text-amber-500 mt-1">
+              채널 목록을 불러올 수 없습니다. 백엔드 연동 후 사용 가능합니다.
+            </p>
+          )}
+        </div>
 
-      {/* 자동 갱신 간격 (분) */}
-      <div>
-        <label
-          htmlFor="moco-auto-refresh"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          자동 갱신 간격 (분)
-        </label>
-        <input
-          id="moco-auto-refresh"
-          type="number"
-          min={1}
-          max={1440}
-          value={config.mocoAutoRefreshMinutes ?? ''}
-          onChange={(e) => {
-            const val = parseInt(e.target.value, 10);
-            onChange({ mocoAutoRefreshMinutes: isNaN(val) ? null : val });
-          }}
-          disabled={!isEnabled}
-          placeholder="예: 30"
-          className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-        />
-        <p className="text-xs text-gray-400 mt-1">
-          순위 Embed를 자동으로 갱신하는 주기(분)
-        </p>
-      </div>
-
-      {/* Embed 색상 */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Embed 색상
-        </label>
-        <div className="flex items-center space-x-3">
+        {/* 자동 갱신 간격 (분) */}
+        <div>
+          <label
+            htmlFor="moco-auto-refresh"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            자동 갱신 간격 (분)
+          </label>
           <input
-            type="color"
-            value={config.mocoEmbedColor ?? '#5865F2'}
-            onChange={(e) => onChange({ mocoEmbedColor: e.target.value })}
-            disabled={!isEnabled}
-            aria-label="Embed 색상 피커"
-            className="h-9 w-16 border border-gray-300 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed p-1"
-          />
-          <input
-            type="text"
-            value={config.mocoEmbedColor ?? '#5865F2'}
+            id="moco-auto-refresh"
+            type="number"
+            min={1}
+            max={1440}
+            value={config.mocoAutoRefreshMinutes ?? ''}
             onChange={(e) => {
-              const val = e.target.value;
-              if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                onChange({ mocoEmbedColor: val });
-              }
+              const val = parseInt(e.target.value, 10);
+              onChange({ mocoAutoRefreshMinutes: isNaN(val) ? null : val });
             }}
             disabled={!isEnabled}
-            maxLength={7}
-            placeholder="#5865F2"
-            aria-label="Embed 색상 HEX 코드"
-            className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+            placeholder="예: 30"
+            className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
+          <p className="text-xs text-gray-400 mt-1">
+            순위 Embed를 자동으로 갱신하는 주기(분)
+          </p>
         </div>
-      </div>
+      </CollapsibleSection>
 
-      {/* 최소 동시접속 시간 */}
-      <div>
-        <label
-          htmlFor="moco-min-co-presence"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          최소 동시접속 시간 (분)
-        </label>
-        <input
-          id="moco-min-co-presence"
-          type="number"
-          min={1}
-          value={config.mocoMinCoPresenceMin ?? 10}
-          onChange={(e) => {
-            const val = parseInt(e.target.value, 10);
-            onChange({ mocoMinCoPresenceMin: isNaN(val) ? null : val });
-          }}
-          disabled={!isEnabled}
-          placeholder="10"
-          className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+      {/* ── 그룹 2: 플레이횟수 규칙 (기본 접힘) ── */}
+      <CollapsibleSection title="플레이횟수 규칙" summary={playCountSummary}>
+        {/* 플레이횟수 최소 참여시간 */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <input
+              id="moco-play-count-min-duration-enabled"
+              type="checkbox"
+              checked={config.mocoPlayCountMinDurationMin !== null}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  onChange({ mocoPlayCountMinDurationMin: 30 });
+                } else {
+                  onChange({ mocoPlayCountMinDurationMin: null });
+                }
+              }}
+              disabled={!isEnabled}
+              className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:cursor-not-allowed"
+            />
+            <label
+              htmlFor="moco-play-count-min-duration-enabled"
+              className="text-sm font-medium text-gray-700"
+            >
+              플레이횟수 최소 참여시간 (분)
+            </label>
+          </div>
+          <input
+            id="moco-play-count-min-duration"
+            type="number"
+            min={1}
+            max={9999}
+            value={config.mocoPlayCountMinDurationMin ?? 30}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              onChange({
+                mocoPlayCountMinDurationMin:
+                  isNaN(val) || val < 1 ? 30 : val,
+              });
+            }}
+            disabled={
+              !isEnabled || config.mocoPlayCountMinDurationMin === null
+            }
+            className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            세션의 총 참여시간이 N분 이상인 세션만 유효한 1회로 인정합니다. 체크
+            해제 시 비활성화 (모든 세션 인정).
+          </p>
+        </div>
+
+        {/* 플레이횟수 시간 간격 */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <input
+              id="moco-play-count-interval-enabled"
+              type="checkbox"
+              checked={config.mocoPlayCountIntervalMin !== null}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  onChange({ mocoPlayCountIntervalMin: 30 });
+                } else {
+                  onChange({ mocoPlayCountIntervalMin: null });
+                }
+              }}
+              disabled={!isEnabled}
+              className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:cursor-not-allowed"
+            />
+            <label
+              htmlFor="moco-play-count-interval-enabled"
+              className="text-sm font-medium text-gray-700"
+            >
+              플레이횟수 시간 간격 (분)
+            </label>
+          </div>
+          <input
+            id="moco-play-count-interval"
+            type="number"
+            min={1}
+            max={9999}
+            value={config.mocoPlayCountIntervalMin ?? 30}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              onChange({
+                mocoPlayCountIntervalMin: isNaN(val) || val < 1 ? 30 : val,
+              });
+            }}
+            disabled={
+              !isEnabled || config.mocoPlayCountIntervalMin === null
+            }
+            className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            이전 유효 세션 시작 후 N분 이내에 재입장한 세션은 동일 1회로
+            병합합니다. 체크 해제 시 비활성화 (독립 카운트).
+          </p>
+        </div>
+      </CollapsibleSection>
+
+      {/* ── 그룹 3: 점수 & 리셋 (기본 접힘) ── */}
+      <CollapsibleSection title="점수 & 리셋" summary={scoreSummary}>
+        {/* 최소 동시접속 시간 */}
+        <div>
+          <label
+            htmlFor="moco-min-co-presence"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            최소 동시접속 시간 (분)
+          </label>
+          <input
+            id="moco-min-co-presence"
+            type="number"
+            min={1}
+            value={config.mocoMinCoPresenceMin ?? 10}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              onChange({ mocoMinCoPresenceMin: isNaN(val) ? null : val });
+            }}
+            disabled={!isEnabled}
+            placeholder="10"
+            className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            이 시간 미만의 짧은 접속은 사냥 횟수에 포함되지 않습니다.
+          </p>
+        </div>
+
+        {/* 점수 가중치 설정 */}
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-gray-700">점수 가중치</p>
+          <p className="text-xs text-gray-500">
+            0으로 설정하면 해당 요소를 비활성화합니다.
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label
+                htmlFor="moco-score-per-session"
+                className="block text-xs font-medium text-gray-600 mb-1"
+              >
+                세션당 점수
+              </label>
+              <input
+                id="moco-score-per-session"
+                type="number"
+                min={0}
+                value={config.mocoScorePerSession ?? 10}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  onChange({ mocoScorePerSession: isNaN(val) ? null : val });
+                }}
+                disabled={!isEnabled}
+                placeholder="10"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="moco-score-per-minute"
+                className="block text-xs font-medium text-gray-600 mb-1"
+              >
+                분당 점수
+              </label>
+              <input
+                id="moco-score-per-minute"
+                type="number"
+                min={0}
+                value={config.mocoScorePerMinute ?? 1}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  onChange({ mocoScorePerMinute: isNaN(val) ? null : val });
+                }}
+                disabled={!isEnabled}
+                placeholder="1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="moco-score-per-unique"
+                className="block text-xs font-medium text-gray-600 mb-1"
+              >
+                고유 모코코당 점수
+              </label>
+              <input
+                id="moco-score-per-unique"
+                type="number"
+                min={0}
+                value={config.mocoScorePerUnique ?? 5}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  onChange({ mocoScorePerUnique: isNaN(val) ? null : val });
+                }}
+                disabled={!isEnabled}
+                placeholder="5"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 리셋 주기 */}
+        <div>
+          <label
+            htmlFor="moco-reset-period"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            리셋 주기
+          </label>
+          <select
+            id="moco-reset-period"
+            value={config.mocoResetPeriod ?? 'NONE'}
+            onChange={(e) =>
+              onChange({
+                mocoResetPeriod:
+                  e.target.value === 'NONE' ? null : e.target.value,
+              })
+            }
+            disabled={!isEnabled}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+          >
+            <option value="NONE">누적 (리셋 없음)</option>
+            <option value="MONTHLY">매월 1일</option>
+            <option value="CUSTOM">커스텀 간격</option>
+          </select>
+          {config.mocoResetPeriod === 'CUSTOM' && (
+            <div className="mt-2">
+              <label
+                htmlFor="moco-reset-interval-days"
+                className="block text-xs font-medium text-gray-600 mb-1"
+              >
+                리셋 간격 (일)
+              </label>
+              <input
+                id="moco-reset-interval-days"
+                type="number"
+                min={1}
+                value={config.mocoResetIntervalDays ?? 30}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  onChange({
+                    mocoResetIntervalDays: isNaN(val) ? null : val,
+                  });
+                }}
+                disabled={!isEnabled}
+                placeholder="30"
+                className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+              />
+            </div>
+          )}
+        </div>
+      </CollapsibleSection>
+
+      {/* ── 그룹 4: Embed 외관 & 템플릿 (기본 접힘) ── */}
+      <CollapsibleSection title="Embed 외관 & 템플릿" summary={embedSummary}>
+        {/* Embed 색상 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Embed 색상
+          </label>
+          <div className="flex items-center space-x-3">
+            <input
+              type="color"
+              value={config.mocoEmbedColor ?? '#5865F2'}
+              onChange={(e) => onChange({ mocoEmbedColor: e.target.value })}
+              disabled={!isEnabled}
+              aria-label="Embed 색상 피커"
+              className="h-9 w-16 border border-gray-300 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed p-1"
+            />
+            <input
+              type="text"
+              value={config.mocoEmbedColor ?? '#5865F2'}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                  onChange({ mocoEmbedColor: val });
+                }
+              }}
+              disabled={!isEnabled}
+              maxLength={7}
+              placeholder="#5865F2"
+              aria-label="Embed 색상 HEX 코드"
+              className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+            />
+          </div>
+        </div>
+
+        <hr className="border-gray-200" />
+
+        {/* 템플릿 설정 섹션 */}
+        <MocoTemplateSection
+          template={mocoTemplate}
+          onChange={onMocoTemplateChange}
+          onSave={onSaveMocoTemplate}
+          isSaving={isSavingMocoTemplate}
+          saveError={mocoTemplateSaveError}
+          saveSuccess={mocoTemplateSaveSuccess}
+          isEnabled={isEnabled}
         />
-        <p className="text-xs text-gray-400 mt-1">
-          이 시간 미만의 짧은 접속은 사냥 횟수에 포함되지 않습니다.
-        </p>
-      </div>
-
-      {/* 점수 가중치 설정 */}
-      <div className="space-y-3">
-        <p className="text-sm font-medium text-gray-700">점수 가중치</p>
-        <p className="text-xs text-gray-500">
-          0으로 설정하면 해당 요소를 비활성화합니다.
-        </p>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label
-              htmlFor="moco-score-per-session"
-              className="block text-xs font-medium text-gray-600 mb-1"
-            >
-              세션당 점수
-            </label>
-            <input
-              id="moco-score-per-session"
-              type="number"
-              min={0}
-              value={config.mocoScorePerSession ?? 10}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                onChange({ mocoScorePerSession: isNaN(val) ? null : val });
-              }}
-              disabled={!isEnabled}
-              placeholder="10"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="moco-score-per-minute"
-              className="block text-xs font-medium text-gray-600 mb-1"
-            >
-              분당 점수
-            </label>
-            <input
-              id="moco-score-per-minute"
-              type="number"
-              min={0}
-              value={config.mocoScorePerMinute ?? 1}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                onChange({ mocoScorePerMinute: isNaN(val) ? null : val });
-              }}
-              disabled={!isEnabled}
-              placeholder="1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="moco-score-per-unique"
-              className="block text-xs font-medium text-gray-600 mb-1"
-            >
-              고유 모코코당 점수
-            </label>
-            <input
-              id="moco-score-per-unique"
-              type="number"
-              min={0}
-              value={config.mocoScorePerUnique ?? 5}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                onChange({ mocoScorePerUnique: isNaN(val) ? null : val });
-              }}
-              disabled={!isEnabled}
-              placeholder="5"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 리셋 주기 */}
-      <div>
-        <label
-          htmlFor="moco-reset-period"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          리셋 주기
-        </label>
-        <select
-          id="moco-reset-period"
-          value={config.mocoResetPeriod ?? 'NONE'}
-          onChange={(e) =>
-            onChange({ mocoResetPeriod: e.target.value === 'NONE' ? null : e.target.value })
-          }
-          disabled={!isEnabled}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-        >
-          <option value="NONE">누적 (리셋 없음)</option>
-          <option value="MONTHLY">매월 1일</option>
-          <option value="CUSTOM">커스텀 간격</option>
-        </select>
-        {config.mocoResetPeriod === 'CUSTOM' && (
-          <div className="mt-2">
-            <label
-              htmlFor="moco-reset-interval-days"
-              className="block text-xs font-medium text-gray-600 mb-1"
-            >
-              리셋 간격 (일)
-            </label>
-            <input
-              id="moco-reset-interval-days"
-              type="number"
-              min={1}
-              value={config.mocoResetIntervalDays ?? 30}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                onChange({ mocoResetIntervalDays: isNaN(val) ? null : val });
-              }}
-              disabled={!isEnabled}
-              placeholder="30"
-              className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-            />
-          </div>
-        )}
-      </div>
-
-      <hr className="border-gray-200" />
-
-      {/* 템플릿 설정 섹션 */}
-      <MocoTemplateSection
-        template={mocoTemplate}
-        onChange={onMocoTemplateChange}
-        onSave={onSaveMocoTemplate}
-        isSaving={isSavingMocoTemplate}
-        saveError={mocoTemplateSaveError}
-        saveSuccess={mocoTemplateSaveSuccess}
-        isEnabled={isEnabled}
-      />
+      </CollapsibleSection>
     </div>
   );
 }

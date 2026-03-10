@@ -3,8 +3,8 @@ import { Cron } from '@nestjs/schedule';
 import Redis from 'ioredis';
 
 import { REDIS_CLIENT } from '../../redis/redis.constants';
-import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { NewbieKeys } from '../infrastructure/newbie-cache.keys';
+import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { MocoScheduler } from './moco.scheduler';
 import { MocoService } from './moco.service';
 

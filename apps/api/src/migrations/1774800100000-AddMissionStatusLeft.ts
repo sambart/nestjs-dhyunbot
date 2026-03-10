@@ -7,7 +7,7 @@ export class AddMissionStatusLeft1774800100000 implements MigrationInterface {
     `);
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  public async down(_queryRunner: QueryRunner): Promise<void> {
     // PostgreSQL does not support removing enum values
   }
 }

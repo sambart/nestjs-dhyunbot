@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, LessThan, Not, Repository } from 'typeorm';
+import { In, LessThan, Repository } from 'typeorm';
 
 import { MissionStatus, NewbieMission } from '../domain/newbie-mission.entity';
 
