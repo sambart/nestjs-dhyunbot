@@ -22,8 +22,8 @@ import {
   DEFAULT_MOCO_SCORING_TEMPLATE,
   DEFAULT_MOCO_TITLE_TEMPLATE,
 } from '../infrastructure/newbie-template.constants';
-import { applyTemplate } from '../util/newbie-template.util';
 import { getMocoPeriodBounds } from '../util/moco-period.util';
+import { applyTemplate } from '../util/newbie-template.util';
 
 /** 페이지당 사냥꾼 수 */
 const PAGE_SIZE = 1;
