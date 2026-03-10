@@ -23,7 +23,7 @@ import {
   DEFAULT_MOCO_TITLE_TEMPLATE,
 } from '../infrastructure/newbie-template.constants';
 import { applyTemplate } from '../util/newbie-template.util';
-import { MocoResetScheduler } from './moco-reset.scheduler';
+import { getMocoPeriodBounds } from '../util/moco-period.util';
 
 /** 페이지당 사냥꾼 수 */
 const PAGE_SIZE = 1;
@@ -290,7 +290,7 @@ export class MocoService {
     });
 
     // 6. 푸터 렌더링
-    const periodBounds = MocoResetScheduler.getPeriodBounds(config ?? {});
+    const periodBounds = getMocoPeriodBounds(config ?? {});
     const resolvedFooter = applyTemplate(resolvedFooterTemplate, {
       currentPage: String(currentPage),
       totalPages: String(totalPages),
