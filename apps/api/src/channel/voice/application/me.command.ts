@@ -1,6 +1,6 @@
 import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { AttachmentBuilder, CommandInteraction } from 'discord.js';
+import { AttachmentBuilder, CommandInteraction, GuildMember } from 'discord.js';
 
 import { MeProfileService } from './me-profile.service';
 import { ProfileCardRenderer } from './profile-card-renderer';
@@ -39,7 +39,7 @@ export class MeCommand {
       const avatarUrl = interaction.user.displayAvatarURL({ extension: 'png', size: 128 });
       const imageBuffer = await this.profileCardRenderer.render(
         profile,
-        interaction.user.displayName,
+        (interaction.member as GuildMember)?.displayName ?? interaction.user.displayName,
         avatarUrl,
       );
 
