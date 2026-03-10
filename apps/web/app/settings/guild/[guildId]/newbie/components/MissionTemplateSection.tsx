@@ -94,6 +94,7 @@ export default function MissionTemplateSection({
     IN_PROGRESS: '진행중',
     COMPLETED: '완료',
     FAILED: '실패',
+    LEFT: '퇴장',
   };
 
   return (

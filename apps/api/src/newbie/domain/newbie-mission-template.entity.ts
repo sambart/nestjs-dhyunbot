@@ -16,6 +16,7 @@ export interface StatusMapping {
   IN_PROGRESS: StatusMappingEntry;
   COMPLETED: StatusMappingEntry;
   FAILED: StatusMappingEntry;
+  LEFT: StatusMappingEntry;
 }
 
 @Entity({ schema: 'public' })

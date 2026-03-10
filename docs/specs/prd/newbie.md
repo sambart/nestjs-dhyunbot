@@ -42,10 +42,15 @@ Scheduler (cron)
 
 Web Dashboard API
     │
-    ├──► GET  /api/guilds/{guildId}/newbie/config      → 설정 조회
-    ├──► POST /api/guilds/{guildId}/newbie/config      → 설정 저장
-    ├──► GET  /api/guilds/{guildId}/newbie/missions    → 미션 현황 조회
-    └──► GET  /api/guilds/{guildId}/newbie/moco        → 모코코 사냥 순위 조회
+    ├──► GET  /api/guilds/{guildId}/newbie/config              → 설정 조회
+    ├──► POST /api/guilds/{guildId}/newbie/config              → 설정 저장
+    ├──► GET  /api/guilds/{guildId}/newbie/missions             → 활성 미션 현황 조회
+    ├──► GET  /api/guilds/{guildId}/newbie/missions/history     → 전체 미션 이력 조회 (F-NEWBIE-005)
+    ├──► POST /api/guilds/{guildId}/newbie/missions/complete    → 미션 수동 성공 처리 (F-NEWBIE-005)
+    ├──► POST /api/guilds/{guildId}/newbie/missions/fail        → 미션 수동 실패 처리 (F-NEWBIE-005)
+    ├──► POST /api/guilds/{guildId}/newbie/missions/hide        → 미션 Embed 숨김 처리 (F-NEWBIE-005)
+    ├──► GET  /api/guilds/{guildId}/newbie/moco                 → 모코코 사냥 순위 조회
+    └──► ...templates, moco-template
 ```
 
 ---
@@ -103,6 +108,7 @@ Web Dashboard API
   | 완료 | `COMPLETED` | 목표 플레이타임 달성 (마감일 이전 포함) |
   | 실패 | `FAILED` | 현재일 > 마감일, 목표 미달성 |
 
+- **Embed 표시 범위**: 모든 상태(IN_PROGRESS, COMPLETED, FAILED)의 미션을 Embed에 표시한다. `hiddenFromEmbed = true`인 미션은 Embed에서 제외된다. 관리자가 웹 대시보드에서 특정 미션을 Embed에서 숨길 수 있다 (F-NEWBIE-005).
 - **봇·탈퇴 멤버 자동 제거**: 미션 Embed 갱신 시 각 활성 미션의 멤버를 Discord API로 조회하여, 봇이거나 서버를 떠난 멤버의 미션 레코드를 삭제한다.
 - **스케줄러**: 매일 자정 `MissionScheduler` 실행
   1. `IN_PROGRESS` 상태 미션 중 마감일이 지난 항목 조회
@@ -226,6 +232,100 @@ Web Dashboard API
 
 ---
 
+### F-NEWBIE-005: 미션 수동 관리
+
+관리자가 웹 대시보드에서 미션을 수동으로 성공/실패 처리하고, Embed에서 특정 미션을 숨길 수 있는 기능이다. F-NEWBIE-004(신입기간 역할 자동관리)와 독립적으로 동작한다.
+
+- **전제 조건**: Discord OAuth 로그인 + 해당 서버 관리 권한
+- **동작 (성공 처리)**:
+  1. 관리자가 `IN_PROGRESS` 상태 미션을 선택하여 "성공 처리" 실행
+  2. 미션 상태를 `COMPLETED`로 갱신
+  3. (옵션) 역할 부여: 관리자가 서버 역할 목록에서 드롭다운으로 역할을 선택한 경우, Discord API로 해당 멤버에게 역할 부여 (`member.roles.add(roleId)`)
+  4. 미션 목록 Redis 캐시 무효화 및 Embed 갱신
+- **동작 (실패 처리)**:
+  1. 관리자가 `IN_PROGRESS` 상태 미션을 선택하여 "실패 처리" 실행
+  2. 미션 상태를 `FAILED`로 갱신
+  3. (옵션) 강퇴: 관리자가 강퇴 옵션을 선택한 경우:
+     a. (옵션) DM 사유: 강퇴 전 멤버에게 DM으로 사유 메시지 전송 (DM 차단 시 조용히 실패)
+     b. Discord API로 멤버 강퇴 (`guild.members.kick(memberId)`)
+  4. 미션 목록 Redis 캐시 무효화 및 Embed 갱신
+- **동작 (Embed 숨김)**:
+  1. 관리자가 특정 미션을 선택하여 "Embed에서 제거" 실행
+  2. `NewbieMission.hiddenFromEmbed = true`로 갱신
+  3. 미션 목록 Redis 캐시 무효화 및 Embed 갱신
+  4. 숨김 처리된 미션은 Embed에 표시되지 않으나, 웹 대시보드 이력에서는 확인 가능
+- **유효성 검사**:
+  - 성공/실패 처리는 `IN_PROGRESS` 상태 미션에만 허용
+  - 미션이 해당 guildId에 속하는지 검증
+  - 존재하지 않는 미션 ID → 404 응답
+- **오류 처리**:
+  - 역할 부여 실패 (권한 부족, 역할 미존재): 미션 상태는 이미 갱신됨, 에러 메시지를 응답에 포함하여 반환
+  - 강퇴 실패 (권한 부족, 멤버 미존재): 미션 상태는 이미 갱신됨, 에러 메시지를 응답에 포함하여 반환
+  - DM 전송 실패: 조용히 무시하고 강퇴 진행
+- **API 엔드포인트**:
+
+  | Method | Path | 설명 |
+  |--------|------|------|
+  | `GET` | `/api/guilds/{guildId}/newbie/missions/history?status=&page=&pageSize=` | 전체 미션 이력 조회 (상태 필터 옵션, 페이지네이션) |
+  | `POST` | `/api/guilds/{guildId}/newbie/missions/complete` | 미션 수동 성공 처리 |
+  | `POST` | `/api/guilds/{guildId}/newbie/missions/fail` | 미션 수동 실패 처리 |
+  | `POST` | `/api/guilds/{guildId}/newbie/missions/hide` | 미션 Embed 숨김 처리 |
+
+- **요청 본문**:
+
+  **POST /missions/complete**:
+  ```json
+  {
+    "missionId": 123,
+    "roleId": "1234567890"  // 옵션, null이면 역할 부여 안함
+  }
+  ```
+
+  **POST /missions/fail**:
+  ```json
+  {
+    "missionId": 123,
+    "kick": true,            // 옵션, 기본값 false
+    "dmReason": "미션 미달성" // 옵션, kick=true일 때만 유효
+  }
+  ```
+
+  **POST /missions/hide**:
+  ```json
+  {
+    "missionId": 123
+  }
+  ```
+
+- **응답 형식**:
+
+  **GET /missions/history**:
+  ```json
+  {
+    "items": [{ "id", "guildId", "memberId", "startDate", "endDate", "targetPlaytimeSec", "status", "hiddenFromEmbed", "createdAt", "updatedAt" }],
+    "total": 25,
+    "page": 1,
+    "pageSize": 10
+  }
+  ```
+
+  **POST /missions/complete, /missions/fail**:
+  ```json
+  {
+    "ok": true,
+    "warning": "역할 부여에 실패했습니다: Missing Permissions"  // 옵션, Discord 작업 실패 시
+  }
+  ```
+
+  **POST /missions/hide**:
+  ```json
+  { "ok": true }
+  ```
+
+- **길드별 독립 동작**
+
+---
+
 ### F-WEB-NEWBIE-001: 신입 관리 설정 페이지
 
 - **경로**: `/settings/guild/{guildId}/newbie`
@@ -238,8 +338,9 @@ Web Dashboard API
 |---------|---------|-----------|
 | 1 | 환영인사 설정 | F-NEWBIE-001 |
 | 2 | 미션 설정 | F-NEWBIE-002 |
-| 3 | 모코코 사냥 설정 | F-NEWBIE-003 |
-| 4 | 신입기간 설정 | F-NEWBIE-004 |
+| 3 | 미션 관리 | F-NEWBIE-005 |
+| 4 | 모코코 사냥 설정 | F-NEWBIE-003 |
+| 5 | 신입기간 설정 | F-NEWBIE-004 |
 
 #### 탭 1: 환영인사 설정
 
@@ -284,7 +385,24 @@ Web Dashboard API
 | 실시간 미리보기 패널 | 입력 시 debounce(300ms) 적용하여 실시간 Embed 미리보기 반영. 더미 데이터는 프론트에서 고정값 보유 |
 | 사용 가능 변수 안내 | 각 템플릿 필드 하단에 해당 필드의 허용 변수 목록 표시 |
 
-#### 탭 3: 모코코 사냥 설정
+#### 탭 3: 미션 관리
+
+| UI 요소 | 설명 |
+|---------|------|
+| **섹션 1: 진행 중 미션** | |
+| 진행 중 미션 테이블 | `IN_PROGRESS` 상태 미션 목록 (멤버 ID, 시작일, 마감일, 목표 플레이타임, 남은 일수 표시) |
+| "성공 처리" 버튼 | 각 행마다 표시. 클릭 시 역할 선택 드롭다운(옵션) + 확인 모달 표시 |
+| 역할 선택 드롭다운 | 성공 처리 시 부여할 Discord 역할 선택. 서버 역할 목록에서 선택. 선택하지 않으면 역할 부여 안함 |
+| "실패 처리" 버튼 | 각 행마다 표시. 클릭 시 강퇴 옵션 + DM 사유 입력 + 확인 모달 표시 |
+| 강퇴 체크박스 | 실패 처리 시 멤버 강퇴 여부 선택. 기본값 OFF |
+| DM 사유 입력 | 강퇴 체크박스 ON 시 표시. 강퇴 전 멤버에게 보낼 DM 메시지 입력 (옵션) |
+| "Embed에서 제거" 버튼 | 각 행마다 표시. 해당 미션을 Discord Embed에서 숨김 처리 |
+| **섹션 2: 전체 이력** | |
+| 상태 필터 드롭다운 | 전체 / 진행중 / 완료 / 실패 선택 |
+| 전체 이력 테이블 | 모든 상태의 미션 목록 (멤버 ID, 시작일, 마감일, 목표 플레이타임, 상태, Embed 숨김 여부 표시). 페이지네이션 지원 |
+| 액션 버튼 | `IN_PROGRESS` 상태 항목에만 성공/실패/숨김 버튼 표시 |
+
+#### 탭 4: 모코코 사냥 설정
 
 | UI 요소 | 설명 |
 |---------|------|
@@ -311,7 +429,7 @@ Web Dashboard API
 | 실시간 미리보기 패널 | 입력 시 debounce(300ms) 적용하여 실시간 Embed 미리보기 반영. 더미 데이터는 프론트에서 고정값 보유 |
 | 사용 가능 변수 안내 | 각 템플릿 필드 하단에 해당 필드의 허용 변수 목록 표시 |
 
-#### 탭 4: 신입기간 설정
+#### 탭 5: 신입기간 설정
 
 | UI 요소 | 설명 |
 |---------|------|
@@ -438,12 +556,14 @@ Web Dashboard API
 | `endDate` | `varchar` | NOT NULL | 미션 마감일 (`YYYYMMDD`) |
 | `targetPlaytimeSec` | `int` | NOT NULL | 목표 플레이타임 (초 단위로 저장) |
 | `status` | `enum('IN_PROGRESS','COMPLETED','FAILED')` | NOT NULL, DEFAULT `'IN_PROGRESS'` | 미션 상태 |
+| `hiddenFromEmbed` | `boolean` | NOT NULL, DEFAULT `false` | Embed 표시 제외 여부. `true`이면 Discord Embed에서 숨김 처리됨 (F-NEWBIE-005) |
 | `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
 | `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
 
 **인덱스**:
 - `IDX_newbie_mission_guild_member` — `(guildId, memberId)` — 멤버별 미션 조회
 - `IDX_newbie_mission_guild_status` — `(guildId, status)` — 길드별 진행중 미션 조회
+- `IDX_newbie_mission_guild_visible` — `(guildId, hiddenFromEmbed)` — Embed 표시 대상 미션 조회 (F-NEWBIE-005)
 - `IDX_newbie_mission_end_date` — `(endDate, status)` — 만료 예정 미션 스케줄러 조회
 
 ---

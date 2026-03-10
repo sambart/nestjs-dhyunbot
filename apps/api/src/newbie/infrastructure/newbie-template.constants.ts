@@ -16,6 +16,7 @@ export const DEFAULT_STATUS_MAPPING: StatusMapping = {
   [MissionStatus.IN_PROGRESS]: { emoji: '🟡', text: '진행중' },
   [MissionStatus.COMPLETED]: { emoji: '✅', text: '완료' },
   [MissionStatus.FAILED]: { emoji: '❌', text: '실패' },
+  [MissionStatus.LEFT]: { emoji: '🚪', text: '퇴장' },
 };
 
 // ---- 미션 템플릿 허용 변수 ----
@@ -27,6 +28,7 @@ export const MISSION_HEADER_ALLOWED_VARS = [
   '{inProgressCount}',
   '{completedCount}',
   '{failedCount}',
+  '{leftCount}',
 ] as const;
 
 export const MISSION_ITEM_ALLOWED_VARS = [

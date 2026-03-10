@@ -61,6 +61,119 @@ export async function saveNewbieConfig(
   if (!res.ok) throw new Error(`Failed to save newbie config: ${res.status}`);
 }
 
+// ─── 미션 관리 (F-NEWBIE-005) ────────────────────────────────────────────────
+
+export type MissionStatusType = 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'LEFT';
+
+export interface MissionItem {
+  id: number;
+  guildId: string;
+  memberId: string;
+  startDate: string;
+  endDate: string;
+  targetPlaytimeSec: number;
+  status: MissionStatusType;
+  hiddenFromEmbed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MissionHistoryResponse {
+  items: MissionItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface MissionActionResult {
+  ok: boolean;
+  warning?: string;
+}
+
+/** 활성(IN_PROGRESS) 미션 목록 조회 */
+export async function fetchActiveMissions(
+  guildId: string,
+): Promise<MissionItem[]> {
+  try {
+    const res = await fetch(`/api/guilds/${guildId}/newbie/missions`);
+    if (!res.ok) return [];
+    return res.json() as Promise<MissionItem[]>;
+  } catch {
+    return [];
+  }
+}
+
+/** 전체 미션 이력 조회 (페이지네이션 + 상태 필터) */
+export async function fetchMissionHistory(
+  guildId: string,
+  status?: MissionStatusType,
+  page = 1,
+  pageSize = 10,
+): Promise<MissionHistoryResponse> {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  params.set('page', String(page));
+  params.set('pageSize', String(pageSize));
+
+  const res = await fetch(`/api/guilds/${guildId}/newbie/missions/history?${params}`);
+  if (!res.ok) throw new Error(`Failed to fetch mission history: ${res.status}`);
+  return res.json() as Promise<MissionHistoryResponse>;
+}
+
+/** 미션 수동 성공 처리 */
+export async function completeMission(
+  guildId: string,
+  missionId: number,
+  roleId?: string | null,
+): Promise<MissionActionResult> {
+  const res = await fetch(`/api/guilds/${guildId}/newbie/missions/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ missionId, roleId: roleId || null }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      (body as { message?: string }).message ?? `성공 처리 실패: ${res.status}`,
+    );
+  }
+  return res.json() as Promise<MissionActionResult>;
+}
+
+/** 미션 수동 실패 처리 */
+export async function failMission(
+  guildId: string,
+  missionId: number,
+  kick?: boolean,
+  dmReason?: string | null,
+): Promise<MissionActionResult> {
+  const res = await fetch(`/api/guilds/${guildId}/newbie/missions/fail`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ missionId, kick: kick ?? false, dmReason: dmReason || null }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      (body as { message?: string }).message ?? `실패 처리 실패: ${res.status}`,
+    );
+  }
+  return res.json() as Promise<MissionActionResult>;
+}
+
+/** 미션 Embed 숨김 처리 */
+export async function hideMission(
+  guildId: string,
+  missionId: number,
+): Promise<void> {
+  const res = await fetch(`/api/guilds/${guildId}/newbie/missions/hide`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ missionId }),
+  });
+  if (!res.ok) throw new Error(`Embed 숨김 처리 실패: ${res.status}`);
+}
+
 // ─── 미션 템플릿 ─────────────────────────────────────────────────────────────
 
 export interface MissionStatusEntry {
@@ -72,6 +185,7 @@ export interface MissionStatusMapping {
   IN_PROGRESS: MissionStatusEntry;
   COMPLETED: MissionStatusEntry;
   FAILED: MissionStatusEntry;
+  LEFT: MissionStatusEntry;
 }
 
 /**
@@ -95,6 +209,7 @@ export const DEFAULT_MISSION_TEMPLATE: MissionTemplate = {
     IN_PROGRESS: { emoji: '🟡', text: '진행중' },
     COMPLETED: { emoji: '✅', text: '완료' },
     FAILED: { emoji: '❌', text: '실패' },
+    LEFT: { emoji: '🚪', text: '퇴장' },
   },
 };
 

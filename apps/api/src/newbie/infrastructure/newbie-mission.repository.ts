@@ -64,9 +64,62 @@ export class NewbieMissionRepository {
     await this.repo.update(id, { status });
   }
 
+  /** 미션 단건 조회 */
+  async findById(id: number): Promise<NewbieMission | null> {
+    return this.repo.findOne({ where: { id } });
+  }
+
   /** 미션 레코드 삭제 */
   async delete(id: number): Promise<void> {
     await this.repo.delete(id);
+  }
+
+  /** hiddenFromEmbed 플래그 갱신 */
+  async updateHidden(id: number, hidden: boolean): Promise<void> {
+    await this.repo.update(id, { hiddenFromEmbed: hidden });
+  }
+
+  /**
+   * 길드의 Embed 표시 대상 미션 조회 (hiddenFromEmbed = false, 모든 상태)
+   */
+  async findVisibleByGuild(guildId: string): Promise<NewbieMission[]> {
+    return this.repo.find({
+      where: { guildId, hiddenFromEmbed: false },
+    });
+  }
+
+  /**
+   * 길드의 전체 미션 이력 조회 (페이지네이션 + 상태 필터 옵션)
+   */
+  async findAllByGuild(
+    guildId: string,
+    status: MissionStatus | undefined,
+    page: number,
+    pageSize: number,
+  ): Promise<{ items: NewbieMission[]; total: number }> {
+    const where: Record<string, unknown> = { guildId };
+    if (status) where.status = status;
+
+    const [items, total] = await this.repo.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+    return { items, total };
+  }
+
+  /**
+   * 길드 내 미션이 존재하는 모든 멤버 ID 조회 (상태 무관).
+   * registerMissingMembers에서 중복 미션 방지에 사용.
+   */
+  async findMemberIdsWithMission(guildId: string): Promise<string[]> {
+    const rows = await this.repo
+      .createQueryBuilder('m')
+      .select('DISTINCT m.memberId', 'memberId')
+      .where('m.guildId = :guildId', { guildId })
+      .getRawMany<{ memberId: string }>();
+    return rows.map((r) => r.memberId);
   }
 
   /**
@@ -86,6 +139,7 @@ export class NewbieMissionRepository {
       [MissionStatus.IN_PROGRESS]: 0,
       [MissionStatus.COMPLETED]: 0,
       [MissionStatus.FAILED]: 0,
+      [MissionStatus.LEFT]: 0,
     };
     for (const row of rows) {
       result[row.status] = parseInt(row.count, 10);

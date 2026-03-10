@@ -18,16 +18,18 @@ import {
 } from '../../../../lib/newbie-api';
 import { validateMissionTemplate, validateMocoTemplate } from '../../../../lib/newbie-template-utils';
 import { useSettings } from '../../../SettingsContext';
+import MissionManageTab from './components/MissionManageTab';
 import MissionTab from './components/MissionTab';
 import MocoTab from './components/MocoTab';
 import RoleTab from './components/RoleTab';
 import WelcomeTab from './components/WelcomeTab';
 
-type TabId = 'welcome' | 'mission' | 'moco' | 'role';
+type TabId = 'welcome' | 'mission' | 'mission-manage' | 'moco' | 'role';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'welcome', label: '환영인사 설정' },
   { id: 'mission', label: '미션 설정' },
+  { id: 'mission-manage', label: '미션 관리' },
   { id: 'moco', label: '모코코 사냥 설정' },
   { id: 'role', label: '신입기간 설정' },
 ];
@@ -285,6 +287,13 @@ export default function NewbieSettingsPage() {
             missionTemplateSaveSuccess={missionTemplateSaveSuccess}
           />
         );
+      case 'mission-manage':
+        return (
+          <MissionManageTab
+            guildId={selectedGuildId}
+            roles={roles}
+          />
+        );
       case 'moco':
         return (
           <MocoTab
@@ -352,27 +361,29 @@ export default function NewbieSettingsPage() {
         {renderTabContent()}
       </div>
 
-      {/* 저장 버튼 + 피드백 */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex-1">
-          {saveSuccess && (
-            <p className="text-sm text-green-600 font-medium">
-              저장되었습니다.
-            </p>
-          )}
-          {saveError && (
-            <p className="text-sm text-red-600 font-medium">{saveError}</p>
-          )}
+      {/* 저장 버튼 + 피드백 (미션 관리 탭에서는 숨김) */}
+      {activeTab !== 'mission-manage' && (
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1">
+            {saveSuccess && (
+              <p className="text-sm text-green-600 font-medium">
+                저장되었습니다.
+              </p>
+            )}
+            {saveError && (
+              <p className="text-sm text-red-600 font-medium">{saveError}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving || !selectedGuildId || !configLoaded}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+          >
+            {isSaving ? '저장 중...' : '저장'}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving || !selectedGuildId || !configLoaded}
-          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-        >
-          {isSaving ? '저장 중...' : '저장'}
-        </button>
-      </div>
+      )}
     </div>
   );
 }
