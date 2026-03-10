@@ -36,6 +36,7 @@ libs/shared/  → 공유 타입 및 상수
 | member | 디스코드 멤버 정보 관리 | (voice.md에 포함) |
 | channel | 디스코드 채널 정보 관리 | (voice.md에 포함) |
 | auto-channel | 트리거 채널 입장 기반 자동 음성 채널 생성 및 관리 | (voice.md에 포함) |
+| monitoring | 봇 상태 모니터링 (업타임, 핑, 메모리, 음성 접속자 시계열 차트) | [monitoring.md](monitoring.md) |
 
 ## 핵심 기능 요약
 
@@ -76,7 +77,7 @@ libs/shared/  → 공유 타입 및 상수
 ### 7. 신규사용자 관리 (newbie)
 - `guildMemberAdd` 이벤트 기반 환영 Embed 메시지 자동 전송 (템플릿 변수 지원)
 - 신규 가입 시 음성 채널 플레이타임 기반 미션 자동 생성 및 완료/실패 상태 추적
-- 기존 멤버가 신규사용자와 동시 음성 채널 접속한 시간 기록 (모코코 사냥) 및 TOP N 순위 채널 Embed 표시
+- 기존 멤버가 신규사용자와 동시 음성 채널 접속한 시간·횟수·다양성을 점수 기반으로 집계 (모코코 사냥) 및 TOP N 순위 채널 Embed 표시
 - 신입기간 만료 시 Discord 역할 자동 제거 (미션 완료 여부와 독립)
 
 ### 8. 게임방 상태 접두사 (status-prefix)
@@ -98,6 +99,12 @@ libs/shared/  → 공유 타입 및 상수
 - 웹 대시보드에서 채널·Embed 설정(제목, 설명, 색상, 이모지 피커) 및 실시간 미리보기 제공
 - 채널당 여러 개 고정메세지 등록 가능, Redis 캐시 기반 고속 처리
 
+### 11. 봇 모니터링 (monitoring)
+- 실시간 봇 상태 조회 (온라인/오프라인, 업타임, 핑, 메모리, 음성 접속자)
+- 1분 간격 메트릭 수집 및 PostgreSQL 시계열 저장
+- 웹 대시보드에서 업타임 히스토리, 핑 추이, 메모리 추이, 시간대별 접속자 차트 제공
+- 30일 보존 정책 자동 삭제
+
 ## 데이터베이스 엔티티
 
 | 엔티티 | 테이블 | 역할 |
@@ -112,12 +119,15 @@ libs/shared/  → 공유 타입 및 상수
 | AutoChannelSubOption | auto_channel_sub_option | 버튼 하위 선택지 (label, emoji, channelSuffix) |
 | NewbieConfig | newbie_config | 신규사용자 관리 길드별 설정 (환영인사, 미션, 모코코, 역할 설정 통합) |
 | NewbieMissionTemplate | newbie_mission_template | 미션 Embed 커스텀 템플릿 (제목/헤더/항목/푸터/상태 매핑, 길드별 1행) |
-| NewbieMocoTemplate | newbie_moco_template | 모코코 사냥 Embed 커스텀 템플릿 (제목/본문/항목/푸터, 길드별 1행) |
+| NewbieMocoTemplate | newbie_moco_template | 모코코 사냥 Embed 커스텀 템플릿 (제목/본문/항목/푸터/점수산정안내, 길드별 1행) |
 | NewbieMission | newbie_mission | 신규사용자 미션 진행 상태 (startDate, endDate, targetPlaytimeSec, status) |
 | NewbiePeriod | newbie_period | 신입기간 역할 관리 이력 (startDate, expiresDate, isExpired) |
+| MocoHuntingSession | moco_hunting_session | 모코코 사냥 세션 이력 (hunterId, channelId, startedAt, endedAt, durationMin, isValid) |
+| MocoHuntingDaily | moco_hunting_daily | 모코코 사냥 일별 집계 (hunterId, date, channelMinutes, sessionCount, score) |
 | StatusPrefixConfig | status_prefix_config | 게임방 상태 접두사 길드별 설정 (channelId, messageId, embedTitle, prefixTemplate) |
 | StatusPrefixButton | status_prefix_button | 접두사 버튼 목록 (label, emoji, prefix, type, sortOrder) |
 | StickyMessageConfig | sticky_message_config | 고정메세지 설정 (guildId, channelId, embedTitle, embedDescription, embedColor, messageId, enabled, sortOrder) |
+| BotMetric | bot_metric | 봇 상태 메트릭 시계열 (guildId, status, pingMs, heapUsedMb, voiceUserCount, recordedAt) |
 
 ## 외부 의존성
 

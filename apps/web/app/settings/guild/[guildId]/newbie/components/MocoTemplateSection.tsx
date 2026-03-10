@@ -229,6 +229,43 @@ export default function MocoTemplateSection({
             )}
           </div>
 
+          {/* 점수 산정 안내 템플릿 */}
+          <div>
+            <label
+              htmlFor="moco-scoring-template"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              점수 산정 안내 템플릿
+            </label>
+            <textarea
+              id="moco-scoring-template"
+              rows={3}
+              value={template.scoringTemplate ?? ''}
+              onChange={(e) => handleFieldChange({ scoringTemplate: e.target.value || null })}
+              disabled={!isEnabled}
+              placeholder={DEFAULT_MOCO_TEMPLATE.scoringTemplate!}
+              className={`${inputClass('scoringTemplate')} resize-none`}
+            />
+            <div className="flex flex-wrap gap-1 mt-1">
+              {MOCO_ALLOWED_VARS.scoringTemplate.map((v) => (
+                <code
+                  key={v}
+                  className="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-mono"
+                >
+                  {v}
+                </code>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              빈 값으로 두면 점수 산정 안내를 표시하지 않습니다.
+            </p>
+            {validationErrors.has('scoringTemplate') && (
+              <p className="text-xs text-red-500 mt-1">
+                허용되지 않는 변수: {validationErrors.get('scoringTemplate')!.join(', ')}
+              </p>
+            )}
+          </div>
+
           {/* 기본값 복원 + 저장 버튼 */}
           <div className="flex items-center gap-3">
             <button

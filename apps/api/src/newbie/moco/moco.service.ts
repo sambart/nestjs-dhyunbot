@@ -19,9 +19,11 @@ import {
   DEFAULT_MOCO_FOOTER_TEMPLATE,
   DEFAULT_MOCO_FOOTER_TEMPLATE_NO_INTERVAL,
   DEFAULT_MOCO_ITEM_TEMPLATE,
+  DEFAULT_MOCO_SCORING_TEMPLATE,
   DEFAULT_MOCO_TITLE_TEMPLATE,
 } from '../infrastructure/newbie-template.constants';
 import { applyTemplate } from '../util/newbie-template.util';
+import { MocoResetScheduler } from './moco-reset.scheduler';
 
 /** 페이지당 사냥꾼 수 */
 const PAGE_SIZE = 1;
@@ -77,6 +79,16 @@ export class MocoService {
 
     const { hunterId, totalMinutes } = rankEntries[0];
 
+    // 사냥꾼 메타 정보 조회 (점수, 세션 수, 유니크 모코코 수)
+    const meta = await this.newbieRedis.getMocoHunterMeta(guildId, hunterId);
+    const score = meta?.score ?? Math.round(totalMinutes);
+    const sessionCount = meta?.sessionCount ?? 0;
+    const uniqueNewbieCount = meta?.uniqueNewbieCount ?? 0;
+    const channelMinutes = meta?.totalMinutes ?? Math.round(totalMinutes);
+
+    // 모코코별 세션 횟수 조회
+    const newbieSessions = await this.newbieRedis.getMocoNewbieSessions(guildId, hunterId);
+
     // 사냥꾼별 신규사용자 상세 조회 (HGETALL)
     const details = await this.newbieRedis.getMocoHunterDetail(guildId, hunterId);
 
@@ -108,13 +120,17 @@ export class MocoService {
       safePage, // rank = 페이지 번호 = 순위
       hunterName,
       hunterId,
-      Math.round(totalMinutes),
+      channelMinutes,
       details,
       newbieNames,
       safePage,
       totalPages,
       config,
       guildId,
+      score,
+      sessionCount,
+      uniqueNewbieCount,
+      newbieSessions,
     );
 
     const components = this.buildButtons(guildId, safePage, totalPages);
@@ -210,6 +226,10 @@ export class MocoService {
     totalPages: number,
     config: NewbieConfig | null,
     guildId: string,
+    score: number,
+    sessionCount: number,
+    uniqueNewbieCount: number,
+    newbieSessions: Record<string, number>,
   ): Promise<EmbedBuilder> {
     // 1. 템플릿 조회 및 fallback
     const tmpl = await this.mocoTmplRepo.findByGuildId(guildId);
@@ -234,16 +254,33 @@ export class MocoService {
           newbieName,
           newbieMention: `<@${newbieId}>`,
           minutes: String(minutes),
+          sessions: String(newbieSessions[newbieId] ?? 0),
         });
       });
 
     const mocoList = renderedItems.join('\n') || '없음';
 
     // 4. 본문 렌더링
-    const resolvedBody = applyTemplate(bodyTemplate, {
+    let resolvedBody = applyTemplate(bodyTemplate, {
       totalMinutes: String(totalMinutes),
       mocoList,
+      score: String(score),
+      sessionCount: String(sessionCount),
+      uniqueNewbieCount: String(uniqueNewbieCount),
     });
+
+    // 4-1. 점수 산정 템플릿 렌더링
+    const scoringTmpl = tmpl?.scoringTemplate ?? undefined;
+    if (scoringTmpl !== '') { // empty string = 관리자가 점수 안내를 숨김 처리; null/undefined = 기본 템플릿 사용
+      const resolvedScoringTemplate = scoringTmpl ?? DEFAULT_MOCO_SCORING_TEMPLATE;
+      const renderedScoring = applyTemplate(resolvedScoringTemplate, {
+        scorePerSession: String(config?.mocoScorePerSession ?? 10),
+        scorePerMinute: String(config?.mocoScorePerMinute ?? 1),
+        scorePerUnique: String(config?.mocoScorePerUnique ?? 5),
+        minCoPresence: String(config?.mocoMinCoPresenceMin ?? 10),
+      });
+      resolvedBody = resolvedBody + '\n\n' + renderedScoring;
+    }
 
     // 5. 제목 렌더링
     const resolvedTitle = applyTemplate(titleTemplate, {
@@ -253,10 +290,13 @@ export class MocoService {
     });
 
     // 6. 푸터 렌더링
+    const periodBounds = MocoResetScheduler.getPeriodBounds(config ?? {});
     const resolvedFooter = applyTemplate(resolvedFooterTemplate, {
       currentPage: String(currentPage),
       totalPages: String(totalPages),
       interval: autoRefreshMinutes !== null ? String(autoRefreshMinutes) : '',
+      periodStart: periodBounds?.periodStart ?? '',
+      periodEnd: periodBounds?.periodEnd ?? '',
     });
 
     // 7. EmbedBuilder 구성
@@ -278,20 +318,28 @@ export class MocoService {
    * 총 사냥 시간, 순위, 모코코별 상세 시간을 포함한다.
    */
   async buildMyHuntingMessage(guildId: string, userId: string): Promise<string> {
-    const [totalMinutes, rank, totalCount, details] = await Promise.all([
+    const [totalMinutes, rank, totalCount, details, meta, newbieSessions] = await Promise.all([
       this.newbieRedis.getMocoHunterScore(guildId, userId),
       this.newbieRedis.getMocoHunterRank(guildId, userId),
       this.newbieRedis.getMocoRankCount(guildId),
       this.newbieRedis.getMocoHunterDetail(guildId, userId),
+      this.newbieRedis.getMocoHunterMeta(guildId, userId),
+      this.newbieRedis.getMocoNewbieSessions(guildId, userId),
     ]);
 
     if (totalMinutes === null || rank === null) {
       return '아직 모코코 사냥 기록이 없습니다.';
     }
 
+    const score = meta?.score ?? Math.round(totalMinutes);
+    const sessionCount = meta?.sessionCount ?? 0;
+    const uniqueNewbieCount = meta?.uniqueNewbieCount ?? 0;
+    const channelMinutes = meta?.totalMinutes ?? Math.round(totalMinutes);
+
     const lines: string[] = [];
     lines.push(`🏆 **순위**: ${rank}위 / ${totalCount}명`);
-    lines.push(`⏱️ **총 사냥 시간**: ${Math.round(totalMinutes)}분`);
+    lines.push(`🏆 **총 점수**: ${score}점`);
+    lines.push(`⏱️ **총 사냥 시간**: ${channelMinutes}분 | 🎮 **게임 횟수**: ${sessionCount}회 | 🌱 **모코코**: ${uniqueNewbieCount}명`);
 
     const entries = Object.entries(details).sort(([, a], [, b]) => b - a);
     if (entries.length > 0) {
@@ -304,11 +352,13 @@ export class MocoService {
         for (const [newbieId, minutes] of entries) {
           const member = await guild.members.fetch(newbieId).catch(() => null);
           const name = member?.displayName ?? newbieId;
-          lines.push(`– ${name}: ${minutes}분`);
+          const sessions = newbieSessions[newbieId] ?? 0;
+          lines.push(`– ${name}: ${minutes}분 (${sessions}회)`);
         }
       } catch {
         for (const [newbieId, minutes] of entries) {
-          lines.push(`– ${newbieId}: ${minutes}분`);
+          const sessions = newbieSessions[newbieId] ?? 0;
+          lines.push(`– ${newbieId}: ${minutes}분 (${sessions}회)`);
         }
       }
     }

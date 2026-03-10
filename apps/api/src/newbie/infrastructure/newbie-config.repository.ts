@@ -51,6 +51,12 @@ export class NewbieConfigRepository {
       config.mocoEmbedDescription = dto.mocoEmbedDescription ?? null;
       config.mocoEmbedColor = dto.mocoEmbedColor ?? null;
       config.mocoEmbedThumbnailUrl = dto.mocoEmbedThumbnailUrl ?? null;
+      config.mocoMinCoPresenceMin = dto.mocoMinCoPresenceMin ?? null;
+      config.mocoScorePerSession = dto.mocoScorePerSession ?? null;
+      config.mocoScorePerMinute = dto.mocoScorePerMinute ?? null;
+      config.mocoScorePerUnique = dto.mocoScorePerUnique ?? null;
+      config.mocoResetPeriod = dto.mocoResetPeriod ?? 'NONE';
+      config.mocoResetIntervalDays = dto.mocoResetIntervalDays ?? null;
       config.roleEnabled = dto.roleEnabled;
       config.roleDurationDays = dto.roleDurationDays ?? null;
       config.newbieRoleId = dto.newbieRoleId ?? null;
@@ -85,6 +91,12 @@ export class NewbieConfigRepository {
         mocoEmbedDescription: dto.mocoEmbedDescription ?? null,
         mocoEmbedColor: dto.mocoEmbedColor ?? null,
         mocoEmbedThumbnailUrl: dto.mocoEmbedThumbnailUrl ?? null,
+        mocoMinCoPresenceMin: dto.mocoMinCoPresenceMin ?? null,
+        mocoScorePerSession: dto.mocoScorePerSession ?? null,
+        mocoScorePerMinute: dto.mocoScorePerMinute ?? null,
+        mocoScorePerUnique: dto.mocoScorePerUnique ?? null,
+        mocoResetPeriod: dto.mocoResetPeriod ?? 'NONE',
+        mocoResetIntervalDays: dto.mocoResetIntervalDays ?? null,
         roleEnabled: dto.roleEnabled,
         roleDurationDays: dto.roleDurationDays ?? null,
         newbieRoleId: dto.newbieRoleId ?? null,
@@ -102,5 +114,15 @@ export class NewbieConfigRepository {
   /** 모코코 사냥 순위 Embed 메시지 ID 갱신 */
   async updateMocoRankMessageId(guildId: string, messageId: string | null): Promise<void> {
     await this.repo.update({ guildId }, { mocoRankMessageId: messageId });
+  }
+
+  /** 모코코 사냥이 활성화된 모든 설정 조회 */
+  async findAllMocoEnabled(): Promise<NewbieConfig[]> {
+    return this.repo.find({ where: { mocoEnabled: true } });
+  }
+
+  /** 모코코 사냥 현재 기간 시작일 갱신 */
+  async updateMocoCurrentPeriodStart(guildId: string, periodStart: string): Promise<void> {
+    await this.repo.update({ guildId }, { mocoCurrentPeriodStart: periodStart });
   }
 }

@@ -29,6 +29,7 @@ export class NewbieMocoTemplateRepository {
       tmpl.bodyTemplate = dto.bodyTemplate ?? null;
       tmpl.itemTemplate = dto.itemTemplate ?? null;
       tmpl.footerTemplate = dto.footerTemplate ?? null;
+      tmpl.scoringTemplate = dto.scoringTemplate ?? null;
     } else {
       tmpl = this.repo.create({
         guildId,
@@ -36,6 +37,7 @@ export class NewbieMocoTemplateRepository {
         bodyTemplate: dto.bodyTemplate ?? null,
         itemTemplate: dto.itemTemplate ?? null,
         footerTemplate: dto.footerTemplate ?? null,
+        scoringTemplate: dto.scoringTemplate ?? null,
       });
     }
 

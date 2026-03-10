@@ -7,11 +7,14 @@ import { VoiceChannelHistory } from '../channel/voice/domain/voice-channel-histo
 import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
 import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
 import { RedisModule } from '../redis/redis.module';
+import { MocoHuntingDaily } from './domain/moco-hunting-daily.entity';
+import { MocoHuntingSession } from './domain/moco-hunting-session.entity';
 import { NewbieConfig } from './domain/newbie-config.entity';
 import { NewbieMission } from './domain/newbie-mission.entity';
 import { NewbieMissionTemplate } from './domain/newbie-mission-template.entity';
 import { NewbieMocoTemplate } from './domain/newbie-moco-template.entity';
 import { NewbiePeriod } from './domain/newbie-period.entity';
+import { MocoDbRepository } from './infrastructure/moco-db.repository';
 import { NewbieConfigRepository } from './infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from './infrastructure/newbie-mission.repository';
 import { NewbieMissionTemplateRepository } from './infrastructure/newbie-mission-template.repository';
@@ -20,6 +23,7 @@ import { NewbiePeriodRepository } from './infrastructure/newbie-period.repositor
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
 import { MissionScheduler } from './mission/mission.scheduler';
 import { MissionService } from './mission/mission.service';
+import { MocoResetScheduler } from './moco/moco-reset.scheduler';
 import { MocoScheduler } from './moco/moco.scheduler';
 import { MocoService } from './moco/moco.service';
 import { NewbieController } from './newbie.controller';
@@ -37,6 +41,8 @@ import { WelcomeService } from './welcome/welcome.service';
       NewbieMission,
       NewbieMocoTemplate,
       NewbiePeriod,
+      MocoHuntingSession,
+      MocoHuntingDaily,
       VoiceDailyEntity,
       VoiceChannelHistory,
     ]),
@@ -47,6 +53,7 @@ import { WelcomeService } from './welcome/welcome.service';
   controllers: [NewbieController],
   providers: [
     // 저장소
+    MocoDbRepository,
     NewbieConfigRepository,
     NewbieMissionRepository,
     NewbieMissionTemplateRepository,
@@ -63,11 +70,13 @@ import { WelcomeService } from './welcome/welcome.service';
     // Unit D
     MocoService,
     MocoScheduler,
+    MocoResetScheduler,
     // Unit E
     NewbieRoleService,
     NewbieRoleScheduler,
   ],
   exports: [
+    MocoDbRepository,
     NewbieConfigRepository,
     NewbieMissionRepository,
     NewbieMissionTemplateRepository,

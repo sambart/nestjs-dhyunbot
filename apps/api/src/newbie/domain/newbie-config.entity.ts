@@ -100,6 +100,27 @@ export class NewbieConfig {
   @Column({ nullable: true })
   mocoEmbedThumbnailUrl: string | null;
 
+  @Column({ type: 'int', default: 10 })
+  mocoMinCoPresenceMin: number;
+
+  @Column({ type: 'int', default: 10 })
+  mocoScorePerSession: number;
+
+  @Column({ type: 'int', default: 1 })
+  mocoScorePerMinute: number;
+
+  @Column({ type: 'int', default: 5 })
+  mocoScorePerUnique: number;
+
+  @Column({ type: 'enum', enum: ['NONE', 'MONTHLY', 'CUSTOM'], default: 'NONE' })
+  mocoResetPeriod: 'NONE' | 'MONTHLY' | 'CUSTOM';
+
+  @Column({ type: 'int', nullable: true })
+  mocoResetIntervalDays: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  mocoCurrentPeriodStart: string | null;
+
   // 신입기간 역할 설정
   @Column({ default: false })
   roleEnabled: boolean;

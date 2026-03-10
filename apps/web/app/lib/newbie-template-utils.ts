@@ -15,9 +15,10 @@ export const MISSION_ALLOWED_VARS = {
 
 export const MOCO_ALLOWED_VARS = {
   titleTemplate: ['{rank}', '{hunterName}'],
-  bodyTemplate: ['{totalMinutes}', '{mocoList}'],
-  itemTemplate: ['{newbieName}', '{newbieMention}', '{minutes}'],
-  footerTemplate: ['{currentPage}', '{totalPages}', '{interval}'],
+  bodyTemplate: ['{totalMinutes}', '{mocoList}', '{score}', '{sessionCount}', '{uniqueNewbieCount}'],
+  itemTemplate: ['{newbieName}', '{newbieMention}', '{minutes}', '{sessions}'],
+  footerTemplate: ['{currentPage}', '{totalPages}', '{interval}', '{periodStart}', '{periodEnd}'],
+  scoringTemplate: ['{scorePerSession}', '{scorePerMinute}', '{scorePerUnique}', '{minCoPresence}'],
 } as const;
 
 /**
@@ -76,6 +77,7 @@ export function validateMocoTemplate(template: {
   bodyTemplate: string | null;
   itemTemplate: string | null;
   footerTemplate: string | null;
+  scoringTemplate?: string | null;
 }): Map<string, string[]> {
   const errors = new Map<string, string[]>();
 
@@ -84,6 +86,7 @@ export function validateMocoTemplate(template: {
     ['bodyTemplate', template.bodyTemplate, MOCO_ALLOWED_VARS.bodyTemplate],
     ['itemTemplate', template.itemTemplate, MOCO_ALLOWED_VARS.itemTemplate],
     ['footerTemplate', template.footerTemplate, MOCO_ALLOWED_VARS.footerTemplate],
+    ['scoringTemplate', template.scoringTemplate ?? null, MOCO_ALLOWED_VARS.scoringTemplate],
   ];
 
   for (const [field, value, allowed] of checks) {
@@ -126,13 +129,23 @@ export const MOCO_PREVIEW_DUMMY: Record<string, string> = {
   '{hunterName}': '사냥꾼닉네임',
   '{hunterMention}': '@사냥꾼닉네임',
   '{totalMinutes}': '120',
-  '{mocoList}': '– 신입1 🌱: 60분\n– 신입2 🌱: 60분',
+  '{mocoList}': '– 신입1 🌱: 60분 (2회)\n– 신입2 🌱: 60분 (1회)',
   '{newbieName}': '신입1',
   '{newbieMention}': '@신입1',
   '{minutes}': '60',
+  '{sessions}': '2',
+  '{score}': '135',
+  '{sessionCount}': '3',
+  '{uniqueNewbieCount}': '3',
   '{currentPage}': '1',
   '{totalPages}': '5',
   '{interval}': '30',
+  '{periodStart}': '2026-03-01',
+  '{periodEnd}': '2026-03-31',
+  '{scorePerSession}': '10',
+  '{scorePerMinute}': '1',
+  '{scorePerUnique}': '5',
+  '{minCoPresence}': '10',
 };
 
 /**

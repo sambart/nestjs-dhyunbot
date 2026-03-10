@@ -166,46 +166,163 @@ Web Dashboard API
 
 ### F-NEWBIE-003: 같이 플레이한 사용자 기록 (모코코 사냥)
 
-- **개념**: "모코코" = 신규사용자(서버 가입 후 설정된 일수 이내인 멤버). 기존 멤버가 신규사용자와 같은 음성 채널에 동시 접속한 시간을 "모코코 사냥" 시간으로 기록한다.
+- **개념**: "모코코" = 신규사용자(서버 가입 후 설정된 일수 이내인 멤버). 기존 멤버가 신규사용자와 같은 음성 채널에 동시 접속한 시간·횟수를 "모코코 사냥"으로 기록하고, **점수 기반**으로 순위를 산출한다.
 - **전제 조건**: `NewbieConfig.mocoEnabled = true`
 - **모코코 기준 일수** (`mocoNewbieDays`): Discord 서버 가입일(`member.joinedAt`) 기준으로, 가입 후 이 일수 이내인 멤버를 모코코(신입)로 판정한다. 기본값 30일, 최솟값 1일, 최댓값 365일.
 - **모코코도 사냥꾼 허용 옵션** (`mocoAllowNewbieHunter`):
   - `false` (기본): 모코코(신규사용자)는 사냥꾼이 될 수 없음. 기존 멤버만 사냥꾼으로 집계
   - `true`: 모코코도 다른 모코코의 사냥꾼이 될 수 있음 (단, 자기 자신에 대한 사냥 시간은 누적하지 않음)
-- **측정 방식**:
-  1. `MocoScheduler`가 매 1분마다 봇이 참여 중인 모든 길드의 음성 채널을 순회
-  2. 채널 내 신규사용자(서버 가입 후 `mocoNewbieDays`일 이내인 멤버) 존재 여부 확인
-  3. 신규사용자와 같은 채널에 있는 사냥꾼 각각에 대해 Redis에 시간 1분 누적
-  4. 신규사용자 기준: Discord `member.joinedAt` 기준 가입 후 `mocoNewbieDays`일 이내인 멤버
-  5. 사냥꾼 기준: `mocoAllowNewbieHunter` 설정에 따라 기존 멤버만 또는 전체 채널 멤버
-- **순위 기준**: 기존 멤버별 모코코 사냥 누적 시간(분) 내림차순
+
+#### 시간 집계 방식 (채널 기반)
+
+모코코가 몇 명이든 **채널에 모코코가 1명 이상 존재하면 사냥꾼에게 1분만 누적**한다 (모코코 수에 비례하지 않음). 모코코별 상세 동시접속 시간은 참고용으로 별도 기록하되, 순위 산출에는 채널 기반 시간만 사용한다.
+
+```
+예시: 사냥꾼A + 모코코1,2,3,4,5 → 1분 경과
+  순위용 시간: 사냥꾼A에게 1분 누적 (모코코 수 무관)
+  참고용 상세: 모코코1~5 각각에 대해 1분 기록 (순위 미반영)
+```
+
+#### 사냥 세션 추적
+
+사냥꾼이 모코코와 같은 채널에 동시 접속한 연속 구간을 하나의 "사냥 세션"으로 정의한다.
+
+- **세션 시작**: 사냥꾼이 있는 채널에 모코코가 1명 이상 존재하게 된 시점
+- **세션 종료**: 사냥꾼이 퇴장하거나 채널 내 모코코가 0명이 된 시점
+- **최소 동시접속 시간** (`mocoMinCoPresenceMin`): 세션의 총 시간이 이 값 미만이면 무효 처리 (시간·횟수 모두 롤백). 기본값 10분, 최솟값 1분. 이를 통해 우연한 짧은 접속이나 AFK를 필터링한다.
+- **세션 이력**: 유효 세션은 `MocoHuntingSession` 테이블에 영구 저장한다.
+
+#### 음성 제외 채널 연동
+
+`VoiceExcludedChannel`(F-VOICE-016)로 설정된 제외 채널/카테고리에서의 동시 접속은 모코코 사냥에서도 제외한다. `MocoScheduler`가 채널 순회 시 `VoiceExcludedChannelService.isExcludedChannel()`로 필터링한다.
+
+#### 점수 기반 순위 시스템
+
+사냥꾼의 순위는 **총 점수** 내림차순으로 결정한다. 점수는 세 가지 요소의 가중합으로 산출된다.
+
+**점수 공식**:
+```
+총점 = (유효 세션 수 × mocoScorePerSession)
+     + (채널 기반 실제 시간(분) × mocoScorePerMinute)
+     + (도움준 고유 모코코 수 × mocoScorePerUnique)
+```
+
+**점수 설정** (NewbieConfig):
+
+| 설정 | 타입 | 기본값 | 설명 |
+|------|------|--------|------|
+| `mocoScorePerSession` | int | 10 | 유효 세션 1회당 점수. 0이면 세션 점수 비활성화 |
+| `mocoScorePerMinute` | int | 1 | 채널 기반 실제 동시접속 1분당 점수. 0이면 시간 점수 비활성화 |
+| `mocoScorePerUnique` | int | 5 | 도움준 고유 모코코 1명당 보너스 점수. 0이면 다양성 점수 비활성화 |
+
+**점수 계산 예시** (기본 설정):
+```
+사냥꾼A: 모코코3명과 3회 게임, 채널 기반 총 90분
+  → 세션: 3 × 10 = 30점
+  → 시간: 90 × 1 = 90점
+  → 다양성: 3 × 5 = 15점
+  → 총점: 135점
+
+사냥꾼B: 모코코1명과 1회 게임, 채널 기반 총 120분
+  → 세션: 1 × 10 = 10점
+  → 시간: 120 × 1 = 120점
+  → 다양성: 1 × 5 = 5점
+  → 총점: 135점
+```
+
+#### 기간별 집계 및 리셋
+
+- **리셋 주기** (`mocoResetPeriod`): `NONE`(누적, 기본값) / `MONTHLY` / `CUSTOM`
+- `MONTHLY`: 매월 1일 00:00에 Redis 순위 초기화
+- `CUSTOM`: `mocoResetIntervalDays`일마다 초기화
+- 리셋 시 Redis Sorted Set만 초기화하며, DB(`MocoHuntingSession`, `MocoHuntingDaily`)의 이력은 영구 보존
+- 순위 Embed에 현재 집계 기간을 표시 (`{periodStart}`, `{periodEnd}` 변수)
+
+#### 측정 방식
+
+1. `MocoScheduler`가 매 1분마다 봇이 참여 중인 모든 길드의 음성 채널을 순회
+2. `VoiceExcludedChannelService.isExcludedChannel()`로 제외 채널 필터링
+3. 채널 내 모코코(서버 가입 후 `mocoNewbieDays`일 이내인 멤버) 존재 여부 확인
+4. 모코코가 1명 이상인 채널의 사냥꾼 각각에 대해:
+   a. **채널 기반 시간**: 모코코 수와 무관하게 1분 누적 (순위용)
+   b. **모코코별 상세 시간**: 각 모코코에 대해 1분 개별 누적 (참고용, 순위 미반영)
+   c. **진행중 세션 갱신**: 세션 시작 시각, 동시 접속 중인 모코코 목록 추적
+5. 세션 종료 시:
+   a. `durationMin >= mocoMinCoPresenceMin` → 유효 세션: DB 저장, 횟수 +1
+   b. 미달 → 무효: 해당 세션의 시간·횟수 롤백
+6. 점수 재계산 후 Redis Sorted Set 갱신
+7. 사냥꾼 기준: `mocoAllowNewbieHunter` 설정에 따라 기존 멤버만 또는 전체 채널 멤버
+
 - **알림 메시지 (채널 Embed)**:
   - 설정된 채널에 TOP N 순위 Embed 표시
   - 페이지네이션: Discord Button으로 이전/다음 페이지 이동
   - 자동 갱신: 설정된 간격(분)마다 Embed 수정, 또는 갱신 버튼 클릭 시 즉시 갱신
   - Embed 표시 형식은 `NewbieMocoTemplate` 테이블의 템플릿 필드로 결정된다 (아래 템플릿 시스템 참조)
 - **Embed 템플릿 시스템** (F-NEWBIE-003-TMPL):
-  - 제목, 본문 구조, 항목 포맷, 푸터를 길드별로 커스터마이징 가능
+  - 제목, 본문 구조, 항목 포맷, 푸터, 점수 산정 안내를 길드별로 커스터마이징 가능
   - 템플릿은 `NewbieMocoTemplate` 테이블에 저장되며 길드당 1행 보장
   - 템플릿이 존재하지 않으면 기본값(Default Template)을 사용
   - **제목 템플릿** (`titleTemplate`):
     - 사용 가능 변수: `{rank}`, `{hunterName}`
     - 기본값: `모코코 사냥 TOP {rank} — {hunterName} 🌱`
   - **본문 템플릿** (`bodyTemplate`): 사냥꾼 1명의 페이지 전체 구조. `{mocoList}` 블록 변수 위치에 항목 템플릿이 반복 삽입됨
-    - 사용 가능 변수: `{totalMinutes}`, `{mocoList}`
+    - 사용 가능 변수:
+
+      | 변수 | 설명 |
+      |------|------|
+      | `{score}` | 사냥꾼의 총 점수 |
+      | `{totalMinutes}` | 채널 기반 실제 동시접속 시간(분) |
+      | `{sessionCount}` | 유효 사냥 세션 횟수 |
+      | `{uniqueNewbieCount}` | 도움준 고유 모코코 수 |
+      | `{mocoList}` | 모코코별 상세 항목 반복 삽입 위치 (블록 변수) |
+
     - 기본값:
       ```
-      총 모코코 사냥 시간: {totalMinutes}분
+      🏆 총 점수: {score}점
+      ⏱️ 사냥 시간: {totalMinutes}분 | 🎮 게임 횟수: {sessionCount}회 | 🌱 모코코: {uniqueNewbieCount}명
 
       도움을 받은 모코코들:
       {mocoList}
       ```
   - **항목 템플릿** (`itemTemplate`): 도움받은 모코코 한 줄 포맷 (반복 렌더링)
-    - 사용 가능 변수: `{newbieName}`, `{minutes}`
-    - 기본값: `– {newbieName} 🌱: {minutes}분`
+    - 사용 가능 변수:
+
+      | 변수 | 설명 |
+      |------|------|
+      | `{newbieName}` | 모코코 서버 닉네임 |
+      | `{minutes}` | 해당 모코코와의 동시접속 시간(분, 참고용) |
+      | `{sessions}` | 해당 모코코와의 유효 세션 횟수 |
+
+    - 기본값: `– {newbieName} 🌱: {minutes}분 ({sessions}회)`
   - **푸터 템플릿** (`footerTemplate`): Embed footer
-    - 사용 가능 변수: `{currentPage}`, `{totalPages}`, `{interval}`
+    - 사용 가능 변수:
+
+      | 변수 | 설명 |
+      |------|------|
+      | `{currentPage}` | 현재 페이지 번호 |
+      | `{totalPages}` | 전체 페이지 수 |
+      | `{interval}` | 자동 갱신 간격(분) |
+      | `{periodStart}` | 현재 집계 기간 시작일 (YYYY-MM-DD). `NONE`이면 빈 문자열 |
+      | `{periodEnd}` | 현재 집계 기간 종료일 (YYYY-MM-DD). `NONE`이면 빈 문자열 |
+
     - 기본값: `페이지 {currentPage}/{totalPages} | 자동 갱신 {interval}분`
+  - **점수 산정 안내 템플릿** (`scoringTemplate`): Embed 본문 하단에 점수 산정 방식을 안내하는 텍스트. 사용자에게 점수가 어떻게 계산되는지 투명하게 공개한다.
+    - 사용 가능 변수:
+
+      | 변수 | 설명 |
+      |------|------|
+      | `{scorePerSession}` | 세션당 점수 설정값 |
+      | `{scorePerMinute}` | 분당 점수 설정값 |
+      | `{scorePerUnique}` | 고유 모코코당 점수 설정값 |
+      | `{minCoPresence}` | 최소 동시접속 시간(분) 설정값 |
+
+    - 기본값:
+      ```
+      ── 점수 산정 ──
+      🎮 게임 1회: {scorePerSession}점 | ⏱️ 1분당: {scorePerMinute}점 | 🌱 신입 1명당: {scorePerUnique}점
+      ⏳ 최소 {minCoPresence}분 이상 함께해야 1회로 인정
+      ```
+    - `scoringTemplate`이 빈 문자열(`""`)이면 점수 산정 안내를 표시하지 않음
   - **유효성 검사**: 존재하지 않는 변수 사용 시 저장 차단 (프론트엔드 + 백엔드)
 - **MVP 제외 항목**: [막판], [관전] 등 태그 구분 기능
 - **길드별 독립 설정**
@@ -409,6 +526,12 @@ Web Dashboard API
 | 기능 활성화 토글 | 모코코 사냥 기능 ON/OFF |
 | 모코코 기준 일수 입력 (숫자) | 서버 가입 후 이 일수 이내인 멤버를 모코코로 판정. 1~365, 기본값 30 |
 | 모코코도 사냥꾼 허용 토글 | `true`이면 신입(모코코)도 다른 신입의 사냥꾼이 될 수 있음. 기본값 `false` |
+| 최소 동시접속 시간 입력 (숫자) | 유효 세션 인정 최소 동시접속 시간 (분). 기본값 10, 최솟값 1 |
+| 세션당 점수 입력 (숫자) | 유효 세션 1회당 점수. 기본값 10. 0이면 비활성화 |
+| 분당 점수 입력 (숫자) | 채널 기반 실제 동시접속 1분당 점수. 기본값 1. 0이면 비활성화 |
+| 고유 모코코당 점수 입력 (숫자) | 도움준 고유 모코코 1명당 보너스 점수. 기본값 5. 0이면 비활성화 |
+| 리셋 주기 선택 드롭다운 | `없음(누적)` / `매월` / `사용자 지정(N일)`. 기본값 없음 |
+| 리셋 간격 입력 (숫자) | 리셋 주기가 사용자 지정일 때 N일마다 초기화. 리셋 주기가 다른 값이면 비활성화 |
 | 순위 표시 채널 선택 드롭다운 | 모코코 사냥 TOP N Embed를 표시할 채널 선택 |
 | 자동 갱신 간격 입력 (숫자) | Embed 자동 갱신 주기 (분 단위) |
 | Embed 제목 입력 | 모코코 순위 Embed 제목 |
@@ -417,14 +540,15 @@ Web Dashboard API
 | 썸네일 이미지 URL 입력 | 모코코 순위 Embed 썸네일 이미지 URL |
 | 저장 버튼 | 설정 내용을 API로 전송 |
 
-##### 템플릿 설정 섹션 (탭 3)
+##### 템플릿 설정 섹션 (탭 4)
 
 | UI 요소 | 설명 |
 |---------|------|
 | 제목 템플릿 입력 | Embed 제목 (`{rank}`, `{hunterName}` 사용 가능) |
-| 본문 템플릿 입력 (멀티라인) | 사냥꾼 1명의 페이지 전체 구조. `{totalMinutes}`, `{mocoList}` 사용 가능. `{mocoList}` 위치에 항목 템플릿이 반복 삽입됨 |
-| 항목 템플릿 입력 | 도움받은 모코코 한 줄 포맷 (`{newbieName}`, `{minutes}` 사용 가능) |
-| 푸터 템플릿 입력 | Embed footer (`{currentPage}`, `{totalPages}`, `{interval}` 사용 가능) |
+| 본문 템플릿 입력 (멀티라인) | 사냥꾼 1명의 페이지 전체 구조. `{score}`, `{totalMinutes}`, `{sessionCount}`, `{uniqueNewbieCount}`, `{mocoList}` 사용 가능. `{mocoList}` 위치에 항목 템플릿이 반복 삽입됨 |
+| 항목 템플릿 입력 | 도움받은 모코코 한 줄 포맷 (`{newbieName}`, `{minutes}`, `{sessions}` 사용 가능) |
+| 푸터 템플릿 입력 | Embed footer (`{currentPage}`, `{totalPages}`, `{interval}`, `{periodStart}`, `{periodEnd}` 사용 가능) |
+| 점수 산정 안내 템플릿 입력 (멀티라인) | Embed 본문 하단 점수 산정 방식 안내. `{scorePerSession}`, `{scorePerMinute}`, `{scorePerUnique}`, `{minCoPresence}` 사용 가능. 빈 문자열이면 안내 미표시 |
 | 기본값 복원 버튼 | 각 필드를 기본값으로 일괄 복원 |
 | 실시간 미리보기 패널 | 입력 시 debounce(300ms) 적용하여 실시간 Embed 미리보기 반영. 더미 데이터는 프론트에서 고정값 보유 |
 | 사용 가능 변수 안내 | 각 템플릿 필드 하단에 해당 필드의 허용 변수 목록 표시 |
@@ -484,6 +608,13 @@ Web Dashboard API
 | `mocoEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 모코코 사냥 기능 활성화 여부 |
 | `mocoNewbieDays` | `int` | NOT NULL, DEFAULT `30` | 모코코 기준 일수. 서버 가입 후 이 일수 이내인 멤버를 모코코로 판정. 1~365 |
 | `mocoAllowNewbieHunter` | `boolean` | NOT NULL, DEFAULT `false` | 모코코도 사냥꾼 허용 여부. `true`이면 신입도 다른 신입의 사냥꾼이 될 수 있음 |
+| `mocoMinCoPresenceMin` | `int` | NOT NULL, DEFAULT `10` | 유효 세션 인정 최소 동시접속 시간(분). 이 시간 미만 세션은 무효 처리. 최솟값 1 |
+| `mocoScorePerSession` | `int` | NOT NULL, DEFAULT `10` | 유효 세션 1회당 점수. 0이면 세션 점수 비활성화 |
+| `mocoScorePerMinute` | `int` | NOT NULL, DEFAULT `1` | 채널 기반 실제 동시접속 1분당 점수. 0이면 시간 점수 비활성화 |
+| `mocoScorePerUnique` | `int` | NOT NULL, DEFAULT `5` | 도움준 고유 모코코 1명당 보너스 점수. 0이면 다양성 점수 비활성화 |
+| `mocoResetPeriod` | `enum('NONE','MONTHLY','CUSTOM')` | NOT NULL, DEFAULT `'NONE'` | 순위 리셋 주기. `NONE`: 누적, `MONTHLY`: 매월 1일, `CUSTOM`: N일마다 |
+| `mocoResetIntervalDays` | `int` | NULLABLE | `CUSTOM` 리셋 시 초기화 간격(일수). `mocoResetPeriod = CUSTOM`일 때만 사용 |
+| `mocoCurrentPeriodStart` | `varchar` | NULLABLE | 현재 집계 기간 시작일 (`YYYYMMDD`). 리셋 시 갱신 |
 | `mocoRankChannelId` | `varchar` | NULLABLE | 모코코 사냥 순위 표시 채널 ID |
 | `mocoRankMessageId` | `varchar` | NULLABLE | 모코코 사냥 순위 Embed 메시지 ID |
 | `mocoAutoRefreshMinutes` | `int` | NULLABLE | 모코코 사냥 순위 자동 갱신 간격 (분) |
@@ -532,9 +663,10 @@ Web Dashboard API
 | `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
 | `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
 | `titleTemplate` | `varchar` | NULLABLE | Embed 제목 템플릿. 허용 변수: `{rank}`, `{hunterName}` |
-| `bodyTemplate` | `text` | NULLABLE | 사냥꾼 1명 페이지 전체 본문 템플릿. `{mocoList}` 위치에 항목 템플릿 반복 삽입. 허용 변수: `{totalMinutes}`, `{mocoList}` |
-| `itemTemplate` | `varchar` | NULLABLE | 도움받은 모코코 한 줄 항목 템플릿. 허용 변수: `{newbieName}`, `{minutes}` |
-| `footerTemplate` | `varchar` | NULLABLE | Embed footer 템플릿. 허용 변수: `{currentPage}`, `{totalPages}`, `{interval}` |
+| `bodyTemplate` | `text` | NULLABLE | 사냥꾼 1명 페이지 전체 본문 템플릿. `{mocoList}` 위치에 항목 템플릿 반복 삽입. 허용 변수: `{score}`, `{totalMinutes}`, `{sessionCount}`, `{uniqueNewbieCount}`, `{mocoList}` |
+| `itemTemplate` | `varchar` | NULLABLE | 도움받은 모코코 한 줄 항목 템플릿. 허용 변수: `{newbieName}`, `{minutes}`, `{sessions}` |
+| `footerTemplate` | `varchar` | NULLABLE | Embed footer 템플릿. 허용 변수: `{currentPage}`, `{totalPages}`, `{interval}`, `{periodStart}`, `{periodEnd}` |
+| `scoringTemplate` | `text` | NULLABLE | 점수 산정 안내 템플릿. Embed 본문 하단에 표시. 빈 문자열이면 미표시. 허용 변수: `{scorePerSession}`, `{scorePerMinute}`, `{scorePerUnique}`, `{minCoPresence}` |
 | `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
 | `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
 
@@ -589,21 +721,76 @@ Web Dashboard API
 
 ---
 
-### MocoHunting (Redis 전용)
+### MocoHuntingSession (`moco_hunting_session`)
 
-기존 멤버의 모코코 사냥 시간 누적 데이터. 영구 저장이 필요한 경우 별도 PostgreSQL 테이블로 이관 가능하다. MVP에서는 Redis로만 관리한다.
+사냥꾼과 모코코의 동시접속 세션 이력을 영구 저장한다. 세션 종료 시 유효성 판정 후 기록된다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
+| `hunterId` | `varchar` | NOT NULL | 사냥꾼 디스코드 유저 ID |
+| `channelId` | `varchar` | NOT NULL | 동시접속이 발생한 음성 채널 ID |
+| `startedAt` | `timestamp` | NOT NULL | 동시접속 시작 시각 |
+| `endedAt` | `timestamp` | NULLABLE | 동시접속 종료 시각. 진행중이면 NULL |
+| `durationMin` | `int` | NULLABLE | 동시접속 시간(분). 종료 시 계산 |
+| `newbieMemberIds` | `json` | NOT NULL | 세션 중 동시접속한 모코코 memberId 배열 (예: `["id1","id2"]`) |
+| `isValid` | `boolean` | NOT NULL, DEFAULT `false` | 유효 세션 여부. `durationMin >= mocoMinCoPresenceMin`일 때 `true` |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+
+**인덱스**:
+- `IDX_moco_session_guild_hunter` — `(guildId, hunterId)` — 사냥꾼별 세션 조회
+- `IDX_moco_session_guild_started` — `(guildId, startedAt)` — 기간별 세션 조회
+- `IDX_moco_session_guild_valid` — `(guildId, isValid)` — 유효 세션 필터링
+
+---
+
+### MocoHuntingDaily (`moco_hunting_daily`)
+
+사냥꾼의 일별 집계 데이터를 저장한다. 점수 재계산 및 기간별 순위 산출에 사용된다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `hunterId` | `varchar` | PK | 사냥꾼 디스코드 유저 ID |
+| `date` | `varchar(8)` | PK | 날짜 (`YYYYMMDD`) |
+| `channelMinutes` | `int` | NOT NULL, DEFAULT `0` | 당일 채널 기반 실제 사냥 시간(분). 모코코 수 무관 |
+| `sessionCount` | `int` | NOT NULL, DEFAULT `0` | 당일 유효 세션 횟수 |
+| `uniqueNewbieCount` | `int` | NOT NULL, DEFAULT `0` | 당일 도움준 고유 모코코 수 |
+| `score` | `int` | NOT NULL, DEFAULT `0` | 당일 점수 (점수 공식 적용 결과) |
+
+**인덱스**:
+- PK: `(guildId, hunterId, date)` — 사냥꾼별 일별 집계
+- `IDX_moco_daily_guild_date` — `(guildId, date)` — 기간별 순위 조회
+
+---
+
+### MocoHunting (Redis — 실시간 캐시)
+
+Redis는 실시간 순위 조회와 진행중 세션 추적에 사용된다. 영구 데이터는 PostgreSQL에 저장한다.
 
 | 키 패턴 | 타입 | 설명 |
 |---------|------|------|
-| `newbie:moco:total:{guildId}:{hunterId}` | `Hash` | 사냥꾼(기존 멤버)의 신규사용자별 사냥 시간(분) |
-| `newbie:moco:rank:{guildId}` | `Sorted Set` | guildId 기준 사냥꾼 총 사냥 시간 순위 (score = 총 사냥분) |
+| `newbie:moco:rank:{guildId}` | `Sorted Set` | 사냥꾼 총 점수 순위 캐시 (score = 총점) |
+| `newbie:moco:detail:{guildId}:{hunterId}` | `Hash` | 사냥꾼별 모코코 개별 동시접속 시간(분). 참고용, 순위 미반영 |
+| `newbie:moco:session:{guildId}:{hunterId}` | `Hash` | 진행중인 사냥 세션 추적 (startedAt, channelId, newbieIds, accMinutes) |
+| `newbie:moco:stats:{guildId}:{hunterId}` | `Hash` | 사냥꾼 집계 캐시 (totalMinutes, sessionCount, uniqueNewbieCount, score) |
 
-**Hash 필드 구조** (`newbie:moco:total:{guildId}:{hunterId}`):
+**Sorted Set 구조** (`newbie:moco:rank:{guildId}`):
 ```
-HSET newbie:moco:total:{guildId}:{hunterId} {newbieMemberId} {minutes}
+ZADD newbie:moco:rank:{guildId} {score} {hunterId}
 ```
-- 필드: 신규사용자 memberId
-- 값: 해당 신규사용자와의 동시 접속 시간 (분)
+- score: 점수 공식으로 산출된 총점 (기간 리셋 시 초기화)
+
+**진행중 세션 Hash** (`newbie:moco:session:{guildId}:{hunterId}`):
+```
+HSET newbie:moco:session:{guildId}:{hunterId}
+  startedAt {ISO timestamp}
+  channelId {channelId}
+  newbieIds {JSON array}
+  accMinutes {누적분}
+```
+- 세션 종료 시 유효성 판정 후 DB 저장 및 키 삭제
 
 ---
 
@@ -614,8 +801,10 @@ HSET newbie:moco:total:{guildId}:{hunterId} {newbieMemberId} {minutes}
 | `newbie:config:{guildId}` | 1시간 | NewbieConfig 설정 캐시 |
 | `newbie:mission:active:{guildId}` | 30분 | 진행중 미션 목록 캐시 |
 | `newbie:period:active:{guildId}` | 1시간 | 신입기간 활성 멤버 집합 캐시 (`Set<memberId>`) |
-| `newbie:moco:total:{guildId}:{hunterId}` | 없음 | 사냥꾼별 신규사용자별 사냥 시간 Hash |
-| `newbie:moco:rank:{guildId}` | 없음 | 길드별 사냥꾼 총 사냥 시간 Sorted Set |
+| `newbie:moco:rank:{guildId}` | 없음 | 사냥꾼 총 점수 순위 Sorted Set (리셋 시 초기화) |
+| `newbie:moco:detail:{guildId}:{hunterId}` | 없음 | 사냥꾼별 모코코 개별 동시접속 시간 Hash (참고용) |
+| `newbie:moco:session:{guildId}:{hunterId}` | 12시간 | 진행중 사냥 세션 추적 Hash |
+| `newbie:moco:stats:{guildId}:{hunterId}` | 없음 | 사냥꾼 집계 캐시 Hash (리셋 시 초기화) |
 
 **TTL 정책**:
 
@@ -624,7 +813,8 @@ HSET newbie:moco:total:{guildId}:{hunterId} {newbieMemberId} {minutes}
 | 설정 캐시 | 1시간 | 설정 변경 빈도 낮음, 저장 시 명시적 갱신 |
 | 미션 목록 캐시 | 30분 | 갱신 버튼 클릭 시 명시적 갱신 |
 | 신입기간 활성 멤버 | 1시간 | 스케줄러 실행 시 갱신 |
-| 모코코 사냥 데이터 | 없음 | 영구 누적 (리셋 시 명시적 삭제) |
+| 모코코 순위/집계 캐시 | 없음 | 영구 누적. 기간 리셋 시 `rank`, `stats`, `detail` 키 일괄 삭제 |
+| 진행중 세션 | 12시간 | 비정상 종료 대비 자동 만료. 정상 시 세션 종료 시점에 삭제 |
 
 ---
 
@@ -636,7 +826,8 @@ Newbie 도메인은 voice 도메인과 다음 지점에서 연계된다.
 |-----------|------|------|
 | `VoiceDailyEntity` 조회 | newbie → voice | 미션 플레이타임 측정 시 `channelDurationSec` 합산 |
 | `VoiceChannelHistory` 조회 | newbie → voice | 미션 플레이횟수 측정 시 세션 수 집계 |
-| `voiceStateUpdate` 이벤트 | voice → newbie | 모코코 사냥 시간 측정을 위한 동시 접속 감지 |
+| `voiceStateUpdate` 이벤트 | voice → newbie | 모코코 사냥 세션 추적을 위한 동시 접속 감지 |
+| `VoiceExcludedChannelService` 조회 | newbie → voice | 모코코 사냥 시 제외 채널 필터링 (F-VOICE-016 연계) |
 
 **플레이타임 조회 쿼리 조건**:
 ```

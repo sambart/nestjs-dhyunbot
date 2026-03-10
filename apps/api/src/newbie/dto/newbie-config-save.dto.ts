@@ -117,6 +117,36 @@ export class NewbieConfigSaveDto {
   @IsUrl()
   mocoEmbedThumbnailUrl?: string | null;
 
+  // 모코코 사냥 — 점수/세션/리셋
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  mocoMinCoPresenceMin?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  mocoScorePerSession?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  mocoScorePerMinute?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  mocoScorePerUnique?: number | null;
+
+  @IsOptional()
+  @IsString()
+  mocoResetPeriod?: 'NONE' | 'MONTHLY' | 'CUSTOM' | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  mocoResetIntervalDays?: number | null;
+
   // 신입기간 역할
   @IsBoolean()
   roleEnabled: boolean;

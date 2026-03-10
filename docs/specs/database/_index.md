@@ -83,6 +83,9 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 │ missionEmbedTitle, missionEmbedDescription                           │
 │ missionEmbedColor, missionEmbedThumbnailUrl                          │
 │ mocoEnabled, mocoNewbieDays, mocoAllowNewbieHunter                   │
+│ mocoMinCoPresenceMin, mocoScorePerSession                            │
+│ mocoScorePerMinute, mocoScorePerUnique                               │
+│ mocoResetPeriod, mocoResetIntervalDays, mocoCurrentPeriodStart       │
 │ mocoRankChannelId, mocoRankMessageId, mocoAutoRefreshMinutes         │
 │ mocoEmbedTitle, mocoEmbedDescription                                 │
 │ mocoEmbedColor, mocoEmbedThumbnailUrl                                │
@@ -146,10 +149,12 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 │ endDate (YYYYMMDD)               │       │ expiresDate (YYYYMMDD)           │
 │ targetPlaytimeSec                │       │ isExpired                        │
 │ status (enum)                    │       │ createdAt, updatedAt             │
-│ createdAt, updatedAt             │       └──────────────────────────────────┘
-└──────────────────────────────────┘         IDX(guildId, memberId)
-  IDX(guildId, memberId)                      IDX(guildId, isExpired)
-  IDX(guildId, status)                        IDX(expiresDate, isExpired)
+│ hiddenFromEmbed (default false)  │       └──────────────────────────────────┘
+│ createdAt, updatedAt             │         IDX(guildId, memberId)
+└──────────────────────────────────┘         IDX(guildId, isExpired)
+  IDX(guildId, memberId)                      IDX(expiresDate, isExpired)
+  IDX(guildId, status)
+  IDX(guildId, hiddenFromEmbed)
   IDX(status, endDate)
 
 ┌──────────────────────────────────────────┐       ┌──────────────────────────────────────────┐
@@ -159,14 +164,58 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
 │ PK id                                    │       │ PK id                                    │
 │ guildId (UNIQUE)                         │       │ guildId (UNIQUE)                         │
 │ titleTemplate                            │       │ titleTemplate                            │
-│ headerTemplate                           │       │ bodyTemplate                             │
-│ itemTemplate                             │       │ itemTemplate                             │
-│ footerTemplate                           │       │ footerTemplate                           │
-│ statusMapping (json)                     │       │ createdAt, updatedAt                     │
-│ createdAt, updatedAt                     │       └──────────────────────────────────────────┘
-└──────────────────────────────────────────┘         (독립 테이블 — FK 없음, 레코드 없으면 기본값 사용)
-  (독립 테이블 — FK 없음, 레코드 없으면 기본값 사용)
+│ headerTemplate                           │       │ scoringTemplate                          │
+│ itemTemplate                             │       │ bodyTemplate                             │
+│ footerTemplate                           │       │ itemTemplate                             │
+│ statusMapping (json)                     │       │ footerTemplate                           │
+│ createdAt, updatedAt                     │       │ createdAt, updatedAt                     │
+└──────────────────────────────────────────┘       └──────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, 레코드 없으면 기본값 사용)   (독립 테이블 — FK 없음, 레코드 없으면 기본값 사용)
   UNIQUE(guildId)                                    UNIQUE(guildId)
+
+┌────────────────────────────────────────────────────────┐
+│          MocoHuntingSession (moco_hunting_session)      │
+├────────────────────────────────────────────────────────┤
+│ PK id                                                  │
+│ guildId, hunterId, channelId                           │
+│ startedAt, endedAt (nullable)                          │
+│ durationMin (nullable), newbieMemberIds (json)         │
+│ isValid (default false)                                │
+│ createdAt                                              │
+└────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  IDX(guildId, hunterId)
+  IDX(guildId, startedAt)
+  IDX(guildId, isValid)
+
+┌────────────────────────────────────────────────────────┐
+│          MocoHuntingDaily (moco_hunting_daily)          │
+├────────────────────────────────────────────────────────┤
+│ PK guildId + hunterId + date                           │
+│ channelMinutes (default 0)                             │
+│ sessionCount (default 0)                               │
+│ uniqueNewbieCount (default 0)                          │
+│ score (default 0)                                      │
+└────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  IDX(guildId, date)
+
+┌────────────────────────────────────────────────────────┐
+│             BotMetric (bot_metric)                      │
+├────────────────────────────────────────────────────────┤
+│ PK id                                                  │
+│ guildId                                                │
+│ status (enum: ONLINE | OFFLINE)                        │
+│ pingMs (default 0)                                     │
+│ heapUsedMb (float, default 0)                          │
+│ heapTotalMb (float, default 0)                         │
+│ voiceUserCount (default 0)                             │
+│ guildCount (default 0)                                 │
+│ recordedAt (timestamp, default now())                  │
+└────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  IDX(guildId, recordedAt)
+  IDX(recordedAt)
 ```
 
 ---
@@ -401,6 +450,13 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 | `mocoEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 모코코 사냥 기능 활성화 여부 |
 | `mocoNewbieDays` | `int` | NOT NULL, DEFAULT `30` | 신규사용자 판별 기준 일수 (가입 후 N일 이내) |
 | `mocoAllowNewbieHunter` | `boolean` | NOT NULL, DEFAULT `false` | 신규사용자도 사냥꾼이 될 수 있는지 여부 |
+| `mocoMinCoPresenceMin` | `int` | NOT NULL, DEFAULT `10` | 유효 세션 인정 최소 동시접속 시간(분) |
+| `mocoScorePerSession` | `int` | NOT NULL, DEFAULT `10` | 유효 세션 1회당 점수 |
+| `mocoScorePerMinute` | `int` | NOT NULL, DEFAULT `1` | 1분당 점수 |
+| `mocoScorePerUnique` | `int` | NOT NULL, DEFAULT `5` | 고유 모코코당 점수 |
+| `mocoResetPeriod` | `enum('NONE','MONTHLY','CUSTOM')` | NOT NULL, DEFAULT `'NONE'` | 리셋 주기 |
+| `mocoResetIntervalDays` | `int` | NULLABLE | CUSTOM 리셋 간격 (일수) |
+| `mocoCurrentPeriodStart` | `varchar` | NULLABLE | 현재 집계 기간 시작일 (`YYYYMMDD`) |
 | `mocoRankChannelId` | `varchar` | NULLABLE | 모코코 사냥 순위 표시 채널 ID |
 | `mocoRankMessageId` | `varchar` | NULLABLE | 모코코 사냥 순위 Embed 메시지 ID |
 | `mocoAutoRefreshMinutes` | `int` | NULLABLE | 모코코 사냥 순위 자동 갱신 간격 (분) |
@@ -439,6 +495,7 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 | `endDate` | `varchar` | NOT NULL | 미션 마감일 (`YYYYMMDD`) |
 | `targetPlaytimeSec` | `int` | NOT NULL | 목표 플레이타임 (초 단위로 변환 저장) |
 | `status` | `enum('IN_PROGRESS','COMPLETED','FAILED')` | NOT NULL, DEFAULT `'IN_PROGRESS'` | 미션 상태 |
+| `hiddenFromEmbed` | `boolean` | NOT NULL, DEFAULT `false` | Embed 표시 제외 여부. `true`이면 Discord Embed에서 숨김 처리됨 (F-NEWBIE-005) |
 | `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
 | `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
 
@@ -452,11 +509,14 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 |--------|------|------|
 | `IDX_newbie_mission_guild_member` | `(guildId, memberId)` | 멤버별 미션 조회 |
 | `IDX_newbie_mission_guild_status` | `(guildId, status)` | 길드별 진행중 미션 조회 |
+| `IDX_newbie_mission_guild_visible` | `(guildId, hiddenFromEmbed)` | Embed 표시 대상 미션 조회 (F-NEWBIE-005) |
 | `IDX_newbie_mission_status_end_date` | `(status, endDate)` | 만료 예정 미션 스케줄러 조회 (`status='IN_PROGRESS' AND endDate < today`) |
 
 #### 인덱스 설계 근거
 
 만료 스케줄러 쿼리는 `status = 'IN_PROGRESS'` 등치 조건 이후 `endDate < today` 범위 조건을 사용한다. 등치 조건 컬럼을 선두에 두는 것이 범위 조건 컬럼을 선두에 두는 것보다 인덱스 선택도가 높아 효율적이다. 기존의 `(endDate, status)` 순서에서 `(status, endDate)` 순서로 변경한다.
+
+`IDX_newbie_mission_guild_visible`은 Embed 갱신 시 `WHERE guildId = ? AND hiddenFromEmbed = false` 조건으로 표시 대상 미션을 조회하는 쿼리를 커버한다. 다만, `IDX_newbie_mission_guild_status`가 이미 길드별 활성 미션 조회에 사용되며 Embed 표시 대상은 `status` 조건과 함께 필터링되는 경우가 대부분이므로, 데이터 규모가 커지기 전까지는 이 인덱스의 효용이 제한적일 수 있다.
 
 ---
 
@@ -530,9 +590,10 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 | `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
 | `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
 | `titleTemplate` | `varchar` | NULLABLE | Embed 제목 템플릿. 허용 변수: `{rank}`, `{hunterName}` |
-| `bodyTemplate` | `text` | NULLABLE | 사냥꾼 1명 페이지 전체 본문 템플릿. `{mocoList}` 위치에 항목 템플릿 반복 삽입. 허용 변수: `{totalMinutes}`, `{mocoList}` |
-| `itemTemplate` | `varchar` | NULLABLE | 도움받은 모코코 한 줄 항목 템플릿. 허용 변수: `{newbieName}`, `{minutes}` |
-| `footerTemplate` | `varchar` | NULLABLE | Embed footer 템플릿. 허용 변수: `{currentPage}`, `{totalPages}`, `{interval}` |
+| `scoringTemplate` | `text` | NULLABLE | 점수 산정 안내 템플릿. Embed 본문 하단에 표시. 빈 문자열이면 미표시. 허용 변수: `{scorePerSession}`, `{scorePerMinute}`, `{scorePerUnique}`, `{minCoPresence}` |
+| `bodyTemplate` | `text` | NULLABLE | 사냥꾼 1명 페이지 전체 본문 템플릿. `{mocoList}` 위치에 항목 템플릿 반복 삽입. 허용 변수: `{score}`, `{totalMinutes}`, `{sessionCount}`, `{uniqueNewbieCount}`, `{mocoList}` |
+| `itemTemplate` | `varchar` | NULLABLE | 도움받은 모코코 한 줄 항목 템플릿. 허용 변수: `{newbieName}`, `{minutes}`, `{sessions}` |
+| `footerTemplate` | `varchar` | NULLABLE | Embed footer 템플릿. 허용 변수: `{currentPage}`, `{totalPages}`, `{interval}`, `{periodStart}`, `{periodEnd}` |
 | `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
 | `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
 
@@ -677,6 +738,115 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 
 ---
 
+### 17. MocoHuntingSession (`moco_hunting_session`)
+
+사냥꾼과 모코코(신규사용자)의 동시접속 세션을 저장한다. 음성 채널에서 사냥꾼과 신규사용자가 동시에 접속한 구간을 추적하며, 유효 세션 여부를 판별한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
+| `hunterId` | `varchar` | NOT NULL | 사냥꾼 디스코드 유저 ID |
+| `channelId` | `varchar` | NOT NULL | 동시접속이 발생한 음성 채널 ID |
+| `startedAt` | `timestamp` | NOT NULL | 동시접속 시작 시각 |
+| `endedAt` | `timestamp` | NULLABLE | 동시접속 종료 시각 |
+| `durationMin` | `int` | NULLABLE | 동시접속 시간(분) |
+| `newbieMemberIds` | `json` | NOT NULL | 모코코 memberId 배열 |
+| `isValid` | `boolean` | NOT NULL, DEFAULT `false` | 유효 세션 여부 |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/newbie/domain/moco-hunting-session.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_moco_session_guild_hunter` | `(guildId, hunterId)` | 사냥꾼별 세션 조회 |
+| `IDX_moco_session_guild_started` | `(guildId, startedAt)` | 길드별 세션 시간순 조회 |
+| `IDX_moco_session_guild_valid` | `(guildId, isValid)` | 길드별 유효 세션 조회 |
+
+#### 인덱스 설계 근거
+
+사냥꾼별 세션 이력 조회(`WHERE guildId = ? AND hunterId = ?`)는 `IDX_moco_session_guild_hunter`로 커버한다. 길드 내 기간별 세션 조회(`WHERE guildId = ? AND startedAt BETWEEN ? AND ?`)는 `IDX_moco_session_guild_started`로 커버한다. 유효 세션 집계(`WHERE guildId = ? AND isValid = true`)는 `IDX_moco_session_guild_valid`로 커버한다.
+
+---
+
+### 18. MocoHuntingDaily (`moco_hunting_daily`)
+
+사냥꾼의 일별 모코코 사냥 집계를 저장한다. 유효 세션 데이터를 기반으로 일별로 집계된 점수를 관리한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `hunterId` | `varchar` | PK | 사냥꾼 디스코드 유저 ID |
+| `date` | `varchar(8)` | PK | 날짜 (`YYYYMMDD`) |
+| `channelMinutes` | `int` | NOT NULL, DEFAULT `0` | 채널 기반 실제 사냥 시간(분) |
+| `sessionCount` | `int` | NOT NULL, DEFAULT `0` | 유효 세션 횟수 |
+| `uniqueNewbieCount` | `int` | NOT NULL, DEFAULT `0` | 고유 모코코 수 |
+| `score` | `int` | NOT NULL, DEFAULT `0` | 당일 점수 |
+
+- **복합 PK**: `(guildId, hunterId, date)`
+- **테이블명**: `moco_hunting_daily` (커스텀 지정)
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/newbie/domain/moco-hunting-daily.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_moco_daily_guild_date` | `(guildId, date)` | 길드별 날짜 기준 집계 조회 |
+
+#### 인덱스 설계 근거
+
+길드 내 날짜별 전체 사냥꾼 집계 조회(`WHERE guildId = ? AND date BETWEEN ? AND ?`)는 `IDX_moco_daily_guild_date`로 커버한다. 사냥꾼 개인 조회(`WHERE guildId = ? AND hunterId = ? AND date BETWEEN ? AND ?`)는 복합 PK `(guildId, hunterId, date)`의 선두 접두사로 커버되므로 추가 인덱스가 불필요하다.
+
+---
+
+### 19. BotMetric (`bot_metric`)
+
+> F-MONITORING-002 대응: 1분 간격 봇 상태 메트릭을 수집하여 시계열 차트에 사용한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
+| `status` | `enum('ONLINE','OFFLINE')` | NOT NULL, DEFAULT `'OFFLINE'` | 봇 WebSocket 상태 |
+| `pingMs` | `int` | NOT NULL, DEFAULT 0 | WebSocket 핑 (ms) |
+| `heapUsedMb` | `float` | NOT NULL, DEFAULT 0 | 사용 중 힙 메모리 (MB) |
+| `heapTotalMb` | `float` | NOT NULL, DEFAULT 0 | 전체 힙 메모리 (MB) |
+| `voiceUserCount` | `int` | NOT NULL, DEFAULT 0 | 음성 채널 접속자 수 (봇 제외) |
+| `guildCount` | `int` | NOT NULL, DEFAULT 0 | 봇이 참여 중인 서버 수 |
+| `recordedAt` | `timestamp` | NOT NULL, DEFAULT now() | 메트릭 기록 시각 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/monitoring/domain/bot-metric.entity.ts`
+- **보존 정책**: 30일 초과 데이터 자동 삭제 (F-MONITORING-004, 매일 03:00 스케줄러)
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_bot_metric_guild_recorded` | `(guildId, recordedAt)` | 길드별 시간 범위 메트릭 조회 및 집계 쿼리 |
+| `IDX_bot_metric_recorded` | `(recordedAt)` | 30일 초과 데이터 일괄 삭제 (cleanup 스케줄러) |
+
+#### 인덱스 설계 근거
+
+시계열 조회(`WHERE guildId = ? AND recordedAt BETWEEN ? AND ?`)는 `IDX_bot_metric_guild_recorded` 복합 인덱스로 커버한다. 정리 스케줄러(`DELETE WHERE recordedAt < ?`)는 guildId 무관하게 날짜 기준 삭제하므로 `IDX_bot_metric_recorded` 단독 인덱스를 별도로 둔다.
+
+#### 집계 쿼리
+
+시간 구간별 집계 시 PostgreSQL `date_trunc` 및 epoch 산술을 사용한다:
+- `1m`: 집계 없이 원시 데이터 반환
+- `5m`: `to_timestamp(floor(extract(epoch from recordedAt) / 300) * 300)` — PostgreSQL에 5분 단위 `date_trunc`이 없으므로 epoch 기반 산술 처리
+- `1h`: `date_trunc('hour', recordedAt)`
+- `1d`: `date_trunc('day', recordedAt)`
+
+---
+
 ## Redis 데이터 구조
 
 ### 키 네이밍 패턴
@@ -689,6 +859,7 @@ auto_channel:{category}:{...params}
 newbie:{category}:{...params}
 status_prefix:{category}:{...params}
 sticky_message:{category}:{...params}
+monitoring:{category}:{...params}
 ```
 
 ### voice 키 정의
@@ -858,6 +1029,25 @@ SET sticky_message:config:{guildId} {configArrayJson} EX 3600
 SET sticky_message:debounce:{channelId} 1 EX 3
 ```
 
+### monitoring 키 정의
+
+봇 실시간 상태 캐시를 저장한다. 10초 폴링 주기에 맞춰 짧은 TTL을 사용한다.
+
+| 키 패턴 | TTL | 자료구조 | 설명 |
+|---------|-----|----------|------|
+| `monitoring:status:{guildId}` | 10초 | String (JSON) | 봇 실시간 상태 캐시 (online, ping, memory, voiceUsers 등) |
+
+- **키 생성**: `MonitoringService` 내 상수 `STATUS_CACHE_KEY`
+- **저장소**: `apps/api/src/monitoring/application/monitoring.service.ts`
+
+#### monitoring:status 구조
+
+`getStatus(guildId)` 호출 시 Discord 클라이언트에서 수집한 실시간 상태를 JSON 직렬화하여 캐싱한다. TTL 10초 경과 시 다음 요청에서 갱신된다.
+
+```
+SET monitoring:status:{guildId} {statusJson} EX 10
+```
+
 ### TTL 정책
 
 | 대상 | TTL | 사유 |
@@ -877,6 +1067,7 @@ SET sticky_message:debounce:{channelId} 1 EX 3
 | status_prefix 설정 캐시 | 1시간 (3,600초) | 설정 변경 빈도 낮음, 저장 시 명시적 갱신 |
 | sticky_message 설정 캐시 | 1시간 (3,600초) | 설정 변경 빈도 낮음. 저장/삭제 시 명시적 갱신 또는 무효화 |
 | sticky_message 디바운스 타이머 | 3초 | 연속 메시지 수신 시 마지막 메시지 기준으로 3초 후 재전송. 수신마다 TTL 리셋 |
+| monitoring 상태 캐시 | 10초 | 프론트엔드 10초 폴링 주기에 맞춤. Discord 클라이언트 직접 조회 부하 최소화 |
 
 ---
 
@@ -1162,4 +1353,29 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
     3. Redis duration keys에 시간 누적 → VoiceDailyEntity upsert (F-VOICE-002와 동일)
     4. auto_channel:confirmed:{channelId} → Redis delete
     5. Discord API → 채널 즉시 삭제
+```
+
+### 모니터링 라이프사이클
+
+```
+[1분 간격 메트릭 수집 — @Cron('*/1 * * * *')]
+  1. Discord Client → client.ws.status, client.ws.ping 조회
+  2. Node.js → process.memoryUsage() 조회
+  3. Discord Client → client.guilds.cache 순회
+     - 각 길드별 voiceStates.cache에서 봇 제외 음성 접속자 수 집계
+  4. bot_metric → PostgreSQL batch insert (길드 수만큼 레코드)
+
+[실시간 상태 조회 — GET /api/guilds/{guildId}/bot/status]
+  1. monitoring:status:{guildId} → Redis get (캐시 히트 시 즉시 반환)
+  2. 캐시 미스:
+     - Discord Client → 실시간 상태 수집 (ws.status, ws.ping, memoryUsage, voiceStates)
+     - monitoring:status:{guildId} → Redis set (TTL 10초)
+
+[시계열 메트릭 조회 — GET /api/guilds/{guildId}/bot/metrics]
+  1. interval = '1m': bot_metric → PostgreSQL select 원시 데이터 반환
+  2. interval = '5m'|'1h'|'1d': bot_metric → PostgreSQL 집계 쿼리 (AVG + date_trunc/epoch 버킷)
+  3. bot_metric → PostgreSQL AVG(status = 'ONLINE') * 100 → 가용률 계산
+
+[30일 초과 데이터 정리 — @Cron('0 3 * * *')]
+  1. bot_metric → PostgreSQL delete WHERE recordedAt < (now - 30일)
 ```

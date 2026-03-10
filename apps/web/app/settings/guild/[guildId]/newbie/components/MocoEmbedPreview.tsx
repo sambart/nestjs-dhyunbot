@@ -33,6 +33,15 @@ export default function MocoEmbedPreview({ template }: MocoEmbedPreviewProps) {
     MOCO_PREVIEW_DUMMY,
   );
 
+  const scoringTmpl = template.scoringTemplate;
+  let scoringText = '';
+  if (scoringTmpl !== '' && scoringTmpl !== null) {
+    scoringText = applyDummyVars(
+      scoringTmpl ?? DEFAULT_MOCO_TEMPLATE.scoringTemplate!,
+      MOCO_PREVIEW_DUMMY,
+    );
+  }
+
   return (
     <div>
       <p className="text-sm font-medium text-gray-700 mb-2">미리보기</p>
@@ -48,6 +57,11 @@ export default function MocoEmbedPreview({ template }: MocoEmbedPreviewProps) {
             <p className="text-gray-300 text-xs whitespace-pre-wrap break-words mb-3">
               {description}
             </p>
+            {scoringText && (
+              <p className="text-gray-400 text-[10px] whitespace-pre-wrap break-words mt-2 pt-2 border-t border-gray-600">
+                {scoringText}
+              </p>
+            )}
             <p className="text-gray-500 text-[10px] border-t border-gray-600 pt-2">
               {footer}
             </p>
