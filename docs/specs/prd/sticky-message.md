@@ -287,6 +287,6 @@ Web Dashboard API
 
 | 연계 지점 | 방향 | 설명 |
 |-----------|------|------|
-| 고정메세지 설정 페이지 | web → sticky-message | `/settings/guild/{guildId}/sticky-message`에서 F-STICKY-001~003 API 호출 |
+| 고정메세지 설정 페이지 | web → sticky-message | `/settings/guild/{guildId}/sticky-message`에서 F-STICKY-001~003 API 호출 (다중 탭 UI — 자동방 설정과 동일 패턴) |
 | 설정 저장 시 즉시 전송 | sticky-message → Discord | 웹에서 저장 시 F-STICKY-002 실행하여 Discord 채널에 즉시 Embed 전송 |
 | 설정 삭제 시 Discord 삭제 | sticky-message → Discord | 웹에서 삭제 시 F-STICKY-003 실행하여 Discord 채널에서 고정메세지 제거 |

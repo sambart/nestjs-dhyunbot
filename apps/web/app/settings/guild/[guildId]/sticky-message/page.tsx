@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, Pin, RefreshCw, Server, Trash2 } from 'lucide-react';
+import { Loader2, Pin, RefreshCw, Server, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import GuildEmojiPicker from '../../../../components/GuildEmojiPicker';
@@ -16,9 +16,9 @@ import { useSettings } from '../../../SettingsContext';
 
 // ─── 로컬 타입 ─────────────────────────────────────────────────────────────
 
-/** 클라이언트 폼 상태 — 미저장 카드도 표현 가능 */
-interface CardForm {
-  /** DB ID. null이면 아직 저장되지 않은 신규 카드 */
+/** 클라이언트 폼 상태 — 미저장 탭도 표현 가능 */
+interface TabForm {
+  /** DB ID. null이면 아직 저장되지 않은 신규 탭 */
   id: number | null;
   /** 임시 클라이언트 키 (React key용). 항상 존재 */
   clientKey: number;
@@ -30,15 +30,15 @@ interface CardForm {
   sortOrder: number;
 }
 
-/** 카드별 저장/삭제 상태 */
-interface CardState {
+/** 탭별 저장/삭제 상태 */
+interface TabState {
   isSaving: boolean;
   isDeleting: boolean;
   saveSuccess: boolean;
   saveError: string | null;
 }
 
-const DEFAULT_CARD_STATE: CardState = {
+const DEFAULT_TAB_STATE: TabState = {
   isSaving: false,
   isDeleting: false,
   saveSuccess: false,
@@ -52,27 +52,38 @@ const DEFAULT_EMBED_COLOR = '#5865F2';
 export default function StickyMessageSettingsPage() {
   const { selectedGuildId } = useSettings();
 
-  const [cards, setCards] = useState<CardForm[]>([]);
-  const [cardStates, setCardStates] = useState<Map<number, CardState>>(new Map());
+  const [tabs, setTabs] = useState<TabForm[]>([]);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [tabStates, setTabStates] = useState<Map<number, TabState>>(new Map());
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
   const [emojis, setEmojis] = useState<DiscordEmoji[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  /** 각 카드의 embedDescription textarea ref — clientKey → ref */
+  /** 각 탭의 embedDescription textarea ref — clientKey → ref */
   const embedDescRefs = useRef<Map<number, HTMLTextAreaElement>>(new Map());
 
-  // ─── 카드 상태 헬퍼 ───────────────────────────────────────────────────────
+  // ─── 탭 상태 헬퍼 ───────────────────────────────────────────────────────
 
-  const getCardState = (clientKey: number): CardState =>
-    cardStates.get(clientKey) ?? DEFAULT_CARD_STATE;
+  const getTabState = (clientKey: number): TabState =>
+    tabStates.get(clientKey) ?? DEFAULT_TAB_STATE;
 
-  const setCardState = (clientKey: number, partial: Partial<CardState>) => {
-    setCardStates((prev) => {
+  const setTabState = (clientKey: number, partial: Partial<TabState>) => {
+    setTabStates((prev) => {
       const next = new Map(prev);
-      next.set(clientKey, { ...(prev.get(clientKey) ?? DEFAULT_CARD_STATE), ...partial });
+      next.set(clientKey, { ...(prev.get(clientKey) ?? DEFAULT_TAB_STATE), ...partial });
       return next;
     });
+  };
+
+  // ─── 탭 라벨 헬퍼 ──────────────────────────────────────────────────────
+
+  const getTabLabel = (tab: TabForm): string => {
+    if (tab.channelId) {
+      const ch = channels.find((c) => c.id === tab.channelId);
+      if (ch) return `# ${ch.name}`;
+    }
+    return '새 고정메세지';
   };
 
   // ─── 초기 데이터 로드 ─────────────────────────────────────────────────────
@@ -81,8 +92,9 @@ export default function StickyMessageSettingsPage() {
     if (!selectedGuildId) return;
 
     setIsLoading(true);
-    setCards([]);
-    setCardStates(new Map());
+    setTabs([]);
+    setTabStates(new Map());
+    setActiveTabIndex(0);
 
     Promise.all([
       fetchStickyMessages(selectedGuildId).catch((): StickyMessageConfig[] => []),
@@ -90,17 +102,22 @@ export default function StickyMessageSettingsPage() {
       fetchGuildEmojis(selectedGuildId).catch((): DiscordEmoji[] => []),
     ])
       .then(([configs, chs, ems]) => {
-        const loaded: CardForm[] = configs.map((c) => ({
-          id: c.id,
-          clientKey: c.id,
-          channelId: c.channelId,
-          embedTitle: c.embedTitle ?? '',
-          embedDescription: c.embedDescription ?? '',
-          embedColor: c.embedColor ?? DEFAULT_EMBED_COLOR,
-          enabled: c.enabled,
-          sortOrder: c.sortOrder,
-        }));
-        setCards(loaded);
+        if (configs.length > 0) {
+          const loaded: TabForm[] = configs.map((c) => ({
+            id: c.id,
+            clientKey: c.id,
+            channelId: c.channelId,
+            embedTitle: c.embedTitle ?? '',
+            embedDescription: c.embedDescription ?? '',
+            embedColor: c.embedColor ?? DEFAULT_EMBED_COLOR,
+            enabled: c.enabled,
+            sortOrder: c.sortOrder,
+          }));
+          setTabs(loaded);
+        } else {
+          // 설정이 없으면 빈 탭 1개 기본 표시
+          setTabs([createEmptyTab(0)]);
+        }
         setChannels(chs);
         setEmojis(ems);
       })
@@ -125,27 +142,29 @@ export default function StickyMessageSettingsPage() {
     }
   };
 
-  // ─── 카드 CRUD ────────────────────────────────────────────────────────────
+  // ─── 탭 CRUD ────────────────────────────────────────────────────────────
 
-  const addCard = () => {
-    const clientKey = -Date.now();
-    const maxOrder = cards.reduce((m, c) => Math.max(m, c.sortOrder), -1);
-    const newCard: CardForm = {
-      id: null,
-      clientKey,
-      channelId: '',
-      embedTitle: '',
-      embedDescription: '',
-      embedColor: DEFAULT_EMBED_COLOR,
-      enabled: true,
-      sortOrder: maxOrder + 1,
-    };
-    setCards((prev) => [...prev, newCard]);
+  const createEmptyTab = (sortOrder: number): TabForm => ({
+    id: null,
+    clientKey: -Date.now(),
+    channelId: '',
+    embedTitle: '',
+    embedDescription: '',
+    embedColor: DEFAULT_EMBED_COLOR,
+    enabled: true,
+    sortOrder,
+  });
+
+  const addTab = () => {
+    const maxOrder = tabs.reduce((m, t) => Math.max(m, t.sortOrder), -1);
+    const newTab = createEmptyTab(maxOrder + 1);
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabIndex(tabs.length); // 새 탭으로 포커스
   };
 
-  const updateCard = (clientKey: number, patch: Partial<CardForm>) => {
-    setCards((prev) =>
-      prev.map((c) => (c.clientKey === clientKey ? { ...c, ...patch } : c)),
+  const updateTab = (clientKey: number, patch: Partial<TabForm>) => {
+    setTabs((prev) =>
+      prev.map((t) => (t.clientKey === clientKey ? { ...t, ...patch } : t)),
     );
   };
 
@@ -153,63 +172,63 @@ export default function StickyMessageSettingsPage() {
 
   const insertEmojiAtCursor = (clientKey: number, insertText: string) => {
     const textarea = embedDescRefs.current.get(clientKey);
-    const card = cards.find((c) => c.clientKey === clientKey);
-    if (!card) return;
-    const currentValue = card.embedDescription;
+    const tab = tabs.find((t) => t.clientKey === clientKey);
+    if (!tab) return;
+    const currentValue = tab.embedDescription;
 
     if (textarea) {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const newValue =
         currentValue.substring(0, start) + insertText + currentValue.substring(end);
-      updateCard(clientKey, { embedDescription: newValue });
+      updateTab(clientKey, { embedDescription: newValue });
       requestAnimationFrame(() => {
         textarea.focus();
         const pos = start + insertText.length;
         textarea.setSelectionRange(pos, pos);
       });
     } else {
-      updateCard(clientKey, { embedDescription: currentValue + insertText });
+      updateTab(clientKey, { embedDescription: currentValue + insertText });
     }
   };
 
   // ─── 저장 핸들러 ──────────────────────────────────────────────────────────
 
   const handleSave = async (clientKey: number) => {
-    const card = cards.find((c) => c.clientKey === clientKey);
-    if (!card || !selectedGuildId) return;
+    const tab = tabs.find((t) => t.clientKey === clientKey);
+    if (!tab || !selectedGuildId) return;
 
-    const state = getCardState(clientKey);
+    const state = getTabState(clientKey);
     if (state.isSaving) return;
 
     // 유효성 검사: channelId 필수
-    if (!card.channelId) {
-      setCardState(clientKey, { saveError: '채널을 선택해주세요.' });
+    if (!tab.channelId) {
+      setTabState(clientKey, { saveError: '채널을 선택해주세요.' });
       return;
     }
 
-    setCardState(clientKey, { isSaving: true, saveError: null, saveSuccess: false });
+    setTabState(clientKey, { isSaving: true, saveError: null, saveSuccess: false });
 
     const payload: StickyMessageSaveDto = {
-      id: card.id,
-      channelId: card.channelId,
-      embedTitle: card.embedTitle || null,
-      embedDescription: card.embedDescription || null,
-      embedColor: card.embedColor,
-      enabled: card.enabled,
-      sortOrder: card.sortOrder,
+      id: tab.id,
+      channelId: tab.channelId,
+      embedTitle: tab.embedTitle || null,
+      embedDescription: tab.embedDescription || null,
+      embedColor: tab.embedColor,
+      enabled: tab.enabled,
+      sortOrder: tab.sortOrder,
     };
 
     try {
       const saved = await saveStickyMessage(selectedGuildId, payload);
-      // 저장 후 id를 DB id로 갱신 (신규 카드의 경우 null → 실제 id로 교체)
-      setCards((prev) =>
-        prev.map((c) => (c.clientKey === clientKey ? { ...c, id: saved.id } : c)),
+      // 저장 후 id를 DB id로 갱신 (신규 탭의 경우 null → 실제 id로 교체)
+      setTabs((prev) =>
+        prev.map((t) => (t.clientKey === clientKey ? { ...t, id: saved.id } : t)),
       );
-      setCardState(clientKey, { isSaving: false, saveSuccess: true });
-      setTimeout(() => setCardState(clientKey, { saveSuccess: false }), 3000);
+      setTabState(clientKey, { isSaving: false, saveSuccess: true });
+      setTimeout(() => setTabState(clientKey, { saveSuccess: false }), 3000);
     } catch (err) {
-      setCardState(clientKey, {
+      setTabState(clientKey, {
         isSaving: false,
         saveError: err instanceof Error ? err.message : '저장에 실패했습니다.',
       });
@@ -218,13 +237,14 @@ export default function StickyMessageSettingsPage() {
 
   // ─── 삭제 핸들러 ──────────────────────────────────────────────────────────
 
-  const handleDelete = async (clientKey: number) => {
-    const card = cards.find((c) => c.clientKey === clientKey);
-    if (!card || !selectedGuildId) return;
+  const handleDelete = async (tabIndex: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const tab = tabs[tabIndex];
+    if (!tab || !selectedGuildId) return;
 
-    // 미저장 카드(id === null)는 API 호출 없이 바로 제거
-    if (card.id === null) {
-      setCards((prev) => prev.filter((c) => c.clientKey !== clientKey));
+    // 미저장 탭(id === null)는 API 호출 없이 바로 제거
+    if (tab.id === null) {
+      removeTabAtIndex(tabIndex);
       return;
     }
 
@@ -233,22 +253,39 @@ export default function StickyMessageSettingsPage() {
     );
     if (!confirmed) return;
 
-    setCardState(clientKey, { isDeleting: true, saveError: null });
+    setTabState(tab.clientKey, { isDeleting: true, saveError: null });
 
     try {
-      await deleteStickyMessage(selectedGuildId, card.id);
-      setCards((prev) => prev.filter((c) => c.clientKey !== clientKey));
-      setCardStates((prev) => {
+      await deleteStickyMessage(selectedGuildId, tab.id);
+      removeTabAtIndex(tabIndex);
+      setTabStates((prev) => {
         const next = new Map(prev);
-        next.delete(clientKey);
+        next.delete(tab.clientKey);
         return next;
       });
     } catch (err) {
-      setCardState(clientKey, {
+      setTabState(tab.clientKey, {
         isDeleting: false,
         saveError: err instanceof Error ? err.message : '삭제에 실패했습니다.',
       });
     }
+  };
+
+  const removeTabAtIndex = (tabIndex: number) => {
+    setTabs((prev) => {
+      const next = prev.filter((_, i) => i !== tabIndex);
+      // 탭이 모두 삭제되면 빈 탭 1개 추가
+      if (next.length === 0) {
+        return [createEmptyTab(0)];
+      }
+      return next;
+    });
+    // 활성 탭 인덱스 조정
+    setActiveTabIndex((prev) => {
+      if (tabIndex < prev) return prev - 1;
+      if (tabIndex === prev) return Math.max(0, tabIndex - 1);
+      return prev;
+    });
   };
 
   // ─── 조건부 렌더링 ────────────────────────────────────────────────────────
@@ -278,6 +315,9 @@ export default function StickyMessageSettingsPage() {
     );
   }
 
+  const activeTab = tabs[activeTabIndex];
+  const activeState = activeTab ? getTabState(activeTab.clientKey) : DEFAULT_TAB_STATE;
+
   // ─── 메인 렌더링 ──────────────────────────────────────────────────────────
 
   return (
@@ -300,267 +340,264 @@ export default function StickyMessageSettingsPage() {
         </button>
       </div>
 
-      {/* 카드 목록 */}
-      {cards.length === 0 ? (
-        <section className="bg-white rounded-xl border border-gray-200 p-8">
-          <div className="flex flex-col items-center text-center py-8">
-            <Pin className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="text-sm text-gray-500">
-              등록된 고정메세지가 없습니다. 아래 버튼으로 추가하세요.
-            </p>
-          </div>
-        </section>
-      ) : (
-        <div className="space-y-6">
-          {cards.map((card, idx) => {
-            const state = getCardState(card.clientKey);
-            return (
-              <section
-                key={card.clientKey}
-                className="bg-white rounded-xl border border-gray-200 p-6"
+      {/* 탭 바 */}
+      <div className="flex border-b border-gray-200 mb-0 overflow-x-auto">
+        {tabs.map((tab, idx) => (
+          <button
+            key={tab.clientKey}
+            type="button"
+            onClick={() => setActiveTabIndex(idx)}
+            className={`group flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+              activeTabIndex === idx
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <span>{getTabLabel(tab)}</span>
+            {!(tabs.length === 1 && tab.id === null && !tab.channelId) && (
+              <span
+                role="button"
+                tabIndex={-1}
+                onClick={(e) => handleDelete(idx, e)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleDelete(idx, e as unknown as React.MouseEvent);
+                  }
+                }}
+                className="flex items-center justify-center w-4 h-4 rounded-full hover:bg-red-100 hover:text-red-500 text-gray-400 transition-colors"
+                aria-label="탭 삭제"
               >
-                {/* 카드 헤더 */}
-                <div className="flex items-center justify-between mb-5">
-                  <span className="text-sm font-semibold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-full">
-                    #{idx + 1}
-                  </span>
+                <X className="w-3 h-3" />
+              </span>
+            )}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={addTab}
+          className="px-4 py-3 text-sm font-medium text-indigo-500 border-b-2 border-transparent hover:text-indigo-700 hover:border-indigo-300 whitespace-nowrap transition-colors"
+        >
+          + 추가
+        </button>
+      </div>
+
+      {/* 활성 탭 설정 폼 */}
+      {activeTab && (
+        <section className="bg-white rounded-b-xl border border-t-0 border-gray-200 p-6">
+          <div className="space-y-6">
+            {/* 섹션: 채널 설정 */}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">채널 설정</h2>
+              <div className="space-y-4">
+
+                {/* 텍스트 채널 선택 */}
+                <div>
+                  <label
+                    htmlFor={`sm-channel-${activeTab.clientKey}`}
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    텍스트 채널 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id={`sm-channel-${activeTab.clientKey}`}
+                    value={activeTab.channelId}
+                    onChange={(e) =>
+                      updateTab(activeTab.clientKey, { channelId: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">채널을 선택하세요</option>
+                    {channels.map((ch) => (
+                      <option key={ch.id} value={ch.id}>
+                        # {ch.name}
+                      </option>
+                    ))}
+                  </select>
+                  {channels.length === 0 && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      채널 목록을 불러올 수 없습니다. 백엔드 연동 후 사용 가능합니다.
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">
+                    고정메세지를 표시할 텍스트 채널
+                  </p>
+                </div>
+
+                {/* 기능 활성화 토글 */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">기능 활성화</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      활성화 시 저장 즉시 지정 채널에 고정메세지가 전송/갱신됩니다.
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => handleDelete(card.clientKey)}
-                    disabled={state.isDeleting}
-                    aria-label="카드 삭제"
-                    className="flex items-center space-x-1 text-xs text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    role="switch"
+                    aria-checked={activeTab.enabled}
+                    onClick={() =>
+                      updateTab(activeTab.clientKey, { enabled: !activeTab.enabled })
+                    }
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                      activeTab.enabled ? 'bg-indigo-600' : 'bg-gray-200'
+                    }`}
                   >
-                    <Trash2 className="w-4 h-4" />
-                    <span>{state.isDeleting ? '삭제 중...' : '삭제'}</span>
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        activeTab.enabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
                   </button>
                 </div>
 
-                <div className="space-y-6">
-                  {/* 섹션: 채널 설정 */}
-                  <div>
-                    <h2 className="text-sm font-semibold text-gray-900 mb-3">채널 설정</h2>
-                    <div className="space-y-4">
+              </div>
+            </div>
 
-                      {/* 텍스트 채널 선택 */}
-                      <div>
-                        <label
-                          htmlFor={`sm-channel-${card.clientKey}`}
-                          className="block text-sm font-medium text-gray-700 mb-1"
-                        >
-                          텍스트 채널 <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          id={`sm-channel-${card.clientKey}`}
-                          value={card.channelId}
-                          onChange={(e) =>
-                            updateCard(card.clientKey, { channelId: e.target.value })
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                          <option value="">채널을 선택하세요</option>
-                          {channels.map((ch) => (
-                            <option key={ch.id} value={ch.id}>
-                              # {ch.name}
-                            </option>
-                          ))}
-                        </select>
-                        {channels.length === 0 && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            채널 목록을 불러올 수 없습니다. 백엔드 연동 후 사용 가능합니다.
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-400 mt-1">
-                          고정메세지를 표시할 텍스트 채널
-                        </p>
-                      </div>
+            {/* 구분선 */}
+            <hr className="border-gray-100" />
 
-                      {/* 기능 활성화 토글 */}
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">기능 활성화</p>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            활성화 시 저장 즉시 지정 채널에 고정메세지가 전송/갱신됩니다.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={card.enabled}
-                          onClick={() =>
-                            updateCard(card.clientKey, { enabled: !card.enabled })
-                          }
-                          className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                            card.enabled ? 'bg-indigo-600' : 'bg-gray-200'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                              card.enabled ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                      </div>
+            {/* 섹션: Embed 설정 */}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">Embed 설정</h2>
+              <div className="space-y-4">
 
-                    </div>
-                  </div>
+                {/* Embed 제목 */}
+                <div>
+                  <label
+                    htmlFor={`sm-title-${activeTab.clientKey}`}
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Embed 제목
+                  </label>
+                  <input
+                    id={`sm-title-${activeTab.clientKey}`}
+                    type="text"
+                    value={activeTab.embedTitle}
+                    onChange={(e) =>
+                      updateTab(activeTab.clientKey, { embedTitle: e.target.value })
+                    }
+                    placeholder="예: 공지 안내"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
 
-                  {/* 구분선 */}
-                  <hr className="border-gray-100" />
-
-                  {/* 섹션: Embed 설정 */}
-                  <div>
-                    <h2 className="text-sm font-semibold text-gray-900 mb-3">Embed 설정</h2>
-                    <div className="space-y-4">
-
-                      {/* Embed 제목 */}
-                      <div>
-                        <label
-                          htmlFor={`sm-title-${card.clientKey}`}
-                          className="block text-sm font-medium text-gray-700 mb-1"
-                        >
-                          Embed 제목
-                        </label>
-                        <input
-                          id={`sm-title-${card.clientKey}`}
-                          type="text"
-                          value={card.embedTitle}
-                          onChange={(e) =>
-                            updateCard(card.clientKey, { embedTitle: e.target.value })
-                          }
-                          placeholder="예: 공지 안내"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-
-                      {/* Embed 설명 */}
-                      <div>
-                        <label
-                          htmlFor={`sm-desc-${card.clientKey}`}
-                          className="block text-sm font-medium text-gray-700 mb-1"
-                        >
-                          Embed 설명
-                        </label>
-                        <textarea
-                          ref={(el) => {
-                            if (el) {
-                              embedDescRefs.current.set(card.clientKey, el);
-                            } else {
-                              embedDescRefs.current.delete(card.clientKey);
-                            }
-                          }}
-                          id={`sm-desc-${card.clientKey}`}
-                          value={card.embedDescription}
-                          onChange={(e) =>
-                            updateCard(card.clientKey, { embedDescription: e.target.value })
-                          }
-                          placeholder="예: 이 채널은 공지 전용입니다."
-                          rows={4}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                        />
-                        <div className="flex items-center mt-2">
-                          <GuildEmojiPicker
-                            emojis={emojis}
-                            onSelect={(val) => insertEmojiAtCursor(card.clientKey, val)}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Embed 색상 */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Embed 색상
-                        </label>
-                        <div className="flex items-center space-x-3">
-                          <input
-                            type="color"
-                            value={card.embedColor}
-                            onChange={(e) =>
-                              updateCard(card.clientKey, { embedColor: e.target.value })
-                            }
-                            aria-label="Embed 색상 피커"
-                            className="h-9 w-16 border border-gray-300 rounded cursor-pointer p-1"
-                          />
-                          <input
-                            type="text"
-                            value={card.embedColor}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                                updateCard(card.clientKey, { embedColor: val });
-                              }
-                            }}
-                            maxLength={7}
-                            placeholder="#5865F2"
-                            aria-label="Embed 색상 HEX 코드"
-                            className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Embed 미리보기 */}
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 mb-2">미리보기</p>
-                        <div className="bg-[#2B2D31] rounded-lg p-4">
-                          <div
-                            className="bg-[#313338] rounded-md overflow-hidden"
-                            style={{
-                              borderLeft: `4px solid ${card.embedColor || DEFAULT_EMBED_COLOR}`,
-                            }}
-                          >
-                            <div className="p-4">
-                              <p className="text-white font-semibold text-sm mb-1 break-words">
-                                {card.embedTitle || '(제목 없음)'}
-                              </p>
-                              <p className="text-gray-300 text-xs whitespace-pre-wrap break-words">
-                                {card.embedDescription || '(설명 없음)'}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* 카드 푸터: 저장 피드백 + 저장 버튼 */}
-                  <div className="flex items-center justify-between gap-4 pt-2">
-                    <div className="flex-1">
-                      {state.saveSuccess && (
-                        <p className="text-sm text-green-600 font-medium">
-                          저장되었습니다.
-                        </p>
-                      )}
-                      {state.saveError && (
-                        <p className="text-sm text-red-600 font-medium">
-                          {state.saveError}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleSave(card.clientKey)}
-                      disabled={state.isSaving || state.isDeleting}
-                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
-                    >
-                      {state.isSaving ? '저장 중...' : '저장'}
-                    </button>
+                {/* Embed 설명 */}
+                <div>
+                  <label
+                    htmlFor={`sm-desc-${activeTab.clientKey}`}
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Embed 설명
+                  </label>
+                  <textarea
+                    ref={(el) => {
+                      if (el) {
+                        embedDescRefs.current.set(activeTab.clientKey, el);
+                      } else {
+                        embedDescRefs.current.delete(activeTab.clientKey);
+                      }
+                    }}
+                    id={`sm-desc-${activeTab.clientKey}`}
+                    value={activeTab.embedDescription}
+                    onChange={(e) =>
+                      updateTab(activeTab.clientKey, { embedDescription: e.target.value })
+                    }
+                    placeholder="예: 이 채널은 공지 전용입니다."
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  />
+                  <div className="flex items-center mt-2">
+                    <GuildEmojiPicker
+                      emojis={emojis}
+                      onSelect={(val) => insertEmojiAtCursor(activeTab.clientKey, val)}
+                    />
                   </div>
                 </div>
-              </section>
-            );
-          })}
-        </div>
-      )}
 
-      {/* 카드 추가 버튼 */}
-      <button
-        type="button"
-        onClick={addCard}
-        className="mt-6 w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm font-medium text-gray-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-      >
-        + 고정메세지 추가
-      </button>
+                {/* Embed 색상 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Embed 색상
+                  </label>
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="color"
+                      value={activeTab.embedColor}
+                      onChange={(e) =>
+                        updateTab(activeTab.clientKey, { embedColor: e.target.value })
+                      }
+                      aria-label="Embed 색상 피커"
+                      className="h-9 w-16 border border-gray-300 rounded cursor-pointer p-1"
+                    />
+                    <input
+                      type="text"
+                      value={activeTab.embedColor}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                          updateTab(activeTab.clientKey, { embedColor: val });
+                        }
+                      }}
+                      maxLength={7}
+                      placeholder="#5865F2"
+                      aria-label="Embed 색상 HEX 코드"
+                      className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Embed 미리보기 */}
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">미리보기</p>
+                  <div className="bg-[#2B2D31] rounded-lg p-4">
+                    <div
+                      className="bg-[#313338] rounded-md overflow-hidden"
+                      style={{
+                        borderLeft: `4px solid ${activeTab.embedColor || DEFAULT_EMBED_COLOR}`,
+                      }}
+                    >
+                      <div className="p-4">
+                        <p className="text-white font-semibold text-sm mb-1 break-words">
+                          {activeTab.embedTitle || '(제목 없음)'}
+                        </p>
+                        <p className="text-gray-300 text-xs whitespace-pre-wrap break-words">
+                          {activeTab.embedDescription || '(설명 없음)'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* 탭 푸터: 저장 피드백 + 저장 버튼 */}
+            <div className="flex items-center justify-between gap-4 pt-2">
+              <div className="flex-1">
+                {activeState.saveSuccess && (
+                  <p className="text-sm text-green-600 font-medium">
+                    저장되었습니다.
+                  </p>
+                )}
+                {activeState.saveError && (
+                  <p className="text-sm text-red-600 font-medium">
+                    {activeState.saveError}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => handleSave(activeTab.clientKey)}
+                disabled={activeState.isSaving || activeState.isDeleting}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+              >
+                {activeState.isSaving ? '저장 중...' : '저장'}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
