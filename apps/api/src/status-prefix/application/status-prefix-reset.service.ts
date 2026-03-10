@@ -133,7 +133,8 @@ export class StatusPrefixResetService {
     // 5. Discord GuildMember fetch (인터랙션 컨텍스트 없이 Client 직접 사용)
     let member: GuildMember;
     try {
-      const guild = await this.discordClient.guilds.fetch(guildId);
+      const guild = this.discordClient.guilds.cache.get(guildId);
+      if (!guild) throw new Error(`Guild ${guildId} not found in cache`);
       member = await guild.members.fetch(memberId);
     } catch (err) {
       this.logger.warn(

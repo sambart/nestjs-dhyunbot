@@ -11,7 +11,8 @@ export class DiscordVoiceGateway {
     name: string;
     parentCategoryId?: string;
   }): Promise<string> {
-    const guild = await this.client.guilds.fetch(cmd.guildId);
+    const guild = this.client.guilds.cache.get(cmd.guildId);
+    if (!guild) throw new Error(`Guild ${cmd.guildId} not found in cache`);
 
     const channel = await guild.channels.create({
       name: cmd.name,
@@ -23,7 +24,8 @@ export class DiscordVoiceGateway {
   }
 
   async moveUserToChannel(guildId: string, userId: string, channelId: string): Promise<void> {
-    const guild = await this.client.guilds.fetch(guildId);
+    const guild = this.client.guilds.cache.get(guildId);
+    if (!guild) throw new Error(`Guild ${guildId} not found in cache`);
     const member = await guild.members.fetch(userId);
 
     await member.voice.setChannel(channelId);

@@ -115,18 +115,7 @@ export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShut
    * Guild 가져오기 (캐시 사용)
    */
   async getGuild(guildId: string): Promise<Guild | null> {
-    try {
-      const cached = this.touchCache(this.guildCache, guildId);
-      if (cached) return cached;
-
-      const guild = await this.client.guilds.fetch(guildId);
-      this.evictIfNeeded(this.guildCache, DiscordGateway.GUILD_CACHE_MAX);
-      this.putCache(this.guildCache, guildId, guild);
-      return guild;
-    } catch (error) {
-      this.logger.warn(`Failed to fetch guild ${guildId}:`, (error as Error).message);
-      return null;
-    }
+    return this.client.guilds.cache.get(guildId) ?? null;
   }
 
   /**

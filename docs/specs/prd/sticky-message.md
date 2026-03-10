@@ -35,9 +35,9 @@ Discord messageCreate Event
     ▼
 [StickyMessageGateway]           ← messageCreate 이벤트 수신
     │
-    ├── 봇 자신의 메시지 → 무시
+    ├── 봇 자신의 고정메세지 재전송 → 무시 (무한루프 방지)
     │
-    └── 일반 메시지
+    └── 일반 메시지 + 봇 메시지 (슬래시 커맨드 결과 등)
             │
             ▼
         sticky_message:config:{guildId} → Redis get (캐시 조회, 미스 시 DB)
@@ -148,7 +148,7 @@ Web Dashboard API
 - **트리거**: 고정메세지가 등록된 채널에 새 메시지 수신 (`messageCreate` 이벤트)
 - **전제 조건**: `StickyMessageConfig`에 해당 채널이 등록되어 있고 `enabled = true`
 - **동작**:
-  1. `message.author.bot === true`이면 처리 중단 (봇 메시지 무시)
+  1. 봇 자신의 고정메세지 재전송이면 처리 중단 (무한루프 방지). `StickyMessageRefreshService`가 전송한 메시지 ID를 추적하여 판별한다. 봇의 다른 메시지(슬래시 커맨드 결과 등)는 정상적으로 갱신 트리거한다.
   2. `sticky_message:config:{guildId}` Redis 캐시 조회 (미스 시 DB 조회 후 캐시 저장)
   3. 해당 `channelId`에 등록된 고정메세지 설정이 없으면 처리 중단
   4. 고정메세지 설정이 있으면:

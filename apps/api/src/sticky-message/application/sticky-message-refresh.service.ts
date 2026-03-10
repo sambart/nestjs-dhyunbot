@@ -13,6 +13,16 @@ export class StickyMessageRefreshService {
   /** 잠금 타임아웃 (ms): 30초 — 이 시간이 지나면 stale 잠금으로 간주하여 강제 해제 */
   private static readonly REFRESH_LOCK_TIMEOUT_MS = 30_000;
 
+  /** 최근 전송한 고정메세지 ID — 무한루프 방지용 */
+  private readonly recentStickyMessageIds = new Set<string>();
+  /** 고정메세지 ID 추적 유지 시간 (ms) */
+  private static readonly STICKY_ID_RETENTION_MS = 5_000;
+
+  /** 해당 메시지 ID가 고정메세지 재전송인지 확인 */
+  isStickyMessage(messageId: string): boolean {
+    return this.recentStickyMessageIds.has(messageId);
+  }
+
   constructor(
     private readonly configRepo: StickyMessageConfigRepository,
     @InjectDiscordClient() private readonly client: Client,
@@ -86,6 +96,10 @@ export class StickyMessageRefreshService {
     if (config.embedColor) embed.setColor(config.embedColor as `#${string}`);
 
     const message = await (channel as TextChannel).send({ embeds: [embed] });
+
+    this.recentStickyMessageIds.add(message.id);
+    setTimeout(() => this.recentStickyMessageIds.delete(message.id), StickyMessageRefreshService.STICKY_ID_RETENTION_MS);
+
     return message.id;
   }
 
