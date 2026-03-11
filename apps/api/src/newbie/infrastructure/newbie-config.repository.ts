@@ -32,6 +32,7 @@ export class NewbieConfigRepository {
       config.welcomeEmbedDescription = dto.welcomeEmbedDescription ?? null;
       config.welcomeEmbedColor = dto.welcomeEmbedColor ?? null;
       config.welcomeEmbedThumbnailUrl = dto.welcomeEmbedThumbnailUrl ?? null;
+      config.welcomeContent = dto.welcomeContent ?? null;
       config.missionEnabled = dto.missionEnabled;
       config.missionDurationDays = dto.missionDurationDays ?? null;
       config.missionTargetPlaytimeHours = dto.missionTargetPlaytimeHours ?? null;
@@ -72,6 +73,7 @@ export class NewbieConfigRepository {
         welcomeEmbedDescription: dto.welcomeEmbedDescription ?? null,
         welcomeEmbedColor: dto.welcomeEmbedColor ?? null,
         welcomeEmbedThumbnailUrl: dto.welcomeEmbedThumbnailUrl ?? null,
+        welcomeContent: dto.welcomeContent ?? null,
         missionEnabled: dto.missionEnabled,
         missionDurationDays: dto.missionDurationDays ?? null,
         missionTargetPlaytimeHours: dto.missionTargetPlaytimeHours ?? null,
