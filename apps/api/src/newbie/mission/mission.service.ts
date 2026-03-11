@@ -62,6 +62,15 @@ export class MissionService {
       return;
     }
 
+    // 이미 진행 중인 미션이 있으면 중복 생성 방지
+    const existing = await this.missionRepo.findActiveByMember(member.guild.id, member.id);
+    if (existing) {
+      this.logger.log(
+        `[MISSION] Skipped duplicate: guild=${member.guild.id} member=${member.id} existingId=${existing.id}`,
+      );
+      return;
+    }
+
     const today = this.toDateString(new Date());
     const endDate = this.toDateString(
       new Date(Date.now() + config.missionDurationDays * 24 * 60 * 60 * 1000),
@@ -631,8 +640,9 @@ export class MissionService {
     const statusMapping = tmpl?.statusMapping ?? DEFAULT_STATUS_MAPPING;
 
     // 2. 상태별 카운트 집계
+    //    totalCount는 Embed에 실제 표시되는 미션 수(= missions 배열 길이)를 사용한다.
     const statusCounts = await this.missionRepo.countByStatusForGuild(guildId);
-    const totalCount = statusCounts.IN_PROGRESS + statusCounts.COMPLETED + statusCounts.FAILED + statusCounts.LEFT;
+    const totalCount = missions.length;
     const inProgressCount = statusCounts.IN_PROGRESS;
     const completedCount = statusCounts.COMPLETED;
     const failedCount = statusCounts.FAILED;

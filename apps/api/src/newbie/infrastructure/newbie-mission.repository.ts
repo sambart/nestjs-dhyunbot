@@ -87,11 +87,12 @@ export class NewbieMissionRepository {
   }
 
   /**
-   * 길드의 Embed 표시 대상 미션 조회 (hiddenFromEmbed = false, 모든 상태)
+   * 길드의 Embed 표시 대상 미션 조회 (IN_PROGRESS만, hiddenFromEmbed = false).
+   * 완료/실패/탈퇴 미션은 Embed에 표시하지 않는다.
    */
   async findVisibleByGuild(guildId: string): Promise<NewbieMission[]> {
     return this.repo.find({
-      where: { guildId, hiddenFromEmbed: false },
+      where: { guildId, status: MissionStatus.IN_PROGRESS, hiddenFromEmbed: false },
     });
   }
 
