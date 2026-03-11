@@ -64,16 +64,16 @@ export class MocoDbRepository {
       `
       INSERT INTO ${schemaPrefix}"${tableName}"
         ("guildId", "hunterId", "date", "channelMinutes", "sessionCount", "uniqueNewbieCount", "score")
-      VALUES ($1, $2, $3, $4, $5, $6,
-        ($5 * $7) + ($4 * $8) + ($6 * $9)
+      VALUES ($1, $2, $3, $4::int, $5::int, $6::int,
+        ($5::int * $7::numeric) + ($4::int * $8::numeric) + ($6::int * $9::numeric)
       )
       ON CONFLICT ("guildId", "hunterId", "date") DO UPDATE SET
         "channelMinutes"    = "${tableName}"."channelMinutes"    + EXCLUDED."channelMinutes",
         "sessionCount"      = "${tableName}"."sessionCount"      + EXCLUDED."sessionCount",
         "uniqueNewbieCount" = "${tableName}"."uniqueNewbieCount" + EXCLUDED."uniqueNewbieCount",
-        "score" = (("${tableName}"."sessionCount" + EXCLUDED."sessionCount") * $7)
-                + (("${tableName}"."channelMinutes" + EXCLUDED."channelMinutes") * $8)
-                + (("${tableName}"."uniqueNewbieCount" + EXCLUDED."uniqueNewbieCount") * $9)
+        "score" = (("${tableName}"."sessionCount" + EXCLUDED."sessionCount") * $7::numeric)
+                + (("${tableName}"."channelMinutes" + EXCLUDED."channelMinutes") * $8::numeric)
+                + (("${tableName}"."uniqueNewbieCount" + EXCLUDED."uniqueNewbieCount") * $9::numeric)
       `,
       [
         guildId,

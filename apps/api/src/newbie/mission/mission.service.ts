@@ -6,6 +6,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   Client,
+  DiscordAPIError,
   EmbedBuilder,
   GuildMember,
   TextChannel,
@@ -230,7 +231,14 @@ export class MissionService {
     }
 
     // 미등록 멤버 자동 등록 (가입일 기준 missionDurationDays 이내)
-    await this.registerMissingMembers(guildId, resolvedConfig);
+    try {
+      await this.registerMissingMembers(guildId, resolvedConfig);
+    } catch (err) {
+      this.logger.warn(
+        `[MISSION] registerMissingMembers failed (continuing embed refresh): guild=${guildId}`,
+        (err as Error).stack,
+      );
+    }
 
     // Embed 표시 대상 미션 조회 (모든 상태, hiddenFromEmbed=false)
     let missions = await this.missionRepo.findVisibleByGuild(guildId);
@@ -521,6 +529,9 @@ export class MissionService {
    * 봇 멤버의 미션은 DB에서 삭제하고, 서버를 떠난 멤버의 미션은
    * IN_PROGRESS → LEFT 상태로 변경 + hiddenFromEmbed = true 처리한다.
    * 변경사항이 있으면 캐시를 무효화한다.
+   *
+   * Discord API 오류(rate limit, 네트워크 등)와 실제 탈퇴(10007 Unknown Member)를
+   * 구분하여, 일시적 오류 시에는 미션 데이터를 변경하지 않는다.
    */
   private async removeInvalidMissions(
     guildId: string,
@@ -535,7 +546,24 @@ export class MissionService {
     let changed = 0;
 
     for (const mission of missions) {
-      const member = await guild.members.fetch(mission.memberId).catch(() => null);
+      let member: GuildMember | null = null;
+      let isConfirmedAbsent = false;
+
+      try {
+        member = await guild.members.fetch(mission.memberId);
+      } catch (err) {
+        if (err instanceof DiscordAPIError && err.code === 10007) {
+          // 10007 = Unknown Member → 서버에 실제로 없는 멤버
+          isConfirmedAbsent = true;
+        } else {
+          // Rate limit, 네트워크 오류 등 → 판단 불가, 기존 상태 유지
+          this.logger.warn(
+            `[MISSION] Member fetch failed (keeping mission): id=${mission.id} member=${mission.memberId} error=${(err as Error).message}`,
+          );
+          valid.push(mission);
+          continue;
+        }
+      }
 
       if (member?.user.bot) {
         // 봇 멤버: DB에서 삭제
@@ -547,7 +575,7 @@ export class MissionService {
         continue;
       }
 
-      if (!member) {
+      if (isConfirmedAbsent) {
         // 나간 멤버: DB 보존, embed에서만 제거
         if (mission.status === MissionStatus.IN_PROGRESS) {
           await this.missionRepo.updateStatus(mission.id, MissionStatus.LEFT);
@@ -674,9 +702,23 @@ export class MissionService {
     }
 
     // 6. description 조합: 헤더 + '\n\n' + 항목들 (항목 간 '\n\n' 구분)
-    const description = missions.length > 0
-      ? `${resolvedHeader}\n\n${itemLines.join('\n\n')}`
-      : resolvedHeader;
+    //    Discord Embed description 최대 4096자 제한 준수
+    const MAX_DESCRIPTION_LENGTH = 4096;
+    let description: string;
+    if (missions.length > 0) {
+      const parts: string[] = [resolvedHeader];
+      for (const line of itemLines) {
+        const candidate = parts.join('\n\n') + '\n\n' + line;
+        if (candidate.length > MAX_DESCRIPTION_LENGTH) {
+          parts.push('…외 추가 멤버 생략');
+          break;
+        }
+        parts.push(line);
+      }
+      description = parts.join('\n\n');
+    } else {
+      description = resolvedHeader;
+    }
 
     // 7. 푸터 렌더링
     const updatedAt = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
@@ -686,7 +728,7 @@ export class MissionService {
     const embed = new EmbedBuilder()
       .setTitle(resolvedTitle)
       .setDescription(description)
-      .setColor(config.missionEmbedColor ? (config.missionEmbedColor as `#${string}`) : 0x57f287)
+      .setColor(this.resolveEmbedColor(config.missionEmbedColor))
       .setFooter({ text: resolvedFooter });
 
     if (config.missionEmbedThumbnailUrl) {
@@ -767,6 +809,19 @@ export class MissionService {
     const msPerDay = 24 * 60 * 60 * 1000;
     const days = Math.floor((endDateObj.getTime() - todayDate.getTime()) / msPerDay);
     return Math.max(0, days);
+  }
+
+  /**
+   * Embed 색상 문자열을 안전하게 파싱.
+   * '#RRGGBB' 형식이 아니거나 파싱 실패 시 기본 색상(0x57f287)을 반환한다.
+   */
+  private resolveEmbedColor(color: string | null | undefined): number {
+    const DEFAULT_COLOR = 0x57f287;
+    if (!color) return DEFAULT_COLOR;
+    const hex = color.startsWith('#') ? color : `#${color}`;
+    const parsed = parseInt(hex.slice(1), 16);
+    if (isNaN(parsed) || hex.slice(1).length !== 6) return DEFAULT_COLOR;
+    return parsed;
   }
 
   /**
