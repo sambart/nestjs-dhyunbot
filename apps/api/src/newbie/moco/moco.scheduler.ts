@@ -120,14 +120,15 @@ export class MocoScheduler implements OnApplicationBootstrap, OnApplicationShutd
       );
       if (excluded) continue;
 
-      // 신규사용자(모코코) 식별
+      // 신규사용자(모코코) 식별 (봇 제외)
       const confirmedNewbies = members
-        .filter((m) => m.joinedAt && m.joinedAt.getTime() >= cutoff)
+        .filter((m) => !m.user.bot && m.joinedAt && m.joinedAt.getTime() >= cutoff)
         .map((m) => m.id);
       if (confirmedNewbies.length === 0) continue;
 
-      // 사냥꾼 식별
-      const memberIds = members.map((m) => m.id);
+      // 사냥꾼 식별 (봇 제외)
+      const humanMembers = members.filter((m) => !m.user.bot);
+      const memberIds = humanMembers.map((m) => m.id);
       const newbieSet = new Set(confirmedNewbies);
       const hunters = config.mocoAllowNewbieHunter
         ? memberIds
