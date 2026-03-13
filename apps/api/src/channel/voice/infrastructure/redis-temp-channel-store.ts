@@ -31,7 +31,7 @@ export class RedisTempChannelStore implements TempChannelStore {
   }
 
   async isTempChannel(guildId: string, channelId: string): Promise<boolean> {
-    return await this.redis.sismember(this.channelsKey(guildId), channelId);
+    return this.redis.sismember(this.channelsKey(guildId), channelId);
   }
 
   async addMember(channelId: string, userId: string): Promise<void> {

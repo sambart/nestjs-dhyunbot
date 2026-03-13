@@ -117,7 +117,7 @@ export class AutoChannelController {
   ): Promise<{ ok: boolean }> {
     // 1. 설정 조회 및 guildId 일치 확인
     const config = await this.configRepo.findById(configId);
-    if (!config || config.guildId !== guildId) {
+    if (config?.guildId !== guildId) {
       throw new NotFoundException(`AutoChannelConfig not found: configId=${configId}`);
     }
 

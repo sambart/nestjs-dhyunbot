@@ -68,13 +68,12 @@ export class VoiceStateDispatcher {
         this.emitAloneChanged(newState);
 
         // 이동 후 이전 채널이 비어있으면 자동방 삭제 이벤트 발행 (fire-and-forget)
-        if (oldState.channel && oldState.channel.members.size === 0) {
+        if (oldState.channel?.members.size === 0) {
           this.eventEmitter.emit(
             AUTO_CHANNEL_EVENTS.CHANNEL_EMPTY,
             new AutoChannelChannelEmptyEvent(oldState.guild.id, oldState.channelId!),
           );
         }
-
       }
 
       if (isJoin) {
@@ -107,21 +106,17 @@ export class VoiceStateDispatcher {
         this.emitAloneChanged(oldState);
 
         // 퇴장 후 채널이 비어있으면 자동방 삭제 이벤트 발행 (fire-and-forget)
-        if (oldState.channel && oldState.channel.members.size === 0) {
+        if (oldState.channel?.members.size === 0) {
           this.eventEmitter.emit(
             AUTO_CHANNEL_EVENTS.CHANNEL_EMPTY,
             new AutoChannelChannelEmptyEvent(oldState.guild.id, oldState.channelId!),
           );
         }
-
       }
 
       if (isMuteChanged && !isJoin && !isLeave && !isMove) {
         const dto = VoiceStateDto.fromVoiceState(newState);
-        await this.eventEmitter.emitAsync(
-          VOICE_EVENTS.MIC_TOGGLE,
-          new VoiceMicToggleEvent(dto),
-        );
+        await this.eventEmitter.emitAsync(VOICE_EVENTS.MIC_TOGGLE, new VoiceMicToggleEvent(dto));
       }
     } catch (error) {
       this.logger.error(

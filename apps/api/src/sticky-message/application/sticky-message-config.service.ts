@@ -97,10 +97,7 @@ export class StickyMessageConfigService {
    *   3. DB에서 채널 전체 삭제
    *   4. Redis 캐시 무효화
    */
-  async deleteByChannel(
-    guildId: string,
-    channelId: string,
-  ): Promise<{ deletedCount: number }> {
+  async deleteByChannel(guildId: string, channelId: string): Promise<{ deletedCount: number }> {
     const allConfigs = await this.configRepo.findByGuildId(guildId);
     const channelConfigs = allConfigs.filter((c) => c.channelId === channelId);
 
@@ -119,11 +116,15 @@ export class StickyMessageConfigService {
   /** Discord 텍스트 채널에 Embed 메시지 전송. 전송된 메시지 ID 반환. */
   private async sendEmbed(
     channelId: string,
-    config: { embedTitle: string | null; embedDescription: string | null; embedColor: string | null },
+    config: {
+      embedTitle: string | null;
+      embedDescription: string | null;
+      embedColor: string | null;
+    },
   ): Promise<string> {
     const channel = await this.client.channels.fetch(channelId);
 
-    if (!channel || !channel.isTextBased()) {
+    if (!channel?.isTextBased()) {
       throw new Error(`Channel ${channelId} is not a text-based channel`);
     }
 
@@ -141,7 +142,7 @@ export class StickyMessageConfigService {
   private async tryDeleteMessage(channelId: string, messageId: string): Promise<void> {
     try {
       const channel = await this.client.channels.fetch(channelId);
-      if (!channel || !channel.isTextBased()) return;
+      if (!channel?.isTextBased()) return;
       const message = await (channel as TextChannel).messages.fetch(messageId);
       await message.delete();
     } catch (err) {

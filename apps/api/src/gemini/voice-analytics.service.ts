@@ -1,11 +1,11 @@
 import { VoiceActivityData } from '@dhyunbot/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Not,Repository } from 'typeorm';
+import { Between, Not, Repository } from 'typeorm';
 
 import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
 import { DiscordGateway } from '../gateway/discord.gateway';
-import { UserAggregateData,VoiceNameEnricherService } from './voice-name-enricher.service';
+import { UserAggregateData, VoiceNameEnricherService } from './voice-name-enricher.service';
 
 export { VoiceActivityData } from '@dhyunbot/shared';
 
@@ -55,7 +55,7 @@ export class VoiceAnalyticsService {
 
       if (globalData.length === 0 && channelData.length === 0) {
         this.logger.warn(`No voice data found for guild ${guildId}`);
-        return this.createEmptyResponse(guildId, startDate, endDate);
+        return await this.createEmptyResponse(guildId, startDate, endDate);
       }
 
       const totalStats = this.calculateTotalStatsFromGlobal(globalData);

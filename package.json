@@ -51,12 +51,16 @@
     "class-validator": "^0.15.1"
   },
   "lint-staged": {
-    "apps/*/src/**/*.{ts,tsx}": [
-      "eslint --fix",
+    "apps/api/src/**/*.{ts,tsx}": [
+      "eslint --fix --config apps/api/eslint.config.mjs",
+      "prettier --write"
+    ],
+    "apps/web/src/**/*.{ts,tsx}": [
+      "eslint --fix --config apps/web/eslint.config.mjs",
       "prettier --write"
     ],
     "libs/*/src/**/*.ts": [
-      "eslint --fix",
+      "eslint --fix --config libs/shared/eslint.config.mjs",
       "prettier --write"
     ]
   }

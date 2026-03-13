@@ -142,7 +142,7 @@ export class StatusPrefixConfigService {
   private async buildAndSendMessage(config: StatusPrefixConfig): Promise<string> {
     const channel = await this.client.channels.fetch(config.channelId!);
 
-    if (!channel || !channel.isTextBased()) {
+    if (!channel?.isTextBased()) {
       throw new Error(`Channel ${config.channelId} is not a text-based channel`);
     }
 
@@ -197,7 +197,7 @@ export class StatusPrefixConfigService {
             .setLabel(btn.label)
             .setStyle(ButtonStyle.Primary);
 
-          if (btn.emoji && btn.emoji.trim()) {
+          if (btn.emoji?.trim()) {
             try {
               builder.setEmoji(btn.emoji.trim());
             } catch {

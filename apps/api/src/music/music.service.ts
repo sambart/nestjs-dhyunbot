@@ -1,12 +1,7 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import { DefaultExtractors } from '@discord-player/extractor';
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
-import {
-  CacheType,
-  ChatInputCommandInteraction,
-  Client,
-  GuildMember,
-} from 'discord.js';
+import { CacheType, ChatInputCommandInteraction, Client, GuildMember } from 'discord.js';
 import { Player, QueryType, useQueue } from 'discord-player';
 import * as ytSearch from 'yt-search';
 
@@ -62,10 +57,10 @@ export class MusicService implements OnApplicationShutdown {
       searchEngine: QueryType.AUTO,
     });
 
-    if (!searchResult || !searchResult.tracks.length) {
+    if (!searchResult?.tracks.length) {
       this.logger.debug(`No result from player.search, trying yt-search`);
       const newSearch = await ytSearch(url);
-      if (!newSearch || !newSearch.videos.length) throw new Error('Track not found');
+      if (!newSearch?.videos.length) throw new Error('Track not found');
       await this.player.play(member.voice.channel, newSearch.videos[0].url, {
         requestedBy: interaction.user,
       });
@@ -92,7 +87,7 @@ export class MusicService implements OnApplicationShutdown {
   async stop(interaction: ChatInputCommandInteraction<CacheType>): Promise<void> {
     await interaction.deferReply();
     const queue = useQueue(interaction.guild.id);
-    if (!queue || !queue.currentTrack)
+    if (!queue?.currentTrack)
       return void interaction.followUp({
         content: '❌ | 더 이상 재생 중인 트랙이 없습니다.',
       });
@@ -105,7 +100,7 @@ export class MusicService implements OnApplicationShutdown {
   async skip(interaction: ChatInputCommandInteraction<CacheType>): Promise<void> {
     await interaction.deferReply();
     const queue = useQueue(interaction.guild.id);
-    if (!queue || !queue.currentTrack)
+    if (!queue?.currentTrack)
       return void interaction.followUp({
         content: '❌ | 더 이상 재생 중인 트랙이 없습니다.',
       });

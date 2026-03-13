@@ -37,7 +37,7 @@ export class AutoChannelDiscordGateway {
     buttons: GuideMessageButtonPayload[],
   ): Promise<string> {
     const channel = await this.client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) {
+    if (!channel?.isTextBased()) {
       throw new Error(`Channel ${channelId} is not a text-based channel`);
     }
 
@@ -65,7 +65,7 @@ export class AutoChannelDiscordGateway {
   ): Promise<string | null> {
     try {
       const channel = await this.client.channels.fetch(channelId);
-      if (!channel || !channel.isTextBased()) {
+      if (!channel?.isTextBased()) {
         throw new Error(`Channel ${channelId} is not a text-based channel`);
       }
 
@@ -94,7 +94,7 @@ export class AutoChannelDiscordGateway {
   async deleteGuideMessage(channelId: string, messageId: string): Promise<void> {
     try {
       const channel = await this.client.channels.fetch(channelId);
-      if (!channel || !channel.isTextBased()) return;
+      if (!channel?.isTextBased()) return;
 
       const message = await (channel as TextChannel).messages.fetch(messageId);
       await message.delete();
@@ -112,9 +112,7 @@ export class AutoChannelDiscordGateway {
   async fetchGuildVoiceChannelNames(guildId: string): Promise<string[]> {
     const guild = this.client.guilds.cache.get(guildId);
     if (!guild) return [];
-    return guild.channels.cache
-      .filter((ch) => ch.isVoiceBased())
-      .map((ch) => ch.name);
+    return guild.channels.cache.filter((ch) => ch.isVoiceBased()).map((ch) => ch.name);
   }
 
   /**
@@ -137,9 +135,7 @@ export class AutoChannelDiscordGateway {
    * Discord 제약: ActionRow 최대 5개, 버튼 최대 5개/행 → 총 25개.
    * customId 형식: auto_btn:{buttonId}
    */
-  private buildActionRows(
-    buttons: GuideMessageButtonPayload[],
-  ): ActionRowBuilder<ButtonBuilder>[] {
+  private buildActionRows(buttons: GuideMessageButtonPayload[]): ActionRowBuilder<ButtonBuilder>[] {
     const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
     for (let i = 0; i < buttons.length; i += BUTTONS_PER_ROW) {
@@ -151,7 +147,7 @@ export class AutoChannelDiscordGateway {
             .setLabel(btn.label)
             .setStyle(ButtonStyle.Primary);
 
-          if (btn.emoji && btn.emoji.trim()) {
+          if (btn.emoji?.trim()) {
             try {
               builder.setEmoji(btn.emoji.trim());
             } catch {
