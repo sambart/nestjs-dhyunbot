@@ -3,10 +3,13 @@ FROM node:20-alpine
 # Fonts for canvas (Korean + Emoji support)
 RUN apk add --no-cache fontconfig font-noto-cjk font-noto-emoji
 
-# Global tools for API
-RUN npm install -g ts-node
+# Install pnpm and global tools
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate \
+    && pnpm add -g ts-node
 
-# Shared entrypoint (handles npm install + shared lib build)
+# Shared entrypoint (handles pnpm install + shared lib build)
 COPY scripts/docker-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

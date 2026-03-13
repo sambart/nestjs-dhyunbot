@@ -39,12 +39,30 @@ export const baseConfig = [
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+      ],
 
       'no-console': ['error', { allow: ['warn', 'error'] }],
       'prefer-const': 'error',
       'no-var': 'error',
       'eqeqeq': ['error', 'always', { null: 'ignore' }],
       'no-throw-literal': 'error',
+      'no-else-return': ['error', { allowElseIf: false }],
+      'no-empty': ['error', { allowEmptyCatch: false }],
+      'no-negated-condition': 'warn',
+      'no-warning-comments': [
+        'warn',
+        { terms: ['todo', 'fixme', 'xxx'], location: 'start' },
+      ],
+      'max-params': ['warn', { max: 3 }],
+      'max-lines-per-function': [
+        'warn',
+        { max: 50, skipBlankLines: true, skipComments: true },
+      ],
+      'max-depth': ['error', { max: 3 }],
     },
   },
 ];

@@ -1,8 +1,6 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
-export class AddMocoHuntingScoreSystem1774700000000
-  implements MigrationInterface
-{
+export class AddMocoHuntingScoreSystem1774700000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. NewbieConfig — 점수/세션/리셋 관련 컬럼 추가
     await queryRunner.query(
@@ -70,21 +68,13 @@ export class AddMocoHuntingScoreSystem1774700000000
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // 4. MocoHuntingDaily 삭제
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_moco_daily_guild_date"`,
-    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_moco_daily_guild_date"`);
     await queryRunner.query(`DROP TABLE "public"."moco_hunting_daily"`);
 
     // 3. MocoHuntingSession 삭제
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_moco_session_guild_valid"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_moco_session_guild_started"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_moco_session_guild_hunter"`,
-    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_moco_session_guild_valid"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_moco_session_guild_started"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_moco_session_guild_hunter"`);
     await queryRunner.query(`DROP TABLE "public"."moco_hunting_session"`);
 
     // 2. NewbieMocoTemplate — scoringTemplate 컬럼 삭제

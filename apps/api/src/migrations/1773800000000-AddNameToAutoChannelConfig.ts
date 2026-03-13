@@ -1,8 +1,6 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
-export class AddNameToAutoChannelConfig1773800000000
-  implements MigrationInterface
-{
+export class AddNameToAutoChannelConfig1773800000000 implements MigrationInterface {
   name = 'AddNameToAutoChannelConfig1773800000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -12,8 +10,6 @@ export class AddNameToAutoChannelConfig1773800000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "auto_channel_config" DROP COLUMN "name"`,
-    );
+    await queryRunner.query(`ALTER TABLE "auto_channel_config" DROP COLUMN "name"`);
   }
 }

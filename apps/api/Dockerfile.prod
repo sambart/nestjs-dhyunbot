@@ -1,44 +1,54 @@
 FROM node:20-alpine AS builder
 
+# Install pnpm
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
+
 WORKDIR /workspace
 
-# Copy root package.json
-COPY package*.json ./
+# Copy workspace config and lockfile
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY tsconfig.json ./
 
 # Copy workspace package.json files
-COPY apps/api/package*.json ./apps/api/
-COPY libs/shared/package*.json ./libs/shared/
+COPY apps/api/package.json ./apps/api/
+COPY libs/shared/package.json ./libs/shared/
 
 # Install dependencies (cache mount for faster rebuilds)
-RUN --mount=type=cache,target=/root/.npm npm install
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 
 # Copy shared library and build
 COPY libs/shared ./libs/shared
-RUN npm run build --workspace=@dhyunbot/shared
+RUN pnpm --filter @dhyunbot/shared build
 
 # Copy API source and build
 COPY apps/api ./apps/api
 WORKDIR /workspace/apps/api
-RUN npm run build
+RUN pnpm run build
 
 # Production stage
 FROM node:20-alpine
+
+# Install pnpm
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 
 # Fonts for canvas (Korean + Emoji support)
 RUN apk add --no-cache fontconfig font-noto-cjk font-noto-emoji
 
 WORKDIR /workspace
 
-# Copy root package.json
-COPY package*.json ./
+# Copy workspace config and lockfile
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 
 # Copy workspace package.json files
-COPY apps/api/package*.json ./apps/api/
-COPY libs/shared/package*.json ./libs/shared/
+COPY apps/api/package.json ./apps/api/
+COPY libs/shared/package.json ./libs/shared/
 
 # Install only production dependencies
-RUN --mount=type=cache,target=/root/.npm npm install --omit=dev
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --prod
 
 # Copy built shared library
 COPY --from=builder /workspace/libs/shared/dist ./libs/shared/dist

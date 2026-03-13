@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 export class AutoChannelFlowChange1773400000000 implements MigrationInterface {
   name = 'AutoChannelFlowChange1773400000000';
@@ -16,8 +16,6 @@ export class AutoChannelFlowChange1773400000000 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "auto_channel_config" ALTER COLUMN "waitingRoomTemplate" SET NOT NULL`,
     );
-    await queryRunner.query(
-      `ALTER TABLE "auto_channel_config" DROP COLUMN "guideChannelId"`,
-    );
+    await queryRunner.query(`ALTER TABLE "auto_channel_config" DROP COLUMN "guideChannelId"`);
   }
 }

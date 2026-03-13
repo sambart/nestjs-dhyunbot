@@ -1,41 +1,51 @@
 FROM node:20-alpine AS builder
 
+# Install pnpm
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
+
 WORKDIR /workspace
 
-# Copy root package.json
-COPY package*.json ./
+# Copy workspace config and lockfile
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY tsconfig.json ./
 
 # Copy workspace package.json files
-COPY apps/web/package*.json ./apps/web/
-COPY libs/shared/package*.json ./libs/shared/
+COPY apps/web/package.json ./apps/web/
+COPY libs/shared/package.json ./libs/shared/
 
 # Install dependencies (cache mount for faster rebuilds)
-RUN --mount=type=cache,target=/root/.npm npm install
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 
 # Copy shared library and build
 COPY libs/shared ./libs/shared
-RUN npm run build --workspace=@dhyunbot/shared
+RUN pnpm --filter @dhyunbot/shared build
 
 # Copy Web source and build (cache SWC binary)
 COPY apps/web ./apps/web
 WORKDIR /workspace/apps/web
-RUN --mount=type=cache,target=/root/.cache npm run build
+RUN --mount=type=cache,target=/root/.cache pnpm run build
 
 # Production stage
 FROM node:20-alpine
 
+# Install pnpm
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
+
 WORKDIR /workspace
 
-# Copy root package.json
-COPY package*.json ./
+# Copy workspace config and lockfile
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 
 # Copy workspace package.json files
-COPY apps/web/package*.json ./apps/web/
-COPY libs/shared/package*.json ./libs/shared/
+COPY apps/web/package.json ./apps/web/
+COPY libs/shared/package.json ./libs/shared/
 
 # Install only production dependencies
-RUN --mount=type=cache,target=/root/.npm npm install --omit=dev
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --prod
 
 # Copy built shared library
 COPY --from=builder /workspace/libs/shared/dist ./libs/shared/dist
@@ -51,4 +61,4 @@ WORKDIR /workspace/apps/web
 
 EXPOSE 4000
 
-CMD ["npm", "start"]
+CMD ["pnpm", "start"]

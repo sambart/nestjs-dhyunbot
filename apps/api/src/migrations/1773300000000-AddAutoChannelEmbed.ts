@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 export class AddAutoChannelEmbed1773300000000 implements MigrationInterface {
   name = 'AddAutoChannelEmbed1773300000000';

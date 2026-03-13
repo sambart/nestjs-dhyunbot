@@ -65,6 +65,20 @@ export class VoiceNameEnricherService {
     }
   }
 
+  /** 모든 유저의 해당 채널에 이름이 비어있으면 적용 */
+  private applyChannelName(
+    userMap: Map<string, UserAggregateData>,
+    channelId: string,
+    name: string,
+  ) {
+    for (const user of userMap.values()) {
+      const info = user.channelMap.get(channelId);
+      if (info && (!info.name || info.name.trim() === '')) {
+        info.name = name;
+      }
+    }
+  }
+
   /**
    * 채널명 보강: Redis MGET → Discord API → Redis
    */
@@ -89,13 +103,7 @@ export class VoiceNameEnricherService {
     for (const channelId of channelIdList) {
       const cachedName = cachedNames.get(channelId);
       if (cachedName) {
-        // 모든 유저의 해당 채널에 이름 적용
-        for (const user of userMap.values()) {
-          const info = user.channelMap.get(channelId);
-          if (info && (!info.name || info.name.trim() === '')) {
-            info.name = cachedName;
-          }
-        }
+        this.applyChannelName(userMap, channelId, cachedName);
       } else {
         stillMissing.push(channelId);
       }
@@ -108,13 +116,7 @@ export class VoiceNameEnricherService {
 
       for (const [channelId, channelName] of channelNames) {
         await this.voiceRedis.setChannelName(guildId, channelId, channelName);
-
-        for (const user of userMap.values()) {
-          const info = user.channelMap.get(channelId);
-          if (info && (!info.name || info.name.trim() === '')) {
-            info.name = channelName;
-          }
-        }
+        this.applyChannelName(userMap, channelId, channelName);
       }
     }
   }

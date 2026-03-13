@@ -1,4 +1,4 @@
-import { VoiceState } from 'discord.js';
+import { type VoiceState } from 'discord.js';
 
 export class InvalidVoiceStateError extends Error {
   constructor(

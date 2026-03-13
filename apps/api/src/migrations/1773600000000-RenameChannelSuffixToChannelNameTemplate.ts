@@ -1,8 +1,6 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
-export class RenameChannelSuffixToChannelNameTemplate1773600000000
-  implements MigrationInterface
-{
+export class RenameChannelSuffixToChannelNameTemplate1773600000000 implements MigrationInterface {
   name = 'RenameChannelSuffixToChannelNameTemplate1773600000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
