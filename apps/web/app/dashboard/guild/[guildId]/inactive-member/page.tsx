@@ -38,7 +38,7 @@ export default function InactiveMemberPage() {
 
   // 필터 상태
   const [gradeFilter, setGradeFilter] = useState<InactiveMemberGrade | 'all'>('all');
-  const [sortBy, setSortBy] = useState<'lastVoiceDate' | 'totalMinutes'>('lastVoiceDate');
+  const [sortBy, setSortBy] = useState<'lastVoiceDate' | 'totalMinutes'>('totalMinutes');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
