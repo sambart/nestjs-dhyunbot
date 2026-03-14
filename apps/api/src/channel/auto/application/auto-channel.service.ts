@@ -254,7 +254,7 @@ export class AutoChannelService {
     // 1. 확정방 채널명 결정
     const baseName = this.buildChannelName(userName, button, subOption);
 
-    const finalName = await this.resolveChannelName(guildId, baseName);
+    const finalName = await this.resolveChannelName(guildId, button.targetCategoryId, baseName);
 
     // 2. 확정방 새로 생성
     const confirmedChannelId = await this.discordVoiceGateway.createVoiceChannel({
@@ -331,7 +331,7 @@ export class AutoChannelService {
   }
 
   /**
-   * 확정방 채널명 중복 해소.
+   * 확정방 채널명 중복 해소 (카테고리별 독립 넘버링).
    *
    * 템플릿에 {n}이 포함된 경우:
    *   {n}을 1부터 증가시키며 사용 가능한 이름 반환.
@@ -341,8 +341,15 @@ export class AutoChannelService {
    *   중복 시 " 2", " 3", ... 순번 부여.
    *   예: "DHyun의 오버워치" → "DHyun의 오버워치 2"
    */
-  private async resolveChannelName(guildId: string, baseName: string): Promise<string> {
-    const existingNames = await this.autoChannelDiscordGateway.fetchGuildVoiceChannelNames(guildId);
+  private async resolveChannelName(
+    guildId: string,
+    categoryId: string,
+    baseName: string,
+  ): Promise<string> {
+    const existingNames = await this.autoChannelDiscordGateway.fetchVoiceChannelNamesByCategory(
+      guildId,
+      categoryId,
+    );
     const nameSet = new Set(existingNames);
 
     if (baseName.includes('{n}')) {
