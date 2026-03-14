@@ -118,11 +118,29 @@ export class InactiveMemberController {
       }
     }
 
+    const stillUnresolved: string[] = [];
     if (guild && uncachedUserIds.length > 0) {
       const fetchResults = await Promise.allSettled(
         uncachedUserIds.map((id) => guild.members.fetch(id)),
       );
       for (const result of fetchResults) {
+        if (result.status === 'fulfilled') {
+          memberMap.set(result.value.id, result.value.displayName);
+        }
+      }
+      for (const id of uncachedUserIds) {
+        if (!memberMap.has(id)) {
+          stillUnresolved.push(id);
+        }
+      }
+    }
+
+    // 길드를 떠난 유저는 글로벌 유저 정보로 fallback
+    if (stillUnresolved.length > 0) {
+      const userResults = await Promise.allSettled(
+        stillUnresolved.map((id) => this.discord.users.fetch(id)),
+      );
+      for (const result of userResults) {
         if (result.status === 'fulfilled') {
           memberMap.set(result.value.id, result.value.displayName);
         }
