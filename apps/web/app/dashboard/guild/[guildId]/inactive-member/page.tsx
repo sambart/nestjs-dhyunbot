@@ -1,0 +1,348 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import type {
+  ActionType,
+  InactiveMemberGrade,
+  InactiveMemberItem,
+  InactiveMemberStats,
+} from "@/app/lib/inactive-member-api";
+import {
+  classifyInactiveMembers,
+  executeInactiveMemberAction,
+  fetchInactiveMembers,
+  fetchInactiveMemberStats,
+} from "@/app/lib/inactive-member-api";
+import ActionBar from "./components/ActionBar";
+import ActivityPieChart from "./components/ActivityPieChart";
+import InactiveMemberTable from "./components/InactiveMemberTable";
+import InactiveTrendChart from "./components/InactiveTrendChart";
+import StatsCards from "./components/StatsCards";
+
+const LIMIT = 20;
+
+export default function InactiveMemberPage() {
+  const params = useParams();
+  const guildId = params.guildId as string;
+  const mountedRef = useRef(true);
+
+  const [stats, setStats] = useState<InactiveMemberStats | null>(null);
+  const [items, setItems] = useState<InactiveMemberItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // 필터 상태
+  const [gradeFilter, setGradeFilter] = useState<InactiveMemberGrade | 'all'>('all');
+  const [sortBy, setSortBy] = useState<'lastVoiceDate' | 'totalMinutes'>('lastVoiceDate');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 선택 상태
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // 분류 실행 상태
+  const [isClassifying, setIsClassifying] = useState(false);
+  const [classifyResult, setClassifyResult] = useState<string | null>(null);
+
+  // 조치 상태
+  const [isActing, setIsActing] = useState(false);
+  const [actionResult, setActionResult] = useState<{
+    successCount: number;
+    failCount: number;
+  } | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // 언마운트 추적
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // 통계 로드
+  const loadStats = useCallback(async () => {
+    try {
+      const data = await fetchInactiveMemberStats(guildId);
+      if (mountedRef.current) setStats(data);
+    } catch {
+      // 통계 로드 실패는 무시 — 목록은 별도로 로드
+    }
+  }, [guildId]);
+
+  // 목록 로드
+  const loadItems = useCallback(async () => {
+    if (!mountedRef.current) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchInactiveMembers(guildId, {
+        grade: gradeFilter !== 'all' ? gradeFilter : undefined,
+        search: searchQuery || undefined,
+        sortBy,
+        sortOrder,
+        page,
+        limit: LIMIT,
+      });
+      if (mountedRef.current) {
+        setItems(data.items);
+        setTotal(data.total);
+      }
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : '데이터를 불러오는데 실패했습니다.');
+      }
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, [guildId, gradeFilter, searchQuery, sortBy, sortOrder, page]);
+
+  // 초기 로드
+  useEffect(() => {
+    void loadStats();
+  }, [loadStats]);
+
+  useEffect(() => {
+    void loadItems();
+  }, [loadItems]);
+
+  // 검색 debounce 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // 필터/정렬 변경 시 페이지 리셋
+  const handleGradeFilterChange = (value: string) => {
+    setGradeFilter(value as InactiveMemberGrade | 'all');
+    setPage(1);
+  };
+
+  const handleSortByChange = (value: string) => {
+    setSortBy(value as 'lastVoiceDate' | 'totalMinutes');
+    setPage(1);
+  };
+
+  const handleSortOrderChange = (value: string) => {
+    setSortOrder(value as 'ASC' | 'DESC');
+    setPage(1);
+  };
+
+  // 분류 실행 핸들러
+  const handleClassify = useCallback(async () => {
+    if (isClassifying) return;
+    setIsClassifying(true);
+    setClassifyResult(null);
+    try {
+      const result = await classifyInactiveMembers(guildId);
+      setClassifyResult(`${result.classifiedCount}명 분류 완료`);
+      setTimeout(() => setClassifyResult(null), 3_000);
+      void loadStats();
+      void loadItems();
+    } catch (err) {
+      setClassifyResult(
+        err instanceof Error ? err.message : '분류 실행에 실패했습니다.',
+      );
+    } finally {
+      setIsClassifying(false);
+    }
+  }, [guildId, isClassifying, loadStats, loadItems]);
+
+  // 조치 핸들러
+  const handleAction = useCallback(
+    async (actionType: ActionType) => {
+      if (selectedIds.size === 0 || isActing) return;
+      setIsActing(true);
+      setActionResult(null);
+      setActionError(null);
+      try {
+        const result = await executeInactiveMemberAction(guildId, {
+          actionType,
+          targetUserIds: Array.from(selectedIds),
+        });
+        setActionResult({
+          successCount: result.successCount,
+          failCount: result.failCount,
+        });
+        setTimeout(() => setActionResult(null), 3_000);
+        void loadItems();
+      } catch (err) {
+        setActionError(
+          err instanceof Error ? err.message : '조치 실행에 실패했습니다.',
+        );
+      } finally {
+        setIsActing(false);
+      }
+    },
+    [guildId, selectedIds, isActing, loadItems],
+  );
+
+  // 선택 핸들러
+  const handleToggleSelect = (userId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(items.map((item) => item.userId)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / LIMIT));
+
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">비활동 회원 관리</h1>
+        <div className="flex items-center gap-3">
+          {classifyResult && (
+            <span className="text-sm text-green-600">{classifyResult}</span>
+          )}
+          <button
+            type="button"
+            disabled={isClassifying}
+            onClick={handleClassify}
+            className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isClassifying ? '분류 중...' : '지금 분류 실행'}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {loading && !stats ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="text-muted-foreground">데이터 로딩 중...</div>
+        </div>
+      ) : (
+        <>
+          {/* 통계 카드 */}
+          {stats && <StatsCards stats={stats} />}
+
+          {/* 파이 차트 + 추이 차트 */}
+          {stats && (
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-1">
+                <ActivityPieChart stats={stats} />
+              </div>
+              <div className="lg:col-span-2">
+                <InactiveTrendChart trend={stats.trend} />
+              </div>
+            </div>
+          )}
+
+          {/* 필터바 */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <select
+              value={gradeFilter}
+              onChange={(e) => handleGradeFilterChange(e.target.value)}
+              className="w-[160px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="all">등급 전체</option>
+              <option value="FULLY_INACTIVE">완전 비활동</option>
+              <option value="LOW_ACTIVE">저활동</option>
+              <option value="DECLINING">활동 감소</option>
+            </select>
+
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="닉네임 검색..."
+              className="w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+
+            <select
+              value={sortBy}
+              onChange={(e) => handleSortByChange(e.target.value)}
+              className="w-[160px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="lastVoiceDate">마지막 접속일</option>
+              <option value="totalMinutes">접속 시간</option>
+            </select>
+
+            <select
+              value={sortOrder}
+              onChange={(e) => handleSortOrderChange(e.target.value)}
+              className="w-[120px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="ASC">오름차순</option>
+              <option value="DESC">내림차순</option>
+            </select>
+          </div>
+
+          {/* 액션바 */}
+          <ActionBar
+            selectedCount={selectedIds.size}
+            isActing={isActing}
+            actionResult={actionResult}
+            actionError={actionError}
+            onAction={handleAction}
+          />
+
+          {/* 테이블 */}
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="text-muted-foreground">목록 로딩 중...</div>
+            </div>
+          ) : (
+            <InactiveMemberTable
+              items={items}
+              selectedIds={selectedIds}
+              onToggleSelect={handleToggleSelect}
+              onToggleAll={handleToggleAll}
+            />
+          )}
+
+          {/* 페이지네이션 */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              {page} / {totalPages} 페이지 (총 {total}명)
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+                className="px-3 py-1.5 rounded-lg border border-input text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                이전
+              </button>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="px-3 py-1.5 rounded-lg border border-input text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                다음
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
