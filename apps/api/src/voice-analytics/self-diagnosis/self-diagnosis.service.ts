@@ -11,7 +11,7 @@ import { LLM_PROVIDER, LlmQuotaExhaustedException } from '../llm/llm-provider.in
 import { BADGE_CODE, BADGE_DISPLAY, type BadgeCode } from './badge.constants';
 import { BadgeQueryService } from './badge-query.service';
 import { VoiceHealthConfig } from './domain/voice-health-config.entity';
-import { calculateHhi, getTopPeers } from './hhi-calculator';
+import { calculateHhi, getTopPeers, hhiToDiversityScore } from './hhi-calculator';
 import type { BadgeGuide, PeerInfo, SelfDiagnosisResult, Verdict } from './self-diagnosis.types';
 import { VoiceHealthKeys } from './voice-health-cache.keys';
 import { VoiceHealthConfigRepository } from './voice-health-config.repository';
@@ -370,15 +370,15 @@ export class SelfDiagnosisService {
       },
       {
         category: '활동 일수',
-        isPassed: activeDaysRatio >= config.minActiveDaysRatio,
-        criterion: `활동일 비율 ${Math.round(config.minActiveDaysRatio * TOP_PERCENT_DIVISOR)}% 이상`,
+        isPassed: activeDaysRatio >= Number(config.minActiveDaysRatio),
+        criterion: `활동일 비율 ${Math.round(Number(config.minActiveDaysRatio) * TOP_PERCENT_DIVISOR)}% 이상`,
         actual: `${Math.round(activeDaysRatio * TOP_PERCENT_DIVISOR)}%`,
       },
       {
         category: '관계 다양성',
-        isPassed: hhiScore <= config.hhiThreshold,
-        criterion: `HHI ${config.hhiThreshold} 이하`,
-        actual: `HHI ${hhiScore.toFixed(3)}`,
+        isPassed: hhiScore <= Number(config.hhiThreshold),
+        criterion: `${hhiToDiversityScore(Number(config.hhiThreshold))}점 이상`,
+        actual: `${hhiToDiversityScore(hhiScore)}점`,
       },
       {
         category: '교류 인원',
@@ -423,8 +423,8 @@ export class SelfDiagnosisService {
         code: BADGE_CODE.SOCIAL,
         ...BADGE_DISPLAY.SOCIAL,
         isEarned: isEarned(BADGE_CODE.SOCIAL),
-        criterion: `HHI ${Number(config.badgeSocialHhiMax).toFixed(2)} 이하 & 교류 ${config.badgeSocialMinPeers}명 이상`,
-        current: `HHI ${hhiScore.toFixed(3)}, ${peerCount}명`,
+        criterion: `다양성 ${hhiToDiversityScore(Number(config.badgeSocialHhiMax))}점 이상 & 교류 ${config.badgeSocialMinPeers}명 이상`,
+        current: `현재 ${hhiToDiversityScore(hhiScore)}점, ${peerCount}명`,
       },
       {
         code: BADGE_CODE.HUNTER,
@@ -521,8 +521,8 @@ export class SelfDiagnosisService {
       '',
       '## 관계 다양성',
       `- 교류 인원: ${relationshipData.peerCount}명 (정책 기준: ${config.minPeerCount}명 이상 → ${relationshipData.peerCount >= config.minPeerCount ? '충족' : '미달'})`,
-      `- HHI 집중도: ${relationshipData.hhiScore.toFixed(3)} (정책 기준: ${Number(config.hhiThreshold).toFixed(2)} 이하 → ${relationshipData.hhiScore <= Number(config.hhiThreshold) ? '충족' : '미달'})`,
-      '  - HHI가 1에 가까울수록 소수에게 편중, 0에 가까울수록 다양',
+      `- 관계 다양성 점수: ${hhiToDiversityScore(relationshipData.hhiScore)}점 / 100 (정책 기준: ${hhiToDiversityScore(Number(config.hhiThreshold))}점 이상 → ${relationshipData.hhiScore <= Number(config.hhiThreshold) ? '충족' : '미달'})`,
+      '  - 0점(한 명에 집중) ~ 100점(완전 분산). 높을수록 다양',
       '- 주요 교류 상대:',
       peerLines,
       '',
@@ -546,7 +546,7 @@ export class SelfDiagnosisService {
       '## 작성 지침',
       '- 4~5문장으로 작성',
       '- 정책 미달 항목이 있으면 구체적 개선 방향 제시',
-      '- 관계 편중(HHI 높음)이면 다양한 교류 권유',
+      '- 관계 다양성 점수가 낮으면 다양한 교류 권유',
       '- 혼자 시간 비율이 높으면 협업 참여 제안',
       '- 미달성 뱃지 중 가장 달성에 가까운 1~2개에 대해 구체적 달성 팁 제시',
       '- 친근하고 격려하는 톤 유지, 이모지 1~2개 사용',

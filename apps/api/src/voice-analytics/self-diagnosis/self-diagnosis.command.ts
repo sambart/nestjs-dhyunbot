@@ -5,6 +5,7 @@ import { CommandInteraction, EmbedBuilder } from 'discord.js';
 import { RedisService } from '../../redis/redis.service';
 import { LlmQuotaExhaustedException } from '../llm/llm-provider.interface';
 import { VoiceHealthConfig } from './domain/voice-health-config.entity';
+import { hhiToDiversityScore } from './hhi-calculator';
 import { DiagnosisCooldownException, SelfDiagnosisService } from './self-diagnosis.service';
 import type { SelfDiagnosisResult } from './self-diagnosis.types';
 import { VoiceHealthKeys } from './voice-health-cache.keys';
@@ -108,8 +109,8 @@ export class SelfDiagnosisCommand {
       sections.push(this.buildBadgeSection(result));
     } else {
       // AI 요약이 없으면 상세 데이터 표시
-      sections.push(this.buildActivitySection(result, config));
-      sections.push(this.buildRelationshipSection(result, config));
+      sections.push(this.buildActivitySection(result));
+      sections.push(this.buildRelationshipSection(result));
       sections.push(this.buildMocoSection(result));
       sections.push(this.buildPatternSection(result));
       sections.push(this.buildBadgeSection(result));
@@ -127,7 +128,7 @@ export class SelfDiagnosisCommand {
     return embed;
   }
 
-  private buildActivitySection(result: SelfDiagnosisResult, config: VoiceHealthConfig): string {
+  private buildActivitySection(result: SelfDiagnosisResult): string {
     const activityVerdict = result.verdicts.find((v) => v.category === '활동량');
     const daysVerdict = result.verdicts.find((v) => v.category === '활동 일수');
 
@@ -148,17 +149,16 @@ export class SelfDiagnosisCommand {
       );
     }
 
-    void config;
     return lines.join('\n');
   }
 
-  private buildRelationshipSection(result: SelfDiagnosisResult, config: VoiceHealthConfig): string {
+  private buildRelationshipSection(result: SelfDiagnosisResult): string {
     const hhiVerdict = result.verdicts.find((v) => v.category === '관계 다양성');
     const peerVerdict = result.verdicts.find((v) => v.category === '교류 인원');
 
     const lines = [
       `\uD83D\uDC65 **관계 다양성**`,
-      `교류 인원: ${result.peerCount}명 | HHI: ${result.hhiScore.toFixed(3)} (낮을수록 다양)`,
+      `교류 인원: ${result.peerCount}명 | 관계 다양성: ${hhiToDiversityScore(result.hhiScore)}점 / 100`,
     ];
 
     if (result.topPeers.length > 0) {
@@ -181,7 +181,6 @@ export class SelfDiagnosisCommand {
       );
     }
 
-    void config;
     return lines.join('\n');
   }
 

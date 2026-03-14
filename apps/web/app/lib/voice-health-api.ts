@@ -26,6 +26,7 @@ export async function fetchVoiceHealthConfig(
 ): Promise<VoiceHealthConfig> {
   const res = await fetch(`/api/guilds/${guildId}/voice-health/config`);
   if (!res.ok) throw new Error('설정 조회에 실패했습니다.');
+  // fetch Response.json()의 반환 타입이 Promise<unknown>이므로 서버 계약 기반 단언
   return res.json() as Promise<VoiceHealthConfig>;
 }
 

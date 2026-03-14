@@ -278,25 +278,57 @@ export default function VoiceHealthSettingsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                HHI 임계값:{' '}
+                관계 다양성 점수:{' '}
                 <span className="text-indigo-600 font-semibold">
-                  {form.hhiThreshold.toFixed(2)}
+                  {Math.round((1 - form.hhiThreshold) * 100)}점
                 </span>
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                허핀달-허쉬만 지수(채널 집중도) 임계값입니다. (0.00~1.00)
+                관계가 다양할수록 높은 점수입니다. 이 점수 이상이면 기준을 충족합니다. (0~100점)
               </p>
               <input
                 type="range"
                 min={0}
                 max={100}
                 step={1}
-                value={Math.round(form.hhiThreshold * 100)}
+                value={Math.round((1 - form.hhiThreshold) * 100)}
                 onChange={(e) =>
-                  updateForm('hhiThreshold', Number(e.target.value) / 100)
+                  updateForm('hhiThreshold', (100 - Number(e.target.value)) / 100)
                 }
                 className="w-full accent-indigo-600"
               />
+              <div className="flex gap-2 mt-2">
+                {[
+                  { label: '느슨', score: 50, hhiThreshold: 0.50, minPeerCount: 2 },
+                  { label: '보통', score: 70, hhiThreshold: 0.30, minPeerCount: 3 },
+                  { label: '엄격', score: 80, hhiThreshold: 0.20, minPeerCount: 5 },
+                ].map((preset) => {
+                  const isActive =
+                    form.hhiThreshold === preset.hhiThreshold &&
+                    form.minPeerCount === preset.minPeerCount;
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        // hhiThreshold + minPeerCount 동시 업데이트 — 원자적 처리를 위해 단일 setForm 호출
+                        setForm((prev) => ({
+                          ...prev,
+                          hhiThreshold: preset.hhiThreshold,
+                          minPeerCount: preset.minPeerCount,
+                        }));
+                      }}
+                      className={`border rounded-lg px-3 py-1 text-xs transition-colors ${
+                        isActive
+                          ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                          : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                      }`}
+                    >
+                      {preset.label} ({preset.score}점)
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div>
@@ -351,22 +383,22 @@ export default function VoiceHealthSettingsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                사교왕 HHI 상한:{' '}
+                사교왕 다양성 점수:{' '}
                 <span className="text-indigo-600 font-semibold">
-                  {form.badgeSocialHhiMax.toFixed(2)}
+                  {Math.round((1 - form.badgeSocialHhiMax) * 100)}점
                 </span>
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                HHI가 이 값 이하일 때 사교왕 뱃지 조건을 충족합니다. (0.00~1.00)
+                관계 다양성 점수가 이 값 이상일 때 사교왕 뱃지를 부여합니다. (0~100점)
               </p>
               <input
                 type="range"
                 min={0}
                 max={100}
                 step={1}
-                value={Math.round(form.badgeSocialHhiMax * 100)}
+                value={Math.round((1 - form.badgeSocialHhiMax) * 100)}
                 onChange={(e) =>
-                  updateForm('badgeSocialHhiMax', Number(e.target.value) / 100)
+                  updateForm('badgeSocialHhiMax', (100 - Number(e.target.value)) / 100)
                 }
                 className="w-full accent-indigo-600"
               />

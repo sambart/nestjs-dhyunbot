@@ -26,6 +26,17 @@ export function calculateHhi(peerTimes: PeerTime[]): number {
 }
 
 /**
+ * HHI 값(0~1)을 관계 다양성 점수(0~100)로 변환한다.
+ * 높을수록 다양한 관계를 의미한다.
+ *
+ * @param hhi HHI 값 (0~1). 0이면 완전 분산, 1이면 한 명에 집중
+ * @returns 관계 다양성 점수 (0~100). 높을수록 좋음
+ */
+export function hhiToDiversityScore(hhi: number): number {
+  return Math.round((1 - hhi) * 100);
+}
+
+/**
  * peer별 비율을 계산하고 상위 N명을 반환한다.
  */
 export function getTopPeers(
