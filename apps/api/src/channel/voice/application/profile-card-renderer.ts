@@ -1,11 +1,11 @@
 import { createCanvas, GlobalFonts, loadImage, SKRSContext2D } from '@napi-rs/canvas';
 import { Injectable, Logger } from '@nestjs/common';
 
-import { DailyChartEntry, MeProfileData } from './me-profile.service';
+import { MeProfileData } from './me-profile.service';
 
 // ── 레이아웃 상수 ──
 const W = 800;
-const H = 760;
+const H = 530;
 const PADDING = 32;
 const CARD_RADIUS = 16;
 
@@ -74,7 +74,6 @@ export class ProfileCardRenderer {
     this.drawRankCard(ctx, profile);
     this.drawStatCards(ctx, profile);
     this.drawWeekdayChart(ctx, profile.dayOfWeekTotals);
-    this.drawBarChart(ctx, profile.dailyChart);
     this.drawFooter(ctx);
 
     return canvas.toBuffer('image/png');
@@ -220,9 +219,10 @@ export class ProfileCardRenderer {
 
     // ── Row 2: 통합 카드들 ──
     const row2Y = startY + cardH + gap;
+    const row2CardH = 90;
 
-    // 카드 1: 마이크 통합 (ON/OFF 비율 바 + 사용률)
-    this.drawMicCard(ctx, startX, row2Y, cardW, cardH, profile);
+    // 카드 1: 마이크 통합 (ON/OFF 비율 바 + 사용률 + 시간)
+    this.drawMicCard(ctx, startX, row2Y, cardW, row2CardH, profile);
 
     // 카드 2: 혼자 비율
     const alonePercent =
@@ -232,7 +232,7 @@ export class ProfileCardRenderer {
       startX + cardW + gap,
       row2Y,
       cardW,
-      cardH,
+      row2CardH,
       '👤 혼자 있던 시간',
       formatTime(profile.aloneSec),
       `전체의 ${alonePercent}%`,
@@ -245,7 +245,7 @@ export class ProfileCardRenderer {
       startX + (cardW + gap) * 2,
       row2Y,
       cardW,
-      cardH,
+      row2CardH,
       '📊 주 평균',
       formatTime(profile.weeklyAvgSec),
       peakText,
