@@ -1,26 +1,40 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
 import type { VoiceUserStat } from "@/app/lib/voice-dashboard-api";
 import { formatDuration } from "@/app/lib/voice-dashboard-api";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import UserSearchDropdown from "./UserSearchDropdown";
 
 interface Props {
   data: VoiceUserStat[];
   guildId: string;
   profiles?: Record<string, { userName: string; avatarUrl: string | null }>;
+  onUserSelect: (userId: string) => void;
 }
 
-export default function UserRankingTable({ data, guildId, profiles }: Props) {
+export default function UserRankingTable({
+  data,
+  guildId,
+  profiles,
+  onUserSelect,
+}: Props) {
   const top20 = data.slice(0, 20);
-  const router = useRouter();
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>유저별 음성 활동 랭킹</CardTitle>
+        <CardAction>
+          <UserSearchDropdown guildId={guildId} onSelect={onUserSelect} />
+        </CardAction>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
@@ -40,11 +54,7 @@ export default function UserRankingTable({ data, guildId, profiles }: Props) {
               <div
                 key={user.userId}
                 className="grid grid-cols-6 gap-2 items-center text-sm py-1 cursor-pointer hover:bg-muted/50 rounded-sm transition-colors"
-                onClick={() =>
-                  router.push(
-                    `/dashboard/guild/${guildId}/user/${user.userId}`,
-                  )
-                }
+                onClick={() => onUserSelect(user.userId)}
               >
                 <span>
                   {index < 3 ? (

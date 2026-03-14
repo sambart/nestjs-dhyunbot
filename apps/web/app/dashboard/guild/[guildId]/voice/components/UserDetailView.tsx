@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { MemberProfile, VoiceHistoryPage } from "@/app/lib/user-detail-api";
@@ -20,13 +20,13 @@ import {
 } from "@/app/lib/voice-dashboard-api";
 import { Button } from "@/components/ui/button";
 
-import UserChannelPieChart from "./components/UserChannelPieChart";
-import UserDailyBarChart from "./components/UserDailyBarChart";
-import UserHistoryTable from "./components/UserHistoryTable";
-import UserInfoSection from "./components/UserInfoSection";
-import UserMicPieChart from "./components/UserMicPieChart";
-import UserSearchDropdown from "./components/UserSearchDropdown";
-import UserSummaryCards from "./components/UserSummaryCards";
+import UserChannelPieChart from "./UserChannelPieChart";
+import UserDailyBarChart from "./UserDailyBarChart";
+import UserHistoryTable from "./UserHistoryTable";
+import UserInfoSection from "./UserInfoSection";
+import UserMicPieChart from "./UserMicPieChart";
+import UserSearchDropdown from "./UserSearchDropdown";
+import UserSummaryCards from "./UserSummaryCards";
 
 type Period = "7d" | "14d" | "30d";
 
@@ -75,22 +75,27 @@ const PERIOD_LABELS: Record<Period, string> = {
   "30d": "30일",
 };
 
-export default function UserDetailPage() {
-  const params = useParams();
-  const guildId = params.guildId as string;
-  const userId = params.userId as string;
+interface Props {
+  guildId: string;
+  userId: string;
+  onBack: () => void;
+  onUserSelect: (userId: string) => void;
+}
 
+export default function UserDetailView({
+  guildId,
+  userId,
+  onBack,
+  onUserSelect,
+}: Props) {
   const [period, setPeriod] = useState<Period>("7d");
   const [dailyRecords, setDailyRecords] = useState<VoiceDailyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyPage, setHistoryPage] = useState(1);
-  const [historyData, setHistoryData] = useState<VoiceHistoryPage | null>(
-    null,
-  );
-  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyData, setHistoryData] = useState<VoiceHistoryPage | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [profile, setProfile] = useState<MemberProfile | null>(null);
 
-  // 프로필 한 번만 로드 (userId 변경 시)
   useEffect(() => {
     let cancelled = false;
     fetchMemberProfile(guildId, userId).then((p) => {
@@ -99,13 +104,12 @@ export default function UserDetailPage() {
     return () => { cancelled = true; };
   }, [guildId, userId]);
 
-  // period 변경 시 일별 데이터 + 이력 첫 페이지 동시 로드
   useEffect(() => {
     let cancelled = false;
 
     async function loadAll() {
       setLoading(true);
-      setHistoryLoading(true);
+      setIsHistoryLoading(true);
       setHistoryPage(1);
 
       const { from, to } = getDateRange(period);
@@ -125,23 +129,20 @@ export default function UserDetailPage() {
       setDailyRecords(records);
       setHistoryData(history);
       setLoading(false);
-      setHistoryLoading(false);
+      setIsHistoryLoading(false);
     }
 
     loadAll();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [guildId, userId, period]);
 
-  // historyPage 변경 시 이력만 재로드
   useEffect(() => {
-    if (historyPage === 1) return; // 첫 페이지는 위 effect에서 처리
+    if (historyPage === 1) return;
 
     let cancelled = false;
 
     async function loadHistory() {
-      setHistoryLoading(true);
+      setIsHistoryLoading(true);
       const { from, to } = getDateRange(period);
       const history = await fetchUserVoiceHistory(guildId, userId, {
         from,
@@ -151,14 +152,11 @@ export default function UserDetailPage() {
       });
       if (cancelled) return;
       setHistoryData(history);
-      setHistoryLoading(false);
+      setIsHistoryLoading(false);
     }
 
     loadHistory();
-    return () => {
-      cancelled = true;
-    };
-    // period는 의존성에서 제외 — period 변경은 위 effect가 처리
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guildId, userId, historyPage]);
 
@@ -175,14 +173,19 @@ export default function UserDetailPage() {
   const avatarUrl = profile?.avatarUrl ?? null;
 
   return (
-    <div className="space-y-6 p-6">
-      {/* 헤더: 타이틀 + 유저 검색창 */}
+    <div className="space-y-6">
+      {/* 헤더: 뒤로가기 + 타이틀 + 유저 검색 */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">유저 음성 활동</h1>
-        <UserSearchDropdown guildId={guildId} currentUserId={userId} />
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            서버 전체 보기
+          </Button>
+        </div>
+        <UserSearchDropdown guildId={guildId} onSelect={onUserSelect} />
       </div>
 
-      {/* 유저 기본 정보 + 기간 선택 버튼 */}
+      {/* 유저 기본 정보 + 기간 선택 */}
       <div className="flex items-center justify-between">
         <UserInfoSection userName={userName} userId={userId} avatarUrl={avatarUrl} />
         <div className="flex gap-2">
@@ -205,7 +208,6 @@ export default function UserDetailPage() {
         </div>
       ) : (
         <>
-          {/* 요약 카드 4개 */}
           <UserSummaryCards
             totalDurationSec={summary.totalDurationSec}
             totalMicOnSec={summary.totalMicOnSec}
@@ -213,7 +215,6 @@ export default function UserDetailPage() {
             totalAloneSec={summary.totalAloneSec}
           />
 
-          {/* 일별 바 차트 + 마이크 도넛 차트 */}
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <UserDailyBarChart data={trends} />
@@ -226,16 +227,14 @@ export default function UserDetailPage() {
             </div>
           </div>
 
-          {/* 채널별 도넛 차트 */}
           <UserChannelPieChart
             channelStats={channelStats}
             categoryStats={categoryStats}
           />
 
-          {/* 입퇴장 이력 테이블 */}
           <UserHistoryTable
             data={historyData}
-            loading={historyLoading}
+            loading={isHistoryLoading}
             currentPage={historyPage}
             onPageChange={setHistoryPage}
           />
