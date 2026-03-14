@@ -34,7 +34,7 @@
     "test": "pnpm -r run test",
     "clean": "pnpm -r run clean && rm -rf node_modules",
     "postinstall": "pnpm -r run postinstall",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.4",
