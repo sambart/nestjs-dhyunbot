@@ -140,6 +140,7 @@ export class SelfDiagnosisService {
       activityTopPercent: activityData.topPercent,
       hhiScore: relationshipData.hhiScore,
       peerCount: relationshipData.peerCount,
+      hasMocoActivity: mocoData.hasMocoActivity,
       mocoTopPercent: mocoData.topPercent,
       activeDaysRatio,
       micUsageRate: patternData.micUsageRate,
@@ -179,6 +180,7 @@ export class SelfDiagnosisService {
       peerCount: relationshipData.peerCount,
       hhiScore: relationshipData.hhiScore,
       topPeers: relationshipData.topPeers,
+      hasMocoActivity: mocoData.hasMocoActivity,
       mocoScore: mocoData.score,
       mocoRank: mocoData.rank,
       mocoTotalUsers: mocoData.totalUsers,
@@ -283,6 +285,7 @@ export class SelfDiagnosisService {
   }
 
   private async collectMoco({ guildId, userId, startDate, endDate }: QueryRange): Promise<{
+    hasMocoActivity: boolean;
     score: number;
     rank: number;
     totalUsers: number;
@@ -303,16 +306,19 @@ export class SelfDiagnosisService {
 
     const totalUsers = mocoRankings.length;
     const userIndex = mocoRankings.findIndex((r) => r.hunterId === userId);
-    const rank = userIndex >= 0 ? userIndex + 1 : totalUsers + 1;
+    const hasMocoActivity = userIndex >= 0;
+    const rank = hasMocoActivity ? userIndex + 1 : totalUsers + 1;
     const topPercent =
-      totalUsers > 0 ? (rank / totalUsers) * TOP_PERCENT_DIVISOR : TOP_PERCENT_DIVISOR;
+      totalUsers > 0
+        ? Math.min((rank / totalUsers) * TOP_PERCENT_DIVISOR, TOP_PERCENT_DIVISOR)
+        : TOP_PERCENT_DIVISOR;
 
-    const userRow = userIndex >= 0 ? mocoRankings[userIndex] : null;
+    const userRow = hasMocoActivity ? mocoRankings[userIndex] : null;
     const score = userRow ? Number(userRow.totalScore) : 0;
     // uniqueNewbieCount는 일별 값이므로 SUM은 연인원 기준 (날짜별 중복 가능)
     const helpedNewbies = userRow ? Number(userRow.totalNewbies) : 0;
 
-    return { score, rank, totalUsers, topPercent, helpedNewbies };
+    return { hasMocoActivity, score, rank, totalUsers, topPercent, helpedNewbies };
   }
 
   private async collectPattern({
@@ -395,6 +401,7 @@ export class SelfDiagnosisService {
     activityTopPercent: number;
     hhiScore: number;
     peerCount: number;
+    hasMocoActivity: boolean;
     mocoTopPercent: number;
     activeDaysRatio: number;
     micUsageRate: number;
@@ -405,6 +412,7 @@ export class SelfDiagnosisService {
       activityTopPercent,
       hhiScore,
       peerCount,
+      hasMocoActivity,
       mocoTopPercent,
       activeDaysRatio,
       micUsageRate,
@@ -431,7 +439,7 @@ export class SelfDiagnosisService {
         ...BADGE_DISPLAY.HUNTER,
         isEarned: isEarned(BADGE_CODE.HUNTER),
         criterion: `모코코 기여 상위 ${config.badgeHunterTopPercent}% 이내`,
-        current: `현재 상위 ${mocoTopPercent.toFixed(1)}%`,
+        current: hasMocoActivity ? `현재 상위 ${mocoTopPercent.toFixed(1)}%` : '기록 없음',
       },
       {
         code: BADGE_CODE.CONSISTENT,
@@ -461,6 +469,7 @@ export class SelfDiagnosisService {
     };
     relationshipData: { peerCount: number; hhiScore: number };
     mocoData: {
+      hasMocoActivity: boolean;
       score: number;
       rank: number;
       totalUsers: number;
@@ -527,8 +536,12 @@ export class SelfDiagnosisService {
       peerLines,
       '',
       '## 모코코(신규 멤버 케어) 기여',
-      `- 기여 점수: ${mocoData.score}점, 도운 신규 멤버: ${mocoData.helpedNewbies}명`,
-      `- 서버 내 순위: ${mocoData.rank}위 / ${mocoData.totalUsers}명 (상위 ${mocoData.topPercent.toFixed(1)}%)`,
+      ...(mocoData.hasMocoActivity
+        ? [
+            `- 기여 점수: ${mocoData.score}점, 도운 신규 멤버: ${mocoData.helpedNewbies}명`,
+            `- 서버 내 순위: ${mocoData.rank}위 / ${mocoData.totalUsers}명 (상위 ${mocoData.topPercent.toFixed(1)}%)`,
+          ]
+        : [`- 모코코 사냥 활동 기록 없음 (현재 ${mocoData.totalUsers}명 참여 중)`]),
       '',
       '## 참여 패턴',
       `- 마이크 사용률: ${Math.round(patternData.micUsageRate * TOP_PERCENT_DIVISOR)}%`,

@@ -17,6 +17,7 @@ export interface SelfDiagnosisResult {
   topPeers: PeerInfo[];
 
   // 모코코 기여
+  hasMocoActivity: boolean;
   mocoScore: number;
   mocoRank: number;
   mocoTotalUsers: number;

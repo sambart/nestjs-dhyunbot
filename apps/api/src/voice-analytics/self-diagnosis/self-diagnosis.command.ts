@@ -186,7 +186,16 @@ export class SelfDiagnosisCommand {
 
   private buildMocoSection(result: SelfDiagnosisResult): string {
     if (result.mocoTotalUsers === 0) {
-      return `\uD83C\uDF31 **모코코 기여**\n기여 기록 없음`;
+      return `\uD83C\uDF31 **모코코 기여**\n서버에 모코코 사냥 기록이 없습니다`;
+    }
+
+    if (!result.hasMocoActivity) {
+      return [
+        `\uD83C\uDF31 **모코코 기여**`,
+        `아직 모코코 사냥 기록이 없습니다`,
+        `신입 멤버와 함께 음성 채널에 참여하면 점수를 얻을 수 있어요!`,
+        `현재 ${result.mocoTotalUsers}명이 모코코 사냥에 참여 중`,
+      ].join('\n');
     }
 
     const lines = [
