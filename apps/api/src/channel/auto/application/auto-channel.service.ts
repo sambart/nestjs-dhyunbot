@@ -321,7 +321,7 @@ export class AutoChannelService {
     const buttonTemplate = button.channelNameTemplate || `{username}의 ${button.label}`;
     const baseName = buttonTemplate.replace(/{username}/g, userName);
 
-    if (subOption && subOption.channelNameTemplate) {
+    if (subOption?.channelNameTemplate) {
       return subOption.channelNameTemplate
         .replace(/{name}/g, baseName)
         .replace(/{username}/g, userName);
@@ -383,7 +383,7 @@ export class AutoChannelService {
             .setLabel(opt.label)
             .setStyle(ButtonStyle.Primary);
 
-          if (opt.emoji && opt.emoji.trim()) {
+          if (opt.emoji?.trim()) {
             try {
               builder.setEmoji(opt.emoji.trim());
             } catch {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 
 function getOrigin(request: NextRequest): string {
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host');

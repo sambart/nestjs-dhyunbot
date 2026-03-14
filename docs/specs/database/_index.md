@@ -218,6 +218,94 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
   (독립 테이블 — FK 없음, Discord ID 직접 저장)
   IDX(guildId, recordedAt)
   IDX(recordedAt)
+
+┌────────────────────────────────────────────────────────┐
+│   VoiceCoPresenceSession (voice_co_presence_session)    │
+├────────────────────────────────────────────────────────┤
+│ PK id                                                  │
+│ guildId, userId, channelId                             │
+│ startedAt, endedAt                                     │
+│ durationMin, peerIds (json), peerMinutes (json)        │
+│ createdAt                                              │
+└────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  IDX(guildId, userId)
+  IDX(guildId, startedAt)
+  IDX(endedAt)
+  90일 보존 → 자동 삭제
+
+┌────────────────────────────────────────────────────────┐
+│   VoiceCoPresenceDaily (voice_co_presence_daily)        │
+├────────────────────────────────────────────────────────┤
+│ PK guildId + userId + date                             │
+│ channelMinutes (default 0)                             │
+│ sessionCount (default 0)                               │
+└────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  IDX(guildId, date)
+
+┌────────────────────────────────────────────────────────┐
+│ VoiceCoPresencePairDaily (voice_co_presence_pair_daily) │
+├────────────────────────────────────────────────────────┤
+│ PK guildId + userId + peerId + date                    │
+│ minutes (default 0)                                    │
+│ sessionCount (default 0)                               │
+└────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  IDX(guildId, userId, date)
+  IDX(guildId, date)
+
+┌────────────────────────────────────────────────────────────┐
+│      InactiveMemberConfig (inactive_member_config)          │
+├────────────────────────────────────────────────────────────┤
+│ PK id                                                       │
+│ guildId (UNIQUE)                                            │
+│ periodDays (default 30)                                     │
+│ lowActiveThresholdMin (default 30)                          │
+│ decliningPercent (default 50)                               │
+│ autoActionEnabled (default false)                           │
+│ autoRoleAdd (default false), autoDm (default false)         │
+│ inactiveRoleId ?, removeRoleId ?                            │
+│ excludedRoleIds (json, default '[]')                        │
+│ dmEmbedTitle ?, dmEmbedBody ?, dmEmbedColor ?               │
+│ createdAt, updatedAt                                        │
+└────────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  UQ_inactive_member_config_guild: UNIQUE(guildId)
+
+┌────────────────────────────────────────────────────────────┐
+│      InactiveMemberRecord (inactive_member_record)          │
+├────────────────────────────────────────────────────────────┤
+│ PK id                                                       │
+│ guildId, userId                                             │
+│ grade (enum, nullable): FULLY_INACTIVE | LOW_ACTIVE |       │
+│         DECLINING                                           │
+│ totalMinutes (default 0), prevTotalMinutes (default 0)      │
+│ lastVoiceDate (date, nullable)                              │
+│ gradeChangedAt (timestamp, nullable)                        │
+│ classifiedAt (timestamp)                                    │
+│ createdAt, updatedAt                                        │
+└────────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  UQ_inactive_member_record_guild_user: UNIQUE(guildId, userId)
+  IDX_inactive_member_record_guild_grade: IDX(guildId, grade)
+  IDX_inactive_member_record_guild_last_voice: IDX(guildId, lastVoiceDate)
+
+┌────────────────────────────────────────────────────────────┐
+│   InactiveMemberActionLog (inactive_member_action_log)      │
+├────────────────────────────────────────────────────────────┤
+│ PK id                                                       │
+│ guildId                                                     │
+│ actionType (enum): ACTION_DM | ACTION_ROLE_ADD |            │
+│                    ACTION_ROLE_REMOVE                       │
+│ targetUserIds (json)                                        │
+│ executorUserId ? (NULL이면 시스템 자동 조치)                │
+│ successCount (default 0), failCount (default 0)             │
+│ note ?                                                      │
+│ executedAt (timestamp, default now())                       │
+└────────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  IDX_inactive_action_log_guild_executed: IDX(guildId, executedAt DESC)
 ```
 
 ---
@@ -852,6 +940,283 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 
 ---
 
+### 20. VoiceCoPresenceSession (`voice_co_presence_session`)
+
+> Voice Co-Presence 도메인: 사용자 단위의 동시접속 세션 이력. 90일 보존 후 자동 삭제.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
+| `userId` | `varchar` | NOT NULL | 추적 대상 사용자 디스코드 ID |
+| `channelId` | `varchar` | NOT NULL | 동시접속이 발생한 음성 채널 ID |
+| `startedAt` | `timestamp` | NOT NULL | 동시접속 시작 시각 |
+| `endedAt` | `timestamp` | NOT NULL | 동시접속 종료 시각 |
+| `durationMin` | `int` | NOT NULL | 동시접속 시간(분) |
+| `peerIds` | `json` | NOT NULL | 세션 중 함께 있었던 사용자 ID 배열 |
+| `peerMinutes` | `json` | NOT NULL | 사용자별 동시접속 시간 (`{"userId1": 30, "userId2": 60}`) |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/channel/voice/co-presence/domain/voice-co-presence-session.entity.ts`
+- **보존 정책**: 90일 초과 데이터 자동 삭제 (매일 자정 KST 스케줄러)
+- **설계 의도**: 진행 중인 세션은 인메모리에서만 관리되며, 종료 시점에만 DB에 persist된다. 따라서 `endedAt`은 항상 NOT NULL이다.
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_copresence_session_guild_user` | `(guildId, userId)` | 사용자별 세션 조회 |
+| `IDX_copresence_session_guild_started` | `(guildId, startedAt)` | 기간별 세션 조회 |
+| `IDX_copresence_session_ended` | `(endedAt)` | 90일 자동 삭제 스케줄러 (`DELETE WHERE endedAt < ?`) |
+
+#### 인덱스 설계 근거
+
+자동 삭제 스케줄러(`DELETE WHERE endedAt < ?`)가 guildId 무관하게 날짜 기준으로 삭제하므로 `endedAt` 단독 인덱스를 둔다. 사용자별 세션 조회(`WHERE guildId = ? AND userId = ?`)는 `IDX_copresence_session_guild_user`로 커버한다.
+
+---
+
+### 21. VoiceCoPresenceDaily (`voice_co_presence_daily`)
+
+> Voice Co-Presence 도메인: 사용자별 일별 동시접속 집계. 영구 보존.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `userId` | `varchar` | PK | 사용자 디스코드 ID |
+| `date` | `date` | PK | 날짜 |
+| `channelMinutes` | `int` | NOT NULL, DEFAULT `0` | 당일 다른 사용자와 함께한 채널 체류 시간(분) |
+| `sessionCount` | `int` | NOT NULL, DEFAULT `0` | 당일 세션 수 |
+
+- **복합 PK**: `(guildId, userId, date)`
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/channel/voice/co-presence/domain/voice-co-presence-daily.entity.ts`
+- **보존 정책**: 영구 보존 (삭제 안 함)
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_copresence_daily_guild_date` | `(guildId, date)` | 서버 전체 기간별 조회 |
+
+#### 인덱스 설계 근거
+
+기간별 서버 전체 조회(`WHERE guildId = ? AND date BETWEEN ? AND ?`)를 커버한다. 특정 사용자 조회는 PK `(guildId, userId, date)`로 커버되므로 별도 인덱스 불필요.
+
+#### Upsert 쿼리
+
+```sql
+INSERT INTO voice_co_presence_daily ("guildId", "userId", "date", "channelMinutes", "sessionCount")
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT ("guildId", "userId", "date")
+DO UPDATE SET
+  "channelMinutes" = voice_co_presence_daily."channelMinutes" + EXCLUDED."channelMinutes",
+  "sessionCount" = voice_co_presence_daily."sessionCount" + EXCLUDED."sessionCount"
+```
+
+---
+
+### 22. VoiceCoPresencePairDaily (`voice_co_presence_pair_daily`)
+
+> Voice Co-Presence 도메인: 사용자 쌍 단위 일별 동시접속 집계. 관계 분석의 핵심 테이블. 영구 보존.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `userId` | `varchar` | PK | 사용자 A |
+| `peerId` | `varchar` | PK | 사용자 B |
+| `date` | `date` | PK | 날짜 |
+| `minutes` | `int` | NOT NULL, DEFAULT `0` | 당일 동시접속 시간(분) |
+| `sessionCount` | `int` | NOT NULL, DEFAULT `0` | 당일 세션 수 |
+
+- **복합 PK**: `(guildId, userId, peerId, date)`
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/channel/voice/co-presence/domain/voice-co-presence-pair-daily.entity.ts`
+- **보존 정책**: 영구 보존 (삭제 안 함)
+- **데이터 방향성**: A와 B가 함께 있으면 `(userId=A, peerId=B)`와 `(userId=B, peerId=A)` **양방향 모두 저장**
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_copresence_pair_guild_user_date` | `(guildId, userId, date)` | 특정 사용자의 기간별 관계 조회 |
+| `IDX_copresence_pair_guild_date` | `(guildId, date)` | 서버 전체 기간별 관계 조회 |
+
+#### 인덱스 설계 근거
+
+특정 사용자의 친밀도 조회(`WHERE guildId = ? AND userId = ? AND date BETWEEN ? AND ? GROUP BY peerId`)는 `IDX_copresence_pair_guild_user_date`로 필터링+정렬을 커버한다. 서버 전체 관계 그래프 조회(`WHERE guildId = ? AND date BETWEEN ?`)는 `IDX_copresence_pair_guild_date`로 커버한다. 특정 쌍 조회(`WHERE guildId = ? AND userId = ? AND peerId = ?`)는 PK로 커버되므로 별도 인덱스 불필요.
+
+#### 관계 분석 대시보드(F-COPRESENCE-007~013) 인덱스 검토 결과
+
+> F-COPRESENCE-007~013은 기존 3개 테이블을 읽기 전용으로 조회한다. 새 테이블·컬럼·인덱스는 불필요하다.
+
+| 기능 | 주요 쿼리 패턴 | 커버 인덱스 |
+|------|--------------|------------|
+| F-COPRESENCE-007 요약 카드 | `PairDaily WHERE guildId + date, COUNT(DISTINCT userId)` | `IDX_copresence_pair_guild_date` |
+| F-COPRESENCE-007 요약 카드 | `Daily WHERE guildId + date, SUM(channelMinutes)` | `IDX_copresence_daily_guild_date` |
+| F-COPRESENCE-008 네트워크 그래프 | `Daily WHERE guildId + date GROUP BY userId ORDER BY SUM LIMIT 50` | `IDX_copresence_daily_guild_date` |
+| F-COPRESENCE-008 네트워크 그래프 | `PairDaily WHERE guildId + date AND userId IN (...50명...)` | `IDX_copresence_pair_guild_date` |
+| F-COPRESENCE-009 친밀도 TOP N | `PairDaily WHERE guildId + date AND userId < peerId GROUP BY (userId,peerId) ORDER BY SUM LIMIT N` | `IDX_copresence_pair_guild_date` (guildId+date 필터 후 행 레벨 `userId < peerId` 필터) |
+| F-COPRESENCE-010 고립 멤버 | `Daily WHERE guildId + date` + `NOT EXISTS (PairDaily WHERE guildId + date + userId)` | `IDX_copresence_daily_guild_date`, `IDX_copresence_pair_guild_user_date` |
+| F-COPRESENCE-011 관계 테이블 + userName 검색 | `PairDaily WHERE guildId + date AND userId < peerId` 후 `voice_daily` JOIN으로 userName 조회 | `IDX_copresence_pair_guild_date`, `IDX_voice_daily_guild_user_date` |
+| F-COPRESENCE-012 일별 추이 | `Daily WHERE guildId + date GROUP BY date, SUM(channelMinutes)` | `IDX_copresence_daily_guild_date` |
+| F-COPRESENCE-013 쌍 상세 | `PairDaily WHERE guildId + userId IN (A,B) AND peerId IN (A,B) AND date BETWEEN` | PK `(guildId, userId, peerId, date)` |
+
+**userName 검색(F-COPRESENCE-011) 설계 근거**: `voice_co_presence_pair_daily`에는 `userName` 컬럼이 없다. 유저명 검색 시 `voice_daily` 테이블(비정규화된 `userName` 컬럼 보유)과 JOIN하여 처리한다. `voice_daily`의 `IDX_voice_daily_guild_user_date (guildId, userId, date)`로 userId 기반 lookup이 가능하다. PairDaily에서 `guildId + date` 필터를 먼저 적용하여 후보 집합을 줄인 뒤 userName LIKE 필터를 적용하므로 추가 인덱스는 불필요하다.
+
+#### 배치 Upsert 쿼리
+
+세션 종료 시 모든 peer 레코드(양방향)를 한 번의 쿼리로 처리한다:
+
+```sql
+INSERT INTO voice_co_presence_pair_daily ("guildId", "userId", "peerId", "date", "minutes", "sessionCount")
+VALUES ($1, $2, $3, $4, $5, $6), ($7, $8, $9, $10, $11, $12), ...
+ON CONFLICT ("guildId", "userId", "peerId", "date")
+DO UPDATE SET
+  "minutes" = voice_co_presence_pair_daily."minutes" + EXCLUDED."minutes",
+  "sessionCount" = voice_co_presence_pair_daily."sessionCount" + EXCLUDED."sessionCount"
+```
+
+10명 채널에서 세션 종료 시 양방향 18행(9쌍 × 2)을 단일 쿼리로 처리. PostgreSQL VALUES 리스트 방식으로 파라미터 상한(65,535개) 내에서 약 10,000행까지 단일 쿼리 처리 가능.
+
+#### 관계 분석 쿼리 예시
+
+```sql
+-- 유저 A의 친밀도 TOP 5 (최근 30일)
+SELECT "peerId", SUM(minutes) AS "totalMin"
+FROM voice_co_presence_pair_daily
+WHERE "guildId" = :guildId AND "userId" = :userId
+  AND date BETWEEN :from AND :to
+GROUP BY "peerId" ORDER BY "totalMin" DESC LIMIT 5;
+
+-- 유저 A와 B의 총 동시접속 시간
+SELECT SUM(minutes)
+FROM voice_co_presence_pair_daily
+WHERE "guildId" = :guildId AND "userId" = :userA AND "peerId" = :userB;
+```
+
+---
+
+### 23. InactiveMemberConfig (`inactive_member_config`)
+
+길드별 비활동 판정 기준 및 자동 조치 설정을 저장한다. 길드당 하나의 설정이 존재하며, 설정이 없으면 기본값으로 자동 생성된다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
+| `periodDays` | `int` | NOT NULL, DEFAULT `30` | 비활동 판단 기간 (일). 허용값: 7/14/30 |
+| `lowActiveThresholdMin` | `int` | NOT NULL, DEFAULT `30` | 저활동 임계값 (분). 이 값 미만이면 `LOW_ACTIVE` 판정 |
+| `decliningPercent` | `int` | NOT NULL, DEFAULT `50` | 활동 감소 판정 비율 (%). 이전 동일 기간 대비 이 비율 이상 감소 시 `DECLINING` 판정. 허용 범위: 0~100 |
+| `autoActionEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 자동 조치 전체 활성화 여부 |
+| `autoRoleAdd` | `boolean` | NOT NULL, DEFAULT `false` | `FULLY_INACTIVE` 신규 판정 시 자동 역할 부여 여부 |
+| `autoDm` | `boolean` | NOT NULL, DEFAULT `false` | `FULLY_INACTIVE` 신규 판정 시 자동 DM 발송 여부 |
+| `inactiveRoleId` | `varchar` | NULLABLE | `ACTION_ROLE_ADD` 시 부여할 역할 Discord ID |
+| `removeRoleId` | `varchar` | NULLABLE | `ACTION_ROLE_REMOVE` 시 제거할 역할 Discord ID |
+| `excludedRoleIds` | `json` | NOT NULL, DEFAULT `'[]'` | 비활동 판정에서 제외할 역할 ID 배열 |
+| `dmEmbedTitle` | `varchar` | NULLABLE | DM Embed 제목 |
+| `dmEmbedBody` | `text` | NULLABLE | DM Embed 본문. 템플릿 변수: `{nickName}`, `{serverName}`, `{periodDays}`, `{totalMinutes}` |
+| `dmEmbedColor` | `varchar` | NULLABLE | DM Embed 색상 (HEX, 예: `#FF0000`) |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/inactive-member/entities/inactive-member-config.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `UQ_inactive_member_config_guild` | `(guildId)` UNIQUE | 길드당 하나의 설정 보장 |
+
+#### 인덱스 설계 근거
+
+설정 조회(`GET /api/guilds/{guildId}/inactive-member-config`)와 스케줄러의 설정 로드는 모두 `WHERE guildId = ?` 단건 조회다. UNIQUE 인덱스가 해당 조회를 커버하므로 추가 인덱스는 불필요하다.
+
+---
+
+### 24. InactiveMemberRecord (`inactive_member_record`)
+
+비활동 분류 스케줄러가 매일 자정 갱신하는 길드+유저 단위 최신 분류 결과 스냅샷이다. 등급이 변경된 경우 `gradeChangedAt`을 갱신한다. `grade = NULL`은 현재 활동 상태를 의미한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
+| `userId` | `varchar` | NOT NULL | 디스코드 유저 ID |
+| `grade` | `enum('FULLY_INACTIVE','LOW_ACTIVE','DECLINING')` | NULLABLE | 분류 등급. NULL이면 활동 상태 |
+| `totalMinutes` | `int` | NOT NULL, DEFAULT `0` | 판단 기간 내 총 음성 접속 시간 (분). `VoiceDailyEntity.channelDurationSec` 합산 후 분 환산 |
+| `prevTotalMinutes` | `int` | NOT NULL, DEFAULT `0` | 직전 동일 길이 기간의 총 음성 접속 시간 (분). `DECLINING` 판정 기준값 |
+| `lastVoiceDate` | `date` | NULLABLE | 마지막 음성 접속 날짜. `VoiceDailyEntity`의 최신 `date` 값 |
+| `gradeChangedAt` | `timestamp` | NULLABLE | 이전 분류 결과와 등급이 달라진 시각. 등급 변경 없으면 갱신하지 않음 |
+| `classifiedAt` | `timestamp` | NOT NULL | 마지막으로 스케줄러가 분류한 시각 |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/inactive-member/entities/inactive-member-record.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `UQ_inactive_member_record_guild_user` | `(guildId, userId)` UNIQUE | 길드+유저 복합 유니크. upsert ON CONFLICT 키 |
+| `IDX_inactive_member_record_guild_grade` | `(guildId, grade)` | 등급별 목록 조회 (`WHERE guildId = ? AND grade = ?`) |
+| `IDX_inactive_member_record_guild_last_voice` | `(guildId, lastVoiceDate)` | 마지막 접속일 기준 정렬 조회 |
+
+#### 인덱스 설계 근거
+
+비활동 회원 목록 API(`GET /api/guilds/{guildId}/inactive-members`)는 두 가지 조회 패턴을 가진다.
+
+- **등급 필터 조회** (`WHERE guildId = ? AND grade = ?`): `IDX_inactive_member_record_guild_grade (guildId, grade)`로 커버한다.
+- **마지막 접속일 정렬** (`ORDER BY lastVoiceDate`): `IDX_inactive_member_record_guild_last_voice (guildId, lastVoiceDate)`로 커버한다.
+- **총 접속 시간 정렬** (`ORDER BY totalMinutes`): `totalMinutes`는 서버당 비활동 레코드 수가 제한적(멤버 수 상한)이므로 `guildId` 필터 이후 정렬에 filesort를 허용한다. 별도 인덱스를 추가하지 않는다.
+
+복합 유니크 인덱스 `UQ_inactive_member_record_guild_user (guildId, userId)`는 스케줄러 upsert의 `ON CONFLICT` 키로 사용된다.
+
+#### Grade Enum 우선순위
+
+동시에 두 조건을 충족하는 경우 `FULLY_INACTIVE` > `LOW_ACTIVE` > `DECLINING` 순으로 적용한다.
+
+---
+
+### 25. InactiveMemberActionLog (`inactive_member_action_log`)
+
+비활동 회원에 대한 수동 조치(관리자) 및 자동 조치(스케줄러)를 모두 기록한다. `executorUserId = NULL`이면 시스템 자동 조치를 의미한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
+| `actionType` | `enum('ACTION_DM','ACTION_ROLE_ADD','ACTION_ROLE_REMOVE')` | NOT NULL | 조치 유형 |
+| `targetUserIds` | `json` | NOT NULL | 조치 대상 유저 Discord ID 배열. 최소 1명, 최대 100명 |
+| `executorUserId` | `varchar` | NULLABLE | 조치를 실행한 관리자 Discord ID. NULL이면 시스템 자동 조치 |
+| `successCount` | `int` | NOT NULL, DEFAULT `0` | 성공한 조치 수 |
+| `failCount` | `int` | NOT NULL, DEFAULT `0` | 실패한 조치 수 (DM 수신 거부 등) |
+| `note` | `text` | NULLABLE | 실패 사유 등 추가 메모 |
+| `executedAt` | `timestamp` | NOT NULL, DEFAULT now() | 조치 실행 시각 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/inactive-member/entities/inactive-member-action-log.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_inactive_action_log_guild_executed` | `(guildId, executedAt DESC)` | 길드별 이력 최신순 조회 (`GET /inactive-members/action-logs`) |
+
+#### 인덱스 설계 근거
+
+조치 이력 조회(`WHERE guildId = ? ORDER BY executedAt DESC`)를 단일 복합 인덱스로 커버한다. `executedAt DESC` 방향을 인덱스에 명시하여 정렬 시 별도 filesort 없이 인덱스 스캔으로 처리한다.
+
+---
+
 ## Redis 데이터 구조
 
 ### 키 네이밍 패턴
@@ -1383,4 +1748,218 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
 
 [30일 초과 데이터 정리 — @Cron('0 3 * * *')]
   1. bot_metric → PostgreSQL delete WHERE recordedAt < (now - 30일)
+```
+
+### Inactive Member 라이프사이클
+
+```
+[비활동 분류 스케줄러 — @Cron('0 0 * * *') KST 00:00]
+  1. inactive_member_config → PostgreSQL select (전체 길드 설정 조회)
+     - 설정이 없는 길드는 기본값으로 자동 생성 후 처리
+  2. 각 길드별 처리:
+     a. voice_daily → PostgreSQL
+          SELECT userId, SUM(channelDurationSec) AS totalSec
+          WHERE guildId = ? AND date BETWEEN [periodStart] AND [periodEnd]
+            AND channelId != 'GLOBAL'
+          GROUP BY userId
+        → 현재 기간 총 음성 접속 시간(초) 집계
+     b. voice_daily → PostgreSQL
+          SELECT userId, SUM(channelDurationSec) AS prevTotalSec
+          WHERE guildId = ? AND date BETWEEN [prevPeriodStart] AND [prevPeriodEnd]
+            AND channelId != 'GLOBAL'
+          GROUP BY userId
+        → 직전 동일 길이 기간 집계 (DECLINING 판정용)
+     c. voice_daily → PostgreSQL
+          SELECT userId, MAX(date) AS lastVoiceDate
+          WHERE guildId = ? AND date BETWEEN [periodStart] AND [periodEnd]
+            AND channelId != 'GLOBAL'
+          GROUP BY userId
+        → 마지막 음성 접속 날짜 조회
+     d. Discord API → guild.members.fetch() (excludedRoleIds 보유 회원 목록 조회 및 제외 처리)
+     e. 등급 결정 (우선순위: FULLY_INACTIVE > LOW_ACTIVE > DECLINING):
+        - totalMinutes = 0 → FULLY_INACTIVE
+        - 0 < totalMinutes < lowActiveThresholdMin → LOW_ACTIVE
+        - prevTotalMinutes > 0 AND (prevTotalMinutes - totalMinutes) / prevTotalMinutes >= decliningPercent / 100 → DECLINING
+        - 위 조건 미충족 → NULL (활동 상태)
+     f. inactive_member_record → PostgreSQL upsert (guildId, userId 복합 유니크 기준)
+        ON CONFLICT (guildId, userId) DO UPDATE SET
+          grade = EXCLUDED.grade,
+          totalMinutes = EXCLUDED.totalMinutes,
+          prevTotalMinutes = EXCLUDED.prevTotalMinutes,
+          lastVoiceDate = EXCLUDED.lastVoiceDate,
+          gradeChangedAt = CASE WHEN grade != EXCLUDED.grade THEN now() ELSE gradeChangedAt END,
+          classifiedAt = now(),
+          updatedAt = now()
+  3. 자동 조치 실행 (autoActionEnabled = true인 길드에 한해):
+     a. inactive_member_record → PostgreSQL select
+          WHERE guildId = ? AND grade = 'FULLY_INACTIVE'
+            AND gradeChangedAt >= [이번 스케줄러 실행 시각 - 여유 범위]
+        → 이번 실행에서 새로 FULLY_INACTIVE 판정된 회원 조회
+     b. autoRoleAdd = true 인 경우:
+        - Discord API → guild.members.addRole(inactiveRoleId) 일괄 호출
+        - inactive_member_action_log → PostgreSQL insert
+            (guildId, actionType='ACTION_ROLE_ADD', targetUserIds, executorUserId=NULL,
+             successCount, failCount, executedAt)
+     c. autoDm = true 인 경우:
+        - Discord API → user.send(dmEmbed) 일괄 호출 (DM 거부 시 failCount 증가, 계속 진행)
+        - inactive_member_action_log → PostgreSQL insert
+            (guildId, actionType='ACTION_DM', targetUserIds, executorUserId=NULL,
+             successCount, failCount, executedAt)
+
+[웹 대시보드 — 비활동 회원 목록 조회]
+  GET /api/guilds/{guildId}/inactive-members
+  1. inactive_member_config → PostgreSQL select WHERE guildId = ? (설정 조회, 없으면 기본값 생성)
+  2. inactive_member_record → PostgreSQL
+       SELECT r.userId, r.grade, r.totalMinutes, r.lastVoiceDate, r.gradeChangedAt, r.classifiedAt
+       FROM inactive_member_record r
+       [JOIN을 통한 닉네임 조회: voice_daily.userName 또는 Discord API 캐시]
+       WHERE r.guildId = ?
+         [AND r.grade = ?]       -- grade 필터
+         [AND m.userName LIKE ?] -- 닉네임 검색
+       ORDER BY r.lastVoiceDate [ASC|DESC] | r.totalMinutes [ASC|DESC]
+       LIMIT ? OFFSET ?
+     인덱스: IDX_inactive_member_record_guild_grade (grade 필터 시)
+             IDX_inactive_member_record_guild_last_voice (lastVoiceDate 정렬 시)
+
+[웹 대시보드 — 비활동 통계 조회]
+  GET /api/guilds/{guildId}/inactive-members/stats
+  1. inactive_member_record → PostgreSQL
+       SELECT grade, COUNT(*) AS cnt
+       FROM inactive_member_record
+       WHERE guildId = ?
+       GROUP BY grade
+     → activeCount(NULL), fullyInactiveCount, lowActiveCount, decliningCount 집계
+  2. inactive_member_record → PostgreSQL
+       SELECT COUNT(*) AS returnedCount
+       FROM inactive_member_record
+       WHERE guildId = ? AND grade IS NULL
+         AND gradeChangedAt >= [직전 스케줄러 실행 시각]
+     → 직전 실행 대비 활동 복귀 회원 수
+  3. inactive_member_record → PostgreSQL
+       SELECT DATE(classifiedAt) AS date, grade, COUNT(*) AS cnt
+       FROM inactive_member_record
+       WHERE guildId = ?
+         AND classifiedAt >= [추이 조회 시작일]
+       GROUP BY DATE(classifiedAt), grade
+       ORDER BY date ASC
+     → 등급별 추이 데이터
+
+[웹 대시보드 — 조치 실행]
+  POST /api/guilds/{guildId}/inactive-members/actions
+  1. inactive_member_config → PostgreSQL select WHERE guildId = ?
+     - ACTION_ROLE_ADD 요청 시 inactiveRoleId 없으면 404 응답
+     - ACTION_ROLE_REMOVE 요청 시 removeRoleId 없으면 404 응답
+  2. 조치 유형에 따라 Discord API 일괄 호출:
+     - ACTION_DM: user.send(dmEmbed) — DM 거부 시 failCount++, 계속 진행
+     - ACTION_ROLE_ADD: guild.members.addRole(inactiveRoleId)
+     - ACTION_ROLE_REMOVE: guild.members.removeRole(removeRoleId)
+  3. inactive_member_action_log → PostgreSQL insert
+       (guildId, actionType, targetUserIds, executorUserId, successCount, failCount, executedAt)
+  4. logId 포함하여 응답 반환
+
+[웹 대시보드 — 조치 이력 조회]
+  GET /api/guilds/{guildId}/inactive-members/action-logs
+  1. inactive_member_action_log → PostgreSQL
+       SELECT * FROM inactive_member_action_log
+       WHERE guildId = ?
+       ORDER BY executedAt DESC
+       LIMIT ? OFFSET ?
+     인덱스: IDX_inactive_action_log_guild_executed (guildId, executedAt DESC)
+
+[웹 설정 저장 — InactiveMemberConfig]
+  PUT /api/guilds/{guildId}/inactive-member-config
+  1. inactive_member_config → PostgreSQL upsert (guildId 기준)
+       ON CONFLICT (guildId) DO UPDATE SET [변경 필드], updatedAt = now()
+  2. 갱신된 InactiveMemberConfig 전체 필드 반환
+
+[웹 설정 조회 — InactiveMemberConfig]
+  GET /api/guilds/{guildId}/inactive-member-config
+  1. inactive_member_config → PostgreSQL select WHERE guildId = ?
+     - 레코드 없음: 기본값으로 INSERT 후 반환
+     - 레코드 있음: 전체 필드 반환
+```
+
+### Voice Co-Presence 라이프사이클
+
+```
+[60초 폴링 — CoPresenceScheduler.tick()]
+  1. Discord Client → client.guilds.cache 순회
+  2. 각 길드의 음성 채널 순회
+     - VoiceExcludedChannelService.isExcludedChannel() → 제외 채널 필터링
+     - 채널당 2명 이상의 봇 아닌 사용자가 있는 경우만 처리
+  3. 채널별 사용자 목록 스냅샷 생성
+  4. CoPresenceService.reconcile(snapshots) → 세션 시작/계속/종료 판정
+  5. EventEmitter2.emit('co-presence.tick', { snapshots }) — fire-and-forget
+     - MocoEventHandler.handleTick() → 모코코 조건 판정 + Redis 실시간 누적
+
+[세션 시작 — 사용자가 새로 채널에 합류]
+  1. 인메모리 ActiveCoPresenceSession 생성
+
+[세션 계속 — 이전 tick에도 같은 채널에 있던 사용자]
+  1. 인메모리 accumulatedMinutes +1, peerMinutes 갱신
+
+[세션 종료 — 사용자가 채널을 떠나거나, 채널에 1명만 남은 시점]
+  1. voice_co_presence_session → PostgreSQL insert (peerIds, peerMinutes 포함)
+  2. voice_co_presence_daily → PostgreSQL upsert (channelMinutes, sessionCount 누적)
+  3. voice_co_presence_pair_daily → PostgreSQL 배치 upsert (양방향 N-1쌍을 단일 쿼리로)
+  4. EventEmitter2.emitAsync('co-presence.session.ended', event) — 모든 핸들러 await 완료
+     - MocoEventHandler.handleSessionEnded() → 모코코 조건 판정 + DB/Redis 처리
+
+[모코코 리셋 — MocoResetScheduler.resetGuild()]
+  1. CoPresenceScheduler.flushGuildSessions(guildId) → CoPresenceService.endAllGuildSessions()
+     - 해당 길드의 모든 활성 세션 강제 종료 (위 [세션 종료] 플로우 수행)
+     - emitAsync() 완료 대기 → MocoEventHandler 처리 완료 보장
+  2. Redis moco:* 키 삭제 (정합성 보장됨)
+
+[봇 종료 — onApplicationShutdown]
+  1. 모든 활성 세션 강제 종료 (위 [세션 종료] 플로우 수행)
+
+[봇 시작 — onApplicationBootstrap]
+  1. 인메모리 세션 맵 초기화, Discord ready 후 첫 tick에서 자연스럽게 새 세션 시작
+
+[90일 초과 세션 정리 — @Cron('0 0 15 * * *') UTC 15:00 = KST 00:00]
+  1. voice_co_presence_session → PostgreSQL delete WHERE endedAt < (now - 90일)
+  ※ voice_co_presence_daily, voice_co_presence_pair_daily는 영구 보존
+
+[관계 분석 대시보드 — GET /api/guilds/:guildId/co-presence/* (F-COPRESENCE-007~013)]
+  ※ 읽기 전용. DB 스키마 변경 없음. 기존 인덱스로 모든 쿼리 패턴 커버.
+
+  /summary (F-COPRESENCE-007)
+    1. voice_co_presence_pair_daily → COUNT(DISTINCT userId) WHERE guildId + date BETWEEN
+       인덱스: IDX_copresence_pair_guild_date
+    2. voice_co_presence_daily → SUM(channelMinutes) WHERE guildId + date BETWEEN
+       인덱스: IDX_copresence_daily_guild_date
+
+  /graph (F-COPRESENCE-008)
+    1. voice_co_presence_daily → GROUP BY userId, SUM(channelMinutes) DESC LIMIT 50 WHERE guildId + date BETWEEN
+       인덱스: IDX_copresence_daily_guild_date
+    2. voice_co_presence_pair_daily → WHERE guildId + date BETWEEN AND userId IN (...상위50명...)
+       인덱스: IDX_copresence_pair_guild_date
+
+  /top-pairs (F-COPRESENCE-009)
+    1. voice_co_presence_pair_daily → WHERE guildId + date BETWEEN AND userId < peerId
+         GROUP BY (userId, peerId) ORDER BY SUM(minutes) DESC LIMIT N
+       인덱스: IDX_copresence_pair_guild_date (guildId+date 필터 후 행 레벨 userId < peerId 필터)
+
+  /isolated (F-COPRESENCE-010)
+    1. voice_co_presence_daily → WHERE guildId + date BETWEEN AND channelMinutes > 0
+       인덱스: IDX_copresence_daily_guild_date
+    2. NOT EXISTS: voice_co_presence_pair_daily WHERE guildId + userId (= Daily의 userId) AND date BETWEEN
+       인덱스: IDX_copresence_pair_guild_user_date
+
+  /pairs (F-COPRESENCE-011)
+    1. voice_co_presence_pair_daily → WHERE guildId + date BETWEEN AND userId < peerId
+         ORDER BY SUM(minutes) DESC, LIMIT/OFFSET (페이지네이션)
+       인덱스: IDX_copresence_pair_guild_date
+    2. userName 검색 시: voice_daily JOIN → userName LIKE '%search%' WHERE guildId + userId
+       인덱스: IDX_voice_daily_guild_user_date
+
+  /daily-trend (F-COPRESENCE-012)
+    1. voice_co_presence_daily → GROUP BY date, SUM(channelMinutes)/2 WHERE guildId + date BETWEEN
+       인덱스: IDX_copresence_daily_guild_date
+
+  /pair-detail (F-COPRESENCE-013)
+    1. voice_co_presence_pair_daily → WHERE guildId + userId IN (A,B) AND peerId IN (A,B) AND date BETWEEN
+         GROUP BY date ORDER BY date
+       인덱스: PK (guildId, userId, peerId, date)
 ```

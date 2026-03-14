@@ -1,5 +1,5 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
-import { BadRequestException,Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   ActionRowBuilder,
@@ -56,9 +56,7 @@ export class MissionService {
   async createMission(member: GuildMember, config: NewbieConfig): Promise<void> {
     if (!config.missionEnabled) return;
     if (!config.missionDurationDays || !config.missionTargetPlaytimeHours) {
-      this.logger.warn(
-        `[MISSION] Mission config incomplete: guild=${member.guild.id}`,
-      );
+      this.logger.warn(`[MISSION] Mission config incomplete: guild=${member.guild.id}`);
       return;
     }
 
@@ -262,7 +260,7 @@ export class MissionService {
       .fetch(resolvedConfig.missionNotifyChannelId)
       .catch(() => null);
 
-    if (!channel || !channel.isTextBased()) {
+    if (!channel?.isTextBased()) {
       this.logger.warn(
         `[MISSION] Notify channel not found or not text-based: guild=${guildId} channel=${resolvedConfig.missionNotifyChannelId}`,
       );
@@ -296,7 +294,7 @@ export class MissionService {
   async deleteEmbed(channelId: string, messageId: string): Promise<void> {
     try {
       const channel = await this.discord.channels.fetch(channelId).catch(() => null);
-      if (channel && channel.isTextBased()) {
+      if (channel?.isTextBased()) {
         const message = await (channel as TextChannel).messages.fetch(messageId).catch(() => null);
         if (message) {
           await message.delete();
@@ -491,10 +489,7 @@ export class MissionService {
    * 가입일 기준 missionDurationDays 이내인데 미션이 없는 멤버를 자동 등록한다.
    * 봇이 오프라인이었거나 기능 활성화 전에 가입한 멤버를 보완한다.
    */
-  private async registerMissingMembers(
-    guildId: string,
-    config: NewbieConfig,
-  ): Promise<void> {
+  private async registerMissingMembers(guildId: string, config: NewbieConfig): Promise<void> {
     if (!config.missionDurationDays || !config.missionTargetPlaytimeHours) return;
 
     const guild = this.discord.guilds.cache.get(guildId);
@@ -765,10 +760,7 @@ export class MissionService {
    * Discord API로 멤버 표시 이름 조회.
    * 조회 실패 시 `User-{memberId 앞 6자리}` 반환.
    */
-  private async fetchMemberDisplayName(
-    guildId: string,
-    memberId: string,
-  ): Promise<string> {
+  private async fetchMemberDisplayName(guildId: string, memberId: string): Promise<string> {
     try {
       const guild = this.discord.guilds.cache.get(guildId);
       if (!guild) return `User-${memberId.slice(0, 6)}`;

@@ -1,6 +1,6 @@
 import globals from 'globals';
 
-import { baseConfig, baseIgnores } from '../../eslint.config.base.mjs';
+import { baseConfig, baseIgnores, typeCheckedRules } from '../../eslint.config.base.mjs';
 
 export default [
   { ignores: baseIgnores },
@@ -21,6 +21,7 @@ export default [
 
   {
     rules: {
+      ...typeCheckedRules,
       '@typescript-eslint/no-explicit-any': 'error',
     },
   },

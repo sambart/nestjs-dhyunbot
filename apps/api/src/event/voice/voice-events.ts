@@ -1,4 +1,4 @@
-import { VoiceStateDto } from '../../channel/voice/infrastructure/voice-state.dto';
+import { type VoiceStateDto } from '../../channel/voice/infrastructure/voice-state.dto';
 
 export const VOICE_EVENTS = {
   JOIN: 'voice.join',

@@ -1,12 +1,16 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 export class AddMissionMocoEmbedFields1773500000000 implements MigrationInterface {
   name = 'AddMissionMocoEmbedFields1773500000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "newbie_config" ADD "missionEmbedTitle" character varying`);
+    await queryRunner.query(
+      `ALTER TABLE "newbie_config" ADD "missionEmbedTitle" character varying`,
+    );
     await queryRunner.query(`ALTER TABLE "newbie_config" ADD "missionEmbedDescription" text`);
-    await queryRunner.query(`ALTER TABLE "newbie_config" ADD "missionEmbedColor" character varying`);
+    await queryRunner.query(
+      `ALTER TABLE "newbie_config" ADD "missionEmbedColor" character varying`,
+    );
     await queryRunner.query(
       `ALTER TABLE "newbie_config" ADD "missionEmbedThumbnailUrl" character varying`,
     );

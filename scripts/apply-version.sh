@@ -8,8 +8,8 @@ if [ -z "$NEW_VERSION" ] || [ "$NEW_VERSION" == "no-bump" ]; then
 fi
 
 # package.json 3곳 업데이트
-npm version "$NEW_VERSION" --no-git-tag-version
-npm version "$NEW_VERSION" --no-git-tag-version --workspace=@dhyunbot/api
-npm version "$NEW_VERSION" --no-git-tag-version --workspace=@dhyunbot/web
+pnpm version "$NEW_VERSION" --no-git-tag-version
+pnpm --filter @dhyunbot/api version "$NEW_VERSION" --no-git-tag-version
+pnpm --filter @dhyunbot/web version "$NEW_VERSION" --no-git-tag-version
 
 echo "Updated all package.json to v${NEW_VERSION}"

@@ -38,10 +38,14 @@ export class StickyMessageRefreshService {
     const lockedAt = this.refreshing.get(channelId);
     if (lockedAt !== undefined) {
       if (Date.now() - lockedAt < StickyMessageRefreshService.REFRESH_LOCK_TIMEOUT_MS) {
-        this.logger.debug(`[STICKY_MESSAGE] refresh skipped (already in progress): channel=${channelId}`);
+        this.logger.debug(
+          `[STICKY_MESSAGE] refresh skipped (already in progress): channel=${channelId}`,
+        );
         return;
       }
-      this.logger.warn(`[STICKY_MESSAGE] stale lock released (>${StickyMessageRefreshService.REFRESH_LOCK_TIMEOUT_MS}ms): channel=${channelId}`);
+      this.logger.warn(
+        `[STICKY_MESSAGE] stale lock released (>${StickyMessageRefreshService.REFRESH_LOCK_TIMEOUT_MS}ms): channel=${channelId}`,
+      );
     }
 
     this.refreshing.set(channelId, Date.now());
@@ -80,11 +84,15 @@ export class StickyMessageRefreshService {
   /** Discord 텍스트 채널에 Embed 메시지 전송. 스티키 식별용 footer를 포함한다. */
   private async sendEmbed(
     channelId: string,
-    config: { embedTitle: string | null; embedDescription: string | null; embedColor: string | null },
+    config: {
+      embedTitle: string | null;
+      embedDescription: string | null;
+      embedColor: string | null;
+    },
   ): Promise<string> {
     const channel = await this.client.channels.fetch(channelId);
 
-    if (!channel || !channel.isTextBased()) {
+    if (!channel?.isTextBased()) {
       throw new Error(`Channel ${channelId} is not a text-based channel`);
     }
 
@@ -106,7 +114,7 @@ export class StickyMessageRefreshService {
   private async cleanupOrphanedMessages(channelId: string, trackedIds: Set<string>): Promise<void> {
     try {
       const channel = await this.client.channels.fetch(channelId);
-      if (!channel || !channel.isTextBased()) return;
+      if (!channel?.isTextBased()) return;
 
       const textChannel = channel as TextChannel;
       const messages = await textChannel.messages.fetch({ limit: 30 });
@@ -123,12 +131,16 @@ export class StickyMessageRefreshService {
 
       for (const [, msg] of orphaned) {
         await msg.delete().catch((err: Error) => {
-          this.logger.warn(`[STICKY_MESSAGE] Failed to delete orphaned message ${msg.id}: ${err.message}`);
+          this.logger.warn(
+            `[STICKY_MESSAGE] Failed to delete orphaned message ${msg.id}: ${err.message}`,
+          );
         });
       }
 
       if (orphaned.size > 0) {
-        this.logger.log(`[STICKY_MESSAGE] Cleaned up ${orphaned.size} orphaned message(s) in channel=${channelId}`);
+        this.logger.log(
+          `[STICKY_MESSAGE] Cleaned up ${orphaned.size} orphaned message(s) in channel=${channelId}`,
+        );
       }
     } catch (err) {
       this.logger.warn(
@@ -141,7 +153,7 @@ export class StickyMessageRefreshService {
   private async tryDeleteMessage(channelId: string, messageId: string): Promise<void> {
     try {
       const channel = await this.client.channels.fetch(channelId);
-      if (!channel || !channel.isTextBased()) return;
+      if (!channel?.isTextBased()) return;
       const message = await (channel as TextChannel).messages.fetch(messageId);
       await message.delete();
     } catch (err) {

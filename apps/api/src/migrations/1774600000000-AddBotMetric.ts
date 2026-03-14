@@ -1,19 +1,27 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 export class AddBotMetric1774600000000 implements MigrationInterface {
-    name = 'AddBotMetric1774600000000'
+  name = 'AddBotMetric1774600000000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`CREATE TYPE "public"."bot_metric_status_enum" AS ENUM('ONLINE', 'OFFLINE')`);
-        await queryRunner.query(`CREATE TABLE "bot_metric" ("id" SERIAL NOT NULL, "guildId" character varying NOT NULL, "status" "public"."bot_metric_status_enum" NOT NULL DEFAULT 'OFFLINE', "pingMs" integer NOT NULL DEFAULT '0', "heapUsedMb" double precision NOT NULL DEFAULT '0', "heapTotalMb" double precision NOT NULL DEFAULT '0', "voiceUserCount" integer NOT NULL DEFAULT '0', "guildCount" integer NOT NULL DEFAULT '0', "recordedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_bot_metric" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_bot_metric_guild_recorded" ON "bot_metric" ("guildId", "recordedAt")`);
-        await queryRunner.query(`CREATE INDEX "IDX_bot_metric_recorded" ON "bot_metric" ("recordedAt")`);
-    }
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `CREATE TYPE "public"."bot_metric_status_enum" AS ENUM('ONLINE', 'OFFLINE')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "bot_metric" ("id" SERIAL NOT NULL, "guildId" character varying NOT NULL, "status" "public"."bot_metric_status_enum" NOT NULL DEFAULT 'OFFLINE', "pingMs" integer NOT NULL DEFAULT '0', "heapUsedMb" double precision NOT NULL DEFAULT '0', "heapTotalMb" double precision NOT NULL DEFAULT '0', "voiceUserCount" integer NOT NULL DEFAULT '0', "guildCount" integer NOT NULL DEFAULT '0', "recordedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_bot_metric" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_bot_metric_guild_recorded" ON "bot_metric" ("guildId", "recordedAt")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_bot_metric_recorded" ON "bot_metric" ("recordedAt")`,
+    );
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP INDEX "public"."IDX_bot_metric_recorded"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_bot_metric_guild_recorded"`);
-        await queryRunner.query(`DROP TABLE "bot_metric"`);
-        await queryRunner.query(`DROP TYPE "public"."bot_metric_status_enum"`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP INDEX "public"."IDX_bot_metric_recorded"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_bot_metric_guild_recorded"`);
+    await queryRunner.query(`DROP TABLE "bot_metric"`);
+    await queryRunner.query(`DROP TYPE "public"."bot_metric_status_enum"`);
+  }
 }

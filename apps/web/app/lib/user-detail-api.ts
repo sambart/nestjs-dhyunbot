@@ -1,3 +1,5 @@
+import { type VoiceDailyRecord } from './voice-dashboard-api';
+
 // ─── 타입 정의 ──────────────────────────────────────────────────────────────
 
 // F-VOICE-019 응답 타입
@@ -86,7 +88,7 @@ export async function fetchUserVoiceDaily(
   userId: string,
   from: string,
   to: string,
-): Promise<import("./voice-dashboard-api").VoiceDailyRecord[]> {
+): Promise<VoiceDailyRecord[]> {
   const res = await fetch(
     `/api/guilds/${guildId}/voice/daily?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,
   );

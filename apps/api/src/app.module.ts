@@ -16,6 +16,7 @@ import { DiscordConfig } from './config/discord.config';
 import { TypeORMConfig } from './config/typeorm.config';
 import { DiscordEventsModule } from './event/discord-events.module';
 import { VoiceAnalyticsModule } from './gemini/voice-analytics.module';
+import { InactiveMemberModule } from './inactive-member/inactive-member.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { MusicModule } from './music/music.module';
 import { NewbieModule } from './newbie/newbie.module';
@@ -35,6 +36,7 @@ import { VersionModule } from './version/version.module';
     VoiceChannelModule,
     AutoChannelModule,
     NewbieModule,
+    InactiveMemberModule,
     StatusPrefixModule,
     StickyMessageModule,
     MonitoringModule,

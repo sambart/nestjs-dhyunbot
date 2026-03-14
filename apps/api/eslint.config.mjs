@@ -1,6 +1,6 @@
 import globals from 'globals';
 
-import { baseConfig, baseIgnores } from '../../eslint.config.base.mjs';
+import { baseConfig, baseIgnores, typeCheckedRules } from '../../eslint.config.base.mjs';
 
 export default [
   { ignores: baseIgnores },
@@ -22,6 +22,9 @@ export default [
 
   {
     rules: {
+      ...typeCheckedRules,
+      // strictNullChecks: false 이므로 비활성화 — strictNullChecks 활성화 후 제거
+      '@typescript-eslint/prefer-nullish-coalescing': 'off',
       'no-console': ['warn', { allow: ['warn'] }],
     },
   },

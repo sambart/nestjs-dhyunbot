@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, BarChart3, Mic, Pin, Radio, Settings, Tag, Users } from "lucide-react";
+import { ArrowLeftRight, BarChart3, Mic, Pin, Radio, Settings, Tag, Users, UserX } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -31,6 +31,7 @@ export default function SettingsSidebar({
     { href: `/settings/guild/${selectedGuildId}/status-prefix`, label: "게임방 상태 설정", icon: Tag },
     { href: `/settings/guild/${selectedGuildId}/sticky-message`, label: "고정메세지", icon: Pin },
     { href: `/settings/guild/${selectedGuildId}/voice`, label: "음성 설정", icon: Mic },
+    { href: `/settings/guild/${selectedGuildId}/inactive-member`, label: "비활동 회원 설정", icon: UserX },
   ];
 
   return (

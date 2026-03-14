@@ -17,6 +17,25 @@ import {
 } from '../../../../lib/status-prefix-api';
 import { useSettings } from '../../../SettingsContext';
 
+const validateButtons = (buttons: StatusPrefixButton[]): string[] => {
+  const sorted = [...buttons].sort((a, b) => a.sortOrder - b.sortOrder);
+  const seenPrefixes = new Set<string>();
+
+  for (let i = 0; i < sorted.length; i++) {
+    const btn = sorted[i];
+    if (!btn.label.trim()) return [`버튼 #${i + 1}의 라벨을 입력해주세요.`];
+    if (btn.type === 'PREFIX' && !btn.prefix?.trim()) {
+      return [`버튼 #${i + 1}의 접두사 텍스트를 입력해주세요.`];
+    }
+    if (btn.type === 'PREFIX' && btn.prefix) {
+      const trimmed = btn.prefix.trim();
+      if (seenPrefixes.has(trimmed)) return [`접두사 "${trimmed}"이(가) 중복됩니다.`];
+      seenPrefixes.add(trimmed);
+    }
+  }
+  return [];
+};
+
 const DEFAULT_CONFIG: StatusPrefixConfig = {
   enabled: false,
   channelId: null,
@@ -160,27 +179,7 @@ export default function StatusPrefixSettingsPage() {
       errors.push('안내 채널을 선택해주세요.');
     }
     if (config.enabled) {
-      const sorted = [...config.buttons].sort((a, b) => a.sortOrder - b.sortOrder);
-      const seenPrefixes = new Set<string>();
-      for (let i = 0; i < sorted.length; i++) {
-        const btn = sorted[i];
-        if (!btn.label.trim()) {
-          errors.push(`버튼 #${i + 1}의 라벨을 입력해주세요.`);
-          break;
-        }
-        if (btn.type === 'PREFIX' && !btn.prefix?.trim()) {
-          errors.push(`버튼 #${i + 1}의 접두사 텍스트를 입력해주세요.`);
-          break;
-        }
-        if (btn.type === 'PREFIX' && btn.prefix) {
-          const trimmed = btn.prefix.trim();
-          if (seenPrefixes.has(trimmed)) {
-            errors.push(`접두사 "${trimmed}"이(가) 중복됩니다.`);
-            break;
-          }
-          seenPrefixes.add(trimmed);
-        }
-      }
+      errors.push(...validateButtons(config.buttons));
     }
     if (errors.length > 0) {
       setSaveError(errors.join(' '));

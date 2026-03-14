@@ -39,13 +39,42 @@ export const baseConfig = [
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+      ],
 
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'no-console': ['error', { allow: ['warn', 'error'] }],
       'prefer-const': 'error',
       'no-var': 'error',
+      'eqeqeq': ['error', 'always', { null: 'ignore' }],
+      'no-throw-literal': 'error',
+      'no-else-return': ['error', { allowElseIf: false }],
+      'no-empty': ['error', { allowEmptyCatch: false }],
+      'no-negated-condition': 'warn',
+      'no-warning-comments': [
+        'warn',
+        { terms: ['todo', 'fixme', 'xxx'], location: 'start' },
+      ],
+      'max-params': ['warn', { max: 3 }],
+      'max-lines-per-function': [
+        'warn',
+        { max: 50, skipBlankLines: true, skipComments: true },
+      ],
+      'max-depth': ['error', { max: 3 }],
     },
   },
 ];
+
+/** Type-checked rules — requires parserOptions.project in consuming config. */
+export const typeCheckedRules = {
+  '@typescript-eslint/no-floating-promises': 'error',
+  '@typescript-eslint/no-misused-promises': 'error',
+  '@typescript-eslint/return-await': ['error', 'in-try-catch'],
+  '@typescript-eslint/prefer-optional-chain': 'error',
+  '@typescript-eslint/prefer-nullish-coalescing': 'error',
+};
 
 /** Standard ignore patterns shared across workspaces. */
 export const baseIgnores = ['dist/**', 'node_modules/**', 'coverage/**', '*.js', '*.d.ts'];

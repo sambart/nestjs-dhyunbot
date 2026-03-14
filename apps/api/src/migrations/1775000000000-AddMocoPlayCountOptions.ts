@@ -1,8 +1,6 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
-export class AddMocoPlayCountOptions1775000000000
-  implements MigrationInterface
-{
+export class AddMocoPlayCountOptions1775000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
       `ALTER TABLE "public"."newbie_config"

@@ -17,7 +17,7 @@ export class WelcomeService {
     }
 
     const channel = await this.client.channels.fetch(config.welcomeChannelId).catch(() => null);
-    if (!channel || !channel.isTextBased()) {
+    if (!channel?.isTextBased()) {
       this.logger.warn(
         `[WELCOME] Channel not found or not text-based: channelId=${config.welcomeChannelId} guild=${member.guild.id}`,
       );

@@ -1,4 +1,4 @@
-import { VoiceState } from 'discord.js';
+import { type VoiceState } from 'discord.js';
 
 export class InvalidVoiceStateError extends Error {
   constructor(
@@ -35,6 +35,8 @@ export class VoiceStateDto {
       );
     }
 
+    const humanMembers = state.channel.members.filter((m) => !m.user.bot);
+
     return new VoiceStateDto(
       state.guild.id,
       state.member.id,
@@ -44,8 +46,8 @@ export class VoiceStateDto {
       state.channel.parentId ?? null,
       state.channel.parent?.name ?? null,
       !state.selfMute,
-      state.channel.members.size === 1,
-      state.channel.members.size,
+      humanMembers.size === 1,
+      humanMembers.size,
       state.member.displayAvatarURL({ size: 128 }),
     );
   }

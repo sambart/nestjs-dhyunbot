@@ -1,11 +1,6 @@
 import { getKSTDateString } from '@dhyunbot/shared';
 import { InjectDiscordClient } from '@discord-nestjs/core';
-import {
-  Injectable,
-  Logger,
-  OnApplicationBootstrap,
-  OnApplicationShutdown,
-} from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { Client } from 'discord.js';
 
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
@@ -126,9 +121,7 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
     for (const guildId of affectedGuilds) {
       try {
         await this.redisRepository.deletePeriodActive(guildId);
-        this.logger.log(
-          `[NEWBIE ROLE SCHEDULER] Cache invalidated: guild=${guildId}`,
-        );
+        this.logger.log(`[NEWBIE ROLE SCHEDULER] Cache invalidated: guild=${guildId}`);
       } catch (error) {
         this.logger.error(
           `[NEWBIE ROLE SCHEDULER] Failed to invalidate cache: guild=${guildId}`,
@@ -151,33 +144,7 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
     configCache: Map<string, string | null>,
   ): Promise<void> {
     // Discord API — 역할 제거 시도 (실패 시 warn 로그 후 DB 갱신 계속 진행)
-    try {
-      const roleId = await this.getNewbieRoleId(guildId, configCache);
-
-      if (roleId) {
-        try {
-          const guild = this.client.guilds.cache.get(guildId);
-          if (!guild) throw new Error(`Guild ${guildId} not found in cache`);
-          const member = await guild.members.fetch(memberId);
-          await member.roles.remove(roleId);
-          this.logger.log(
-            `[NEWBIE ROLE SCHEDULER] Role removed: guild=${guildId} member=${memberId}`,
-          );
-        } catch (discordError) {
-          // 멤버가 서버를 떠났거나, 역할이 이미 없는 경우 등 정상 상황 포함
-          this.logger.warn(
-            `[NEWBIE ROLE SCHEDULER] Failed to remove role (will still mark expired): ` +
-              `guild=${guildId} member=${memberId}`,
-            (discordError as Error).stack,
-          );
-        }
-      }
-    } catch (error) {
-      this.logger.warn(
-        `[NEWBIE ROLE SCHEDULER] Could not fetch config or guild: guild=${guildId}`,
-        (error as Error).stack,
-      );
-    }
+    await this.tryRemoveRole(guildId, memberId, configCache);
 
     // Discord API 성공 여부와 무관하게 DB 만료 처리 (멱등성 보장)
     try {
@@ -185,6 +152,31 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
     } catch (error) {
       this.logger.error(
         `[NEWBIE ROLE SCHEDULER] Failed to mark expired: periodId=${periodId}`,
+        (error as Error).stack,
+      );
+    }
+  }
+
+  /** Discord API를 통한 역할 제거 시도 — 실패 시에도 예외를 던지지 않는다 */
+  private async tryRemoveRole(
+    guildId: string,
+    memberId: string,
+    configCache: Map<string, string | null>,
+  ): Promise<void> {
+    try {
+      const roleId = await this.getNewbieRoleId(guildId, configCache);
+      if (!roleId) return;
+
+      const guild = this.client.guilds.cache.get(guildId);
+      if (!guild) throw new Error(`Guild ${guildId} not found in cache`);
+      const member = await guild.members.fetch(memberId);
+      await member.roles.remove(roleId);
+      this.logger.log(`[NEWBIE ROLE SCHEDULER] Role removed: guild=${guildId} member=${memberId}`);
+    } catch (error) {
+      // 멤버가 서버를 떠났거나, 역할이 이미 없는 경우 등 정상 상황 포함
+      this.logger.warn(
+        `[NEWBIE ROLE SCHEDULER] Failed to remove role (will still mark expired): ` +
+          `guild=${guildId} member=${memberId}`,
         (error as Error).stack,
       );
     }

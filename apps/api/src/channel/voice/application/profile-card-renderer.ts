@@ -5,11 +5,11 @@ import { DailyChartEntry, MeProfileData } from './me-profile.service';
 
 // ── 레이아웃 상수 ──
 const W = 800;
-const H = 720;
+const H = 618;
 const PADDING = 32;
 const CARD_RADIUS = 16;
 
-// ── 색상 팔레트 (대시보드 라이트 테마 기반) ──
+// ── 색상 팔레트 ──
 const BG = '#f0f0f0';
 const CARD_BG = '#ffffff';
 const ACCENT = '#f5f5f5';
@@ -21,6 +21,10 @@ const TEXT_MUTED = '#9a9a9a';
 const BAR_EMPTY = '#e8e8e8';
 const DIVIDER = '#e5e5e5';
 const BORDER = '#e0e0e0';
+const RANK_BG = '#EEF2FF';
+const RANK_BORDER = '#C7D7FE';
+const MIC_ON_COLOR = '#34D399';
+const MIC_OFF_COLOR = '#F87171';
 
 @Injectable()
 export class ProfileCardRenderer {
@@ -31,7 +35,6 @@ export class ProfileCardRenderer {
   }
 
   private registerFonts(): void {
-    // CJK 폰트 등록
     const cjkPaths = [
       '/usr/share/fonts/noto/NotoSansCJK-Regular.ttc',
       '/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc',
@@ -47,7 +50,6 @@ export class ProfileCardRenderer {
       }
     }
 
-    // Emoji 폰트 등록
     const emojiPaths = [
       '/usr/share/fonts/noto/NotoColorEmoji.ttf',
       '/usr/share/fonts/noto-emoji/NotoColorEmoji.ttf',
@@ -67,30 +69,20 @@ export class ProfileCardRenderer {
     const canvas = createCanvas(W, H);
     const ctx = canvas.getContext('2d');
 
-    // ── 배경 ──
     this.drawBackground(ctx);
-
-    // ── 헤더: 아바타 + 이름 + 랭킹 ──
-    await this.drawHeader(ctx, profile, displayName, avatarUrl);
-
-    // ── 통계 카드들 ──
+    await this.drawHeader(ctx, displayName, avatarUrl);
+    this.drawRankCard(ctx, profile);
     this.drawStatCards(ctx, profile);
-
-    // ── 바 차트 ──
     this.drawBarChart(ctx, profile.dailyChart);
-
-    // ── 푸터 ──
     this.drawFooter(ctx);
 
     return canvas.toBuffer('image/png');
   }
 
   private drawBackground(ctx: SKRSContext2D): void {
-    // 배경
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W, H);
 
-    // 메인 카드
     this.roundRect(ctx, PADDING / 2, PADDING / 2, W - PADDING, H - PADDING, CARD_RADIUS);
     ctx.fillStyle = CARD_BG;
     ctx.fill();
@@ -101,20 +93,17 @@ export class ProfileCardRenderer {
 
   private async drawHeader(
     ctx: SKRSContext2D,
-    profile: MeProfileData,
     displayName: string,
     avatarUrl: string,
   ): Promise<void> {
     const headerY = 40;
 
-    // 아바타
     try {
       const avatar = await loadImage(avatarUrl);
       const avatarSize = 64;
       const ax = PADDING + 16;
       const ay = headerY;
 
-      // 원형 클리핑
       ctx.save();
       ctx.beginPath();
       ctx.arc(ax + avatarSize / 2, ay + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
@@ -123,7 +112,6 @@ export class ProfileCardRenderer {
       ctx.drawImage(avatar, ax, ay, avatarSize, avatarSize);
       ctx.restore();
 
-      // 아바타 테두리
       ctx.beginPath();
       ctx.arc(ax + avatarSize / 2, ay + avatarSize / 2, avatarSize / 2 + 2, 0, Math.PI * 2);
       ctx.strokeStyle = BLURPLE;
@@ -133,26 +121,14 @@ export class ProfileCardRenderer {
       this.logger.warn('Failed to load avatar');
     }
 
-    // 닉네임
     ctx.fillStyle = TEXT_PRIMARY;
     ctx.font = 'bold 28px "NotoSansCJK", "NotoColorEmoji", sans-serif';
     ctx.fillText(displayName, PADDING + 96, headerY + 30);
 
-    // 랭킹 배지 (닉네임 옆)
-    const nameWidth = ctx.measureText(displayName).width;
-    const rankEmoji = profile.rank === 1 ? '👑 ' : profile.rank <= 3 ? '🏅 ' : '🎖️ ';
-    const rankText = `${rankEmoji}#${profile.rank}`;
-    ctx.fillStyle = BLURPLE;
-    ctx.font = 'bold 18px "NotoSansCJK", "NotoColorEmoji", sans-serif';
-    const badgeX = PADDING + 96 + nameWidth + 12;
-    ctx.fillText(rankText, badgeX, headerY + 30);
-
-    // 기간 + 전체 유저
     ctx.fillStyle = TEXT_SECONDARY;
     ctx.font = '14px "NotoSansCJK", "NotoColorEmoji", sans-serif';
-    ctx.fillText(`최근 15일 · ${profile.totalUsers}명 중`, PADDING + 96, headerY + 58);
+    ctx.fillText('최근 15일 음성 활동', PADDING + 96, headerY + 56);
 
-    // 구분선
     ctx.beginPath();
     ctx.moveTo(PADDING + 16, headerY + 78);
     ctx.lineTo(W - PADDING - 16, headerY + 78);
@@ -161,36 +137,70 @@ export class ProfileCardRenderer {
     ctx.stroke();
   }
 
+  private drawRankCard(ctx: SKRSContext2D, profile: MeProfileData): void {
+    const y = 130;
+    const cardX = PADDING + 16;
+    const cardW = W - PADDING * 2 - 32;
+    const cardH = 56;
+
+    this.roundRect(ctx, cardX, y, cardW, cardH, 10);
+    ctx.fillStyle = RANK_BG;
+    ctx.fill();
+    ctx.strokeStyle = RANK_BORDER;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    const rankEmoji = profile.rank === 1 ? '👑' : profile.rank <= 3 ? '🏅' : '🏆';
+    ctx.fillStyle = TEXT_PRIMARY;
+    ctx.font = 'bold 20px "NotoSansCJK", "NotoColorEmoji", sans-serif';
+    ctx.fillText(`${rankEmoji}  ${profile.rank}위 / ${profile.totalUsers}명`, cardX + 16, y + 24);
+
+    const topPercent =
+      profile.totalUsers > 0 ? Math.round((profile.rank / profile.totalUsers) * 1000) / 10 : 0;
+    ctx.fillStyle = BLURPLE;
+    ctx.font = 'bold 16px "NotoSansCJK", sans-serif';
+    const percentText = `상위 ${topPercent}%`;
+    const percentWidth = ctx.measureText(percentText).width;
+    ctx.fillText(percentText, cardX + cardW - percentWidth - 16, y + 24);
+
+    const barX = cardX + 16;
+    const barY = y + 36;
+    const barW = cardW - 32;
+    const barH = 8;
+
+    this.roundRect(ctx, barX, barY, barW, barH, 4);
+    ctx.fillStyle = '#E0E7FF';
+    ctx.fill();
+
+    const fillRatio =
+      profile.totalUsers > 0 ? (profile.totalUsers - profile.rank + 1) / profile.totalUsers : 0;
+    if (fillRatio > 0) {
+      const fillW = Math.max(barW * fillRatio, 10);
+      this.roundRect(ctx, barX, barY, fillW, barH, 4);
+      ctx.fillStyle = BLURPLE;
+      ctx.fill();
+    }
+  }
+
   private drawStatCards(ctx: SKRSContext2D, profile: MeProfileData): void {
-    const startY = 140;
-    const cardW = 230;
+    const startY = 202;
+    const cardW = 224;
     const cardH = 72;
     const gap = 16;
     const startX = PADDING + 16;
 
-    const stats = [
+    // ── Row 1: 기본 통계 ──
+    const row1Stats = [
       { label: '총 음성 시간', value: formatTime(profile.totalSec), icon: '🎙️' },
       { label: '활동일 수', value: `${profile.activeDays}일`, icon: '📆' },
       { label: '일평균', value: formatTime(profile.avgDailySec), icon: '⏱️' },
-      { label: '마이크 ON', value: formatTime(profile.micOnSec), icon: '🔊' },
-      { label: '마이크 OFF', value: formatTime(profile.micOffSec), icon: '🔇' },
-      { label: '사용률', value: `${profile.micUsageRate}%`, icon: '📈' },
-      { label: '혼자 있던 시간', value: formatTime(profile.aloneSec), icon: '👤' },
-      {
-        label: '피크 요일',
-        value: profile.peakDayOfWeek ? `${profile.peakDayOfWeek}요일` : '—',
-        icon: '🕐',
-      },
-      { label: '주 평균', value: formatTime(profile.weeklyAvgSec), icon: '📊' },
     ];
 
-    stats.forEach((stat, idx) => {
-      const col = idx % 3;
-      const row = Math.floor(idx / 3);
-      const x = startX + col * (cardW + gap);
-      const y = startY + row * (cardH + gap);
+    for (let i = 0; i < row1Stats.length; i++) {
+      const stat = row1Stats[i];
+      const x = startX + i * (cardW + gap);
+      const y = startY;
 
-      // 카드 배경
       this.roundRect(ctx, x, y, cardW, cardH, 8);
       ctx.fillStyle = ACCENT;
       ctx.fill();
@@ -198,30 +208,159 @@ export class ProfileCardRenderer {
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      // 아이콘 + 라벨
       ctx.fillStyle = TEXT_SECONDARY;
       ctx.font = '13px "NotoSansCJK", "NotoColorEmoji", sans-serif';
       ctx.fillText(`${stat.icon} ${stat.label}`, x + 14, y + 24);
 
-      // 값
       ctx.fillStyle = TEXT_PRIMARY;
       ctx.font = 'bold 22px "NotoSansCJK", "NotoColorEmoji", sans-serif';
       ctx.fillText(stat.value, x + 14, y + 54);
-    });
+    }
+
+    // ── Row 2: 통합 카드들 ──
+    const row2Y = startY + cardH + gap;
+
+    // 카드 1: 마이크 통합 (ON/OFF 비율 바 + 사용률 + 시간)
+    this.drawMicCard(ctx, startX, row2Y, cardW, cardH, profile);
+
+    // 카드 2: 혼자 비율
+    const alonePercent =
+      profile.totalSec > 0 ? Math.round((profile.aloneSec / profile.totalSec) * 1000) / 10 : 0;
+    this.drawStatCardWithSub(
+      ctx,
+      startX + cardW + gap,
+      row2Y,
+      cardW,
+      cardH,
+      '👤 혼자 있던 시간',
+      formatTime(profile.aloneSec),
+      `전체의 ${alonePercent}%`,
+    );
+
+    // 카드 3: 주평균 + 피크요일 통합
+    const peakText = profile.peakDayOfWeek ? `피크: ${profile.peakDayOfWeek}요일` : '';
+    this.drawStatCardWithSub(
+      ctx,
+      startX + (cardW + gap) * 2,
+      row2Y,
+      cardW,
+      cardH,
+      '📊 주 평균',
+      formatTime(profile.weeklyAvgSec),
+      peakText,
+    );
+  }
+
+  private drawMicCard(
+    ctx: SKRSContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    profile: MeProfileData,
+  ): void {
+    this.roundRect(ctx, x, y, w, h, 8);
+    ctx.fillStyle = ACCENT;
+    ctx.fill();
+    ctx.strokeStyle = BORDER;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 라벨
+    ctx.fillStyle = TEXT_SECONDARY;
+    ctx.font = '13px "NotoSansCJK", "NotoColorEmoji", sans-serif';
+    ctx.fillText('🎤 마이크', x + 14, y + 24);
+
+    // ON/OFF 시간 (제목 오른쪽)
+    ctx.fillStyle = TEXT_MUTED;
+    ctx.font = '10px "NotoSansCJK", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(
+      `ON ${formatTime(profile.micOnSec)} · OFF ${formatTime(profile.micOffSec)}`,
+      x + w - 10,
+      y + 24,
+    );
+    ctx.textAlign = 'left';
+
+    // 사용률 텍스트
+    ctx.fillStyle = TEXT_PRIMARY;
+    ctx.font = 'bold 18px "NotoSansCJK", "NotoColorEmoji", sans-serif';
+    ctx.fillText(`${profile.micUsageRate}%`, x + 14, y + 48);
+
+    // ON/OFF 비율 바
+    const barX = x + 80;
+    const barY = y + 36;
+    const barW = w - 96;
+    const barH = 14;
+    const totalMic = profile.micOnSec + profile.micOffSec;
+
+    this.roundRect(ctx, barX, barY, barW, barH, 4);
+    ctx.fillStyle = MIC_OFF_COLOR;
+    ctx.fill();
+
+    if (totalMic > 0) {
+      const onRatio = profile.micOnSec / totalMic;
+      const onW = Math.max(barW * onRatio, onRatio > 0 ? 6 : 0);
+      if (onW > 0) {
+        this.roundRect(ctx, barX, barY, onW, barH, 4);
+        ctx.fillStyle = MIC_ON_COLOR;
+        ctx.fill();
+      }
+    }
+
+    // ON/OFF 라벨
+    ctx.font = '10px "NotoSansCJK", sans-serif';
+    ctx.fillStyle = MIC_ON_COLOR;
+    ctx.fillText('ON', barX, barY + barH + 12);
+    ctx.fillStyle = MIC_OFF_COLOR;
+    ctx.textAlign = 'right';
+    ctx.fillText('OFF', barX + barW, barY + barH + 12);
+    ctx.textAlign = 'left';
+  }
+
+  private drawStatCardWithSub(
+    ctx: SKRSContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    label: string,
+    value: string,
+    subText: string,
+  ): void {
+    this.roundRect(ctx, x, y, w, h, 8);
+    ctx.fillStyle = ACCENT;
+    ctx.fill();
+    ctx.strokeStyle = BORDER;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = TEXT_SECONDARY;
+    ctx.font = '13px "NotoSansCJK", "NotoColorEmoji", sans-serif';
+    ctx.fillText(label, x + 14, y + 24);
+
+    ctx.fillStyle = TEXT_PRIMARY;
+    ctx.font = 'bold 22px "NotoSansCJK", "NotoColorEmoji", sans-serif';
+    ctx.fillText(value, x + 14, y + 54);
+
+    if (subText) {
+      const valueWidth = ctx.measureText(value).width;
+      ctx.fillStyle = TEXT_MUTED;
+      ctx.font = '12px "NotoSansCJK", sans-serif';
+      ctx.fillText(subText, x + 14 + valueWidth + 8, y + 54);
+    }
   }
 
   private drawBarChart(ctx: SKRSContext2D, dailyChart: DailyChartEntry[]): void {
     const chartX = PADDING + 16;
-    const chartY = 420;
+    const chartY = 398;
     const chartW = W - PADDING * 2 - 32;
-    const chartH = 220;
+    const chartH = 170;
 
-    // 섹션 제목
     ctx.fillStyle = TEXT_SECONDARY;
     ctx.font = 'bold 14px "NotoSansCJK", "NotoColorEmoji", sans-serif';
     ctx.fillText('📅 최근 15일 활동', chartX, chartY - 8);
 
-    // 차트 배경
     this.roundRect(ctx, chartX, chartY, chartW, chartH, 8);
     ctx.fillStyle = ACCENT;
     ctx.fill();
@@ -241,12 +380,10 @@ export class ProfileCardRenderer {
       const x = chartX + 20 + idx * (barW + barGap);
       const barH = entry.durationSec > 0 ? Math.max((entry.durationSec / maxSec) * barMaxH, 4) : 4;
 
-      // 빈 바
       this.roundRect(ctx, x, baseY - barMaxH, barW, barMaxH, 3);
       ctx.fillStyle = BAR_EMPTY;
       ctx.fill();
 
-      // 채워진 바
       if (entry.durationSec > 0) {
         this.roundRect(ctx, x, baseY - barH, barW, barH, 3);
         ctx.fillStyle = BLURPLE;
@@ -257,7 +394,6 @@ export class ProfileCardRenderer {
         ctx.fill();
       }
 
-      // 날짜 라벨 (짝수 인덱스만)
       if (idx % 2 === 0) {
         const dd = entry.date.slice(6, 8);
         ctx.fillStyle = TEXT_MUTED;

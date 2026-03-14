@@ -7,6 +7,8 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v3.3 | 2026-03-14 | voice-co-presence: 관계 분석 대시보드 기능 추가 (F-COPRESENCE-007 ~ F-COPRESENCE-013) | — |
+| v3.2 | 2026-03-14 | inactive-member: 비활동 회원 관리 도메인 PRD 신규 추가 (F-INACTIVE-001 ~ F-INACTIVE-005) | — |
 | v3.1 | 2026-03-10 | monitoring: 봇 모니터링 도메인 PRD 신규 추가 (F-MONITORING-001 ~ F-MONITORING-004, F-WEB-MONITORING-001) | — |
 | v3.0 | 2026-03-10 | newbie: F-NEWBIE-005 미션 수동 관리 (성공/실패 처리, Embed 숨김) 추가, Embed 전체 상태 표시로 변경 | — |
 | v2.9 | 2026-03-10 | voice: F-VOICE-022 `/me` 커맨드 (개인 음성 프로필 카드) 추가, `/voice-time`·`/voice-rank` 대체 삭제 명세 | — |
@@ -28,6 +30,59 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 22] voice-co-presence: 관계 분석 대시보드 기능 추가 (COPRESENCE-ANALYTICS)
+
+**변경일**: 2026-03-14
+**티켓**: COPRESENCE-ANALYTICS
+
+**변경 파일**:
+- `docs/specs/prd/voice-co-presence.md` — 관계 분석 대시보드 섹션 추가 (F-COPRESENCE-007 ~ F-COPRESENCE-013), 마이그레이션 전략 Phase 4 구체화
+
+**변경 내용**:
+1. **마이그레이션 전략 Phase 4** 항목을 "(향후) 사용자 관계 분석 기능 구현"에서 구체적인 기능 ID 참조(F-COPRESENCE-007 ~ F-COPRESENCE-013)로 갱신
+2. **"관계 분석 대시보드 (Phase 4)" 섹션** 신규 추가 — 관련 모듈, 기능 상세 7종, 백엔드 API 요약, 프론트엔드 파일 구조, 의존성, 기존 기능과의 관계 포함
+3. **F-COPRESENCE-007 (관계 분석 요약 카드)**: 라우트 `/dashboard/guild/[guildId]/co-presence`. 기간 선택(7/30/90일). 활성 멤버 수, 총 관계 수, 총 동시접속 시간, 평균 관계 수/인 카드 4종. `GET /summary?days=30` API 명세
+4. **F-COPRESENCE-008 (네트워크 그래프 시각화)**: `@react-sigma/core` + `graphology` 사용. 노드(크기=접속시간, 색상=Louvain 클러스터), 엣지(두께=동시접속시간). 줌/패닝/클릭 하이라이트/최소 임계값 슬라이더. 노드 상한 50명. `GET /graph?days=30&minMinutes=10` API 명세
+5. **F-COPRESENCE-009 (친밀도 TOP N 패널)**: `PairDaily` 기준 `SUM(minutes)` 상위 10쌍. 유저 아바타 ↔ 구분, 총 시간, 세션 수. `GET /top-pairs?days=30&limit=10` API 명세. 아바타 Discord CDN 출처 명세
+6. **F-COPRESENCE-010 (고립 멤버 감지)**: `VoiceCoPresenceDaily` 존재 && `VoiceCoPresencePairDaily` 없음 조건. 유저명, 총 음성 접속 시간, 마지막 음성 접속일 표시. `GET /isolated?days=30` API 명세
+7. **F-COPRESENCE-011 (관계 상세 테이블)**: 전체 쌍 목록 5컬럼(유저A/B, 총 시간, 세션 수, 마지막 날짜). 유저명 검색 필터, 20건/페이지 페이지네이션, 컬럼 정렬. `GET /pairs?days=30&search=&page=1&limit=20` API 명세. `userId < peerId` 중복 제거 조건 명시
+8. **F-COPRESENCE-012 (일별 동시접속 추이 차트)**: Recharts `AreaChart`. X축=날짜, Y축=서버 전체 총 동시접속 분. 양방향 보정(/2). `GET /daily-trend?days=30` API 명세
+9. **F-COPRESENCE-013 (특정 쌍 일별 상세 모달)**: F-COPRESENCE-011 행 클릭 시 모달. Recharts `BarChart` (날짜별 쌍 동시접속 분). `GET /pair-detail?userA=&userB=&days=30` API 명세
+10. **백엔드 API 요약 테이블**: `CoPresenceAnalyticsController` 컨트롤러 명세. 엔드포인트 7종, JwtAuthGuard 적용
+11. **프론트엔드 파일 구조**: `apps/web/app/dashboard/guild/[guildId]/co-presence/` 경로 아래 7개 컴포넌트 파일 및 `co-presence-api.ts` API 클라이언트 명세
+12. **의존성 추가**: `@react-sigma/core`, `graphology`, `graphology-communities-louvain` 3개 패키지 명세
+13. **기존 기능과의 관계**: 관계 분석 대시보드의 읽기 전용 특성, 비활동 회원 도메인과의 독립성, `DashboardSidebar` 메뉴 연동 필요 사항 명세
+
+**변경 사유**: 마이그레이션 전략 Phase 4에 기술된 "사용자 관계 분석 기능" 계획을 구체화. Co-Presence 도메인이 축적한 `VoiceCoPresencePairDaily` / `VoiceCoPresenceDaily` 데이터를 활용하여 네트워크 그래프, 친밀도 순위, 고립 멤버 감지 등 관계 분석 기능을 웹 대시보드에 제공하기 위한 요구사항 명세.
+
+---
+
+## [수정 21] inactive-member: 비활동 회원 관리 도메인 PRD 신규 추가 (INACTIVE-MEMBER)
+
+**변경일**: 2026-03-14
+**티켓**: INACTIVE-MEMBER
+
+**변경 파일**:
+- `docs/specs/prd/inactive-member.md` — inactive-member 도메인 PRD 신규 작성 (F-INACTIVE-001 ~ F-INACTIVE-005)
+- `docs/specs/prd/_index.md` — 도메인 목록, 핵심 기능 요약, 데이터베이스 엔티티 테이블에 inactive-member 항목 추가
+
+**변경 내용**:
+1. `docs/specs/prd/inactive-member.md` 신규 생성: 개요, 관련 모듈, 아키텍처, 기능 상세, 데이터 모델, API 엔드포인트, 기존 기능과의 관계, 제약사항 포함
+2. F-INACTIVE-001 (비활동 회원 자동 분류): 매일 00:00 KST 스케줄러 실행. `VoiceDailyEntity.channelDurationSec` 집계로 판단 기간 내 총 음성 접속 시간 계산. FULLY_INACTIVE(0분) / LOW_ACTIVE(임계값 미만) / DECLINING(이전 기간 대비 N% 감소) 3등급 분류. 제외 역할(`excludedRoleIds`) 설정 지원
+3. F-INACTIVE-002 (웹 대시보드 비활동 회원 목록): `/dashboard/guild/{guildId}/inactive-member` 경로. 닉네임·분류 등급·마지막 음성 접속일·총 접속 시간·등급 변경일 컬럼 표시. 등급/기간/정렬 필터, 닉네임 검색, 일괄 선택 체크박스, 오프셋 기반 페이지네이션(20명/페이지)
+4. F-INACTIVE-003 (비활동 회원 조치 액션): ACTION_DM(독려 DM 일괄 전송, Embed 템플릿 변수 지원) / ACTION_ROLE_ADD(비활동 역할 부여) / ACTION_ROLE_REMOVE(특정 역할 제거) 3종. 모든 조치는 `InactiveMemberActionLog`에 기록. 자동 조치 규칙(FULLY_INACTIVE 판정 시 자동 역할 부여/DM 발송) ON/OFF 설정 지원
+5. F-INACTIVE-004 (비활동 통계 대시보드): 활동/비활동 비율 파이 차트, 주/월별 비활동 추이 라인 차트(등급별 3개 라인), 활동 복귀 회원 하이라이트
+6. F-INACTIVE-005 (길드별 설정): `/settings/guild/{guildId}/inactive-member` 경로. 판단 기간(7/14/30일), 저활동 임계값(분), 활동 감소 비율(%) 설정. 자동 조치 ON/OFF, 역할 설정, 제외 역할 멀티 셀렉트, DM Embed 템플릿 커스텀(제목/본문/색상/실시간 미리보기)
+7. 데이터 모델 3개 신규 추가: `InactiveMemberConfig`(길드별 설정), `InactiveMemberRecord`(분류 스냅샷, 복합 유니크 guildId+userId), `InactiveMemberActionLog`(조치 이력)
+8. REST API 6종 명세: 목록 조회(쿼리 파라미터 7종), 통계 조회, 조치 실행, 설정 조회/저장, 이력 조회
+9. `_index.md` 도메인 목록에 inactive-member 행 추가
+10. `_index.md` 핵심 기능 요약 12번 항목(비활동 회원 관리) 추가
+11. `_index.md` 데이터베이스 엔티티 테이블에 InactiveMemberConfig / InactiveMemberRecord / InactiveMemberActionLog 행 추가
+
+**변경 사유**: 디스코드 서버 음성 채널 비활동 회원을 자동 식별하고 관리자가 웹 대시보드에서 조치할 수 있는 기능 요구사항 반영. 기존 `VoiceDailyEntity` 데이터를 재활용하여 별도 음성 이벤트 리스너 없이 구현 가능한 구조로 설계.
 
 ---
 

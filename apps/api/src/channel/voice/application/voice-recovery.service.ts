@@ -1,10 +1,6 @@
 import { InjectDiscordClient, Once } from '@discord-nestjs/core';
-import {
-  Injectable,
-  Logger,
-  OnApplicationShutdown,
-} from '@nestjs/common';
-import { Client } from 'discord.js';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
+import { Client, type Guild, type VoiceState } from 'discord.js';
 
 import { RedisService } from '../../../redis/redis.service';
 import { VoiceRedisRepository } from '../infrastructure/voice-redis.repository';
@@ -60,32 +56,45 @@ export class VoiceRecoveryService implements OnApplicationShutdown {
     await this.syncCurrentVoiceStates();
   }
 
+  /** 단일 voiceState 동기화 — 성공 시 true, 스킵/제외 시 false */
+  private async syncOneVoiceState(voiceState: VoiceState): Promise<boolean> {
+    if (!voiceState.channelId || !voiceState.channel || !voiceState.member) return false;
+
+    const excluded = await this.excludedChannelService.isExcludedChannel(
+      voiceState.guild.id,
+      voiceState.channelId,
+      voiceState.channel.parentId ?? null,
+    );
+    if (excluded) return false;
+
+    const dto = VoiceStateDto.fromVoiceState(voiceState);
+    await this.voiceChannelService.onUserJoined(dto);
+    return true;
+  }
+
+  /** 길드 하나의 voiceState를 순회하며 동기화 */
+  private async syncGuildVoiceStates(guild: Guild): Promise<number> {
+    let synced = 0;
+    for (const voiceState of guild.voiceStates.cache.values()) {
+      try {
+        const isSynced = await this.syncOneVoiceState(voiceState);
+        if (isSynced) synced++;
+      } catch (error) {
+        this.logger.error(
+          `Failed to sync voice state: guild=${guild.id} user=${voiceState.member?.id}`,
+          (error as Error).stack,
+        );
+      }
+    }
+    return synced;
+  }
+
   /** 현재 음성 채널에 있는 유저들의 세션을 복원한다 */
   private async syncCurrentVoiceStates(): Promise<void> {
     let synced = 0;
 
     for (const guild of this.client.guilds.cache.values()) {
-      for (const voiceState of guild.voiceStates.cache.values()) {
-        if (!voiceState.channelId || !voiceState.channel || !voiceState.member) continue;
-
-        try {
-          const excluded = await this.excludedChannelService.isExcludedChannel(
-            guild.id,
-            voiceState.channelId,
-            voiceState.channel.parentId ?? null,
-          );
-          if (excluded) continue;
-
-          const dto = VoiceStateDto.fromVoiceState(voiceState);
-          await this.voiceChannelService.onUserJoined(dto);
-          synced++;
-        } catch (error) {
-          this.logger.error(
-            `Failed to sync voice state: guild=${guild.id} user=${voiceState.member?.id}`,
-            (error as Error).stack,
-          );
-        }
-      }
+      synced += await this.syncGuildVoiceStates(guild);
     }
 
     this.logger.log(`Voice state sync complete. ${synced} session(s) restored.`);

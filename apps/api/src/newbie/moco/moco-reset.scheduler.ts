@@ -2,10 +2,10 @@ import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import Redis from 'ioredis';
 
+import { CoPresenceScheduler } from '../../channel/voice/co-presence/co-presence.scheduler';
 import { REDIS_CLIENT } from '../../redis/redis.constants';
 import { NewbieKeys } from '../infrastructure/newbie-cache.keys';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
-import { MocoScheduler } from './moco.scheduler';
 import { MocoService } from './moco.service';
 
 @Injectable()
@@ -16,7 +16,7 @@ export class MocoResetScheduler {
     private readonly configRepo: NewbieConfigRepository,
     @Inject(forwardRef(() => MocoService))
     private readonly mocoService: MocoService,
-    private readonly mocoScheduler: MocoScheduler,
+    private readonly coPresenceScheduler: CoPresenceScheduler,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
@@ -30,10 +30,7 @@ export class MocoResetScheduler {
     try {
       await this.processAllGuilds();
     } catch (err) {
-      this.logger.error(
-        '[MOCO RESET] Unhandled error during reset check',
-        (err as Error).stack,
-      );
+      this.logger.error('[MOCO RESET] Unhandled error during reset check', (err as Error).stack);
     }
   }
 
@@ -41,18 +38,14 @@ export class MocoResetScheduler {
     const configs = await this.configRepo.findAllMocoEnabled();
 
     for (const config of configs) {
-      if (config.mocoResetPeriod === 'NONE' || !config.mocoResetPeriod)
-        continue;
+      if (config.mocoResetPeriod === 'NONE' || !config.mocoResetPeriod) continue;
 
       try {
         if (this.shouldReset(config)) {
           await this.resetGuild(config);
         }
       } catch (err) {
-        this.logger.error(
-          `[MOCO RESET] Failed guild=${config.guildId}`,
-          (err as Error).stack,
-        );
+        this.logger.error(`[MOCO RESET] Failed guild=${config.guildId}`, (err as Error).stack);
       }
     }
   }
@@ -74,9 +67,7 @@ export class MocoResetScheduler {
       if (!config.mocoCurrentPeriodStart) return false; // first setup handled elsewhere
       const start = this.parseDate(config.mocoCurrentPeriodStart);
       const now = this.parseDate(today);
-      const diffDays = Math.floor(
-        (now.getTime() - start.getTime()) / 86_400_000,
-      );
+      const diffDays = Math.floor((now.getTime() - start.getTime()) / 86_400_000);
       return diffDays >= (config.mocoResetIntervalDays ?? 30);
     }
 
@@ -88,12 +79,10 @@ export class MocoResetScheduler {
     mocoResetPeriod?: string | null;
   }): Promise<void> {
     const guildId = config.guildId;
-    this.logger.log(
-      `[MOCO RESET] Resetting guild=${guildId} period=${config.mocoResetPeriod}`,
-    );
+    this.logger.log(`[MOCO RESET] Resetting guild=${guildId} period=${config.mocoResetPeriod}`);
 
     // 활성 세션을 먼저 종료하여 Redis 데이터 정합성 보장
-    await this.mocoScheduler.flushGuildSessions(guildId);
+    await this.coPresenceScheduler.flushGuildSessions(guildId);
 
     // Delete Redis keys
     await this.deleteAllMocoRedisKeys(guildId);
@@ -131,13 +120,7 @@ export class MocoResetScheduler {
     for (const pattern of patterns) {
       let cursor = '0';
       do {
-        const [newCursor, keys] = await this.redis.scan(
-          cursor,
-          'MATCH',
-          pattern,
-          'COUNT',
-          100,
-        );
+        const [newCursor, keys] = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
         cursor = newCursor;
         if (keys.length > 0) {
           await this.redis.del(...keys);

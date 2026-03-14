@@ -86,6 +86,27 @@ export class VoiceDailyFlushService {
     }
   }
 
+  /** 단일 세션 flush — 성공 시 true, 스킵 시 false */
+  private async flushOneSession(key: string, now: number): Promise<boolean> {
+    const parts = key.split(':');
+    const guildId = parts[2];
+    const userId = parts[3];
+
+    const session = await this.voiceRedisRepository.getSession(guildId, userId);
+    if (!session) return false;
+
+    // 1. 현재 시점까지 미누적 구간 누적
+    await this.voiceRedisRepository.accumulateDuration(guildId, userId, session, now);
+
+    // 2. DB flush
+    await this.flushDate(guildId, userId, session.date);
+
+    // 3. 세션 lastUpdatedAt 갱신 (이중 카운팅 방지, 세션 유지)
+    session.lastUpdatedAt = now;
+    await this.voiceRedisRepository.setSession(guildId, userId, session);
+    return true;
+  }
+
   /** 활성 세션의 미누적 구간을 포함하여 안전하게 전체 flush */
   async safeFlushAll(): Promise<{ flushed: number; skipped: number }> {
     if (this.flushing) throw new Error('이미 집계가 진행 중입니다.');
@@ -99,27 +120,9 @@ export class VoiceDailyFlushService {
 
       for (const key of sessionKeys) {
         try {
-          const parts = key.split(':');
-          const guildId = parts[2];
-          const userId = parts[3];
-
-          const session = await this.voiceRedisRepository.getSession(guildId, userId);
-          if (!session) {
-            skipped++;
-            continue;
-          }
-
-          // 1. 현재 시점까지 미누적 구간 누적
-          await this.voiceRedisRepository.accumulateDuration(guildId, userId, session, now);
-
-          // 2. DB flush
-          await this.flushDate(guildId, userId, session.date);
-
-          // 3. 세션 lastUpdatedAt 갱신 (이중 카운팅 방지, 세션 유지)
-          session.lastUpdatedAt = now;
-          await this.voiceRedisRepository.setSession(guildId, userId, session);
-
-          flushed++;
+          const isFlushed = await this.flushOneSession(key, now);
+          flushed += isFlushed ? 1 : 0;
+          skipped += isFlushed ? 0 : 1;
         } catch (error) {
           skipped++;
           this.logger.error(`Failed to flush session: ${key}`, (error as Error).stack);
