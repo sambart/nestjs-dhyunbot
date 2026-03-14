@@ -93,7 +93,7 @@ export class VoiceAnalyticsService {
       if (!dailyActiveUsers.has(record.date)) {
         dailyActiveUsers.set(record.date, new Set());
       }
-      dailyActiveUsers.get(record.date).add(record.userId);
+      dailyActiveUsers.get(record.date)?.add(record.userId);
     });
 
     const avgDailyActiveUsers =
@@ -110,6 +110,7 @@ export class VoiceAnalyticsService {
     };
   }
 
+  // eslint-disable-next-line max-lines-per-function
   private async aggregateUserActivities(
     guildId: string,
     globalData: VoiceDailyEntity[],
@@ -131,11 +132,13 @@ export class VoiceAnalyticsService {
         });
       }
 
-      const user = userMap.get(record.userId)!;
-      user.totalMicOnTime += record.micOnSec || 0;
-      user.totalMicOffTime += record.micOffSec || 0;
-      user.aloneTime += record.aloneSec || 0;
-      user.activeDaysSet.add(record.date);
+      const user = userMap.get(record.userId);
+      if (user) {
+        user.totalMicOnTime += record.micOnSec || 0;
+        user.totalMicOffTime += record.micOffSec || 0;
+        user.aloneTime += record.aloneSec || 0;
+        user.activeDaysSet.add(record.date);
+      }
     });
 
     channelData.forEach((record) => {
@@ -152,19 +155,21 @@ export class VoiceAnalyticsService {
         });
       }
 
-      const user = userMap.get(record.userId)!;
-      user.totalVoiceTime += record.channelDurationSec || 0;
-      user.activeDaysSet.add(record.date);
+      const user = userMap.get(record.userId);
+      if (user) {
+        user.totalVoiceTime += record.channelDurationSec || 0;
+        user.activeDaysSet.add(record.date);
 
-      const current = user.channelMap.get(record.channelId) || {
-        name: record.channelName || '',
-        duration: 0,
-      };
-      current.duration += record.channelDurationSec || 0;
-      if (record.channelName) {
-        current.name = record.channelName;
+        const current = user.channelMap.get(record.channelId) ?? {
+          name: record.channelName || '',
+          duration: 0,
+        };
+        current.duration += record.channelDurationSec || 0;
+        if (record.channelName) {
+          current.name = record.channelName;
+        }
+        user.channelMap.set(record.channelId, current);
       }
-      user.channelMap.set(record.channelId, current);
     });
 
     await this.nameEnricher.enrichUserNames(guildId, userMap);
@@ -216,9 +221,11 @@ export class VoiceAnalyticsService {
       }
 
       const channel = channelMap.get(record.channelId);
-      channel.totalVoiceTime += record.channelDurationSec || 0;
-      channel.uniqueUsers.add(record.userId);
-      channel.sessionCount++;
+      if (channel) {
+        channel.totalVoiceTime += record.channelDurationSec || 0;
+        channel.uniqueUsers.add(record.userId);
+        channel.sessionCount++;
+      }
     });
 
     await this.nameEnricher.enrichChannelStatsNames(guildId, channelMap);
@@ -248,8 +255,10 @@ export class VoiceAnalyticsService {
       }
 
       const daily = dailyMap.get(record.date);
-      daily.totalMicOnTime += record.micOnSec || 0;
-      daily.activeUsers.add(record.userId);
+      if (daily) {
+        daily.totalMicOnTime += record.micOnSec || 0;
+        daily.activeUsers.add(record.userId);
+      }
     });
 
     channelData.forEach((record) => {
@@ -263,8 +272,10 @@ export class VoiceAnalyticsService {
       }
 
       const daily = dailyMap.get(record.date);
-      daily.totalVoiceTime += record.channelDurationSec || 0;
-      daily.activeUsers.add(record.userId);
+      if (daily) {
+        daily.totalVoiceTime += record.channelDurationSec || 0;
+        daily.activeUsers.add(record.userId);
+      }
     });
 
     return Array.from(dailyMap.values())

@@ -1,8 +1,9 @@
 import { DiscordModule } from '@discord-nestjs/core';
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { MemberModule } from '../../member/member.module';
+import { VoiceAnalyticsModule } from '../../voice-analytics/voice-analytics.module';
 import { ChannelModule } from '../channel.module';
 import { MeCommand } from './application/me.command';
 import { MeProfileService } from './application/me-profile.service';
@@ -39,6 +40,7 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
     TypeOrmModule.forFeature([VoiceChannelHistory, VoiceDailyEntity, VoiceExcludedChannel]),
     MemberModule,
     ChannelModule,
+    forwardRef(() => VoiceAnalyticsModule),
   ],
   controllers: [
     VoiceExcludedChannelController,

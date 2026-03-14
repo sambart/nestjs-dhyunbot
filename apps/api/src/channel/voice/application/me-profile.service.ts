@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
 
+import { BadgeQueryService } from '../../../voice-analytics/self-diagnosis/badge-query.service';
 import { VoiceDailyEntity } from '../domain/voice-daily.entity';
 import { VoiceDailyFlushService } from './voice-daily-flush-service';
 
@@ -18,6 +19,7 @@ export interface MeProfileData {
   dailyChart: DailyChartEntry[];
   peakDayOfWeek: string | null;
   weeklyAvgSec: number;
+  badges: string[];
 }
 
 export interface DailyChartEntry {
@@ -35,6 +37,7 @@ export class MeProfileService {
     @InjectRepository(VoiceDailyEntity)
     private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
     private readonly flushService: VoiceDailyFlushService,
+    private readonly badgeQueryService: BadgeQueryService,
   ) {}
 
   async getProfile(guildId: string, userId: string, days: number): Promise<MeProfileData | null> {
@@ -42,11 +45,13 @@ export class MeProfileService {
 
     const { start, end } = this.getDateRange(days);
 
-    const [globalStats, channelRecords, rankInfo, dailyChart] = await Promise.all([
-      this.getGlobalStats(guildId, userId, start, end),
-      this.getChannelRecords(guildId, userId, start, end),
-      this.getRankInfo(guildId, userId, start, end),
+    const rangeArgs = { guildId, userId, start, end };
+    const [globalStats, channelRecords, rankInfo, dailyChart, badgeCodes] = await Promise.all([
+      this.getGlobalStats(rangeArgs),
+      this.getChannelRecords(rangeArgs),
+      this.getRankInfo(rangeArgs),
       this.getDailyChart(guildId, userId),
+      this.safeFindBadgeCodes(guildId, userId),
     ]);
 
     const totalSec = channelRecords.reduce((sum, r) => sum + r.durationSec, 0);
@@ -75,15 +80,21 @@ export class MeProfileService {
       dailyChart,
       peakDayOfWeek,
       weeklyAvgSec,
+      badges: badgeCodes,
     };
   }
 
-  private async getGlobalStats(
-    guildId: string,
-    userId: string,
-    start: string,
-    end: string,
-  ): Promise<{ micOnSec: number; micOffSec: number; aloneSec: number; activeDays: number }> {
+  private async getGlobalStats({
+    guildId,
+    userId,
+    start,
+    end,
+  }: {
+    guildId: string;
+    userId: string;
+    start: string;
+    end: string;
+  }): Promise<{ micOnSec: number; micOffSec: number; aloneSec: number; activeDays: number }> {
     const result = await this.voiceDailyRepo
       .createQueryBuilder('vd')
       .select('COALESCE(SUM(vd."micOnSec"), 0)', 'micOn')
@@ -104,12 +115,17 @@ export class MeProfileService {
     };
   }
 
-  private async getChannelRecords(
-    guildId: string,
-    userId: string,
-    start: string,
-    end: string,
-  ): Promise<
+  private async getChannelRecords({
+    guildId,
+    userId,
+    start,
+    end,
+  }: {
+    guildId: string;
+    userId: string;
+    start: string;
+    end: string;
+  }): Promise<
     Array<{
       channelId: string;
       channelName: string;
@@ -143,12 +159,17 @@ export class MeProfileService {
     }));
   }
 
-  private async getRankInfo(
-    guildId: string,
-    userId: string,
-    start: string,
-    end: string,
-  ): Promise<{ rank: number; totalUsers: number }> {
+  private async getRankInfo({
+    guildId,
+    userId,
+    start,
+    end,
+  }: {
+    guildId: string;
+    userId: string;
+    start: string;
+    end: string;
+  }): Promise<{ rank: number; totalUsers: number }> {
     const rows = await this.voiceDailyRepo.query(
       `
       WITH user_totals AS (
@@ -249,6 +270,15 @@ export class MeProfileService {
       await this.flushService.safeFlushAll();
     } catch {
       this.logger.warn('Flush skipped (already in progress or failed)');
+    }
+  }
+
+  private async safeFindBadgeCodes(guildId: string, userId: string): Promise<string[]> {
+    try {
+      return await this.badgeQueryService.findBadgeCodes(guildId, userId);
+    } catch {
+      this.logger.warn('Failed to fetch badge codes, using empty array');
+      return [];
     }
   }
 }

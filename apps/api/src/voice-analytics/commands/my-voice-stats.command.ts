@@ -23,7 +23,10 @@ export class MyVoiceStatsCommand {
     @InteractionEvent(SlashCommandPipe) dto: AnalyticsDaysDto,
   ): Promise<void> {
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-      await interaction.reply({ content: '관리자만 사용할 수 있는 명령어입니다.', ephemeral: true });
+      await interaction.reply({
+        content: '관리자만 사용할 수 있는 명령어입니다.',
+        ephemeral: true,
+      });
       return;
     }
 
@@ -38,7 +41,7 @@ export class MyVoiceStatsCommand {
         return;
       }
 
-      const days = dto.days || 30;
+      const days = dto.days;
       const { start, end } = VoiceAnalyticsService.getDateRange(days);
       const activityData = await this.analyticsService.collectVoiceActivityData(
         guildId,

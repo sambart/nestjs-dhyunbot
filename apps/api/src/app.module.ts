@@ -15,7 +15,6 @@ import { BaseConfig } from './config/base.config';
 import { DiscordConfig } from './config/discord.config';
 import { TypeORMConfig } from './config/typeorm.config';
 import { DiscordEventsModule } from './event/discord-events.module';
-import { VoiceAnalyticsModule } from './gemini/voice-analytics.module';
 import { InactiveMemberModule } from './inactive-member/inactive-member.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { MusicModule } from './music/music.module';
@@ -24,6 +23,7 @@ import { RedisModule } from './redis/redis.module';
 import { StatusPrefixModule } from './status-prefix/status-prefix.module';
 import { StickyMessageModule } from './sticky-message/sticky-message.module';
 import { VersionModule } from './version/version.module';
+import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
 
 @Module({
   imports: [

@@ -1,0 +1,590 @@
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { Repository } from 'typeorm';
+
+import { VoiceCoPresencePairDaily } from '../../channel/voice/co-presence/domain/voice-co-presence-pair-daily.entity';
+import { VoiceDailyEntity } from '../../channel/voice/domain/voice-daily.entity';
+import { MocoHuntingDaily } from '../../newbie/domain/moco-hunting-daily.entity';
+import { RedisService } from '../../redis/redis.service';
+import type { LlmProvider } from '../llm/llm-provider.interface';
+import { LLM_PROVIDER, LlmQuotaExhaustedException } from '../llm/llm-provider.interface';
+import { BADGE_CODE, BADGE_DISPLAY, type BadgeCode } from './badge.constants';
+import { BadgeQueryService } from './badge-query.service';
+import { VoiceHealthConfig } from './domain/voice-health-config.entity';
+import { calculateHhi, getTopPeers } from './hhi-calculator';
+import type { BadgeGuide, PeerInfo, SelfDiagnosisResult, Verdict } from './self-diagnosis.types';
+import { VoiceHealthKeys } from './voice-health-cache.keys';
+import { VoiceHealthConfigRepository } from './voice-health-config.repository';
+
+const SECONDS_PER_MINUTE = 60;
+const TOP_PEER_COUNT = 3;
+const TOP_PERCENT_DIVISOR = 100;
+const GLOBAL_CHANNEL_ID = 'GLOBAL';
+
+interface RawActivity {
+  userId: string;
+  totalSec: string;
+  activeDays: string;
+}
+
+interface RawPeer {
+  peerId: string;
+  totalMinutes: string;
+}
+
+interface RawMoco {
+  hunterId: string;
+  totalScore: string;
+  totalNewbies: string;
+}
+
+interface QueryRange {
+  guildId: string;
+  userId: string;
+  startDate: string;
+  endDate: string;
+}
+
+export class DiagnosisDisabledException extends Error {
+  constructor() {
+    super('자가진단 기능이 활성화되지 않았습니다.');
+  }
+}
+
+export class DiagnosisCooldownException extends Error {
+  constructor(public readonly remainingSeconds: number) {
+    super('쿨다운 중입니다.');
+  }
+}
+
+@Injectable()
+export class SelfDiagnosisService {
+  // eslint-disable-next-line max-params
+  constructor(
+    @InjectRepository(VoiceDailyEntity)
+    private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
+    @InjectRepository(VoiceCoPresencePairDaily)
+    private readonly pairDailyRepo: Repository<VoiceCoPresencePairDaily>,
+    @InjectRepository(MocoHuntingDaily)
+    private readonly mocoRepo: Repository<MocoHuntingDaily>,
+    private readonly configRepo: VoiceHealthConfigRepository,
+    private readonly redis: RedisService,
+    private readonly badgeQueryService: BadgeQueryService,
+    @Inject(LLM_PROVIDER)
+    @Optional()
+    private readonly llmProvider?: LlmProvider,
+  ) {}
+
+  /**
+   * 사용자의 음성 활동을 진단하고 결과를 반환한다.
+   * @throws DiagnosisDisabledException 기능 비활성화 또는 설정 없음
+   * @throws DiagnosisCooldownException 쿨다운 중
+   */
+  // eslint-disable-next-line max-lines-per-function
+  async diagnose(guildId: string, userId: string): Promise<SelfDiagnosisResult> {
+    // 1. 설정 조회
+    const config = await this.configRepo.findByGuildId(guildId);
+    if (!config?.isEnabled) {
+      throw new DiagnosisDisabledException();
+    }
+
+    // 2. 쿨다운 체크
+    const cooldownKey = VoiceHealthKeys.cooldown(guildId, userId);
+    if (config.isCooldownEnabled) {
+      const isOnCooldown = await this.redis.exists(cooldownKey);
+      if (isOnCooldown) {
+        const remaining = await this.redis.ttl(cooldownKey);
+        throw new DiagnosisCooldownException(remaining);
+      }
+    }
+
+    // 3. 날짜 범위 계산
+    const { startDate, endDate, startDateDash, endDateDash } = this.buildDateRange(
+      config.analysisDays,
+    );
+
+    const range: QueryRange = { guildId, userId, startDate, endDate };
+    const rangeWithDash: QueryRange = {
+      guildId,
+      userId,
+      startDate: startDateDash,
+      endDate: endDateDash,
+    };
+
+    // 4. 활동량 수집
+    const activityData = await this.collectActivity(range);
+
+    // 5. 관계 다양성 수집
+    const relationshipData = await this.collectRelationship(rangeWithDash);
+
+    // 6. 모코코 기여 수집
+    const mocoData = await this.collectMoco(range);
+
+    // 7. 참여 패턴 수집
+    const patternData = await this.collectPattern(range);
+
+    // 8. 정책 판정
+    const activeDaysRatio = activityData.activeDays / config.analysisDays;
+    const verdicts = this.buildVerdicts(config, {
+      totalMinutes: activityData.totalMinutes,
+      activeDaysRatio,
+      hhiScore: relationshipData.hhiScore,
+      peerCount: relationshipData.peerCount,
+    });
+
+    // 9. 뱃지 조회 + 달성 가이드
+    const badgeCodes = await this.badgeQueryService.findBadgeCodes(guildId, userId);
+    const badgeGuides = this.buildBadgeGuides({
+      config,
+      earnedBadges: badgeCodes as BadgeCode[],
+      activityTopPercent: activityData.topPercent,
+      hhiScore: relationshipData.hhiScore,
+      peerCount: relationshipData.peerCount,
+      mocoTopPercent: mocoData.topPercent,
+      activeDaysRatio,
+      micUsageRate: patternData.micUsageRate,
+    });
+
+    // 10. LLM 요약 (선택적)
+    let llmSummary: string | undefined;
+    if (config.isLlmSummaryEnabled && this.llmProvider) {
+      llmSummary = await this.generateLlmSummary({
+        activityData,
+        relationshipData,
+        mocoData,
+        patternData,
+        verdicts,
+        topPeers: relationshipData.topPeers,
+        badgeGuides,
+        config,
+      });
+    }
+
+    // 11. 쿨다운 설정
+    if (config.isCooldownEnabled) {
+      const cooldownTtl = config.cooldownHours * SECONDS_PER_MINUTE * SECONDS_PER_MINUTE;
+      await this.redis.set(cooldownKey, true, cooldownTtl);
+    }
+
+    return {
+      totalMinutes: activityData.totalMinutes,
+      activeDays: activityData.activeDays,
+      totalDays: config.analysisDays,
+      activeDaysRatio,
+      avgDailyMinutes:
+        activityData.activeDays > 0 ? activityData.totalMinutes / activityData.activeDays : 0,
+      activityRank: activityData.rank,
+      activityTotalUsers: activityData.totalUsers,
+      activityTopPercent: activityData.topPercent,
+      peerCount: relationshipData.peerCount,
+      hhiScore: relationshipData.hhiScore,
+      topPeers: relationshipData.topPeers,
+      mocoScore: mocoData.score,
+      mocoRank: mocoData.rank,
+      mocoTotalUsers: mocoData.totalUsers,
+      mocoTopPercent: mocoData.topPercent,
+      mocoHelpedNewbies: mocoData.helpedNewbies,
+      micUsageRate: patternData.micUsageRate,
+      aloneRatio: patternData.aloneRatio,
+      verdicts,
+      badges: badgeCodes as BadgeCode[],
+      badgeGuides,
+      llmSummary,
+    };
+  }
+
+  private async collectActivity({ guildId, userId, startDate, endDate }: QueryRange): Promise<{
+    totalMinutes: number;
+    activeDays: number;
+    rank: number;
+    totalUsers: number;
+    topPercent: number;
+  }> {
+    // 서버 전체 사용자별 활동 시간 순위 (개별 채널 합산 — GLOBAL에는 channelDurationSec이 0)
+    const rankings = await this.voiceDailyRepo
+      .createQueryBuilder('vd')
+      .select('vd.userId', 'userId')
+      .addSelect('SUM(vd.channelDurationSec)', 'totalSec')
+      .addSelect('COUNT(DISTINCT vd.date)', 'activeDays')
+      .where('vd.guildId = :guildId', { guildId })
+      .andWhere('vd.channelId != :globalId', { globalId: GLOBAL_CHANNEL_ID })
+      .andWhere('vd.date >= :startDate', { startDate })
+      .andWhere('vd.date <= :endDate', { endDate })
+      .groupBy('vd.userId')
+      .orderBy('"totalSec"', 'DESC')
+      .getRawMany<RawActivity>();
+
+    const totalUsers = rankings.length;
+    const userIndex = rankings.findIndex((r) => r.userId === userId);
+    const rank = userIndex >= 0 ? userIndex + 1 : totalUsers + 1;
+    const topPercent =
+      totalUsers > 0 ? (rank / totalUsers) * TOP_PERCENT_DIVISOR : TOP_PERCENT_DIVISOR;
+
+    const userRow = userIndex >= 0 ? rankings[userIndex] : null;
+    const totalMinutes = userRow ? Number(userRow.totalSec) / SECONDS_PER_MINUTE : 0;
+    const activeDays = userRow ? Number(userRow.activeDays) : 0;
+
+    return { totalMinutes, activeDays, rank, totalUsers, topPercent };
+  }
+
+  private async collectRelationship({ guildId, userId, startDate, endDate }: QueryRange): Promise<{
+    peerCount: number;
+    hhiScore: number;
+    topPeers: PeerInfo[];
+  }> {
+    const peerRows = await this.pairDailyRepo
+      .createQueryBuilder('pd')
+      .select('pd.peerId', 'peerId')
+      .addSelect('SUM(pd.minutes)', 'totalMinutes')
+      .where('pd.guildId = :guildId', { guildId })
+      .andWhere('pd.userId = :userId', { userId })
+      .andWhere('pd.date >= :startDate', { startDate })
+      .andWhere('pd.date <= :endDate', { endDate })
+      .groupBy('pd.peerId')
+      .getRawMany<RawPeer>();
+
+    const peerTimes = peerRows.map((r) => ({
+      peerId: r.peerId,
+      minutes: Number(r.totalMinutes),
+    }));
+
+    const hhiScore = calculateHhi(peerTimes);
+    const peerCount = peerTimes.length;
+    const topRaw = getTopPeers(peerTimes, TOP_PEER_COUNT);
+
+    // peer 이름은 VoiceDaily userName으로 해결 (없으면 userId 그대로)
+    const peerIds = topRaw.map((p) => p.peerId);
+    const nameMap = await this.resolvePeerNames(guildId, peerIds);
+
+    const topPeers: PeerInfo[] = topRaw.map((p) => ({
+      userId: p.peerId,
+      userName: nameMap.get(p.peerId) ?? p.peerId,
+      minutes: p.minutes,
+      ratio: p.ratio,
+    }));
+
+    return { peerCount, hhiScore, topPeers };
+  }
+
+  private async resolvePeerNames(guildId: string, userIds: string[]): Promise<Map<string, string>> {
+    if (userIds.length === 0) return new Map();
+
+    const rows = await this.voiceDailyRepo
+      .createQueryBuilder('vd')
+      .select('vd.userId', 'userId')
+      .addSelect('MAX(vd.userName)', 'userName')
+      .where('vd.guildId = :guildId', { guildId })
+      .andWhere('vd.userId IN (:...userIds)', { userIds })
+      .andWhere('vd.channelId = :channelId', { channelId: GLOBAL_CHANNEL_ID })
+      .groupBy('vd.userId')
+      .getRawMany<{ userId: string; userName: string }>();
+
+    return new Map(rows.map((r) => [r.userId, r.userName]));
+  }
+
+  private async collectMoco({ guildId, userId, startDate, endDate }: QueryRange): Promise<{
+    score: number;
+    rank: number;
+    totalUsers: number;
+    topPercent: number;
+    helpedNewbies: number;
+  }> {
+    const mocoRankings = await this.mocoRepo
+      .createQueryBuilder('mh')
+      .select('mh.hunterId', 'hunterId')
+      .addSelect('SUM(mh.score)', 'totalScore')
+      .addSelect('SUM(mh.uniqueNewbieCount)', 'totalNewbies')
+      .where('mh.guildId = :guildId', { guildId })
+      .andWhere('mh.date >= :startDate', { startDate })
+      .andWhere('mh.date <= :endDate', { endDate })
+      .groupBy('mh.hunterId')
+      .orderBy('"totalScore"', 'DESC')
+      .getRawMany<RawMoco>();
+
+    const totalUsers = mocoRankings.length;
+    const userIndex = mocoRankings.findIndex((r) => r.hunterId === userId);
+    const rank = userIndex >= 0 ? userIndex + 1 : totalUsers + 1;
+    const topPercent =
+      totalUsers > 0 ? (rank / totalUsers) * TOP_PERCENT_DIVISOR : TOP_PERCENT_DIVISOR;
+
+    const userRow = userIndex >= 0 ? mocoRankings[userIndex] : null;
+    const score = userRow ? Number(userRow.totalScore) : 0;
+    // uniqueNewbieCount는 일별 값이므로 SUM은 연인원 기준 (날짜별 중복 가능)
+    const helpedNewbies = userRow ? Number(userRow.totalNewbies) : 0;
+
+    return { score, rank, totalUsers, topPercent, helpedNewbies };
+  }
+
+  private async collectPattern({
+    guildId,
+    userId,
+    startDate,
+    endDate,
+  }: QueryRange): Promise<{ micUsageRate: number; aloneRatio: number }> {
+    // channelDurationSec은 개별 채널에, micOnSec/aloneSec은 GLOBAL에 저장되므로 각각 조회
+    const [durationRow, globalRow] = await Promise.all([
+      this.voiceDailyRepo
+        .createQueryBuilder('vd')
+        .select('SUM(vd.channelDurationSec)', 'totalDurationSec')
+        .where('vd.guildId = :guildId', { guildId })
+        .andWhere('vd.userId = :userId', { userId })
+        .andWhere('vd.channelId != :globalId', { globalId: GLOBAL_CHANNEL_ID })
+        .andWhere('vd.date >= :startDate', { startDate })
+        .andWhere('vd.date <= :endDate', { endDate })
+        .getRawOne<{ totalDurationSec: string }>(),
+      this.voiceDailyRepo
+        .createQueryBuilder('vd')
+        .select('SUM(vd.micOnSec)', 'totalMicOnSec')
+        .addSelect('SUM(vd.aloneSec)', 'totalAloneSec')
+        .where('vd.guildId = :guildId', { guildId })
+        .andWhere('vd.userId = :userId', { userId })
+        .andWhere('vd.channelId = :globalId', { globalId: GLOBAL_CHANNEL_ID })
+        .andWhere('vd.date >= :startDate', { startDate })
+        .andWhere('vd.date <= :endDate', { endDate })
+        .getRawOne<{ totalMicOnSec: string; totalAloneSec: string }>(),
+    ]);
+
+    const duration = durationRow ? Number(durationRow.totalDurationSec) : 0;
+    const micUsageRate = duration > 0 ? Number(globalRow?.totalMicOnSec ?? 0) / duration : 0;
+    const aloneRatio = duration > 0 ? Number(globalRow?.totalAloneSec ?? 0) / duration : 0;
+
+    return { micUsageRate, aloneRatio };
+  }
+
+  private buildVerdicts(
+    config: {
+      minActivityMinutes: number;
+      minActiveDaysRatio: number;
+      hhiThreshold: number;
+      minPeerCount: number;
+    },
+    stats: { totalMinutes: number; activeDaysRatio: number; hhiScore: number; peerCount: number },
+  ): Verdict[] {
+    const { totalMinutes, activeDaysRatio, hhiScore, peerCount } = stats;
+    return [
+      {
+        category: '활동량',
+        isPassed: totalMinutes >= config.minActivityMinutes,
+        criterion: `${config.minActivityMinutes}분 이상`,
+        actual: `${Math.floor(totalMinutes)}분`,
+      },
+      {
+        category: '활동 일수',
+        isPassed: activeDaysRatio >= config.minActiveDaysRatio,
+        criterion: `활동일 비율 ${Math.round(config.minActiveDaysRatio * TOP_PERCENT_DIVISOR)}% 이상`,
+        actual: `${Math.round(activeDaysRatio * TOP_PERCENT_DIVISOR)}%`,
+      },
+      {
+        category: '관계 다양성',
+        isPassed: hhiScore <= config.hhiThreshold,
+        criterion: `HHI ${config.hhiThreshold} 이하`,
+        actual: `HHI ${hhiScore.toFixed(3)}`,
+      },
+      {
+        category: '교류 인원',
+        isPassed: peerCount >= config.minPeerCount,
+        criterion: `${config.minPeerCount}명 이상`,
+        actual: `${peerCount}명`,
+      },
+    ];
+  }
+
+  private buildBadgeGuides(params: {
+    config: VoiceHealthConfig;
+    earnedBadges: BadgeCode[];
+    activityTopPercent: number;
+    hhiScore: number;
+    peerCount: number;
+    mocoTopPercent: number;
+    activeDaysRatio: number;
+    micUsageRate: number;
+  }): BadgeGuide[] {
+    const {
+      config,
+      earnedBadges,
+      activityTopPercent,
+      hhiScore,
+      peerCount,
+      mocoTopPercent,
+      activeDaysRatio,
+      micUsageRate,
+    } = params;
+    const isEarned = (code: BadgeCode) => earnedBadges.includes(code);
+
+    return [
+      {
+        code: BADGE_CODE.ACTIVITY,
+        ...BADGE_DISPLAY.ACTIVITY,
+        isEarned: isEarned(BADGE_CODE.ACTIVITY),
+        criterion: `활동 상위 ${config.badgeActivityTopPercent}% 이내`,
+        current: `현재 상위 ${activityTopPercent.toFixed(1)}%`,
+      },
+      {
+        code: BADGE_CODE.SOCIAL,
+        ...BADGE_DISPLAY.SOCIAL,
+        isEarned: isEarned(BADGE_CODE.SOCIAL),
+        criterion: `HHI ${Number(config.badgeSocialHhiMax).toFixed(2)} 이하 & 교류 ${config.badgeSocialMinPeers}명 이상`,
+        current: `HHI ${hhiScore.toFixed(3)}, ${peerCount}명`,
+      },
+      {
+        code: BADGE_CODE.HUNTER,
+        ...BADGE_DISPLAY.HUNTER,
+        isEarned: isEarned(BADGE_CODE.HUNTER),
+        criterion: `모코코 기여 상위 ${config.badgeHunterTopPercent}% 이내`,
+        current: `현재 상위 ${mocoTopPercent.toFixed(1)}%`,
+      },
+      {
+        code: BADGE_CODE.CONSISTENT,
+        ...BADGE_DISPLAY.CONSISTENT,
+        isEarned: isEarned(BADGE_CODE.CONSISTENT),
+        criterion: `활동일 비율 ${Math.round(Number(config.badgeConsistentMinRatio) * TOP_PERCENT_DIVISOR)}% 이상`,
+        current: `현재 ${Math.round(activeDaysRatio * TOP_PERCENT_DIVISOR)}%`,
+      },
+      {
+        code: BADGE_CODE.MIC,
+        ...BADGE_DISPLAY.MIC,
+        isEarned: isEarned(BADGE_CODE.MIC),
+        criterion: `마이크 사용률 ${Math.round(Number(config.badgeMicMinRate) * TOP_PERCENT_DIVISOR)}% 이상`,
+        current: `현재 ${Math.round(micUsageRate * TOP_PERCENT_DIVISOR)}%`,
+      },
+    ];
+  }
+
+  // eslint-disable-next-line max-lines-per-function
+  private async generateLlmSummary(params: {
+    activityData: {
+      totalMinutes: number;
+      activeDays: number;
+      rank: number;
+      totalUsers: number;
+      topPercent: number;
+    };
+    relationshipData: { peerCount: number; hhiScore: number };
+    mocoData: {
+      score: number;
+      rank: number;
+      totalUsers: number;
+      topPercent: number;
+      helpedNewbies: number;
+    };
+    patternData: { micUsageRate: number; aloneRatio: number };
+    verdicts: Verdict[];
+    topPeers: PeerInfo[];
+    badgeGuides: BadgeGuide[];
+    config: VoiceHealthConfig;
+  }): Promise<string | undefined> {
+    const {
+      activityData,
+      relationshipData,
+      mocoData,
+      patternData,
+      verdicts,
+      topPeers,
+      badgeGuides,
+      config,
+    } = params;
+    if (!this.llmProvider) return undefined;
+
+    const passedCount = verdicts.filter((v) => v.isPassed).length;
+    const activeDaysRatio =
+      activityData.activeDays > 0
+        ? Math.round((activityData.activeDays / config.analysisDays) * TOP_PERCENT_DIVISOR)
+        : 0;
+
+    const verdictLines = verdicts
+      .map(
+        (v) =>
+          `  - ${v.category}: ${v.actual} (기준: ${v.criterion}) → ${v.isPassed ? '충족' : '미달'}`,
+      )
+      .join('\n');
+
+    const peerLines =
+      topPeers.length > 0
+        ? topPeers
+            .map(
+              (p) =>
+                `  - ${p.userName}: ${Math.floor(p.minutes)}분 (${(p.ratio * TOP_PERCENT_DIVISOR).toFixed(1)}%)`,
+            )
+            .join('\n')
+        : '  - 교류 기록 없음';
+
+    const prompt = [
+      '당신은 Discord 서버 커뮤니티 매니저 AI입니다.',
+      '아래 데이터를 바탕으로 이 멤버의 음성 활동 상태를 진단해주세요.',
+      '',
+      `## 분석 기간: 최근 ${config.analysisDays}일`,
+      '',
+      '## 활동량',
+      `- 총 활동: ${Math.floor(activityData.totalMinutes)}분 / 활동일: ${activityData.activeDays}일 (분석기간 대비 ${activeDaysRatio}%)`,
+      `- 서버 내 순위: ${activityData.rank}위 / ${activityData.totalUsers}명 (상위 ${activityData.topPercent.toFixed(1)}%)`,
+      `- 정책 기준: ${config.minActivityMinutes}분 이상 → ${activityData.totalMinutes >= config.minActivityMinutes ? '충족' : '미달'}`,
+      '',
+      '## 관계 다양성',
+      `- 교류 인원: ${relationshipData.peerCount}명 (정책 기준: ${config.minPeerCount}명 이상 → ${relationshipData.peerCount >= config.minPeerCount ? '충족' : '미달'})`,
+      `- HHI 집중도: ${relationshipData.hhiScore.toFixed(3)} (정책 기준: ${Number(config.hhiThreshold).toFixed(2)} 이하 → ${relationshipData.hhiScore <= Number(config.hhiThreshold) ? '충족' : '미달'})`,
+      '  - HHI가 1에 가까울수록 소수에게 편중, 0에 가까울수록 다양',
+      '- 주요 교류 상대:',
+      peerLines,
+      '',
+      '## 모코코(신규 멤버 케어) 기여',
+      `- 기여 점수: ${mocoData.score}점, 도운 신규 멤버: ${mocoData.helpedNewbies}명`,
+      `- 서버 내 순위: ${mocoData.rank}위 / ${mocoData.totalUsers}명 (상위 ${mocoData.topPercent.toFixed(1)}%)`,
+      '',
+      '## 참여 패턴',
+      `- 마이크 사용률: ${Math.round(patternData.micUsageRate * TOP_PERCENT_DIVISOR)}%`,
+      `- 혼자 보낸 시간 비율: ${Math.round(patternData.aloneRatio * TOP_PERCENT_DIVISOR)}%`,
+      '',
+      `## 정책 준수 현황: ${passedCount}/${verdicts.length} 충족`,
+      verdictLines,
+      '',
+      '## 뱃지 달성 현황',
+      ...badgeGuides.map(
+        (b) =>
+          `  - ${b.icon} ${b.name}: ${b.isEarned ? '달성' : '미달성'} (조건: ${b.criterion} / ${b.current})`,
+      ),
+      '',
+      '## 작성 지침',
+      '- 4~5문장으로 작성',
+      '- 정책 미달 항목이 있으면 구체적 개선 방향 제시',
+      '- 관계 편중(HHI 높음)이면 다양한 교류 권유',
+      '- 혼자 시간 비율이 높으면 협업 참여 제안',
+      '- 미달성 뱃지 중 가장 달성에 가까운 1~2개에 대해 구체적 달성 팁 제시',
+      '- 친근하고 격려하는 톤 유지, 이모지 1~2개 사용',
+    ].join('\n');
+
+    try {
+      return await this.llmProvider.generateText(prompt);
+    } catch (error) {
+      if (error instanceof LlmQuotaExhaustedException) {
+        throw error;
+      }
+      // LLM 실패 시 무시
+      return undefined;
+    }
+  }
+
+  /** KST 기준 날짜 범위를 계산한다. */
+  private buildDateRange(analysisDays: number): {
+    startDate: string;
+    endDate: string;
+    startDateDash: string;
+    endDateDash: string;
+  } {
+    const now = new Date();
+    const kstOffset = 9 * 60 * 60 * 1000;
+    const kstNow = new Date(now.getTime() + kstOffset);
+
+    const start = new Date(kstNow);
+    start.setUTCDate(start.getUTCDate() - analysisDays);
+
+    const toYYYYMMDD = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '');
+    const toDash = (d: Date) => d.toISOString().slice(0, 10);
+
+    return {
+      startDate: toYYYYMMDD(start),
+      endDate: toYYYYMMDD(kstNow),
+      startDateDash: toDash(start),
+      endDateDash: toDash(kstNow),
+    };
+  }
+}

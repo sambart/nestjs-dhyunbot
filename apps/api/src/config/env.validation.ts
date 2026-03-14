@@ -22,7 +22,7 @@ export const envValidationSchema = Joi.object({
 
   // Gemini
   GEMINI_API_KEY: Joi.string().required(),
-  GEMINI_MODEL: Joi.string().default('gemini-2.0-flash-exp'),
+  GEMINI_MODEL: Joi.string().default('gemini-2.5-flash'),
 
   // JWT
   JWT_SECRET: Joi.string().required(),

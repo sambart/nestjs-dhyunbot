@@ -1,11 +1,22 @@
 import { VoiceActivityData, VoiceAnalysisResult } from '@dhyunbot/shared';
-import { BadRequestException, Controller, Get, Logger, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Logger,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RedisService } from '../redis/redis.service';
-import { VoiceAnalyticsCompareQueryDto, VoiceAnalyticsQueryDto } from './dto/voice-analytics-query.dto';
+import {
+  VoiceAnalyticsCompareQueryDto,
+  VoiceAnalyticsQueryDto,
+} from './dto/voice-analytics-query.dto';
+import { VoiceAiAnalysisService } from './voice-ai-analysis.service';
 import { VoiceAnalyticsService } from './voice-analytics.service';
-import { VoiceGeminiService } from './voice-gemini.service';
 
 const ANALYSIS_CACHE_TTL = 60 * 30; // 30분
 
@@ -15,7 +26,7 @@ export class VoiceAnalyticsController {
   private readonly logger = new Logger(VoiceAnalyticsController.name);
 
   constructor(
-    private readonly geminiService: VoiceGeminiService,
+    private readonly aiAnalysisService: VoiceAiAnalysisService,
     private readonly analyticsService: VoiceAnalyticsService,
     private readonly redis: RedisService,
   ) {}
@@ -25,21 +36,22 @@ export class VoiceAnalyticsController {
     @Param('guildId') guildId: string,
     @Query() query: VoiceAnalyticsQueryDto,
   ): Promise<VoiceAnalysisResult> {
-    const cacheKey = `voice:analysis:guild:${guildId}:${query.days}`;
+    const days = query.days ?? 7;
+    const cacheKey = `voice:analysis:guild:${guildId}:${days}`;
     const cached = await this.redis.get<VoiceAnalysisResult>(cacheKey);
     if (cached) {
       this.logger.debug(`Cache hit for guild analysis: ${cacheKey}`);
       return cached;
     }
 
-    const { start, end } = VoiceAnalyticsService.getDateRange(query.days);
+    const { start, end } = VoiceAnalyticsService.getDateRange(days);
     const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
 
     if (activityData.userActivities.length === 0) {
       throw new BadRequestException('No voice activity data found for the specified period');
     }
 
-    const result = await this.geminiService.analyzeVoiceActivity(activityData);
+    const result = await this.aiAnalysisService.analyzeVoiceActivity(activityData);
     await this.redis.set(cacheKey, result, ANALYSIS_CACHE_TTL);
     return result;
   }
@@ -49,7 +61,7 @@ export class VoiceAnalyticsController {
     @Param('guildId') guildId: string,
     @Query() query: VoiceAnalyticsQueryDto,
   ): Promise<VoiceActivityData> {
-    const { start, end } = VoiceAnalyticsService.getDateRange(query.days);
+    const { start, end } = VoiceAnalyticsService.getDateRange(query.days ?? 7);
     return this.analyticsService.collectVoiceActivityData(guildId, start, end);
   }
 
@@ -63,14 +75,18 @@ export class VoiceAnalyticsController {
       throw new BadRequestException('guildId query parameter is required');
     }
 
-    const cacheKey = `voice:analysis:user:${guildId}:${userId}:${query.days}`;
-    const cached = await this.redis.get<{ userData: VoiceActivityData['userActivities'][number]; analysis: string }>(cacheKey);
+    const days = query?.days ?? 7;
+    const cacheKey = `voice:analysis:user:${guildId}:${userId}:${days}`;
+    const cached = await this.redis.get<{
+      userData: VoiceActivityData['userActivities'][number];
+      analysis: string;
+    }>(cacheKey);
     if (cached) {
       this.logger.debug(`Cache hit for user analysis: ${cacheKey}`);
       return cached;
     }
 
-    const { start, end } = VoiceAnalyticsService.getDateRange(query.days);
+    const { start, end } = VoiceAnalyticsService.getDateRange(days);
     const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
 
     const userActivity = activityData.userActivities.find((u) => u.userId === userId);
@@ -78,7 +94,7 @@ export class VoiceAnalyticsController {
       throw new BadRequestException('User has no voice activity in the specified period');
     }
 
-    const analysis = await this.geminiService.analyzeSpecificUser(activityData, userId);
+    const analysis = await this.aiAnalysisService.analyzeSpecificUser(activityData, userId);
     const result = { userData: userActivity, analysis };
     await this.redis.set(cacheKey, result, ANALYSIS_CACHE_TTL);
     return result;
@@ -89,14 +105,14 @@ export class VoiceAnalyticsController {
     @Param('guildId') guildId: string,
     @Query() query: VoiceAnalyticsCompareQueryDto,
   ) {
-    const range1 = VoiceAnalyticsService.getDateRange(query.period1);
+    const range1 = VoiceAnalyticsService.getDateRange(query.period1 ?? 7);
     const data1 = await this.analyticsService.collectVoiceActivityData(
       guildId,
       range1.start,
       range1.end,
     );
 
-    const range2 = VoiceAnalyticsService.getDateRange(query.period2);
+    const range2 = VoiceAnalyticsService.getDateRange(query.period2 ?? 14);
     const data2 = await this.analyticsService.collectVoiceActivityData(
       guildId,
       range2.start,
@@ -116,11 +132,8 @@ export class VoiceAnalyticsController {
   }
 
   @Get('guild/:guildId/summary')
-  async getQuickSummary(
-    @Param('guildId') guildId: string,
-    @Query() query: VoiceAnalyticsQueryDto,
-  ) {
-    const { start, end } = VoiceAnalyticsService.getDateRange(query.days);
+  async getQuickSummary(@Param('guildId') guildId: string, @Query() query: VoiceAnalyticsQueryDto) {
+    const { start, end } = VoiceAnalyticsService.getDateRange(query.days ?? 7);
     const data = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
 
     return {

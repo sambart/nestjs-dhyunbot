@@ -89,6 +89,11 @@ export class RedisService implements OnModuleDestroy {
     return (await this.client.exists(key)) === 1;
   }
 
+  /** 키의 남은 TTL(초)을 반환한다. 키가 없으면 -2, TTL 미설정이면 -1 반환. */
+  async ttl(key: string): Promise<number> {
+    return this.client.ttl(key);
+  }
+
   /**
    * Redis Pipeline — 여러 명령을 하나의 네트워크 왕복으로 일괄 실행
    * 콜백 내에서 pipeline 객체에 명령을 체이닝하면 된다.

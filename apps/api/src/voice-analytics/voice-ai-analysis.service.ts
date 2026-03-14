@@ -1,78 +1,21 @@
 import { VoiceActivityData, VoiceAnalysisResult } from '@dhyunbot/shared';
-import { GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
-const RETRY_CONFIG = {
-  MAX_RETRIES: 2,
-  BASE_DELAY_MS: 1000,
-} as const;
-
-const DEFAULT_GENERATION_CONFIG = {
-  temperature: 0.7,
-  topK: 40,
-  topP: 0.95,
-  maxOutputTokens: 8192,
-} as const;
+import type { LlmProvider } from './llm/llm-provider.interface';
+import { LLM_PROVIDER } from './llm/llm-provider.interface';
 
 @Injectable()
-export class VoiceGeminiService {
-  private readonly logger = new Logger(VoiceGeminiService.name);
-  private genAI: GoogleGenerativeAI;
-  private model: GenerativeModel;
+export class VoiceAiAnalysisService {
+  private readonly logger = new Logger(VoiceAiAnalysisService.name);
 
-  constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    if (!apiKey) {
-      this.logger.error('GEMINI_API_KEY not found in environment variables');
-      throw new Error('GEMINI_API_KEY is required');
-    }
+  constructor(@Inject(LLM_PROVIDER) private readonly llmProvider: LlmProvider) {}
 
-    const modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-2.0-flash-exp';
-
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({
-      model: modelName,
-      generationConfig: DEFAULT_GENERATION_CONFIG,
-    });
-
-    this.logger.log(`Gemini model initialized: ${modelName}`);
-  }
-
-  /**
-   * 재시도 로직이 포함된 Gemini API 호출
-   */
-  private async generateWithRetry(prompt: string): Promise<string> {
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt <= RETRY_CONFIG.MAX_RETRIES; attempt++) {
-      try {
-        if (attempt > 0) {
-          const delay = RETRY_CONFIG.BASE_DELAY_MS * Math.pow(2, attempt - 1);
-          this.logger.warn(`Gemini API retry attempt ${attempt}/${RETRY_CONFIG.MAX_RETRIES} after ${delay}ms`);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-
-        const result = await this.model.generateContent(prompt);
-        return result.response.text();
-      } catch (error) {
-        lastError = error as Error;
-        this.logger.error(`Gemini API attempt ${attempt + 1} failed: ${lastError.message}`);
-      }
-    }
-
-    throw lastError;
-  }
-
-  /**
-   * 음성 채널 활동 데이터를 분석하고 인사이트 제공
-   */
   async analyzeVoiceActivity(activityData: VoiceActivityData): Promise<VoiceAnalysisResult> {
     try {
       const prompt = this.buildVoiceAnalysisPrompt(activityData);
 
-      this.logger.log('Sending voice activity data to Gemini API...');
-      const text = await this.generateWithRetry(prompt);
+      this.logger.log('Sending voice activity data to LLM...');
+      const text = await this.llmProvider.generateText(prompt);
 
       this.logger.log('Successfully analyzed voice activity');
       return { text };
@@ -84,9 +27,6 @@ export class VoiceGeminiService {
     }
   }
 
-  /**
-   * Gemini를 위한 프롬프트 생성
-   */
   private buildVoiceAnalysisPrompt(data: VoiceActivityData): string {
     // 데이터 요약 (너무 길면 토큰 초과)
     const summarizedData = {
@@ -138,9 +78,6 @@ export class VoiceGeminiService {
       지금 분석을 시작해주세요:`;
   }
 
-  /**
-   * AI 분석 실패 시 기본 통계 기반 폴백 응답 생성
-   */
   private buildFallbackAnalysis(data: VoiceActivityData): string {
     const formatTime = (seconds: number) => {
       const hours = Math.floor(seconds / 3600);
@@ -170,9 +107,6 @@ export class VoiceGeminiService {
     );
   }
 
-  /**
-   * 특정 유저의 활동 심층 분석
-   */
   async analyzeSpecificUser(
     activityData: VoiceActivityData,
     targetUserId: string,
@@ -212,7 +146,7 @@ ${JSON.stringify(userActivity, null, 2)}
 `;
 
     try {
-      return await this.generateWithRetry(prompt);
+      return await this.llmProvider.generateText(prompt);
     } catch (error) {
       this.logger.error('Failed to analyze user after retries', (error as Error).stack);
       const formatTime = (seconds: number) => {
@@ -226,14 +160,17 @@ ${JSON.stringify(userActivity, null, 2)}
         `- 총 음성 시간: ${formatTime(userActivity.totalVoiceTime)}\n` +
         `- 마이크 사용률: ${userActivity.micUsageRate}%\n` +
         `- 활동 일수: ${userActivity.activeDays}일\n` +
-        `- 자주 사용 채널: ${userActivity.activeChannels.slice(0, 3).map((c) => c.channelName).join(', ') || '없음'}`
+        `- 자주 사용 채널: ${
+          userActivity.activeChannels
+            .slice(0, 3)
+            .map((c) => c.channelName)
+            .join(', ') || '없음'
+        }`
       );
     }
   }
 
-  /**
-   * 커뮤니티 건강도 점수 산출
-   */
+  // eslint-disable-next-line max-lines-per-function
   async calculateCommunityHealth(activityData: VoiceActivityData): Promise<string> {
     const summarizedData = {
       guildId: activityData.guildId,
@@ -281,9 +218,12 @@ ${JSON.stringify(summarizedData, null, 2)}
 `;
 
     try {
-      return await this.generateWithRetry(prompt);
+      return await this.llmProvider.generateText(prompt);
     } catch (error) {
-      this.logger.error('Failed to calculate health score after retries:', (error as Error).message);
+      this.logger.error(
+        'Failed to calculate health score after retries:',
+        (error as Error).message,
+      );
       return (
         '> AI 분석을 일시적으로 사용할 수 없어 기본 통계를 표시합니다.\n\n' +
         `- 총 활성 유저: ${activityData.totalStats.totalUsers}명\n` +

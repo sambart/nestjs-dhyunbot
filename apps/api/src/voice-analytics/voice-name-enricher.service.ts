@@ -44,7 +44,8 @@ export class VoiceNameEnricherService {
     for (const userId of userIdsWithoutName) {
       const cachedName = cachedNames.get(userId);
       if (cachedName) {
-        userMap.get(userId)!.username = cachedName;
+        const userEntry = userMap.get(userId);
+        if (userEntry) userEntry.username = cachedName;
       } else {
         stillMissing.push(userId);
       }
@@ -145,7 +146,8 @@ export class VoiceNameEnricherService {
     for (const channelId of channelIdsWithoutName) {
       const cachedName = cachedNames.get(channelId);
       if (cachedName) {
-        channelMap.get(channelId).channelName = cachedName;
+        const channelEntry = channelMap.get(channelId);
+        if (channelEntry) channelEntry.channelName = cachedName;
       } else {
         stillMissing.push(channelId);
       }

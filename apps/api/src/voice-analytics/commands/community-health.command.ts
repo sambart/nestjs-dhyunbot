@@ -4,8 +4,8 @@ import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Colors, CommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 
+import { VoiceAiAnalysisService } from '../voice-ai-analysis.service';
 import { VoiceAnalyticsService } from '../voice-analytics.service';
-import { VoiceGeminiService } from '../voice-gemini.service';
 import { AnalyticsDaysDto } from './analytics-days.dto';
 
 @Command({
@@ -18,7 +18,7 @@ export class CommunityHealthCommand {
   private readonly logger = new Logger(CommunityHealthCommand.name);
 
   constructor(
-    private readonly geminiService: VoiceGeminiService,
+    private readonly aiAnalysisService: VoiceAiAnalysisService,
     private readonly analyticsService: VoiceAnalyticsService,
   ) {}
 
@@ -28,7 +28,10 @@ export class CommunityHealthCommand {
     @InteractionEvent(SlashCommandPipe) dto: AnalyticsDaysDto,
   ): Promise<void> {
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-      await interaction.reply({ content: '관리자만 사용할 수 있는 명령어입니다.', ephemeral: true });
+      await interaction.reply({
+        content: '관리자만 사용할 수 있는 명령어입니다.',
+        ephemeral: true,
+      });
       return;
     }
 
@@ -41,7 +44,7 @@ export class CommunityHealthCommand {
         return;
       }
 
-      const days = dto.days || 30;
+      const days = dto.days;
       const { start, end } = VoiceAnalyticsService.getDateRange(days);
       const activityData = await this.analyticsService.collectVoiceActivityData(
         guildId,
@@ -56,7 +59,7 @@ export class CommunityHealthCommand {
         return;
       }
 
-      const healthText = await this.geminiService.calculateCommunityHealth(activityData);
+      const healthText = await this.aiAnalysisService.calculateCommunityHealth(activityData);
 
       const MAX_EMBED_DESCRIPTION = 4096;
       const needsSplit = healthText.length > MAX_EMBED_DESCRIPTION;
