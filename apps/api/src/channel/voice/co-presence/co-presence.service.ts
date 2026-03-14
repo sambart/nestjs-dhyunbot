@@ -129,6 +129,9 @@ export class CoPresenceService {
     };
 
     this.activeSessions.set(key, session);
+    this.logger.debug(
+      `[CO-PRESENCE] Session started: guild=${guildId} user=${userId} channel=${channelId} peers=${peerIds.length}`,
+    );
   }
 
   private continueSession(session: ActiveCoPresenceSession, peerIds: string[]): void {
@@ -151,6 +154,10 @@ export class CoPresenceService {
     }
 
     const date = this.toDateString(endedAt);
+
+    this.logger.debug(
+      `[CO-PRESENCE] Session ending: guild=${guildId} user=${userId} duration=${accumulatedMinutes}min peers=${peerIds.length}`,
+    );
 
     try {
       // DB 저장: 세션

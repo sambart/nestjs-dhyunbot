@@ -69,9 +69,13 @@ nest-dhyunbot/
 ### Phase 2: 설계
 2. [database-architect] → 입력: PRD diff / 출력: `/docs/specs/database/_index.md` (변경 시)
 3. [database-critic] → 입력: database/_index.md diff / 출력: 리뷰 반영된 database/_index.md
-4. **[Migration 생성]** → 조건: database/_index.md 변경 시
-    - Entity 파일 수정 후 `pnpm run migration:generate` 실행
-    - 생성된 migration 파일 검토 및 커밋
+4. **[Migration 생성]** → 조건: database/_index.md 변경 시 또는 신규 Entity 추가 시
+    - **Entity 파일이 이미 존재하는 경우**: Entity 파일 수정
+    - **Entity 파일이 없는 경우**: PRD/DB 스키마 문서를 기반으로 Entity 파일 신규 작성 후 모듈에 등록
+    - 자동 생성 시도: 컨테이너 내에서 `docker exec -w //workspace/apps/api nest-api sh -c "TS_NODE_TRANSPILE_ONLY=1 TS_NODE_COMPILER_OPTIONS='{\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strict\":false,\"useDefineForClassFields\":false}' ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate src/migrations/{timestamp}-{Name} -d src/data-source.ts"` 실행
+    - **자동 생성 결과 검토**: TypeORM `migration:generate`는 현재 Entity와 DB 스키마의 **전체 diff**를 출력하므로, 불필요한 변경(기존 인덱스/FK 재생성, 컬럼 타입 재정의 등)이 포함될 수 있다. 이 경우 **해당 기능에 필요한 변경만 포함하도록 마이그레이션 파일을 수동으로 정리**한다.
+    - **수동 작성이 필요한 경우**: 자동 생성 실패 또는 결과가 지나치게 복잡할 때, PRD의 데이터 모델 정의를 기반으로 `CREATE TABLE`, `CREATE INDEX` SQL을 직접 작성한다.
+    - 마이그레이션 실행: `docker exec -w //workspace/apps/api nest-api sh -c "TS_NODE_TRANSPILE_ONLY=1 TS_NODE_COMPILER_OPTIONS='{\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strict\":false,\"useDefineForClassFields\":false}' ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts"` 로 실행하여 테이블 생성 확인
     - 출력: `/apps/api/src/migrations/*.ts`
 
 ### Phase 3: 계획

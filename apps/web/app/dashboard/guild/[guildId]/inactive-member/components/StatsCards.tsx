@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart2, TrendingDown, UserCheck, UserX, Users } from "lucide-react";
+import { BarChart2, TrendingDown, UserCheck, Users, UserX } from "lucide-react";
 
 import type { InactiveMemberStats } from "@/app/lib/inactive-member-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

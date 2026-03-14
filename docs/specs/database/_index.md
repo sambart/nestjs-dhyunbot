@@ -1049,6 +1049,24 @@ DO UPDATE SET
 
 특정 사용자의 친밀도 조회(`WHERE guildId = ? AND userId = ? AND date BETWEEN ? AND ? GROUP BY peerId`)는 `IDX_copresence_pair_guild_user_date`로 필터링+정렬을 커버한다. 서버 전체 관계 그래프 조회(`WHERE guildId = ? AND date BETWEEN ?`)는 `IDX_copresence_pair_guild_date`로 커버한다. 특정 쌍 조회(`WHERE guildId = ? AND userId = ? AND peerId = ?`)는 PK로 커버되므로 별도 인덱스 불필요.
 
+#### 관계 분석 대시보드(F-COPRESENCE-007~013) 인덱스 검토 결과
+
+> F-COPRESENCE-007~013은 기존 3개 테이블을 읽기 전용으로 조회한다. 새 테이블·컬럼·인덱스는 불필요하다.
+
+| 기능 | 주요 쿼리 패턴 | 커버 인덱스 |
+|------|--------------|------------|
+| F-COPRESENCE-007 요약 카드 | `PairDaily WHERE guildId + date, COUNT(DISTINCT userId)` | `IDX_copresence_pair_guild_date` |
+| F-COPRESENCE-007 요약 카드 | `Daily WHERE guildId + date, SUM(channelMinutes)` | `IDX_copresence_daily_guild_date` |
+| F-COPRESENCE-008 네트워크 그래프 | `Daily WHERE guildId + date GROUP BY userId ORDER BY SUM LIMIT 50` | `IDX_copresence_daily_guild_date` |
+| F-COPRESENCE-008 네트워크 그래프 | `PairDaily WHERE guildId + date AND userId IN (...50명...)` | `IDX_copresence_pair_guild_date` |
+| F-COPRESENCE-009 친밀도 TOP N | `PairDaily WHERE guildId + date AND userId < peerId GROUP BY (userId,peerId) ORDER BY SUM LIMIT N` | `IDX_copresence_pair_guild_date` (guildId+date 필터 후 행 레벨 `userId < peerId` 필터) |
+| F-COPRESENCE-010 고립 멤버 | `Daily WHERE guildId + date` + `NOT EXISTS (PairDaily WHERE guildId + date + userId)` | `IDX_copresence_daily_guild_date`, `IDX_copresence_pair_guild_user_date` |
+| F-COPRESENCE-011 관계 테이블 + userName 검색 | `PairDaily WHERE guildId + date AND userId < peerId` 후 `voice_daily` JOIN으로 userName 조회 | `IDX_copresence_pair_guild_date`, `IDX_voice_daily_guild_user_date` |
+| F-COPRESENCE-012 일별 추이 | `Daily WHERE guildId + date GROUP BY date, SUM(channelMinutes)` | `IDX_copresence_daily_guild_date` |
+| F-COPRESENCE-013 쌍 상세 | `PairDaily WHERE guildId + userId IN (A,B) AND peerId IN (A,B) AND date BETWEEN` | PK `(guildId, userId, peerId, date)` |
+
+**userName 검색(F-COPRESENCE-011) 설계 근거**: `voice_co_presence_pair_daily`에는 `userName` 컬럼이 없다. 유저명 검색 시 `voice_daily` 테이블(비정규화된 `userName` 컬럼 보유)과 JOIN하여 처리한다. `voice_daily`의 `IDX_voice_daily_guild_user_date (guildId, userId, date)`로 userId 기반 lookup이 가능하다. PairDaily에서 `guildId + date` 필터를 먼저 적용하여 후보 집합을 줄인 뒤 userName LIKE 필터를 적용하므로 추가 인덱스는 불필요하다.
+
 #### 배치 Upsert 쿼리
 
 세션 종료 시 모든 peer 레코드(양방향)를 한 번의 쿼리로 처리한다:
@@ -1902,4 +1920,46 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
 [90일 초과 세션 정리 — @Cron('0 0 15 * * *') UTC 15:00 = KST 00:00]
   1. voice_co_presence_session → PostgreSQL delete WHERE endedAt < (now - 90일)
   ※ voice_co_presence_daily, voice_co_presence_pair_daily는 영구 보존
+
+[관계 분석 대시보드 — GET /api/guilds/:guildId/co-presence/* (F-COPRESENCE-007~013)]
+  ※ 읽기 전용. DB 스키마 변경 없음. 기존 인덱스로 모든 쿼리 패턴 커버.
+
+  /summary (F-COPRESENCE-007)
+    1. voice_co_presence_pair_daily → COUNT(DISTINCT userId) WHERE guildId + date BETWEEN
+       인덱스: IDX_copresence_pair_guild_date
+    2. voice_co_presence_daily → SUM(channelMinutes) WHERE guildId + date BETWEEN
+       인덱스: IDX_copresence_daily_guild_date
+
+  /graph (F-COPRESENCE-008)
+    1. voice_co_presence_daily → GROUP BY userId, SUM(channelMinutes) DESC LIMIT 50 WHERE guildId + date BETWEEN
+       인덱스: IDX_copresence_daily_guild_date
+    2. voice_co_presence_pair_daily → WHERE guildId + date BETWEEN AND userId IN (...상위50명...)
+       인덱스: IDX_copresence_pair_guild_date
+
+  /top-pairs (F-COPRESENCE-009)
+    1. voice_co_presence_pair_daily → WHERE guildId + date BETWEEN AND userId < peerId
+         GROUP BY (userId, peerId) ORDER BY SUM(minutes) DESC LIMIT N
+       인덱스: IDX_copresence_pair_guild_date (guildId+date 필터 후 행 레벨 userId < peerId 필터)
+
+  /isolated (F-COPRESENCE-010)
+    1. voice_co_presence_daily → WHERE guildId + date BETWEEN AND channelMinutes > 0
+       인덱스: IDX_copresence_daily_guild_date
+    2. NOT EXISTS: voice_co_presence_pair_daily WHERE guildId + userId (= Daily의 userId) AND date BETWEEN
+       인덱스: IDX_copresence_pair_guild_user_date
+
+  /pairs (F-COPRESENCE-011)
+    1. voice_co_presence_pair_daily → WHERE guildId + date BETWEEN AND userId < peerId
+         ORDER BY SUM(minutes) DESC, LIMIT/OFFSET (페이지네이션)
+       인덱스: IDX_copresence_pair_guild_date
+    2. userName 검색 시: voice_daily JOIN → userName LIKE '%search%' WHERE guildId + userId
+       인덱스: IDX_voice_daily_guild_user_date
+
+  /daily-trend (F-COPRESENCE-012)
+    1. voice_co_presence_daily → GROUP BY date, SUM(channelMinutes)/2 WHERE guildId + date BETWEEN
+       인덱스: IDX_copresence_daily_guild_date
+
+  /pair-detail (F-COPRESENCE-013)
+    1. voice_co_presence_pair_daily → WHERE guildId + userId IN (A,B) AND peerId IN (A,B) AND date BETWEEN
+         GROUP BY date ORDER BY date
+       인덱스: PK (guildId, userId, peerId, date)
 ```

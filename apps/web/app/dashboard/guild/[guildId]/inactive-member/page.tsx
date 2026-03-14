@@ -15,6 +15,7 @@ import {
   fetchInactiveMembers,
   fetchInactiveMemberStats,
 } from "@/app/lib/inactive-member-api";
+
 import ActionBar from "./components/ActionBar";
 import ActivityPieChart from "./components/ActivityPieChart";
 import InactiveMemberTable from "./components/InactiveMemberTable";

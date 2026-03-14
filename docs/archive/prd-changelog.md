@@ -7,6 +7,7 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v3.3 | 2026-03-14 | voice-co-presence: 관계 분석 대시보드 기능 추가 (F-COPRESENCE-007 ~ F-COPRESENCE-013) | — |
 | v3.2 | 2026-03-14 | inactive-member: 비활동 회원 관리 도메인 PRD 신규 추가 (F-INACTIVE-001 ~ F-INACTIVE-005) | — |
 | v3.1 | 2026-03-10 | monitoring: 봇 모니터링 도메인 PRD 신규 추가 (F-MONITORING-001 ~ F-MONITORING-004, F-WEB-MONITORING-001) | — |
 | v3.0 | 2026-03-10 | newbie: F-NEWBIE-005 미션 수동 관리 (성공/실패 처리, Embed 숨김) 추가, Embed 전체 상태 표시로 변경 | — |
@@ -29,6 +30,33 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 22] voice-co-presence: 관계 분석 대시보드 기능 추가 (COPRESENCE-ANALYTICS)
+
+**변경일**: 2026-03-14
+**티켓**: COPRESENCE-ANALYTICS
+
+**변경 파일**:
+- `docs/specs/prd/voice-co-presence.md` — 관계 분석 대시보드 섹션 추가 (F-COPRESENCE-007 ~ F-COPRESENCE-013), 마이그레이션 전략 Phase 4 구체화
+
+**변경 내용**:
+1. **마이그레이션 전략 Phase 4** 항목을 "(향후) 사용자 관계 분석 기능 구현"에서 구체적인 기능 ID 참조(F-COPRESENCE-007 ~ F-COPRESENCE-013)로 갱신
+2. **"관계 분석 대시보드 (Phase 4)" 섹션** 신규 추가 — 관련 모듈, 기능 상세 7종, 백엔드 API 요약, 프론트엔드 파일 구조, 의존성, 기존 기능과의 관계 포함
+3. **F-COPRESENCE-007 (관계 분석 요약 카드)**: 라우트 `/dashboard/guild/[guildId]/co-presence`. 기간 선택(7/30/90일). 활성 멤버 수, 총 관계 수, 총 동시접속 시간, 평균 관계 수/인 카드 4종. `GET /summary?days=30` API 명세
+4. **F-COPRESENCE-008 (네트워크 그래프 시각화)**: `@react-sigma/core` + `graphology` 사용. 노드(크기=접속시간, 색상=Louvain 클러스터), 엣지(두께=동시접속시간). 줌/패닝/클릭 하이라이트/최소 임계값 슬라이더. 노드 상한 50명. `GET /graph?days=30&minMinutes=10` API 명세
+5. **F-COPRESENCE-009 (친밀도 TOP N 패널)**: `PairDaily` 기준 `SUM(minutes)` 상위 10쌍. 유저 아바타 ↔ 구분, 총 시간, 세션 수. `GET /top-pairs?days=30&limit=10` API 명세. 아바타 Discord CDN 출처 명세
+6. **F-COPRESENCE-010 (고립 멤버 감지)**: `VoiceCoPresenceDaily` 존재 && `VoiceCoPresencePairDaily` 없음 조건. 유저명, 총 음성 접속 시간, 마지막 음성 접속일 표시. `GET /isolated?days=30` API 명세
+7. **F-COPRESENCE-011 (관계 상세 테이블)**: 전체 쌍 목록 5컬럼(유저A/B, 총 시간, 세션 수, 마지막 날짜). 유저명 검색 필터, 20건/페이지 페이지네이션, 컬럼 정렬. `GET /pairs?days=30&search=&page=1&limit=20` API 명세. `userId < peerId` 중복 제거 조건 명시
+8. **F-COPRESENCE-012 (일별 동시접속 추이 차트)**: Recharts `AreaChart`. X축=날짜, Y축=서버 전체 총 동시접속 분. 양방향 보정(/2). `GET /daily-trend?days=30` API 명세
+9. **F-COPRESENCE-013 (특정 쌍 일별 상세 모달)**: F-COPRESENCE-011 행 클릭 시 모달. Recharts `BarChart` (날짜별 쌍 동시접속 분). `GET /pair-detail?userA=&userB=&days=30` API 명세
+10. **백엔드 API 요약 테이블**: `CoPresenceAnalyticsController` 컨트롤러 명세. 엔드포인트 7종, JwtAuthGuard 적용
+11. **프론트엔드 파일 구조**: `apps/web/app/dashboard/guild/[guildId]/co-presence/` 경로 아래 7개 컴포넌트 파일 및 `co-presence-api.ts` API 클라이언트 명세
+12. **의존성 추가**: `@react-sigma/core`, `graphology`, `graphology-communities-louvain` 3개 패키지 명세
+13. **기존 기능과의 관계**: 관계 분석 대시보드의 읽기 전용 특성, 비활동 회원 도메인과의 독립성, `DashboardSidebar` 메뉴 연동 필요 사항 명세
+
+**변경 사유**: 마이그레이션 전략 Phase 4에 기술된 "사용자 관계 분석 기능" 계획을 구체화. Co-Presence 도메인이 축적한 `VoiceCoPresencePairDaily` / `VoiceCoPresenceDaily` 데이터를 활용하여 네트워크 그래프, 친밀도 순위, 고립 멤버 감지 등 관계 분석 기능을 웹 대시보드에 제공하기 위한 요구사항 명세.
 
 ---
 

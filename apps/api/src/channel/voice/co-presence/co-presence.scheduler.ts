@@ -94,6 +94,11 @@ export class CoPresenceScheduler implements OnApplicationBootstrap, OnApplicatio
 
       // 봇 제외
       const humanMembers = members.filter((m) => !m.user.bot);
+
+      this.logger.debug(
+        `[CO-PRESENCE TICK] guild=${guildId} channel=${voiceChannel.id} members=${members.length} humans=${humanMembers.length}`,
+      );
+
       if (humanMembers.length < 2) continue;
 
       // 제외 채널 확인
