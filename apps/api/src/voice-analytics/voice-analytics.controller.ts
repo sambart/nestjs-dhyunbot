@@ -70,7 +70,7 @@ export class VoiceAnalyticsController {
     @Param('userId') userId: string,
     @Query('guildId') guildId?: string,
     @Query() query?: VoiceAnalyticsQueryDto,
-  ) {
+  ): Promise<{ userData: VoiceActivityData['userActivities'][number]; analysis: string }> {
     if (!guildId) {
       throw new BadRequestException('guildId query parameter is required');
     }
@@ -112,7 +112,7 @@ export class VoiceAnalyticsController {
       range1.end,
     );
 
-    const range2 = VoiceAnalyticsService.getDateRange(query.period2 ?? 14);
+    const range2 = VoiceAnalyticsService.getDateRange(query.period2 ?? 15);
     const data2 = await this.analyticsService.collectVoiceActivityData(
       guildId,
       range2.start,

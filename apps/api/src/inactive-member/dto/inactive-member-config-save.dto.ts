@@ -2,7 +2,7 @@ import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 
 
 export class InactiveMemberConfigSaveDto {
   @IsOptional()
-  @IsIn([7, 14, 30])
+  @IsIn([7, 15, 30])
   periodDays?: number;
 
   @IsOptional()

@@ -14,7 +14,7 @@ import { useSettings } from '../../../SettingsContext';
 
 const DEFAULT_EMBED_COLOR = '#5865F2';
 
-const PERIOD_DAYS_OPTIONS = [7, 14, 30] as const;
+const PERIOD_DAYS_OPTIONS = [7, 15, 30] as const;
 
 export default function InactiveMemberSettingsPage() {
   const { selectedGuildId } = useSettings();
@@ -112,17 +112,19 @@ export default function InactiveMemberSettingsPage() {
 
   // ─── 역할 새로고침 ────────────────────────────────────────────────────────
 
-  const refreshRoles = async () => {
+  const handleRefreshRolesClick = () => {
     if (!selectedGuildId || isRefreshing) return;
-    setIsRefreshing(true);
-    try {
-      const freshRoles = await fetchGuildRoles(selectedGuildId, true).catch(
-        (): DiscordRole[] => [],
-      );
-      setRoles(freshRoles);
-    } finally {
-      setIsRefreshing(false);
-    }
+    void (async () => {
+      setIsRefreshing(true);
+      try {
+        const freshRoles = await fetchGuildRoles(selectedGuildId, true).catch(
+          (): DiscordRole[] => [],
+        );
+        setRoles(freshRoles);
+      } finally {
+        setIsRefreshing(false);
+      }
+    })();
   };
 
   // ─── 폼 헬퍼 ────────────────────────────────────────────────────────────
@@ -223,7 +225,7 @@ export default function InactiveMemberSettingsPage() {
         </div>
         <button
           type="button"
-          onClick={refreshRoles}
+          onClick={handleRefreshRolesClick}
           disabled={isRefreshing}
           title="역할 목록 새로고침"
           className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

@@ -23,5 +23,5 @@ export class VoiceAnalyticsCompareQueryDto {
   @IsInt()
   @Min(1)
   @Max(90)
-  period2?: number = 14;
+  period2?: number = 15;
 }
