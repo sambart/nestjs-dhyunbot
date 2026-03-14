@@ -1,5 +1,7 @@
 // API response types shared between api and web
 
+export type { GuildOverviewResponse } from './overview';
+
 export interface VoiceActivityData {
   guildId: string;
   guildName: string;

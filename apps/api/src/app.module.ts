@@ -19,6 +19,7 @@ import { InactiveMemberModule } from './inactive-member/inactive-member.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { MusicModule } from './music/music.module';
 import { NewbieModule } from './newbie/newbie.module';
+import { OverviewModule } from './overview/overview.module';
 import { RedisModule } from './redis/redis.module';
 import { StatusPrefixModule } from './status-prefix/status-prefix.module';
 import { StickyMessageModule } from './sticky-message/sticky-message.module';
@@ -46,6 +47,7 @@ import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
     VoiceAnalyticsModule,
     AuthModule,
     VersionModule,
+    OverviewModule,
   ],
   controllers: [AppController],
   providers: [AppService],
