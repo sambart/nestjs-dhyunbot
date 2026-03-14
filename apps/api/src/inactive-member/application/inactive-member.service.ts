@@ -1,6 +1,6 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Client, type GuildMember } from 'discord.js';
+import { Client, Collection, type Guild, type GuildMember } from 'discord.js';
 
 import { InactiveMemberConfig } from '../domain/inactive-member-config.entity';
 import { InactiveMemberGrade, InactiveMemberRecord } from '../domain/inactive-member-record.entity';
@@ -51,7 +51,8 @@ export class InactiveMemberService {
       return [];
     }
     // 전체 길드 멤버를 API로 가져옴 (캐시에는 봇이 "본" 멤버만 존재)
-    const members = await guild.members.fetch();
+    // Gateway rate limit(opcode 8) 발생 시 재시도
+    const members = await this.fetchMembersWithRetry(guild);
 
     const targetMembers = members.filter(
       (m: GuildMember) =>
@@ -182,5 +183,42 @@ export class InactiveMemberService {
 
   private formatYyyymmdd(date: Date): string {
     return date.toISOString().slice(0, 10).replace(/-/g, '');
+  }
+
+  /**
+   * Gateway rate limit(opcode 8) 발생 시 재시도하여 길드 멤버를 가져온다.
+   */
+  private async fetchMembersWithRetry(
+    guild: Guild,
+    maxRetries = 3,
+  ): Promise<Collection<string, GuildMember>> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await guild.members.fetch();
+      } catch (err) {
+        const isRateLimit =
+          err instanceof Error && err.constructor.name === 'GatewayRateLimitError';
+
+        if (!isRateLimit || attempt === maxRetries) throw err;
+
+        const retryAfterMs = this.extractRetryAfter(err) ?? 25_000;
+        this.logger.warn(
+          `[INACTIVE] Gateway rate limit hit (attempt ${attempt}/${maxRetries}), retrying after ${retryAfterMs}ms`,
+        );
+        await this.sleep(retryAfterMs);
+      }
+    }
+
+    return guild.members.fetch();
+  }
+
+  private extractRetryAfter(err: Error): number | null {
+    const match = err.message.match(/Retry after ([\d.]+)/);
+    if (!match) return null;
+    return Math.ceil(parseFloat(match[1]) * 1000) + 1000;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
