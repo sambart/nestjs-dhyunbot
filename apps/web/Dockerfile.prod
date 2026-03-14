@@ -44,6 +44,9 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY apps/web/package.json ./apps/web/
 COPY libs/shared/package.json ./libs/shared/
 
+# Skip husky in production (devDependency)
+ENV HUSKY=0
+
 # Install only production dependencies
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --prod
 
