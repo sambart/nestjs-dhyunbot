@@ -14,6 +14,8 @@ jobs:
     # [release] 커밋에 의한 재트리거 방지
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
+    env:
+      HUSKY: '0'
     permissions:
       contents: write
     outputs:

@@ -5,6 +5,9 @@ ENV PNPM_HOME="/root/.local/share/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 
+# Skip husky in Docker build
+ENV HUSKY=0
+
 WORKDIR /workspace
 
 # Copy workspace config and lockfile
