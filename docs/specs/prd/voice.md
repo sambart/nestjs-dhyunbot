@@ -238,7 +238,7 @@ Discord Voice Event
 
 > 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)
 
-- **트리거**: FE 유저 상세 페이지(`/dashboard/guild/{guildId}/user/{userId}`)의 초기 로드 및 기간 변경
+- **트리거**: FE 음성 활동 대시보드 유저 상세 뷰(`/dashboard/guild/{guildId}/voice?userId={userId}`)의 초기 로드 및 기간 변경
 - **엔드포인트**: `GET /api/guilds/:guildId/voice/daily`
 - **인증**: JWT Bearer 토큰 필수 (JwtAuthGuard 적용)
 - **쿼리 파라미터**:
@@ -272,16 +272,16 @@ Discord Voice Event
   ```
   - `categoryId`, `categoryName`: GLOBAL 레코드이거나 카테고리가 없는 채널인 경우 `null`
 - **호출 경로**:
-  - FE(`apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/voice/daily?from=&to=&userId=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/voice/daily?from=&to=&userId=`)
+  - FE(`apps/web/app/dashboard/guild/[guildId]/voice/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/voice/daily?from=&to=&userId=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/voice/daily?from=&to=&userId=`)
 - **관련 FE 파일**:
-  - `apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx` — 유저 상세 페이지
+  - `apps/web/app/dashboard/guild/[guildId]/voice/page.tsx` — 음성 활동 대시보드 (유저 상세 뷰 포함)
   - `apps/web/app/lib/user-detail-api.ts` — API 클라이언트 함수
 
 ### F-VOICE-019: 멤버 검색 API
 
 > 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)
 
-- **트리거**: FE 유저 상세 페이지 또는 대시보드의 검색창에서 닉네임/디스코드 ID 입력
+- **트리거**: FE 음성 활동 대시보드의 유저 랭킹 검색창 또는 유저 상세 뷰 검색 드롭다운에서 닉네임/디스코드 ID 입력
 - **엔드포인트**: `GET /api/guilds/:guildId/members/search`
 - **인증**: JWT Bearer 토큰 필수 (JwtAuthGuard 적용)
 - **쿼리 파라미터**:
@@ -305,13 +305,13 @@ Discord Voice Event
 - **예외**:
   - `q` 파라미터 누락 시 400 응답
 - **호출 경로**:
-  - FE(`apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/members/search?q=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/members/search?q=`)
+  - FE(`apps/web/app/dashboard/guild/[guildId]/voice/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/members/search?q=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/members/search?q=`)
 - **관련 FE 파일**:
   - `apps/web/app/lib/user-detail-api.ts` — API 클라이언트 함수
 
 ### F-VOICE-021: 멤버 프로필 조회 API
 
-- **트리거**: FE 유저 상세 페이지 또는 랭킹 테이블에서 유저 프로필(닉네임, 아바타) 표시 시
+- **트리거**: FE 음성 활동 대시보드의 유저 상세 뷰 또는 랭킹 테이블에서 유저 프로필(닉네임, 아바타) 표시 시
 - **엔드포인트**:
   - 단건: `GET /api/guilds/:guildId/members/:userId/profile`
   - 일괄: `GET /api/guilds/:guildId/members/profiles?ids=id1,id2,...` (최대 50명)
@@ -345,7 +345,7 @@ Discord Voice Event
 
 > 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)
 
-- **트리거**: FE 유저 상세 페이지의 최근 입퇴장 이력 테이블 초기 로드 및 페이지 변경
+- **트리거**: FE 음성 활동 대시보드 유저 상세 뷰의 최근 입퇴장 이력 테이블 초기 로드 및 페이지 변경
 - **엔드포인트**: `GET /api/guilds/:guildId/voice/history/:userId`
 - **인증**: JWT Bearer 토큰 필수 (JwtAuthGuard 적용)
 - **경로 파라미터**:
@@ -389,9 +389,9 @@ Discord Voice Event
   - `durationSec`은 `leftAt`이 null이면 null
   - `categoryId`, `categoryName`: Channel 엔티티의 값을 그대로 반환. 카테고리가 없는 채널이거나 기존 데이터인 경우 `null`
 - **호출 경로**:
-  - FE(`apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/voice/history/{userId}?from=&to=&page=&limit=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/voice/history/{userId}?from=&to=&page=&limit=`)
+  - FE(`apps/web/app/dashboard/guild/[guildId]/voice/page.tsx`) → Next.js API 프록시(`/api/guilds/{guildId}/voice/history/{userId}?from=&to=&page=&limit=`) → 백엔드(`http://api:3000/api/guilds/{guildId}/voice/history/{userId}?from=&to=&page=&limit=`)
 - **관련 FE 파일**:
-  - `apps/web/app/dashboard/guild/[guildId]/user/[userId]/page.tsx` — 유저 상세 페이지
+  - `apps/web/app/dashboard/guild/[guildId]/voice/page.tsx` — 음성 활동 대시보드 (유저 상세 뷰 포함)
   - `apps/web/app/lib/user-detail-api.ts` — API 클라이언트 함수
 
 ### F-VOICE-022: `/me` 커맨드 — 개인 음성 프로필 카드

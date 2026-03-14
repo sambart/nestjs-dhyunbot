@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, ArrowLeftRight, GitFork, Mic, Search, Settings, UserX } from "lucide-react";
+import { Activity, ArrowLeftRight, GitFork, LayoutDashboard, Mic, Settings, Sprout, UserX } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -26,14 +26,19 @@ export default function DashboardSidebar({
 
   const menuItems = [
     {
+      href: `/dashboard/guild/${selectedGuildId}/overview`,
+      label: "서버 개요",
+      icon: LayoutDashboard,
+    },
+    {
       href: `/dashboard/guild/${selectedGuildId}/voice`,
       label: "음성 활동",
       icon: Mic,
     },
     {
-      href: `/dashboard/guild/${selectedGuildId}/user`,
-      label: "유저 검색",
-      icon: Search,
+      href: `/dashboard/guild/${selectedGuildId}/newbie`,
+      label: "신입 관리",
+      icon: Sprout,
     },
     {
       href: `/dashboard/guild/${selectedGuildId}/inactive-member`,
@@ -63,7 +68,7 @@ export default function DashboardSidebar({
           <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
             {selectedGuild && guildIconUrl(selectedGuild) ? (
               <img
-                src={guildIconUrl(selectedGuild)!}
+                src={guildIconUrl(selectedGuild) ?? ''}
                 alt={selectedGuild.name}
                 width={20}
                 height={20}

@@ -122,6 +122,30 @@ export class MissionService {
   }
 
   /**
+   * 이력 미션에 memberName(누락 시 Discord 조회)과 currentPlaytimeSec을 추가한다.
+   * memberName을 DB에도 갱신하여 다음 조회 시 재조회를 방지한다.
+   */
+  async enrichHistoryMissions(
+    guildId: string,
+    missions: NewbieMission[],
+  ): Promise<(NewbieMission & { memberName: string; currentPlaytimeSec: number })[]> {
+    return Promise.all(
+      missions.map(async (mission) => {
+        const [memberName, currentPlaytimeSec] = await Promise.all([
+          mission.memberName
+            ? Promise.resolve(mission.memberName)
+            : this.fetchMemberDisplayName(guildId, mission.memberId).then(async (name) => {
+                await this.missionRepo.updateMemberName(mission.id, name);
+                return name;
+              }),
+          this.getPlaytimeSec(guildId, mission.memberId, mission.startDate, mission.endDate),
+        ]);
+        return { ...mission, memberName, currentPlaytimeSec };
+      }),
+    );
+  }
+
+  /**
    * 기간 내 플레이타임 합산 (초 단위).
    * VoiceDailyEntity에서 channelId != 'GLOBAL' 레코드의 channelDurationSec 합산.
    * startDate/endDate는 YYYYMMDD 형식.

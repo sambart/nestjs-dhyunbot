@@ -151,11 +151,17 @@ export class CoPresenceAnalyticsService {
   // 공통 유틸
   // ──────────────────────────────────────────────────────────────────────────
 
+  /** Date 객체를 KST(UTC+9) 기준 'YYYY-MM-DD' 문자열로 변환한다 */
+  private toKstDateString(d: Date): string {
+    const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+    return kst.toISOString().slice(0, 10);
+  }
+
   /** days 파라미터로부터 조회 시작일(YYYY-MM-DD)을 계산한다 */
   private getStartDate(days: number): string {
     const d = new Date();
     d.setDate(d.getDate() - days);
-    return d.toISOString().slice(0, 10);
+    return this.toKstDateString(d);
   }
 
   /** userId 배열 → { userId: { userName, avatarUrl } } 매핑을 반환한다 */
@@ -470,8 +476,11 @@ export class CoPresenceAnalyticsService {
 
     const raw = await this.dailyRepo
       .createQueryBuilder('d')
-      .select('d.date', 'date')
-      .addSelect(`SUM(d.channelMinutes) / ${BOTH_DIRECTIONS_DIVISOR}`, 'totalMinutes')
+      .select("TO_CHAR(d.date, 'YYYY-MM-DD')", 'date')
+      .addSelect(
+        `ROUND(SUM(d.channelMinutes)::numeric / ${BOTH_DIRECTIONS_DIVISOR})`,
+        'totalMinutes',
+      )
       .where('d.guildId = :guildId', { guildId })
       .andWhere('d.date >= :startDate', { startDate })
       .groupBy('d.date')
@@ -479,18 +488,16 @@ export class CoPresenceAnalyticsService {
       .getRawMany<RawDailyRow>();
 
     // 빈 날짜를 0으로 채운다
-    const dataMap = new Map<string, number>(
-      raw.map((r) => [r.date, Math.floor(Number(r.totalMinutes))]),
-    );
+    const dataMap = new Map<string, number>(raw.map((r) => [r.date, Number(r.totalMinutes)]));
     const result: DailyTrendItem[] = [];
-    const cursor = new Date(startDate);
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
+    const todayStr = this.toKstDateString(new Date());
+    const cursor = new Date(`${startDate}T00:00:00`);
 
-    while (cursor <= today) {
-      const dateStr = cursor.toISOString().slice(0, 10);
+    let dateStr = this.toKstDateString(cursor);
+    while (dateStr <= todayStr) {
       result.push({ date: dateStr, totalMinutes: dataMap.get(dateStr) ?? 0 });
       cursor.setDate(cursor.getDate() + 1);
+      dateStr = this.toKstDateString(cursor);
     }
 
     return result;

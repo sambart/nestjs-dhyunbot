@@ -25,6 +25,7 @@ import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository'
 import { MissionScheduler } from './mission/mission.scheduler';
 import { MissionService } from './mission/mission.service';
 import { MocoService } from './moco/moco.service';
+import { MocoBootstrapService } from './moco/moco-bootstrap.service';
 import { MocoEventHandler } from './moco/moco-event.handler';
 import { MocoResetScheduler } from './moco/moco-reset.scheduler';
 import { NewbieController } from './newbie.controller';
@@ -71,6 +72,7 @@ import { WelcomeService } from './welcome/welcome.service';
     MissionScheduler,
     // Unit D
     MocoService,
+    MocoBootstrapService,
     MocoEventHandler,
     MocoResetScheduler,
     // Unit E

@@ -119,22 +119,72 @@ jobs:
           host: ${{ secrets.LIGHTSAIL_HOST }}
           username: ${{ secrets.LIGHTSAIL_USER }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          script_stop: true
           script: |
-            set -e
             cd ~/nestjs-dhyunbot
+            DC="docker compose --env-file .env.prod -f docker-compose.prod.yml"
+            API_IMG="ghcr.io/sambart/nestjs-dhyunbot/api"
+            WEB_IMG="ghcr.io/sambart/nestjs-dhyunbot/web"
 
-            # docker-compose.prod.yml 업데이트
+            # 1. 현재 :latest를 :prev로 백업 (롤백용)
+            docker tag "${API_IMG}:latest" "${API_IMG}:prev" 2>/dev/null || true
+            docker tag "${WEB_IMG}:latest" "${WEB_IMG}:prev" 2>/dev/null || true
+            echo "=== 이전 이미지 :prev 태그 백업 완료 ==="
+
+            # 2. 소스 업데이트 & 새 이미지 pull
             git pull origin main
-
-            # ghcr.io 로그인
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            $DC pull api web
 
-            # 새 이미지 pull & 컨테이너 재시작
-            docker compose --env-file .env.prod -f docker-compose.prod.yml pull api web
-            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+            # 3. 새 컨테이너로 교체
+            $DC up -d api web
 
-            # DB 마이그레이션
-            docker compose --env-file .env.prod -f docker-compose.prod.yml exec api pnpm exec typeorm migration:run -d dist/apps/api/src/data-source.js
+            # 4. 헬스체크 함수 (최대 60초 대기)
+            healthcheck() {
+              local name=$1
+              local port=$2
+              local retries=15
+              local wait=4
 
-            # 사용하지 않는 이미지 정리
+              for i in $(seq 1 $retries); do
+                if curl -sf -o /dev/null --max-time 5 "http://localhost:${port}"; then
+                  echo "=== $name health OK (attempt $i) ==="
+                  return 0
+                fi
+                echo "=== $name health check $i/$retries failed, waiting ${wait}s... ==="
+                sleep $wait
+              done
+              echo "=== $name health check FAILED after $retries attempts ==="
+              return 1
+            }
+
+            # 5. 롤백 함수
+            rollback() {
+              echo "!!! 롤백 시작 !!!"
+              docker tag "${API_IMG}:prev" "${API_IMG}:latest"
+              docker tag "${WEB_IMG}:prev" "${WEB_IMG}:latest"
+              $DC up -d api web
+              echo "!!! 이전 버전으로 롤백 완료 !!!"
+            }
+
+            # 6. API 헬스체크
+            if ! healthcheck "API" 3000; then
+              echo "!!! API 헬스체크 실패 !!!"
+              rollback
+              exit 1
+            fi
+
+            # 7. Web 헬스체크
+            if ! healthcheck "WEB" 4000; then
+              echo "!!! Web 헬스체크 실패 !!!"
+              rollback
+              exit 1
+            fi
+
+            # 8. 헬스체크 통과 후 DB 마이그레이션
+            echo "=== DB 마이그레이션 시작 ==="
+            $DC exec api pnpm exec typeorm migration:run -d dist/apps/api/src/data-source.js
+
+            # 9. 사용하지 않는 이미지 정리 (:prev 유지)
             docker image prune -f
+            echo "=== 배포 완료 ==="

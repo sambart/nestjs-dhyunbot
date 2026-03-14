@@ -101,10 +101,7 @@ export class NewbieController {
     // mocoResetPeriod가 MONTHLY/CUSTOM으로 변경되었고 mocoCurrentPeriodStart가 아직 없으면 오늘 날짜로 초기화
     const prevPeriod = prevConfig?.mocoResetPeriod ?? 'NONE';
     const newPeriod = dto.mocoResetPeriod ?? 'NONE';
-    if (
-      newPeriod !== 'NONE' &&
-      (prevPeriod !== newPeriod || !savedConfig.mocoCurrentPeriodStart)
-    ) {
+    if (newPeriod !== 'NONE' && (prevPeriod !== newPeriod || !savedConfig.mocoCurrentPeriodStart)) {
       const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
       const today = kst.toISOString().slice(0, 10).replace(/-/g, '');
       await this.configRepo.updateMocoCurrentPeriodStart(guildId, today);
@@ -123,15 +120,16 @@ export class NewbieController {
           savedConfig.missionNotifyMessageId = null;
         }
         await this.missionService.refreshMissionEmbed(guildId, savedConfig);
-      } else if (prevMission.messageId && prevMission.channelId && !savedConfig.missionNotifyChannelId) {
+      } else if (
+        prevMission.messageId &&
+        prevMission.channelId &&
+        !savedConfig.missionNotifyChannelId
+      ) {
         await this.missionService.deleteEmbed(prevMission.channelId, prevMission.messageId);
         await this.configRepo.updateMissionNotifyMessageId(guildId, null);
       }
     } catch (err) {
-      this.logger.error(
-        `[MISSION] Embed 갱신 실패: guild=${guildId}`,
-        (err as Error).stack,
-      );
+      this.logger.error(`[MISSION] Embed 갱신 실패: guild=${guildId}`, (err as Error).stack);
     }
 
     // 모코코 Embed: 저장 시 항상 기존 메시지 삭제 후 새로 전송한다.
@@ -148,10 +146,7 @@ export class NewbieController {
         await this.configRepo.updateMocoRankMessageId(guildId, null);
       }
     } catch (err) {
-      this.logger.error(
-        `[MOCO] Embed 갱신 실패: guild=${guildId}`,
-        (err as Error).stack,
-      );
+      this.logger.error(`[MOCO] Embed 갱신 실패: guild=${guildId}`, (err as Error).stack);
     }
 
     return { ok: true };
@@ -165,7 +160,7 @@ export class NewbieController {
   @Get('missions')
   async getMissions(@Param('guildId') guildId: string) {
     const cached = await this.redisRepo.getMissionActive(guildId);
-    const missions = cached ?? await this.missionRepo.findActiveByGuild(guildId);
+    const missions = cached ?? (await this.missionRepo.findActiveByGuild(guildId));
     if (!cached) await this.redisRepo.setMissionActive(guildId, missions);
     return this.missionService.enrichMissions(guildId, missions);
   }
@@ -187,9 +182,10 @@ export class NewbieController {
     const resolvedPageSize = isNaN(parsedPageSize) || parsedPageSize < 1 ? 10 : parsedPageSize;
 
     const validStatuses = [MissionStatus.COMPLETED, MissionStatus.FAILED, MissionStatus.LEFT];
-    const resolvedStatus = status && validStatuses.includes(status as MissionStatus)
-      ? (status as MissionStatus)
-      : undefined;
+    const resolvedStatus =
+      status && validStatuses.includes(status as MissionStatus)
+        ? (status as MissionStatus)
+        : undefined;
 
     const { items, total } = await this.missionRepo.findHistoryByGuild(
       guildId,
@@ -198,7 +194,10 @@ export class NewbieController {
       resolvedPageSize,
     );
 
-    return { items, total, page: resolvedPage, pageSize: resolvedPageSize };
+    // memberName이 null인 항목에 서버 닉네임을 보충하고, currentPlaytimeSec을 추가한다
+    const enriched = await this.missionService.enrichHistoryMissions(guildId, items);
+
+    return { items: enriched, total, page: resolvedPage, pageSize: resolvedPageSize };
   }
 
   /**
@@ -207,10 +206,7 @@ export class NewbieController {
    */
   @Post('missions/complete')
   @HttpCode(HttpStatus.OK)
-  async completeMission(
-    @Param('guildId') guildId: string,
-    @Body() dto: MissionCompleteDto,
-  ) {
+  async completeMission(@Param('guildId') guildId: string, @Body() dto: MissionCompleteDto) {
     return this.missionService.completeMission(guildId, dto.missionId, dto.roleId);
   }
 
@@ -220,10 +216,7 @@ export class NewbieController {
    */
   @Post('missions/fail')
   @HttpCode(HttpStatus.OK)
-  async failMission(
-    @Param('guildId') guildId: string,
-    @Body() dto: MissionFailDto,
-  ) {
+  async failMission(@Param('guildId') guildId: string, @Body() dto: MissionFailDto) {
     return this.missionService.failMission(guildId, dto.missionId, dto.kick, dto.dmReason);
   }
 
@@ -293,6 +286,22 @@ export class NewbieController {
     );
 
     return { items, total, page: clampedPage, pageSize: resolvedPageSize };
+  }
+
+  /**
+   * GET /api/guilds/:guildId/newbie/moco/:hunterId
+   * 특정 사냥꾼이 도움한 모코코 상세 목록 반환.
+   * 반환: { newbies: Array<{ newbieId, newbieName, minutes, sessions }> }
+   */
+  @Get('moco/:hunterId')
+  async getMocoHunterDetail(
+    @Param('guildId') guildId: string,
+    @Param('hunterId') hunterId: string,
+  ): Promise<{
+    newbies: Array<{ newbieId: string; newbieName: string; minutes: number; sessions: number }>;
+  }> {
+    const newbies = await this.mocoService.getHunterDetail(guildId, hunterId);
+    return { newbies };
   }
 
   /**

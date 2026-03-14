@@ -22,7 +22,7 @@ export interface InactiveMemberListResponse {
 
 export interface InactiveMemberListQuery {
   grade?: InactiveMemberGrade;
-  periodDays?: 7 | 14 | 30;
+  periodDays?: 7 | 15 | 30;
   search?: string;
   sortBy?: 'lastVoiceDate' | 'totalMinutes';
   sortOrder?: 'ASC' | 'DESC';
@@ -62,7 +62,7 @@ export interface ExecuteActionResponse {
 export interface InactiveMemberConfig {
   id: number;
   guildId: string;
-  periodDays: 7 | 14 | 30;
+  periodDays: 7 | 15 | 30;
   lowActiveThresholdMin: number;
   decliningPercent: number;
   autoActionEnabled: boolean;

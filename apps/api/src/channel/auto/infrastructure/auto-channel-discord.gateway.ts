@@ -106,13 +106,15 @@ export class AutoChannelDiscordGateway {
   }
 
   /**
-   * 서버 내 음성 채널 이름 목록 조회.
-   * 단위 B (버튼-확정방)에서 중복 채널명 순번 처리용으로 사용.
+   * 특정 카테고리 내 음성 채널 이름 목록 조회.
+   * 카테고리별 독립 넘버링을 위해 parentId로 필터링한다.
    */
-  async fetchGuildVoiceChannelNames(guildId: string): Promise<string[]> {
+  async fetchVoiceChannelNamesByCategory(guildId: string, categoryId: string): Promise<string[]> {
     const guild = this.client.guilds.cache.get(guildId);
     if (!guild) return [];
-    return guild.channels.cache.filter((ch) => ch.isVoiceBased()).map((ch) => ch.name);
+    return guild.channels.cache
+      .filter((ch) => ch.isVoiceBased() && ch.parentId === categoryId)
+      .map((ch) => ch.name);
   }
 
   /**

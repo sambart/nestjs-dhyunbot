@@ -49,7 +49,7 @@
 
 - **트리거**: 스케줄러가 매일 00:00 KST에 실행
 - **분류 기준**: 길드별 `InactiveMemberConfig`의 설정값을 참조
-  - `periodDays` — 판단 기간 (일). 기본값 30일, 선택 가능 값: 7/14/30일
+  - `periodDays` — 판단 기간 (일). 기본값 30일, 선택 가능 값: 7/15/30일
   - `lowActiveThresholdMin` — 저활동 임계값 (분). 기본값 30분
   - `decliningPercent` — 활동 감소 판정 비율 (%). 기본값 50%
 
@@ -90,7 +90,7 @@
 
 - **필터 옵션**:
   - 분류 등급 필터 (전체 / FULLY_INACTIVE / LOW_ACTIVE / DECLINING)
-  - 판단 기간 프리셋 (7일 / 14일 / 30일)
+  - 판단 기간 프리셋 (7일 / 15일 / 30일)
   - 마지막 접속일 기준 정렬 (오름차순/내림차순)
   - 총 접속 시간 기준 정렬
 
@@ -161,7 +161,7 @@
 - **비활동 판정 기준 섹션**:
   | UI 요소 | 설명 |
   |---------|------|
-  | 판단 기간 선택 | 라디오 버튼 또는 셀렉트박스 (7일/14일/30일) |
+  | 판단 기간 선택 | 라디오 버튼 또는 셀렉트박스 (7일/15일/30일) |
   | 저활동 임계값 입력 | 숫자 입력 (분), 기본값 30 |
   | 활동 감소 비율 입력 | 숫자 입력 (%), 기본값 50 |
 
@@ -203,7 +203,7 @@
 |-------|------|----------|------|
 | `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
 | `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
-| `periodDays` | `int` | NOT NULL, DEFAULT `30` | 비활동 판단 기간 (일). 허용값: 7/14/30 |
+| `periodDays` | `int` | NOT NULL, DEFAULT `30` | 비활동 판단 기간 (일). 허용값: 7/15/30 |
 | `lowActiveThresholdMin` | `int` | NOT NULL, DEFAULT `30` | 저활동 임계값 (분). 이 값 미만이면 LOW_ACTIVE |
 | `decliningPercent` | `int` | NOT NULL, DEFAULT `50` | 활동 감소 판정 비율 (%). 0~100 |
 | `autoActionEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 자동 조치 전체 활성화 여부 |
@@ -291,7 +291,7 @@ GET /api/guilds/:guildId/inactive-members
 | 파라미터 | 타입 | 필수 | 설명 |
 |----------|------|------|------|
 | `grade` | `string` | 선택 | 등급 필터: `FULLY_INACTIVE` / `LOW_ACTIVE` / `DECLINING` |
-| `periodDays` | `number` | 선택 | 판단 기간 오버라이드 (7/14/30). 미제공 시 설정값 사용 |
+| `periodDays` | `number` | 선택 | 판단 기간 오버라이드 (7/15/30). 미제공 시 설정값 사용 |
 | `search` | `string` | 선택 | 닉네임 검색 키워드 |
 | `sortBy` | `string` | 선택 | 정렬 기준: `lastVoiceDate` / `totalMinutes`. 기본값: `lastVoiceDate` |
 | `sortOrder` | `string` | 선택 | 정렬 방향: `ASC` / `DESC`. 기본값: `ASC` |

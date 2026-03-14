@@ -1963,3 +1963,62 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
          GROUP BY date ORDER BY date
        인덱스: PK (guildId, userId, peerId, date)
 ```
+
+---
+
+## 자가진단 (Self-Diagnosis) 도메인
+
+### voice_health_config
+
+길드별 자가진단 정책 및 뱃지 임계값을 저장한다.
+
+| 컬럼 | 타입 | 제약조건 | 기본값 | 설명 |
+|------|------|----------|--------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | — | 내부 ID |
+| `guildId` | `varchar` | UNIQUE, NOT NULL | — | 디스코드 서버 ID |
+| `isEnabled` | `boolean` | NOT NULL | `false` | 자가진단 기능 활성화 |
+| `analysisDays` | `int` | NOT NULL | `30` | 분석 기간 (일) |
+| `isCooldownEnabled` | `boolean` | NOT NULL | `true` | 쿨다운 활성화 여부 |
+| `cooldownHours` | `int` | NOT NULL | `24` | 실행 쿨다운 (시간) |
+| `isLlmSummaryEnabled` | `boolean` | NOT NULL | `false` | AI 종합 진단 포함 여부 |
+| `minActivityMinutes` | `int` | NOT NULL | `600` | 정책: 최소 총 활동 시간(분) |
+| `minActiveDaysRatio` | `decimal(3,2)` | NOT NULL | `0.50` | 정책: 최소 활동일 비율 |
+| `hhiThreshold` | `decimal(3,2)` | NOT NULL | `0.30` | 정책: HHI 편중도 경고 임계값 |
+| `minPeerCount` | `int` | NOT NULL | `3` | 정책: 최소 교류 인원 수 |
+| `badgeActivityTopPercent` | `int` | NOT NULL | `10` | 뱃지: 활동왕 상위 N% |
+| `badgeSocialHhiMax` | `decimal(3,2)` | NOT NULL | `0.25` | 뱃지: 사교왕 HHI 상한 |
+| `badgeSocialMinPeers` | `int` | NOT NULL | `5` | 뱃지: 사교왕 최소 교류 인원 |
+| `badgeHunterTopPercent` | `int` | NOT NULL | `10` | 뱃지: 헌터 상위 N% |
+| `badgeConsistentMinRatio` | `decimal(3,2)` | NOT NULL | `0.80` | 뱃지: 꾸준러 최소 활동일 비율 |
+| `badgeMicMinRate` | `decimal(3,2)` | NOT NULL | `0.70` | 뱃지: 소통러 최소 마이크 사용률 |
+| `createdAt` | `timestamp` | NOT NULL | `now()` | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL | `now()` | 수정일 |
+
+**인덱스**: `UQ_voice_health_config_guild` — `UNIQUE(guildId)`
+
+### voice_health_badge
+
+사용자별 보유 뱃지 및 지표 스냅샷을 저장한다. 매일 00:30 KST 배치 재계산.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|------|------|----------|------|
+| `guildId` | `varchar` | PK 구성 | 디스코드 서버 ID |
+| `userId` | `varchar` | PK 구성 | 멤버 디스코드 ID |
+| `badges` | `json` | NOT NULL, DEFAULT `[]` | 보유 뱃지 코드 배열 |
+| `activityRank` | `int` | NULLABLE | 활동량 순위 |
+| `activityTopPercent` | `decimal(5,2)` | NULLABLE | 활동량 상위 % |
+| `hhiScore` | `decimal(4,3)` | NULLABLE | HHI 지수 |
+| `mocoRank` | `int` | NULLABLE | 모코코 순위 |
+| `mocoTopPercent` | `decimal(5,2)` | NULLABLE | 모코코 상위 % |
+| `micUsageRate` | `decimal(4,3)` | NULLABLE | 마이크 사용률 |
+| `activeDaysRatio` | `decimal(3,2)` | NULLABLE | 활동일 비율 |
+| `calculatedAt` | `timestamp` | NOT NULL | 마지막 계산 시각 |
+
+**인덱스**: `UQ_voice_health_badge_guild_user` — `UNIQUE(guildId, userId)`
+
+### Redis 키
+
+| 키 | TTL | 설명 |
+|----|-----|------|
+| `voice-health:cooldown:{guildId}:{userId}` | `cooldownHours` (설정값) | 자가진단 쿨다운 |
+| `voice-health:config:{guildId}` | 1시간 | VoiceHealthConfig 캐시 |

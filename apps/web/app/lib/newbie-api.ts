@@ -36,6 +36,7 @@ export interface NewbieConfig {
   mocoScorePerUnique: number | null;
   mocoResetPeriod: string | null;
   mocoResetIntervalDays: number | null;
+  mocoCurrentPeriodStart?: string | null;
 
   // 신입기간 역할
   roleEnabled: boolean;

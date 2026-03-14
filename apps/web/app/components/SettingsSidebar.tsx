@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, BarChart3, Mic, Pin, Radio, Settings, Tag, Users, UserX } from "lucide-react";
+import { ArrowLeftRight, BarChart3, HeartPulse, Mic, Pin, Radio, Settings, Tag, Users, UserX } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -32,6 +32,7 @@ export default function SettingsSidebar({
     { href: `/settings/guild/${selectedGuildId}/sticky-message`, label: "고정메세지", icon: Pin },
     { href: `/settings/guild/${selectedGuildId}/voice`, label: "음성 설정", icon: Mic },
     { href: `/settings/guild/${selectedGuildId}/inactive-member`, label: "비활동 회원 설정", icon: UserX },
+    { href: `/settings/guild/${selectedGuildId}/voice-health`, label: "자가진단 설정", icon: HeartPulse },
   ];
 
   return (
@@ -45,7 +46,7 @@ export default function SettingsSidebar({
           <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
             {selectedGuild && guildIconUrl(selectedGuild) ? (
               <img
-                src={guildIconUrl(selectedGuild)!}
+                src={guildIconUrl(selectedGuild) ?? ''}
                 alt={selectedGuild.name}
                 width={20}
                 height={20}

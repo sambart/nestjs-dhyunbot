@@ -29,11 +29,7 @@ export class BotMetricRepository {
     await this.repo.insert(metrics.map((m) => this.repo.create(m)));
   }
 
-  async findByGuildAndRange(
-    guildId: string,
-    from: Date,
-    to: Date,
-  ): Promise<BotMetric[]> {
+  async findByGuildAndRange(guildId: string, from: Date, to: Date): Promise<BotMetric[]> {
     return this.repo
       .createQueryBuilder('m')
       .where('m.guildId = :guildId', { guildId })
@@ -62,10 +58,7 @@ export class BotMetricRepository {
     }> = await this.repo
       .createQueryBuilder('m')
       .select(bucketExpr, 'bucket')
-      .addSelect(
-        `AVG(CASE WHEN m.status = 'ONLINE' THEN 1 ELSE 0 END)`,
-        'online_ratio',
-      )
+      .addSelect(`AVG(CASE WHEN m.status = 'ONLINE' THEN 1 ELSE 0 END)`, 'online_ratio')
       .addSelect('AVG(m."pingMs")', 'avg_ping')
       .addSelect('AVG(m."heapUsedMb")', 'avg_heap_used')
       .addSelect('AVG(m."heapTotalMb")', 'avg_heap_total')
@@ -89,23 +82,26 @@ export class BotMetricRepository {
     }));
   }
 
-  async calculateAvailability(
-    guildId: string,
-    from: Date,
-    to: Date,
-  ): Promise<number> {
+  /**
+   * gap-aware 가용률 계산: 누락된 시간 구간은 OFFLINE으로 간주.
+   * 1분 간격 수집 기준, 예상 데이터 포인트 수 대비 ONLINE 레코드 비율로 산출.
+   */
+  async calculateAvailability(guildId: string, from: Date, to: Date): Promise<number> {
+    const expectedMinutes = Math.floor((to.getTime() - from.getTime()) / 60_000);
+    if (expectedMinutes <= 0) return 0;
+
     const result = await this.repo
       .createQueryBuilder('m')
-      .select(
-        `AVG(CASE WHEN m.status = 'ONLINE' THEN 1 ELSE 0 END) * 100`,
-        'availability',
-      )
+      .select(`COUNT(CASE WHEN m.status = 'ONLINE' THEN 1 END)`, 'online_count')
       .where('m."guildId" = :guildId', { guildId })
       .andWhere('m."recordedAt" >= :from', { from })
       .andWhere('m."recordedAt" <= :to', { to })
       .getRawOne();
 
-    return result?.availability ? parseFloat(parseFloat(result.availability).toFixed(1)) : 0;
+    const onlineCount = parseInt(result?.online_count ?? '0', 10);
+    const availability = (onlineCount / expectedMinutes) * 100;
+
+    return parseFloat(Math.min(availability, 100).toFixed(1));
   }
 
   async deleteOlderThan(date: Date): Promise<number> {

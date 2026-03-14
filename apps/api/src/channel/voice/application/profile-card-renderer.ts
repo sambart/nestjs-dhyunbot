@@ -1,11 +1,17 @@
 import { createCanvas, GlobalFonts, loadImage, SKRSContext2D } from '@napi-rs/canvas';
 import { Injectable, Logger } from '@nestjs/common';
 
+import type { BadgeCode } from '../../../voice-analytics/self-diagnosis/badge.constants';
+import {
+  BADGE_DISPLAY,
+  BADGE_PRIORITY,
+  MAX_BADGE_DISPLAY,
+} from '../../../voice-analytics/self-diagnosis/badge.constants';
 import { DailyChartEntry, MeProfileData } from './me-profile.service';
 
 // ── 레이아웃 상수 ──
 const W = 800;
-const H = 618;
+const H = 650;
 const PADDING = 32;
 const CARD_RADIUS = 16;
 
@@ -25,6 +31,13 @@ const RANK_BG = '#EEF2FF';
 const RANK_BORDER = '#C7D7FE';
 const MIC_ON_COLOR = '#34D399';
 const MIC_OFF_COLOR = '#F87171';
+
+// ── 뱃지 pill 레이아웃 상수 ──
+const PILL_H = 22;
+const PILL_PX = 8;
+const PILL_GAP = 6;
+const PILL_R = 11;
+const PILL_FONT = 'bold 11px "NotoSansCJK", "NotoColorEmoji", sans-serif';
 
 @Injectable()
 export class ProfileCardRenderer {
@@ -66,24 +79,29 @@ export class ProfileCardRenderer {
   }
 
   async render(profile: MeProfileData, displayName: string, avatarUrl: string): Promise<Buffer> {
-    const canvas = createCanvas(W, H);
+    // 뱃지 유무에 따라 캔버스 높이와 콘텐츠 오프셋 조정
+    const hasBadges = profile.badges.length > 0;
+    const badgeOffset = hasBadges ? 18 : 0;
+    const canvasH = H + badgeOffset;
+
+    const canvas = createCanvas(W, canvasH);
     const ctx = canvas.getContext('2d');
 
-    this.drawBackground(ctx);
-    await this.drawHeader(ctx, displayName, avatarUrl);
-    this.drawRankCard(ctx, profile);
-    this.drawStatCards(ctx, profile);
-    this.drawBarChart(ctx, profile.dailyChart);
-    this.drawFooter(ctx);
+    this.drawBackground(ctx, canvasH);
+    await this.drawHeader(ctx, { displayName, avatarUrl, badges: profile.badges });
+    this.drawRankCard(ctx, profile, badgeOffset);
+    this.drawStatCards(ctx, profile, badgeOffset);
+    this.drawBarChart(ctx, profile.dailyChart, badgeOffset);
+    this.drawFooter(ctx, canvasH);
 
     return canvas.toBuffer('image/png');
   }
 
-  private drawBackground(ctx: SKRSContext2D): void {
+  private drawBackground(ctx: SKRSContext2D, canvasH: number): void {
     ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, W, canvasH);
 
-    this.roundRect(ctx, PADDING / 2, PADDING / 2, W - PADDING, H - PADDING, CARD_RADIUS);
+    this.roundRect(ctx, PADDING / 2, PADDING / 2, W - PADDING, canvasH - PADDING, CARD_RADIUS);
     ctx.fillStyle = CARD_BG;
     ctx.fill();
     ctx.strokeStyle = BORDER;
@@ -93,9 +111,9 @@ export class ProfileCardRenderer {
 
   private async drawHeader(
     ctx: SKRSContext2D,
-    displayName: string,
-    avatarUrl: string,
+    params: { displayName: string; avatarUrl: string; badges: string[] },
   ): Promise<void> {
+    const { displayName, avatarUrl, badges } = params;
     const headerY = 40;
 
     try {
@@ -121,24 +139,78 @@ export class ProfileCardRenderer {
       this.logger.warn('Failed to load avatar');
     }
 
+    const nameX = PADDING + 96;
+    const nameY = headerY + 30;
+    const maxRight = W - PADDING - 16;
+
     ctx.fillStyle = TEXT_PRIMARY;
     ctx.font = 'bold 28px "NotoSansCJK", "NotoColorEmoji", sans-serif';
-    ctx.fillText(displayName, PADDING + 96, headerY + 30);
+    const maxNameWidth = maxRight - nameX;
+    const truncatedName = this.truncateName(ctx, displayName, maxNameWidth);
+    ctx.fillText(truncatedName, nameX, nameY);
 
     ctx.fillStyle = TEXT_SECONDARY;
     ctx.font = '14px "NotoSansCJK", "NotoColorEmoji", sans-serif';
     ctx.fillText('최근 15일 음성 활동', PADDING + 96, headerY + 56);
 
+    // 뱃지 행 (디바이더 위)
+    if (badges.length > 0) {
+      this.drawBadgePills(ctx, { badges, startX: PADDING + 16, centerY: headerY + 80 });
+    }
+
+    const dividerY = badges.length > 0 ? headerY + 96 : headerY + 78;
     ctx.beginPath();
-    ctx.moveTo(PADDING + 16, headerY + 78);
-    ctx.lineTo(W - PADDING - 16, headerY + 78);
+    ctx.moveTo(PADDING + 16, dividerY);
+    ctx.lineTo(W - PADDING - 16, dividerY);
     ctx.strokeStyle = DIVIDER;
     ctx.lineWidth = 1;
     ctx.stroke();
   }
 
-  private drawRankCard(ctx: SKRSContext2D, profile: MeProfileData): void {
-    const y = 130;
+  private truncateName(ctx: SKRSContext2D, name: string, maxWidth: number): string {
+    if (ctx.measureText(name).width <= maxWidth) return name;
+
+    let truncated = name;
+    while (truncated.length > 0 && ctx.measureText(truncated + '...').width > maxWidth) {
+      truncated = truncated.slice(0, -1);
+    }
+    return truncated + '...';
+  }
+
+  private drawBadgePills(
+    ctx: SKRSContext2D,
+    params: { badges: string[]; startX: number; centerY: number },
+  ): void {
+    const { badges, startX, centerY } = params;
+    const sorted = BADGE_PRIORITY.filter((code) => badges.includes(code)).slice(
+      0,
+      MAX_BADGE_DISPLAY,
+    );
+
+    if (sorted.length === 0) return;
+
+    ctx.font = PILL_FONT;
+
+    let x = startX;
+    for (const code of sorted) {
+      const display = BADGE_DISPLAY[code as BadgeCode];
+      const text = `${display.icon}${display.name}`;
+      const textWidth = ctx.measureText(text).width;
+      const pillW = textWidth + PILL_PX * 2;
+
+      this.roundRect(ctx, x, centerY - PILL_H / 2, pillW, PILL_H, PILL_R);
+      ctx.fillStyle = display.bgColor;
+      ctx.fill();
+
+      ctx.fillStyle = display.textColor;
+      ctx.fillText(text, x + PILL_PX, centerY + 4);
+
+      x += pillW + PILL_GAP;
+    }
+  }
+
+  private drawRankCard(ctx: SKRSContext2D, profile: MeProfileData, badgeOffset: number): void {
+    const y = 130 + badgeOffset;
     const cardX = PADDING + 16;
     const cardW = W - PADDING * 2 - 32;
     const cardH = 56;
@@ -182,8 +254,9 @@ export class ProfileCardRenderer {
     }
   }
 
-  private drawStatCards(ctx: SKRSContext2D, profile: MeProfileData): void {
-    const startY = 202;
+  // eslint-disable-next-line max-lines-per-function
+  private drawStatCards(ctx: SKRSContext2D, profile: MeProfileData, badgeOffset: number): void {
+    const startY = 202 + badgeOffset;
     const cardW = 224;
     const cardH = 72;
     const gap = 16;
@@ -221,44 +294,40 @@ export class ProfileCardRenderer {
     const row2Y = startY + cardH + gap;
 
     // 카드 1: 마이크 통합 (ON/OFF 비율 바 + 사용률 + 시간)
-    this.drawMicCard(ctx, startX, row2Y, cardW, cardH, profile);
+    this.drawMicCard(ctx, { x: startX, y: row2Y, w: cardW, h: cardH, profile });
 
     // 카드 2: 혼자 비율
     const alonePercent =
       profile.totalSec > 0 ? Math.round((profile.aloneSec / profile.totalSec) * 1000) / 10 : 0;
-    this.drawStatCardWithSub(
-      ctx,
-      startX + cardW + gap,
-      row2Y,
-      cardW,
-      cardH,
-      '👤 혼자 있던 시간',
-      formatTime(profile.aloneSec),
-      `전체의 ${alonePercent}%`,
-    );
+    this.drawStatCardWithSub(ctx, {
+      x: startX + cardW + gap,
+      y: row2Y,
+      w: cardW,
+      h: cardH,
+      label: '👤 혼자 있던 시간',
+      value: formatTime(profile.aloneSec),
+      subText: `전체의 ${alonePercent}%`,
+    });
 
     // 카드 3: 주평균 + 피크요일 통합
     const peakText = profile.peakDayOfWeek ? `피크: ${profile.peakDayOfWeek}요일` : '';
-    this.drawStatCardWithSub(
-      ctx,
-      startX + (cardW + gap) * 2,
-      row2Y,
-      cardW,
-      cardH,
-      '📊 주 평균',
-      formatTime(profile.weeklyAvgSec),
-      peakText,
-    );
+    this.drawStatCardWithSub(ctx, {
+      x: startX + (cardW + gap) * 2,
+      y: row2Y,
+      w: cardW,
+      h: cardH,
+      label: '📊 주 평균',
+      value: formatTime(profile.weeklyAvgSec),
+      subText: peakText,
+    });
   }
 
+  // eslint-disable-next-line max-lines-per-function
   private drawMicCard(
     ctx: SKRSContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    profile: MeProfileData,
+    params: { x: number; y: number; w: number; h: number; profile: MeProfileData },
   ): void {
+    const { x, y, w, h, profile } = params;
     this.roundRect(ctx, x, y, w, h, 8);
     ctx.fillStyle = ACCENT;
     ctx.fill();
@@ -320,14 +389,17 @@ export class ProfileCardRenderer {
 
   private drawStatCardWithSub(
     ctx: SKRSContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    label: string,
-    value: string,
-    subText: string,
+    params: {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      label: string;
+      value: string;
+      subText: string;
+    },
   ): void {
+    const { x, y, w, h, label, value, subText } = params;
     this.roundRect(ctx, x, y, w, h, 8);
     ctx.fillStyle = ACCENT;
     ctx.fill();
@@ -351,9 +423,13 @@ export class ProfileCardRenderer {
     }
   }
 
-  private drawBarChart(ctx: SKRSContext2D, dailyChart: DailyChartEntry[]): void {
+  private drawBarChart(
+    ctx: SKRSContext2D,
+    dailyChart: DailyChartEntry[],
+    badgeOffset: number,
+  ): void {
     const chartX = PADDING + 16;
-    const chartY = 398;
+    const chartY = 398 + badgeOffset;
     const chartW = W - PADDING * 2 - 32;
     const chartH = 170;
 
@@ -405,14 +481,15 @@ export class ProfileCardRenderer {
     });
   }
 
-  private drawFooter(ctx: SKRSContext2D): void {
+  private drawFooter(ctx: SKRSContext2D, canvasH: number): void {
     ctx.fillStyle = TEXT_MUTED;
     ctx.font = '12px "NotoSansCJK", "NotoColorEmoji", sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('dhyunbot', W - PADDING - 16, H - PADDING / 2 - 4);
+    ctx.fillText('dhyunbot', W - PADDING - 16, canvasH - PADDING / 2 - 4);
     ctx.textAlign = 'left';
   }
 
+  // eslint-disable-next-line max-params
   private roundRect(
     ctx: SKRSContext2D,
     x: number,

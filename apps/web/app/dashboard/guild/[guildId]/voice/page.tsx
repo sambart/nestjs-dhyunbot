@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { fetchMemberProfiles } from "@/app/lib/user-detail-api";
@@ -28,6 +28,7 @@ import ChannelBarChart from "./components/ChannelBarChart";
 import DailyTrendChart from "./components/DailyTrendChart";
 import MicDistributionChart from "./components/MicDistributionChart";
 import SummaryCards from "./components/SummaryCards";
+import UserDetailView from "./components/UserDetailView";
 import UserRankingTable from "./components/UserRankingTable";
 
 type Period = "7d" | "14d" | "30d";
@@ -52,6 +53,9 @@ function formatYmd(date: Date): string {
 export default function VoiceDashboardPage() {
   const params = useParams();
   const guildId = params.guildId as string;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedUserId = searchParams.get("userId");
 
   const [period, setPeriod] = useState<Period>("7d");
   const [loading, setLoading] = useState(true);
@@ -63,6 +67,8 @@ export default function VoiceDashboardPage() {
   const [profiles, setProfiles] = useState<Record<string, { userName: string; avatarUrl: string | null }>>({});
 
   useEffect(() => {
+    if (selectedUserId) return;
+
     let cancelled = false;
 
     async function loadData() {
@@ -78,7 +84,6 @@ export default function VoiceDashboardPage() {
       setUserStats(stats);
       setLoading(false);
 
-      // 프로필 일괄 조회 (비동기, 랭킹 테이블 렌더링 차단하지 않음)
       const userIds = stats.slice(0, 20).map((u) => u.userId);
       if (userIds.length > 0) {
         const p = await fetchMemberProfiles(guildId, userIds);
@@ -88,7 +93,28 @@ export default function VoiceDashboardPage() {
 
     loadData();
     return () => { cancelled = true; };
-  }, [guildId, period]);
+  }, [guildId, period, selectedUserId]);
+
+  function handleUserSelect(userId: string) {
+    router.push(`/dashboard/guild/${guildId}/voice?userId=${userId}`);
+  }
+
+  function handleBackToGuild() {
+    router.push(`/dashboard/guild/${guildId}/voice`);
+  }
+
+  if (selectedUserId) {
+    return (
+      <div className="p-6">
+        <UserDetailView
+          guildId={guildId}
+          userId={selectedUserId}
+          onBack={handleBackToGuild}
+          onUserSelect={handleUserSelect}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -116,10 +142,8 @@ export default function VoiceDashboardPage() {
         </div>
       ) : (
         <>
-          {/* 요약 카드 */}
           {summary && <SummaryCards summary={summary} />}
 
-          {/* 일별 추이 + 마이크 분포 */}
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <DailyTrendChart data={trends} />
@@ -129,10 +153,14 @@ export default function VoiceDashboardPage() {
             </div>
           </div>
 
-          {/* 채널별 통계 + 유저 랭킹 */}
           <div className="grid gap-6 lg:grid-cols-2">
             <ChannelBarChart data={channelStats} records={rawRecords} />
-            <UserRankingTable data={userStats} guildId={guildId} profiles={profiles} />
+            <UserRankingTable
+              data={userStats}
+              guildId={guildId}
+              profiles={profiles}
+              onUserSelect={handleUserSelect}
+            />
           </div>
         </>
       )}
