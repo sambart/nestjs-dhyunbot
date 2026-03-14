@@ -7,6 +7,7 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v3.2 | 2026-03-14 | inactive-member: 비활동 회원 관리 도메인 PRD 신규 추가 (F-INACTIVE-001 ~ F-INACTIVE-005) | — |
 | v3.1 | 2026-03-10 | monitoring: 봇 모니터링 도메인 PRD 신규 추가 (F-MONITORING-001 ~ F-MONITORING-004, F-WEB-MONITORING-001) | — |
 | v3.0 | 2026-03-10 | newbie: F-NEWBIE-005 미션 수동 관리 (성공/실패 처리, Embed 숨김) 추가, Embed 전체 상태 표시로 변경 | — |
 | v2.9 | 2026-03-10 | voice: F-VOICE-022 `/me` 커맨드 (개인 음성 프로필 카드) 추가, `/voice-time`·`/voice-rank` 대체 삭제 명세 | — |
@@ -28,6 +29,32 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 21] inactive-member: 비활동 회원 관리 도메인 PRD 신규 추가 (INACTIVE-MEMBER)
+
+**변경일**: 2026-03-14
+**티켓**: INACTIVE-MEMBER
+
+**변경 파일**:
+- `docs/specs/prd/inactive-member.md` — inactive-member 도메인 PRD 신규 작성 (F-INACTIVE-001 ~ F-INACTIVE-005)
+- `docs/specs/prd/_index.md` — 도메인 목록, 핵심 기능 요약, 데이터베이스 엔티티 테이블에 inactive-member 항목 추가
+
+**변경 내용**:
+1. `docs/specs/prd/inactive-member.md` 신규 생성: 개요, 관련 모듈, 아키텍처, 기능 상세, 데이터 모델, API 엔드포인트, 기존 기능과의 관계, 제약사항 포함
+2. F-INACTIVE-001 (비활동 회원 자동 분류): 매일 00:00 KST 스케줄러 실행. `VoiceDailyEntity.channelDurationSec` 집계로 판단 기간 내 총 음성 접속 시간 계산. FULLY_INACTIVE(0분) / LOW_ACTIVE(임계값 미만) / DECLINING(이전 기간 대비 N% 감소) 3등급 분류. 제외 역할(`excludedRoleIds`) 설정 지원
+3. F-INACTIVE-002 (웹 대시보드 비활동 회원 목록): `/dashboard/guild/{guildId}/inactive-member` 경로. 닉네임·분류 등급·마지막 음성 접속일·총 접속 시간·등급 변경일 컬럼 표시. 등급/기간/정렬 필터, 닉네임 검색, 일괄 선택 체크박스, 오프셋 기반 페이지네이션(20명/페이지)
+4. F-INACTIVE-003 (비활동 회원 조치 액션): ACTION_DM(독려 DM 일괄 전송, Embed 템플릿 변수 지원) / ACTION_ROLE_ADD(비활동 역할 부여) / ACTION_ROLE_REMOVE(특정 역할 제거) 3종. 모든 조치는 `InactiveMemberActionLog`에 기록. 자동 조치 규칙(FULLY_INACTIVE 판정 시 자동 역할 부여/DM 발송) ON/OFF 설정 지원
+5. F-INACTIVE-004 (비활동 통계 대시보드): 활동/비활동 비율 파이 차트, 주/월별 비활동 추이 라인 차트(등급별 3개 라인), 활동 복귀 회원 하이라이트
+6. F-INACTIVE-005 (길드별 설정): `/settings/guild/{guildId}/inactive-member` 경로. 판단 기간(7/14/30일), 저활동 임계값(분), 활동 감소 비율(%) 설정. 자동 조치 ON/OFF, 역할 설정, 제외 역할 멀티 셀렉트, DM Embed 템플릿 커스텀(제목/본문/색상/실시간 미리보기)
+7. 데이터 모델 3개 신규 추가: `InactiveMemberConfig`(길드별 설정), `InactiveMemberRecord`(분류 스냅샷, 복합 유니크 guildId+userId), `InactiveMemberActionLog`(조치 이력)
+8. REST API 6종 명세: 목록 조회(쿼리 파라미터 7종), 통계 조회, 조치 실행, 설정 조회/저장, 이력 조회
+9. `_index.md` 도메인 목록에 inactive-member 행 추가
+10. `_index.md` 핵심 기능 요약 12번 항목(비활동 회원 관리) 추가
+11. `_index.md` 데이터베이스 엔티티 테이블에 InactiveMemberConfig / InactiveMemberRecord / InactiveMemberActionLog 행 추가
+
+**변경 사유**: 디스코드 서버 음성 채널 비활동 회원을 자동 식별하고 관리자가 웹 대시보드에서 조치할 수 있는 기능 요구사항 반영. 기존 `VoiceDailyEntity` 데이터를 재활용하여 별도 음성 이벤트 리스너 없이 구현 가능한 구조로 설계.
 
 ---
 

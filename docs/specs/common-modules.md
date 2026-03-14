@@ -3302,3 +3302,584 @@ apps/api/src/channel/voice/voice-channel.module.ts                (수정 불필
 - [x] **CAT-A~C 간에 동일 파일을 동시에 수정하는 경우가 없는가**: CAT-5 파일 경로 목록 기준으로 각 파일은 단 하나의 단위에만 귀속됨. 중복 없음
 - [x] **F-VOICE-021의 Discord parentId 조회 로직(CAT-C)이 공통 모듈로 분리할 필요가 없는가**: parentId 조회는 `VoiceChannelService`(음성 입장 처리) 내부에서만 필요하며 다른 단위에서 재사용하지 않는다. PRD F-VOICE-016에서 `type=CATEGORY` 제외 채널 판단 시에도 parentId를 사용하지만, 이미 구현된 `VoiceExcludedChannelService.isExcluded()`에서 `parentCategoryId`를 파라미터로 받는 방식이므로 조회 자체는 Dispatcher에서 처리한다. 따라서 별도 공통 유틸로 분리할 이유가 없다
 - [x] **기존 데이터 처리 정책이 코드에 반영되는가**: PRD에서 "기존 데이터의 categoryId, categoryName은 null로 유지"를 명시. `accumulateChannelDuration` upsert 쿼리에서 `ON CONFLICT DO UPDATE SET "categoryId" = EXCLUDED."categoryId"`로 처리하면 새 입장 시점부터 채워진다. 기존 레코드에 null이 들어 있어도 이후 해당 채널에 재입장할 때 갱신된다
+
+
+---
+
+# Inactive Member 도메인 — 공통 모듈 판단 문서
+
+## 목적
+
+페이지(기능) 단위 병렬 개발을 시작하기 전에, Inactive Member 도메인 구현에 필요한 공통 모듈을 식별하고 설계 방향을 확정한다.
+이 문서에 정의된 모듈은 모든 개발 단위 작업보다 선행하여 완성되어야 하며, 이후 단위 작업들이 conflict 없이 병렬로 진행될 수 있도록 공통 인터페이스와 파일 경로를 명시한다.
+
+---
+
+## IM-1. 기존 모듈 중 Inactive Member 도메인에서 재사용 가능한 것
+
+### IM-1-1. 재사용 (수정 없음)
+
+| 모듈 | 파일 | 재사용 이유 |
+|------|------|-------------|
+| `VoiceDailyEntity` | `apps/api/src/channel/voice/domain/voice-daily.entity.ts` | 스케줄러가 `guildId + userId + date + channelId` 기준으로 `channelDurationSec`을 집계 (SUM)하는 원천 데이터. 수정 없이 TypeOrmModule 등록만으로 사용 가능 |
+| `VoiceChannelModule` (exports) | `apps/api/src/channel/voice/voice-channel.module.ts` | `TypeOrmModule`을 exports하므로 `VoiceDailyEntity` Repository에 접근 가능. `InactiveMemberModule`에서 import |
+| `JwtAuthGuard` | `apps/api/src/auth/jwt-auth.guard.ts` | 모든 REST API 엔드포인트에 `@UseGuards(JwtAuthGuard)` 적용 |
+| `AuthModule` | `apps/api/src/auth/auth.module.ts` | `JwtAuthGuard`를 exports하므로 `InactiveMemberModule`에서 import |
+| `MemberService` | `apps/api/src/member/member.service.ts` | 닉네임 조회(`findOne`)에 사용. 목록 API 응답에 `nickName` 포함 시 참조 |
+| `MemberModule` | `apps/api/src/member/member.module.ts` | `MemberService`를 exports하므로 `InactiveMemberModule`에서 import |
+| `DiscordModule.forFeature()` | `@discord-nestjs/core` | DM 전송(`user.send()`), 역할 부여/제거(`guild.members.addRole()` / `removeRole()`)를 위한 Discord 클라이언트 접근 |
+| `fetchGuildRoles` | `apps/web/app/lib/discord-api.ts` | 설정 페이지 역할 드롭다운에서 사용. 이미 구현되어 있으므로 중복 작성 불필요 |
+
+### IM-1-2. 재사용하되 수정이 필요한 것
+
+| 모듈 | 파일 | 필요한 수정 내용 |
+|------|------|-----------------|
+| `AppModule` | `apps/api/src/app.module.ts` | `InactiveMemberModule` import 추가 |
+
+수정 대상은 `AppModule` 단 하나이며, `InactiveMemberModule`을 imports 배열에 추가하는 한 줄 변경이다. 기존 로직에 대한 영향이 없다.
+
+---
+
+## IM-2. 새로 만들어야 할 공통 모듈/파일 목록
+
+아래 파일들은 inactive-member 도메인의 병렬 단위 작업(스케줄러 구현, REST API, 웹 대시보드, 설정 페이지)이 시작되기 전에 완성되어야 한다.
+
+### IM-2-1. Grade Enum (공유 타입)
+
+**파일**: `libs/shared/src/types/inactive-member.types.ts`
+
+`libs/shared`에 위치시켜 백엔드(엔티티, 서비스, DTO)와 프론트엔드(API lib, 컴포넌트) 양쪽에서 동일 상수를 참조하도록 한다.
+
+```typescript
+export enum InactiveMemberGrade {
+  FULLY_INACTIVE = 'FULLY_INACTIVE',
+  LOW_ACTIVE = 'LOW_ACTIVE',
+  DECLINING = 'DECLINING',
+}
+
+export enum InactiveMemberActionType {
+  ACTION_DM = 'ACTION_DM',
+  ACTION_ROLE_ADD = 'ACTION_ROLE_ADD',
+  ACTION_ROLE_REMOVE = 'ACTION_ROLE_REMOVE',
+}
+```
+
+**`libs/shared/src/types/index.ts`에 re-export 추가** (기존 파일 1줄 수정):
+
+```typescript
+export * from './inactive-member.types';
+```
+
+---
+
+### IM-2-2. TypeORM 엔티티 3종
+
+모든 단위 작업(스케줄러, API 컨트롤러, 서비스)이 이 엔티티 파일을 공통으로 참조한다. 선행 완성이 필수다.
+
+#### IM-2-2-a. InactiveMemberConfig 엔티티
+
+**파일**: `apps/api/src/inactive-member/entities/inactive-member-config.entity.ts`
+
+```typescript
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { InactiveMemberGrade } from '@nexus/shared';
+
+@Entity('inactive_member_config')
+@Index(['guildId'], { unique: true })
+export class InactiveMemberConfig {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ unique: true })
+  guildId: string;
+
+  @Column({ default: 30 })
+  periodDays: number; // 허용값: 7 / 14 / 30
+
+  @Column({ default: 30 })
+  lowActiveThresholdMin: number;
+
+  @Column({ default: 50 })
+  decliningPercent: number;
+
+  @Column({ default: false })
+  autoActionEnabled: boolean;
+
+  @Column({ default: false })
+  autoRoleAdd: boolean;
+
+  @Column({ default: false })
+  autoDm: boolean;
+
+  @Column({ nullable: true })
+  inactiveRoleId: string | null;
+
+  @Column({ nullable: true })
+  removeRoleId: string | null;
+
+  @Column({ type: 'json', default: '[]' })
+  excludedRoleIds: string[];
+
+  @Column({ nullable: true })
+  dmEmbedTitle: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  dmEmbedBody: string | null;
+
+  @Column({ nullable: true })
+  dmEmbedColor: string | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}
+```
+
+#### IM-2-2-b. InactiveMemberRecord 엔티티
+
+**파일**: `apps/api/src/inactive-member/entities/inactive-member-record.entity.ts`
+
+```typescript
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { InactiveMemberGrade } from '@nexus/shared';
+
+@Entity('inactive_member_record')
+@Index('IDX_inactive_member_record_guild_grade', ['guildId', 'grade'])
+@Index('IDX_inactive_member_record_guild_last_voice', ['guildId', 'lastVoiceDate'])
+@Index(['guildId', 'userId'], { unique: true })
+export class InactiveMemberRecord {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  guildId: string;
+
+  @Column()
+  userId: string;
+
+  @Column({ type: 'enum', enum: InactiveMemberGrade, nullable: true })
+  grade: InactiveMemberGrade | null;
+
+  @Column({ default: 0 })
+  totalMinutes: number;
+
+  @Column({ default: 0 })
+  prevTotalMinutes: number;
+
+  @Column({ type: 'date', nullable: true })
+  lastVoiceDate: string | null;
+
+  @Column({ nullable: true })
+  gradeChangedAt: Date | null;
+
+  @Column()
+  classifiedAt: Date;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}
+```
+
+#### IM-2-2-c. InactiveMemberActionLog 엔티티
+
+**파일**: `apps/api/src/inactive-member/entities/inactive-member-action-log.entity.ts`
+
+```typescript
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { InactiveMemberActionType } from '@nexus/shared';
+
+@Entity('inactive_member_action_log')
+@Index('IDX_inactive_action_log_guild_executed', ['guildId', 'executedAt'])
+export class InactiveMemberActionLog {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  guildId: string;
+
+  @Column({ type: 'enum', enum: InactiveMemberActionType })
+  actionType: InactiveMemberActionType;
+
+  @Column({ type: 'json' })
+  targetUserIds: string[];
+
+  @Column({ nullable: true })
+  executorUserId: string | null;
+
+  @Column({ default: 0 })
+  successCount: number;
+
+  @Column({ default: 0 })
+  failCount: number;
+
+  @Column({ type: 'text', nullable: true })
+  note: string | null;
+
+  @Column({ default: () => 'NOW()' })
+  executedAt: Date;
+}
+```
+
+---
+
+### IM-2-3. DTO 파일 2종
+
+API 요청/응답 계약을 선행 확정한다. 모든 단위 작업이 이 DTO 파일을 공통으로 참조한다.
+
+#### IM-2-3-a. 목록 조회 쿼리 DTO
+
+**파일**: `apps/api/src/inactive-member/dto/list-inactive-members.dto.ts`
+
+```typescript
+import { InactiveMemberGrade } from '@nexus/shared';
+
+export class ListInactiveMembersDto {
+  grade?: InactiveMemberGrade;
+  periodDays?: number;     // 7 | 14 | 30
+  search?: string;
+  sortBy?: 'lastVoiceDate' | 'totalMinutes';
+  sortOrder?: 'ASC' | 'DESC';
+  page?: number;           // 기본값 1
+  limit?: number;          // 기본값 20, 최대 100
+}
+```
+
+#### IM-2-3-b. 조치 실행 요청 DTO
+
+**파일**: `apps/api/src/inactive-member/dto/execute-action.dto.ts`
+
+```typescript
+import { InactiveMemberActionType } from '@nexus/shared';
+
+export class ExecuteActionDto {
+  actionType: InactiveMemberActionType;
+  targetUserIds: string[]; // 최소 1, 최대 100
+}
+```
+
+---
+
+### IM-2-4. InactiveMember NestJS 모듈 뼈대
+
+**파일**: `apps/api/src/inactive-member/inactive-member.module.ts`
+
+모든 provider와 의존 모듈을 등록한다. 이 파일이 확정되어야 각 단위 작업자가 서비스/스케줄러를 추가하는 위치를 알 수 있다. 아래는 선행 완성 단계에서 작성하는 뼈대이며, 각 단위 작업 완료 후 providers/controllers 배열에 해당 클래스를 추가한다.
+
+```typescript
+import { DiscordModule } from '@discord-nestjs/core';
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { AuthModule } from '../auth/auth.module';
+import { MemberModule } from '../member/member.module';
+import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
+import { InactiveMemberConfig } from './entities/inactive-member-config.entity';
+import { InactiveMemberRecord } from './entities/inactive-member-record.entity';
+import { InactiveMemberActionLog } from './entities/inactive-member-action-log.entity';
+
+@Module({
+  imports: [
+    DiscordModule.forFeature(),
+    TypeOrmModule.forFeature([
+      InactiveMemberConfig,
+      InactiveMemberRecord,
+      InactiveMemberActionLog,
+    ]),
+    AuthModule,
+    MemberModule,
+    VoiceChannelModule,
+  ],
+  controllers: [],
+  providers: [],
+})
+export class InactiveMemberModule {}
+```
+
+`VoiceChannelModule`을 import함으로써 `VoiceDailyEntity`의 Repository 접근이 가능해진다 (`VoiceChannelModule`이 `TypeOrmModule`을 exports하고 있으며, `VoiceDailyEntity`가 해당 모듈에 등록되어 있음).
+
+---
+
+### IM-2-5. 웹 API 라이브러리 파일
+
+**파일**: `apps/web/app/lib/inactive-member-api.ts`
+
+프론트엔드 전 페이지(대시보드 목록, 통계 섹션, 설정 페이지)가 이 파일의 함수와 타입을 공통으로 사용한다. 기존 `newbie-api.ts`, `sticky-message-api.ts`와 동일한 패턴으로 작성한다.
+
+```typescript
+import type { InactiveMemberGrade, InactiveMemberActionType } from '@nexus/shared';
+
+// ─── 타입 정의 ────────────────────────────────────────────────────────────────
+
+/** GET /api/guilds/{guildId}/inactive-members 응답 항목 */
+export interface InactiveMemberItem {
+  userId: string;
+  nickName: string;
+  grade: InactiveMemberGrade;
+  totalMinutes: number;
+  lastVoiceDate: string | null;
+  gradeChangedAt: string | null;
+  classifiedAt: string;
+}
+
+/** GET /api/guilds/{guildId}/inactive-members 응답 전체 */
+export interface InactiveMemberListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  items: InactiveMemberItem[];
+}
+
+/** GET /api/guilds/{guildId}/inactive-members/stats 응답 */
+export interface InactiveMemberStatsResponse {
+  totalMembers: number;
+  activeCount: number;
+  fullyInactiveCount: number;
+  lowActiveCount: number;
+  decliningCount: number;
+  returnedCount: number;
+  trend: Array<{
+    date: string;
+    fullyInactive: number;
+    lowActive: number;
+    declining: number;
+  }>;
+}
+
+/** POST /api/guilds/{guildId}/inactive-members/actions 요청 바디 */
+export interface ExecuteActionRequest {
+  actionType: InactiveMemberActionType;
+  targetUserIds: string[];
+}
+
+/** POST /api/guilds/{guildId}/inactive-members/actions 응답 */
+export interface ExecuteActionResponse {
+  actionType: InactiveMemberActionType;
+  successCount: number;
+  failCount: number;
+  logId: number;
+}
+
+/** GET /api/guilds/{guildId}/inactive-member-config 응답 */
+export interface InactiveMemberConfigDto {
+  id: number;
+  guildId: string;
+  periodDays: number;
+  lowActiveThresholdMin: number;
+  decliningPercent: number;
+  autoActionEnabled: boolean;
+  autoRoleAdd: boolean;
+  autoDm: boolean;
+  inactiveRoleId: string | null;
+  removeRoleId: string | null;
+  excludedRoleIds: string[];
+  dmEmbedTitle: string | null;
+  dmEmbedBody: string | null;
+  dmEmbedColor: string | null;
+}
+
+/** GET /api/guilds/{guildId}/inactive-members/action-logs 응답 항목 */
+export interface InactiveMemberActionLogItem {
+  id: number;
+  actionType: InactiveMemberActionType;
+  targetUserIds: string[];
+  executorUserId: string | null;
+  successCount: number;
+  failCount: number;
+  note: string | null;
+  executedAt: string;
+}
+
+/** GET /api/guilds/{guildId}/inactive-members/action-logs 응답 전체 */
+export interface InactiveMemberActionLogResponse {
+  total: number;
+  page: number;
+  limit: number;
+  items: InactiveMemberActionLogItem[];
+}
+
+// ─── API 함수 ─────────────────────────────────────────────────────────────────
+
+/** 비활동 회원 목록 조회 */
+export async function fetchInactiveMembers(
+  guildId: string,
+  params: {
+    grade?: string;
+    periodDays?: number;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: string;
+    page?: number;
+    limit?: number;
+  } = {},
+): Promise<InactiveMemberListResponse> {
+  const query = new URLSearchParams();
+  if (params.grade) query.set('grade', params.grade);
+  if (params.periodDays) query.set('periodDays', String(params.periodDays));
+  if (params.search) query.set('search', params.search);
+  if (params.sortBy) query.set('sortBy', params.sortBy);
+  if (params.sortOrder) query.set('sortOrder', params.sortOrder);
+  if (params.page) query.set('page', String(params.page));
+  if (params.limit) query.set('limit', String(params.limit));
+
+  const res = await fetch(
+    `/api/guilds/${guildId}/inactive-members?${query.toString()}`,
+  );
+  if (!res.ok) throw new Error('비활동 회원 목록 조회 실패');
+  return res.json() as Promise<InactiveMemberListResponse>;
+}
+
+/** 비활동 통계 조회 */
+export async function fetchInactiveMemberStats(
+  guildId: string,
+): Promise<InactiveMemberStatsResponse> {
+  const res = await fetch(`/api/guilds/${guildId}/inactive-members/stats`);
+  if (!res.ok) throw new Error('비활동 통계 조회 실패');
+  return res.json() as Promise<InactiveMemberStatsResponse>;
+}
+
+/** 조치 실행 */
+export async function executeInactiveMemberAction(
+  guildId: string,
+  body: ExecuteActionRequest,
+): Promise<ExecuteActionResponse> {
+  const res = await fetch(`/api/guilds/${guildId}/inactive-members/actions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('조치 실행 실패');
+  return res.json() as Promise<ExecuteActionResponse>;
+}
+
+/** 설정 조회 */
+export async function fetchInactiveMemberConfig(
+  guildId: string,
+): Promise<InactiveMemberConfigDto> {
+  const res = await fetch(`/api/guilds/${guildId}/inactive-member-config`);
+  if (!res.ok) throw new Error('비활동 회원 설정 조회 실패');
+  return res.json() as Promise<InactiveMemberConfigDto>;
+}
+
+/** 설정 저장 */
+export async function saveInactiveMemberConfig(
+  guildId: string,
+  body: Partial<Omit<InactiveMemberConfigDto, 'id' | 'guildId'>>,
+): Promise<InactiveMemberConfigDto> {
+  const res = await fetch(`/api/guilds/${guildId}/inactive-member-config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('비활동 회원 설정 저장 실패');
+  return res.json() as Promise<InactiveMemberConfigDto>;
+}
+
+/** 조치 이력 조회 */
+export async function fetchInactiveMemberActionLogs(
+  guildId: string,
+  params: { page?: number; limit?: number } = {},
+): Promise<InactiveMemberActionLogResponse> {
+  const query = new URLSearchParams();
+  if (params.page) query.set('page', String(params.page));
+  if (params.limit) query.set('limit', String(params.limit));
+
+  const res = await fetch(
+    `/api/guilds/${guildId}/inactive-members/action-logs?${query.toString()}`,
+  );
+  if (!res.ok) throw new Error('조치 이력 조회 실패');
+  return res.json() as Promise<InactiveMemberActionLogResponse>;
+}
+```
+
+---
+
+## IM-3. 파일별 담당 단위 분류
+
+아래 표는 각 파일이 어느 병렬 작업 단위에 귀속되는지 명시한다. "선행 공통"으로 표시된 파일은 단위 A~D 시작 전에 완성되어야 한다.
+
+| 파일 경로 | 담당 | 비고 |
+|-----------|------|------|
+| `libs/shared/src/types/inactive-member.types.ts` | **선행 공통** | Grade/ActionType Enum — 신규 파일 |
+| `libs/shared/src/types/index.ts` | **선행 공통** | re-export 1줄 추가 — 기존 파일 수정 |
+| `apps/api/src/inactive-member/entities/inactive-member-config.entity.ts` | **선행 공통** | TypeORM 엔티티 — 신규 파일 |
+| `apps/api/src/inactive-member/entities/inactive-member-record.entity.ts` | **선행 공통** | TypeORM 엔티티 — 신규 파일 |
+| `apps/api/src/inactive-member/entities/inactive-member-action-log.entity.ts` | **선행 공통** | TypeORM 엔티티 — 신규 파일 |
+| `apps/api/src/inactive-member/dto/list-inactive-members.dto.ts` | **선행 공통** | 목록 조회 쿼리 DTO — 신규 파일 |
+| `apps/api/src/inactive-member/dto/execute-action.dto.ts` | **선행 공통** | 조치 실행 요청 DTO — 신규 파일 |
+| `apps/api/src/inactive-member/inactive-member.module.ts` | **선행 공통** | NestJS 모듈 뼈대 — 신규 파일 |
+| `apps/api/src/app.module.ts` | **선행 공통** | InactiveMemberModule import 1줄 추가 — 기존 파일 수정 |
+| `apps/web/app/lib/inactive-member-api.ts` | **선행 공통** | 프론트엔드 API lib — 신규 파일 |
+| `apps/api/src/migrations/{timestamp}-CreateInactiveMemberTables.ts` | **선행 공통** | DB 마이그레이션 — 신규 파일 |
+| `apps/api/src/inactive-member/inactive-member.scheduler.ts` | 단위 A (스케줄러) | 매일 00:00 KST 분류 갱신 |
+| `apps/api/src/inactive-member/inactive-member.service.ts` | 단위 A (스케줄러) | 분류 집계 로직 |
+| `apps/api/src/inactive-member/inactive-member.controller.ts` | 단위 B (REST API) | 목록/통계/조치/이력 엔드포인트 |
+| `apps/api/src/inactive-member/inactive-member-config.service.ts` | 단위 B (REST API) | 설정 CRUD 서비스 |
+| `apps/api/src/inactive-member/inactive-member-action.service.ts` | 단위 B (REST API) | 조치 실행 서비스 (DM, 역할) |
+| `apps/web/app/dashboard/guild/[guildId]/inactive-member/page.tsx` | 단위 C (대시보드) | 목록 + 통계 차트 페이지 |
+| `apps/web/app/settings/guild/[guildId]/inactive-member/page.tsx` | 단위 D (설정 페이지) | 설정 CRUD 페이지 |
+
+---
+
+## IM-4. 마이그레이션 파일
+
+**파일**: `apps/api/src/migrations/{타임스탬프}-CreateInactiveMemberTables.ts`
+
+3개 테이블(`inactive_member_config`, `inactive_member_record`, `inactive_member_action_log`)을 생성하는 마이그레이션 파일 1개를 선행 완성 단계에서 함께 작성한다.
+
+TypeORM 설정(`synchronize: false`)에 따라 마이그레이션 파일이 없으면 엔티티 등록 이후 테이블이 존재하지 않아 런타임 오류가 발생한다. 단위 A~D 작업 시작 전에 마이그레이션을 적용해야 한다.
+
+생성할 테이블 목록:
+
+| 테이블명 | 대응 엔티티 |
+|----------|------------|
+| `inactive_member_config` | `InactiveMemberConfig` |
+| `inactive_member_record` | `InactiveMemberRecord` |
+| `inactive_member_action_log` | `InactiveMemberActionLog` |
+
+---
+
+## IM-5. 검증 체크리스트 (3회 확인)
+
+### 1차 확인
+
+- [x] **병렬 단위 작업 간 동일 파일을 동시에 생성하는 경우가 없는가**: 단위 A(스케줄러·서비스), 단위 B(컨트롤러·설정·조치 서비스), 단위 C(대시보드 page), 단위 D(설정 page)가 작성하는 파일은 각각 겹치지 않는다. 선행 공통 모듈(엔티티·DTO·모듈 뼈대·API lib·마이그레이션)은 모든 단위 시작 전에 완성된다.
+- [x] **병렬 단위 작업 간 동일 파일을 동시에 수정하는 경우가 없는가**: `inactive-member.module.ts`(providers/controllers 배열)는 단위 A·B 완료 후 채워지지만, 뼈대가 선행 공통에서 생성되고 각 단위가 완료 후 자신의 provider/controller를 추가하는 방식이므로 동시 수정이 발생하지 않는다. 단위 A와 B가 순차적으로 해당 파일을 수정하는 의존성은 있으나, 이는 동일 파일의 다른 줄이므로 conflict가 아니다.
+- [x] **`libs/shared`에 추가하는 타입이 기존 파일과 충돌하지 않는가**: 신규 파일(`inactive-member.types.ts`)을 신규 생성하고 `types/index.ts`에 re-export 1줄을 추가하는 방식이다. 기존 `VoiceActivityData`, `VoiceAnalysisResult` 타입과 이름 충돌이 없다.
+- [x] **`AppModule` 수정이 공통 선행에 포함되어 있는가**: `InactiveMemberModule` import 추가가 IM-1-2에 명시되어 있으며 IM-3 파일 목록에도 "선행 공통"으로 표시되어 있다.
+- [x] **웹 API lib(`inactive-member-api.ts`)이 기존 lib 파일과 충돌하지 않는가**: 신규 파일 생성이며, 기존 `newbie-api.ts`, `sticky-message-api.ts`, `monitoring-api.ts` 등과 파일명이 겹치지 않는다.
+
+### 2차 확인
+
+- [x] **엔티티가 PRD 데이터 모델과 일치하는가**: `InactiveMemberConfig`(periodDays, lowActiveThresholdMin, decliningPercent, autoActionEnabled, autoRoleAdd, autoDm, inactiveRoleId, removeRoleId, excludedRoleIds, dmEmbedTitle, dmEmbedBody, dmEmbedColor), `InactiveMemberRecord`(grade, totalMinutes, prevTotalMinutes, lastVoiceDate, gradeChangedAt, classifiedAt), `InactiveMemberActionLog`(actionType, targetUserIds, executorUserId, successCount, failCount, note, executedAt) — PRD 데이터 모델 섹션과 필드 단위로 대조 완료.
+- [x] **Grade Enum이 PRD 분류 등급과 일치하는가**: `FULLY_INACTIVE`, `LOW_ACTIVE`, `DECLINING` 3개 값이 PRD F-INACTIVE-001 분류 등급 표와 일치한다.
+- [x] **ActionType Enum이 PRD 조치 유형과 일치하는가**: `ACTION_DM`, `ACTION_ROLE_ADD`, `ACTION_ROLE_REMOVE` 3개 값이 PRD F-INACTIVE-003과 일치한다.
+- [x] **`VoiceChannelModule` import가 `VoiceDailyEntity` Repository 접근을 보장하는가**: `VoiceChannelModule`의 exports에 `TypeOrmModule`이 포함되어 있으며(`voice-channel.module.ts` 확인), `VoiceDailyEntity`가 해당 모듈의 `TypeOrmModule.forFeature()`에 등록되어 있으므로 접근 가능하다.
+- [x] **웹 API lib 타입이 PRD API 응답 스펙과 일치하는가**: `InactiveMemberListResponse`(total, page, limit, items), `InactiveMemberStatsResponse`(totalMembers, activeCount, fullyInactiveCount, lowActiveCount, decliningCount, returnedCount, trend), `ExecuteActionResponse`(actionType, successCount, failCount, logId) — PRD API 엔드포인트 응답 예시와 필드 단위로 대조 완료.
+- [x] **조치 이력(`action-logs`) API 함수가 포함되어 있는가**: `fetchInactiveMemberActionLogs` 함수가 정의되어 있으며, 응답 타입 `InactiveMemberActionLogResponse`도 별도로 정의되어 있다. PRD에서 `GET /api/guilds/{guildId}/inactive-members/action-logs` 엔드포인트를 명시하고 있으므로 포함이 필요하다.
+
+### 3차 확인
+
+- [x] **단위 C(대시보드)가 필요한 모든 API 함수가 `inactive-member-api.ts`에 정의되어 있는가**: `fetchInactiveMembers`(목록 조회), `fetchInactiveMemberStats`(통계 조회), `executeInactiveMemberAction`(조치 실행), `fetchInactiveMemberActionLogs`(이력 조회) — 대시보드 페이지에서 호출하는 모든 API가 포함되어 있다.
+- [x] **단위 D(설정 페이지)가 필요한 모든 API 함수가 `inactive-member-api.ts`에 정의되어 있는가**: `fetchInactiveMemberConfig`(설정 조회), `saveInactiveMemberConfig`(설정 저장) — 설정 페이지에서 호출하는 모든 API가 포함되어 있다. 역할 드롭다운에 필요한 `fetchGuildRoles`는 기존 `discord-api.ts`에 이미 정의되어 있으므로 중복 작성 불필요.
+- [x] **오버엔지니어링 여부 확인**: Redis 캐싱 레이어를 추가하지 않았다. PRD에서 스케줄러가 하루 1회 실행하고 실시간 갱신이 없으므로 별도 Redis 키나 Repository가 필요하지 않다. 설정 조회 빈도가 낮고 PRD에 캐싱 언급이 없으므로 DB 직접 조회로 충분하다.
+- [x] **`excludedRoleIds` 판정 제외 역할 처리가 서비스 레이어 책임임이 명확한가**: 스케줄러 실행 시 Discord API를 통해 길드 멤버 역할을 조회하는 로직이므로 단위 A(스케줄러·서비스)의 책임이다. 공통 모듈로 분리할 필요가 없다.
+- [x] **단위 A와 단위 B 간에 공유해야 할 서비스가 누락되지 않았는가**: `InactiveMemberConfig` 엔티티 조회(설정 참조)는 스케줄러(단위 A)와 조치 서비스(단위 B) 양쪽에서 필요하다. 그러나 이는 TypeORM Repository를 직접 주입하거나, `InactiveMemberConfigService`(단위 B)를 단위 A에서 import하는 방식으로 처리 가능하므로 별도 공통 서비스로 분리하지 않는다. PRD에서도 `inactive-member-config.service.ts`를 별도 서비스로 명시하고 있으며, NestJS 모듈 내에서 provider로 공유된다.

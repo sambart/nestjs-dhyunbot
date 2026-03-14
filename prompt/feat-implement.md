@@ -7,7 +7,7 @@
 ## 실행 모드: 자율 연속 실행
 
 > **이 프롬프트는 참조 문서가 아닌 실행 명령이다.**
-> Phase 0부터 Phase 5까지 사용자 개입 없이 자율적으로 끝까지 실행한다.
+> Phase 0부터 Phase 6까지 사용자 개입 없이 자율적으로 끝까지 실행한다.
 
 ### 자율 실행 규칙
 1. **중단 금지**: 에이전트 호출 결과를 받은 즉시 다음 단계를 호출한다. 사용자에게 "결과를 보고하고 대기"하지 않는다.
@@ -37,7 +37,7 @@
 
 ## 도메인 결정 (Phase 0)
 파이프라인 시작 전, 작업 대상 기능이 속하는 **도메인**을 결정한다.
-- 도메인 목록: `voice`, `music`, `member`, `channel`, `auth`, `gemini`, `recording`, `gateway`, `web`
+- 도메인 목록: `voice`, `music`, `member`, `channel`, `auth`, `gemini`, `web`, `newbie`, `status-prefix`, `general`, `sticky-message`, `monitoring`, `voice-co-presence`, `inactive-member`
 - 결정된 도메인에 해당하는 문서만 각 에이전트에 전달하여 컨텍스트를 최소화한다.
 
 ### 프로젝트 구조
@@ -70,19 +70,22 @@ nest-dhyunbot/
 2. [database-architect] → 입력: PRD diff / 출력: `/docs/specs/database/_index.md` (변경 시)
 3. [database-critic] → 입력: database/_index.md diff / 출력: 리뷰 반영된 database/_index.md
 4. **[Migration 생성]** → 조건: database/_index.md 변경 시
-    - Entity 파일 수정 후 `npm run migration:generate` 실행
+    - Entity 파일 수정 후 `pnpm run migration:generate` 실행
     - 생성된 migration 파일 검토 및 커밋
     - 출력: `/apps/api/src/migrations/*.ts`
 
 ### Phase 3: 계획
-5. [common-task-planner] → 입력: PRD (도메인별) / 출력: 공통 모듈 판단 결과
+5. [common-task-planner] → 조건: **다중 도메인 변경 시에만** 실행 / 입력: PRD (도메인별) / 출력: 공통 모듈 판단 결과
 6. [plan-writer] × N (병렬, 모듈 단위) → 출력: 각 모듈별 구현 계획
 
 ### Phase 4: 구현
 7. [implementer] × N (병렬, 계획 단위) → 출력: 변경된 코드
 
-### Phase 5: 완료
-8. 변경 요약 출력
+### Phase 5: 검증
+8. [quality-enforcer] × N (병렬, 구현 단위) → 입력: 변경된 코드 / 출력: 코드 품질 검수 결과 및 수정
+
+### Phase 6: 완료
+9. 변경 요약 출력
     - 수정된 파일 목록
     - 주요 변경 사항 요약
 
@@ -91,14 +94,15 @@ nest-dhyunbot/
 ## 파이프라인 시각화
 
 ```
-[도메인 결정] ──AUTO──► [문서] ──AUTO──► [설계] ──AUTO──► [계획] ──AUTO──► [구현] ──AUTO──► [완료]
-     │                   │                │                │                │                │
-     │                   │                │                │                │                │
-  0. 도메인 결정      1. prd-writer    2. db-architect  5. common-task   7. implementer   8. 변경 요약
-                                        3. db-critic        planner         × N (병렬)
-                                        4. migration?    6. plan-writer
+[도메인 결정] ──AUTO──► [문서] ──AUTO──► [설계] ──AUTO──► [계획] ──AUTO──► [구현] ──AUTO──► [검증] ──AUTO──► [완료]
+     │                   │                │                │                │                │                │
+     │                   │                │                │                │                │                │
+  0. 도메인 결정      1. prd-writer    2. db-architect  5. common-task   7. implementer   8. quality-      9. 변경 요약
+                                        3. db-critic        planner?        × N (병렬)      enforcer
+                                        4. migration?    6. plan-writer                     × N (병렬)
                                                             × N (병렬)
 
   ※ AUTO = 사용자 확인 없이 자동 전환
   ※ 실패 시: 각 단계 최대 3회 재시도, 초과 시 사용자 보고
+  ※ common-task-planner는 다중 도메인 변경 시에만 실행
 ```
