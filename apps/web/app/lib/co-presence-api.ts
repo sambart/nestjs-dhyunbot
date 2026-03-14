@@ -114,9 +114,10 @@ export function formatMinutes(totalMinutes: number): string {
   return `${hours}시간 ${minutes}분`;
 }
 
-/** 'YYYY-MM-DD' → 'MM/DD' 형식 */
+/** ISO 날짜 문자열 → 'MM/DD' 형식 ('YYYY-MM-DD' 및 'YYYY-MM-DDTHH:mm:ss' 모두 지원) */
 export function formatShortDate(isoDate: string): string {
-  const parts = isoDate.split('-');
+  const dateOnly = isoDate.slice(0, 10);
+  const parts = dateOnly.split('-');
   if (parts.length < 3) return isoDate;
   return `${parts[1]}/${parts[2]}`;
 }

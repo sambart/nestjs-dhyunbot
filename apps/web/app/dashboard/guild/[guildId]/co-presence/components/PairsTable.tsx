@@ -4,7 +4,7 @@ import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import type { PairItem, PairsResponse } from "@/app/lib/co-presence-api";
-import { fetchPairs, formatMinutes } from "@/app/lib/co-presence-api";
+import { fetchPairs, formatMinutes, formatShortDate } from "@/app/lib/co-presence-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import PairDetailModal from "./PairDetailModal";
@@ -242,7 +242,7 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
                           {item.sessionCount}
                         </td>
                         <td className="py-3 text-right text-muted-foreground">
-                          {item.lastDate}
+                          {formatShortDate(item.lastDate)}
                         </td>
                       </tr>
                     ))
