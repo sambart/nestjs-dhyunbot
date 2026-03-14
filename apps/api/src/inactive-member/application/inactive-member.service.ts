@@ -1,7 +1,9 @@
+import { getKSTDateString } from '@dhyunbot/shared';
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Client, Collection, type Guild, type GuildMember } from 'discord.js';
 
+import { VoiceDailyFlushService } from '../../channel/voice/application/voice-daily-flush-service';
 import { InactiveMemberConfig } from '../domain/inactive-member-config.entity';
 import { InactiveMemberGrade, InactiveMemberRecord } from '../domain/inactive-member-record.entity';
 import {
@@ -32,6 +34,7 @@ export class InactiveMemberService {
   constructor(
     private readonly repo: InactiveMemberRepository,
     private readonly queryRepo: InactiveMemberQueryRepository,
+    private readonly flushService: VoiceDailyFlushService,
     @InjectDiscordClient() private readonly discord: Client,
   ) {}
 
@@ -41,6 +44,13 @@ export class InactiveMemberService {
   }
 
   async classifyGuild(guildId: string): Promise<InactiveMemberRecord[]> {
+    // 활성 세션의 미누적 데이터를 DB에 반영 (실패 시 무시)
+    try {
+      await this.flushService.safeFlushAll();
+    } catch {
+      this.logger.warn('[INACTIVE] Flush skipped (already in progress or failed)');
+    }
+
     const config = await this.getOrCreateConfig(guildId);
 
     const { fromDate, toDate, prevFromDate, prevToDate } = this.buildDateRanges(config.periodDays);
@@ -158,14 +168,10 @@ export class InactiveMemberService {
     prevFromDate: string;
     prevToDate: string;
   } {
-    const now = new Date();
-    // KST 기준 오늘 날짜 계산
-    const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    // KST 기준 오늘 날짜 (오늘 포함)
+    const toDate = getKSTDateString();
 
-    const toDateObj = new Date(kstNow);
-    toDateObj.setDate(toDateObj.getDate() - 1); // 어제까지
-    const toDate = this.formatYyyymmdd(toDateObj);
-
+    const toDateObj = this.parseYyyymmdd(toDate);
     const fromDateObj = new Date(toDateObj);
     fromDateObj.setDate(fromDateObj.getDate() - periodDays + 1);
     const fromDate = this.formatYyyymmdd(fromDateObj);
@@ -182,7 +188,14 @@ export class InactiveMemberService {
   }
 
   private formatYyyymmdd(date: Date): string {
-    return date.toISOString().slice(0, 10).replace(/-/g, '');
+    return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  private parseYyyymmdd(dateStr: string): Date {
+    const year = parseInt(dateStr.slice(0, 4), 10);
+    const month = parseInt(dateStr.slice(4, 6), 10) - 1;
+    const day = parseInt(dateStr.slice(6, 8), 10);
+    return new Date(year, month, day);
   }
 
   /**

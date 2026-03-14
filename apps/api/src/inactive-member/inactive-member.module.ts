@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from '../auth/auth.module';
 import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
+import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
 import { InactiveMemberScheduler } from './application/inactive-member.scheduler';
 import { InactiveMemberService } from './application/inactive-member.service';
 import { InactiveMemberActionService } from './application/inactive-member-action.service';
@@ -24,6 +25,7 @@ import { InactiveMemberController } from './presentation/inactive-member.control
       VoiceDailyEntity,
     ]),
     AuthModule,
+    VoiceChannelModule,
   ],
   controllers: [InactiveMemberController],
   providers: [
