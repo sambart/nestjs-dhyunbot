@@ -15,17 +15,10 @@ export interface MeProfileData {
   micOffSec: number;
   micUsageRate: number;
   aloneSec: number;
-  topChannels: TopChannel[];
   dailyChart: DailyChartEntry[];
   peakDayOfWeek: string | null;
   weeklyAvgSec: number;
-}
-
-export interface TopChannel {
-  channelId: string;
-  channelName: string;
-  categoryName: string | null;
-  durationSec: number;
+  dayOfWeekTotals: number[];
 }
 
 export interface DailyChartEntry {
@@ -65,10 +58,10 @@ export class MeProfileService {
 
     const activeDays = globalStats.activeDays;
     const avgDailySec = activeDays > 0 ? Math.round(totalSec / activeDays) : 0;
-    const micUsageRate = totalSec > 0 ? Math.round((globalStats.micOnSec / totalSec) * 1000) / 10 : 0;
+    const micUsageRate =
+      totalSec > 0 ? Math.round((globalStats.micOnSec / totalSec) * 1000) / 10 : 0;
 
-    const topChannels = this.aggregateTopChannels(channelRecords);
-    const { peakDayOfWeek, weeklyAvgSec } = this.calculatePeakDay(dailyChart);
+    const { peakDayOfWeek, weeklyAvgSec, dayOfWeekTotals } = this.calculatePeakDay(dailyChart);
 
     return {
       rank: rankInfo.rank,
@@ -80,10 +73,10 @@ export class MeProfileService {
       micOffSec: globalStats.micOffSec,
       micUsageRate,
       aloneSec: globalStats.aloneSec,
-      topChannels,
       dailyChart,
       peakDayOfWeek,
       weeklyAvgSec,
+      dayOfWeekTotals,
     };
   }
 
@@ -118,7 +111,14 @@ export class MeProfileService {
     userId: string,
     start: string,
     end: string,
-  ): Promise<Array<{ channelId: string; channelName: string; categoryName: string | null; durationSec: number }>> {
+  ): Promise<
+    Array<{
+      channelId: string;
+      channelName: string;
+      categoryName: string | null;
+      durationSec: number;
+    }>
+  > {
     const rows = await this.voiceDailyRepo
       .createQueryBuilder('vd')
       .select('vd."channelId"', 'channelId')
@@ -130,7 +130,12 @@ export class MeProfileService {
       .andWhere('vd."channelId" != :global', { global: 'GLOBAL' })
       .andWhere('vd.date BETWEEN :start AND :end', { start, end })
       .groupBy('vd."channelId"')
-      .getRawMany<{ channelId: string; channelName: string; categoryName: string | null; duration: string }>();
+      .getRawMany<{
+        channelId: string;
+        channelName: string;
+        categoryName: string | null;
+        duration: string;
+      }>();
 
     return rows.map((r) => ({
       channelId: r.channelId,
@@ -198,23 +203,10 @@ export class MeProfileService {
     return result;
   }
 
-  private aggregateTopChannels(
-    records: Array<{ channelId: string; channelName: string; categoryName: string | null; durationSec: number }>,
-  ): TopChannel[] {
-    return records
-      .sort((a, b) => b.durationSec - a.durationSec)
-      .slice(0, 5)
-      .map((r) => ({
-        channelId: r.channelId,
-        channelName: r.channelName,
-        categoryName: r.categoryName,
-        durationSec: r.durationSec,
-      }));
-  }
-
   private calculatePeakDay(dailyChart: DailyChartEntry[]): {
     peakDayOfWeek: string | null;
     weeklyAvgSec: number;
+    dayOfWeekTotals: number[];
   } {
     const totalSec = dailyChart.reduce((sum, d) => sum + d.durationSec, 0);
     const weeks = 15 / 7;
@@ -231,7 +223,7 @@ export class MeProfileService {
     const maxIdx = dayOfWeekTotals.indexOf(Math.max(...dayOfWeekTotals));
     const peakDayOfWeek = dayOfWeekTotals[maxIdx] > 0 ? DAY_NAMES[maxIdx] : null;
 
-    return { peakDayOfWeek, weeklyAvgSec };
+    return { peakDayOfWeek, weeklyAvgSec, dayOfWeekTotals };
   }
 
   private parseDate(yyyymmdd: string): Date {

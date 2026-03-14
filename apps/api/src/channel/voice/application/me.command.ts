@@ -7,6 +7,7 @@ import { ProfileCardRenderer } from './profile-card-renderer';
 
 @Command({
   name: 'me',
+  nameLocalizations: { ko: '미' },
   description: '내 프로필과 음성 활동을 확인합니다',
 })
 @Injectable()
@@ -29,10 +30,16 @@ export class MeCommand {
 
     try {
       const days = 15;
-      const profile = await this.meProfileService.getProfile(interaction.guildId, interaction.user.id, days);
+      const profile = await this.meProfileService.getProfile(
+        interaction.guildId,
+        interaction.user.id,
+        days,
+      );
 
       if (!profile) {
-        await interaction.editReply({ content: `최근 ${days}일간 음성 채널 활동 기록이 없습니다.` });
+        await interaction.editReply({
+          content: `최근 ${days}일간 음성 채널 활동 기록이 없습니다.`,
+        });
         return;
       }
 
