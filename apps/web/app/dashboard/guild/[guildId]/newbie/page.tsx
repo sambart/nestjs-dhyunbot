@@ -1,0 +1,190 @@
+'use client';
+
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+
+import type { DiscordRole } from '../../../../lib/discord-api';
+import { fetchGuildRoles } from '../../../../lib/discord-api';
+import type { NewbieConfig } from '../../../../lib/newbie-api';
+import { fetchActiveMissions, fetchMissionHistory, fetchNewbieConfig } from '../../../../lib/newbie-api';
+import DisabledBanner from './components/DisabledBanner';
+import MissionManageTab from './components/MissionManageTab';
+import MocoRankingTab from './components/MocoRankingTab';
+
+type TabKey = 'mission' | 'moco';
+
+export default function NewbieDashboardPage() {
+  const params = useParams();
+  // Next.js 동적 라우트 세그먼트는 단일 값임이 라우트 정의에 의해 보장된다
+  const guildId = params.guildId as string;
+
+  const [config, setConfig] = useState<NewbieConfig | null>(null);
+  const [roles, setRoles] = useState<DiscordRole[]>([]);
+  const [isConfigLoading, setIsConfigLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabKey>('mission');
+  const [hasMissionData, setHasMissionData] = useState<boolean | null>(null);
+
+  const settingsUrl = `/settings/guild/${guildId}/newbie`;
+
+  const loadConfig = useCallback(async () => {
+    setIsConfigLoading(true);
+    try {
+      const [cfg, roleList] = await Promise.all([
+        fetchNewbieConfig(guildId),
+        fetchGuildRoles(guildId),
+      ]);
+      setConfig(cfg);
+      setRoles(roleList);
+
+      if (cfg) {
+        if (!cfg.missionEnabled && cfg.mocoEnabled) {
+          setActiveTab('moco');
+        } else {
+          setActiveTab('mission');
+        }
+      }
+    } catch {
+      // config 로드 실패 시 기본값 유지
+    } finally {
+      setIsConfigLoading(false);
+    }
+  }, [guildId]);
+
+  const loadMissionDataCheck = useCallback(async () => {
+    if (!config || config.missionEnabled) {
+      setHasMissionData(null);
+      return;
+    }
+    try {
+      const [active, history] = await Promise.all([
+        fetchActiveMissions(guildId),
+        fetchMissionHistory(guildId, undefined, 1, 1),
+      ]);
+      setHasMissionData(active.length > 0 || history.total > 0);
+    } catch {
+      setHasMissionData(false);
+    }
+  }, [config, guildId]);
+
+  useEffect(() => {
+    void loadConfig();
+  }, [loadConfig]);
+
+  useEffect(() => {
+    void loadMissionDataCheck();
+  }, [loadMissionDataCheck]);
+
+  if (isConfigLoading) {
+    return (
+      <div className="flex items-center justify-center p-6 py-20">
+        <div className="text-gray-400">설정 로딩 중...</div>
+      </div>
+    );
+  }
+
+  // 양쪽 모두 비활성
+  if (config && !config.missionEnabled && !config.mocoEnabled) {
+    return (
+      <div className="p-6">
+        <h1 className="mb-6 text-2xl font-bold">신입 관리</h1>
+        <div className="flex flex-col items-center gap-4 rounded-xl border border-gray-200 py-20 text-center">
+          <p className="text-gray-500">미션 관리 및 모코코 사냥 기능이 모두 비활성화 상태입니다.</p>
+          <Link
+            href={settingsUrl}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            설정에서 기능 활성화하기
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const isMissionEnabled = config?.missionEnabled ?? false;
+  const isMocoEnabled = config?.mocoEnabled ?? false;
+
+  return (
+    <div className="space-y-6 p-6">
+      <h1 className="text-2xl font-bold">신입 관리</h1>
+
+      {/* 탭 헤더 */}
+      <div className="flex items-center gap-1 border-b border-gray-200">
+        <button
+          type="button"
+          disabled={!isMissionEnabled && hasMissionData === false}
+          onClick={() => setActiveTab('mission')}
+          className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+            activeTab === 'mission'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          미션 관리
+          {!isMissionEnabled && (
+            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+              비활성
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('moco')}
+          className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+            activeTab === 'moco'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          모코코 순위
+          {!isMocoEnabled && (
+            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+              비활성
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* 탭 콘텐츠 */}
+      {activeTab === 'mission' && (
+        <div className="space-y-4">
+          {/* missionEnabled=false & 데이터 있음 → 경고 배너 + 읽기 전용 */}
+          {!isMissionEnabled && hasMissionData && (
+            <DisabledBanner featureName="미션 관리" settingsUrl={settingsUrl} />
+          )}
+
+          {/* missionEnabled=false & 데이터 없음 → 빈 상태 안내 */}
+          {!isMissionEnabled && hasMissionData === false && (
+            <div className="flex flex-col items-center gap-4 rounded-xl border border-gray-200 py-16 text-center">
+              <p className="text-gray-500">미션 관리 기능이 비활성화 상태입니다.</p>
+              <Link
+                href={settingsUrl}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                설정에서 기능 활성화하기
+              </Link>
+            </div>
+          )}
+
+          {/* 활성 상태 또는 데이터 있는 비활성 → 컴포넌트 표시 */}
+          {(isMissionEnabled || hasMissionData) && (
+            <MissionManageTab
+              guildId={guildId}
+              roles={roles}
+              readonly={!isMissionEnabled}
+            />
+          )}
+        </div>
+      )}
+
+      {activeTab === 'moco' && config && (
+        <MocoRankingTab
+          guildId={guildId}
+          config={config}
+          isEnabled={isMocoEnabled}
+          settingsUrl={settingsUrl}
+        />
+      )}
+    </div>
+  );
+}

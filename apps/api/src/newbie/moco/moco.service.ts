@@ -203,10 +203,7 @@ export class MocoService {
       const sent = await channel.send(payload);
       await this.configRepo.updateMocoRankMessageId(guildId, sent.id);
     } catch (err) {
-      this.logger.error(
-        `[MOCO] Failed to send rank embed: guild=${guildId}`,
-        (err as Error).stack,
-      );
+      this.logger.error(`[MOCO] Failed to send rank embed: guild=${guildId}`, (err as Error).stack);
     }
   }
 
@@ -271,7 +268,8 @@ export class MocoService {
 
     // 4-1. 점수 산정 템플릿 렌더링
     const scoringTmpl = tmpl?.scoringTemplate ?? undefined;
-    if (scoringTmpl !== '') { // empty string = 관리자가 점수 안내를 숨김 처리; null/undefined = 기본 템플릿 사용
+    if (scoringTmpl !== '') {
+      // empty string = 관리자가 점수 안내를 숨김 처리; null/undefined = 기본 템플릿 사용
       const resolvedScoringTemplate = scoringTmpl ?? DEFAULT_MOCO_SCORING_TEMPLATE;
       const renderedScoring = applyTemplate(resolvedScoringTemplate, {
         scorePerSession: String(config?.mocoScorePerSession ?? 10),
@@ -339,7 +337,9 @@ export class MocoService {
     const lines: string[] = [];
     lines.push(`🏆 **순위**: ${rank}위 / ${totalCount}명`);
     lines.push(`🏆 **총 점수**: ${score}점`);
-    lines.push(`⏱️ **총 사냥 시간**: ${channelMinutes}분 | 🎮 **게임 횟수**: ${sessionCount}회 | 🌱 **모코코**: ${uniqueNewbieCount}명`);
+    lines.push(
+      `⏱️ **총 사냥 시간**: ${channelMinutes}분 | 🎮 **게임 횟수**: ${sessionCount}회 | 🌱 **모코코**: ${uniqueNewbieCount}명`,
+    );
 
     const entries = Object.entries(details).sort(([, a], [, b]) => b - a);
     if (entries.length > 0) {
@@ -364,6 +364,49 @@ export class MocoService {
     }
 
     return lines.join('\n');
+  }
+
+  /**
+   * 특정 사냥꾼의 도움받은 모코코 상세 목록을 반환한다.
+   * newbie:moco:total:{guildId}:{hunterId} 해시에서 분, sessions 해시에서 횟수를 조합하여 응답.
+   */
+  async getHunterDetail(
+    guildId: string,
+    hunterId: string,
+  ): Promise<Array<{ newbieId: string; newbieName: string; minutes: number; sessions: number }>> {
+    const [minutesMap, sessionsMap] = await Promise.all([
+      this.newbieRedis.getMocoHunterDetail(guildId, hunterId),
+      this.newbieRedis.getMocoNewbieSessions(guildId, hunterId),
+    ]);
+
+    const newbieIds = Object.keys(minutesMap);
+    if (newbieIds.length === 0) return [];
+
+    // Discord displayName 조회
+    const nameMap: Record<string, string> = {};
+    try {
+      const guild = this.discordClient.guilds.cache.get(guildId);
+      if (!guild) throw new Error(`Guild ${guildId} not found in cache`);
+      await Promise.all(
+        newbieIds.map(async (id) => {
+          const member = await guild.members.fetch(id).catch(() => null);
+          nameMap[id] = member?.displayName ?? id;
+        }),
+      );
+    } catch {
+      for (const id of newbieIds) {
+        nameMap[id] = id;
+      }
+    }
+
+    return newbieIds
+      .map((newbieId) => ({
+        newbieId,
+        newbieName: nameMap[newbieId] ?? newbieId,
+        minutes: minutesMap[newbieId] ?? 0,
+        sessions: sessionsMap[newbieId] ?? 0,
+      }))
+      .sort((a, b) => b.minutes - a.minutes);
   }
 
   /** 내부: 페이지네이션 + 갱신 버튼 ActionRow 구성 */
