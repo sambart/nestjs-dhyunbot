@@ -140,7 +140,8 @@ export class VoiceStateDispatcher {
   private emitAloneChanged(state: VoiceState): void {
     if (!state.channel || !state.guild) return;
 
-    const memberIds = [...state.channel.members.keys()];
+    const humanMembers = state.channel.members.filter((m) => !m.user.bot);
+    const memberIds = [...humanMembers.keys()];
     if (memberIds.length > 2) return;
 
     const isAlone = memberIds.length === 1;
