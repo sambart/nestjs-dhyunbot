@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from '../auth/auth.module';
+import { CoPresenceModule } from '../channel/voice/co-presence/co-presence.module';
 import { VoiceChannelHistory } from '../channel/voice/domain/voice-channel-history.entity';
 import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
 import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
@@ -23,8 +24,8 @@ import { NewbiePeriodRepository } from './infrastructure/newbie-period.repositor
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
 import { MissionScheduler } from './mission/mission.scheduler';
 import { MissionService } from './mission/mission.service';
-import { MocoScheduler } from './moco/moco.scheduler';
 import { MocoService } from './moco/moco.service';
+import { MocoEventHandler } from './moco/moco-event.handler';
 import { MocoResetScheduler } from './moco/moco-reset.scheduler';
 import { NewbieController } from './newbie.controller';
 import { NewbieGateway } from './newbie.gateway';
@@ -46,6 +47,7 @@ import { WelcomeService } from './welcome/welcome.service';
       VoiceDailyEntity,
       VoiceChannelHistory,
     ]),
+    CoPresenceModule,
     VoiceChannelModule,
     RedisModule,
     AuthModule,
@@ -69,7 +71,7 @@ import { WelcomeService } from './welcome/welcome.service';
     MissionScheduler,
     // Unit D
     MocoService,
-    MocoScheduler,
+    MocoEventHandler,
     MocoResetScheduler,
     // Unit E
     NewbieRoleService,
