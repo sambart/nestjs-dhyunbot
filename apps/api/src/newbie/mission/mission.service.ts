@@ -60,12 +60,10 @@ export class MissionService {
       return;
     }
 
-    // 이미 진행 중인 미션이 있으면 중복 생성 방지
-    const existing = await this.missionRepo.findActiveByMember(member.guild.id, member.id);
-    if (existing) {
-      this.logger.log(
-        `[MISSION] Skipped duplicate: guild=${member.guild.id} member=${member.id} existingId=${existing.id}`,
-      );
+    // 상태 무관하게 이미 미션이 존재하면 중복 생성 방지
+    const hasMission = await this.missionRepo.hasMission(member.guild.id, member.id);
+    if (hasMission) {
+      this.logger.log(`[MISSION] Skipped duplicate: guild=${member.guild.id} member=${member.id}`);
       return;
     }
 
@@ -259,16 +257,6 @@ export class MissionService {
     const resolvedConfig = config ?? (await this.configRepo.findByGuildId(guildId));
     if (!resolvedConfig?.missionEnabled || !resolvedConfig.missionNotifyChannelId) {
       return;
-    }
-
-    // 미등록 멤버 자동 등록 (가입일 기준 missionDurationDays 이내)
-    try {
-      await this.registerMissingMembers(guildId, resolvedConfig);
-    } catch (err) {
-      this.logger.warn(
-        `[MISSION] registerMissingMembers failed (continuing embed refresh): guild=${guildId}`,
-        (err as Error).stack,
-      );
     }
 
     // Embed 표시 대상 미션 조회 (모든 상태, hiddenFromEmbed=false)
@@ -513,7 +501,7 @@ export class MissionService {
    * 가입일 기준 missionDurationDays 이내인데 미션이 없는 멤버를 자동 등록한다.
    * 봇이 오프라인이었거나 기능 활성화 전에 가입한 멤버를 보완한다.
    */
-  private async registerMissingMembers(guildId: string, config: NewbieConfig): Promise<void> {
+  async registerMissingMembers(guildId: string, config: NewbieConfig): Promise<void> {
     if (!config.missionDurationDays || !config.missionTargetPlaytimeHours) return;
 
     const guild = this.discord.guilds.cache.get(guildId);

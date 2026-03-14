@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
 import { MissionStatus } from '../domain/newbie-mission.entity';
+import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from '../infrastructure/newbie-mission.repository';
 import { NewbieRedisRepository } from '../infrastructure/newbie-redis.repository';
 import { MissionService } from './mission.service';
@@ -12,6 +13,7 @@ export class MissionScheduler {
 
   constructor(
     private readonly missionRepo: NewbieMissionRepository,
+    private readonly configRepo: NewbieConfigRepository,
     private readonly newbieRedis: NewbieRedisRepository,
     private readonly missionService: MissionService,
   ) {}
@@ -46,9 +48,7 @@ export class MissionScheduler {
       return;
     }
 
-    this.logger.log(
-      `[MISSION SCHEDULER] Found ${expiredMissions.length} expired missions.`,
-    );
+    this.logger.log(`[MISSION SCHEDULER] Found ${expiredMissions.length} expired missions.`);
 
     // guildId별로 캐시 무효화가 필요한 집합
     const affectedGuildIds = new Set<string>();
@@ -65,9 +65,7 @@ export class MissionScheduler {
 
         // 3. 목표 달성 여부 판별
         const newStatus =
-          playtimeSec >= mission.targetPlaytimeSec
-            ? MissionStatus.COMPLETED
-            : MissionStatus.FAILED;
+          playtimeSec >= mission.targetPlaytimeSec ? MissionStatus.COMPLETED : MissionStatus.FAILED;
 
         // 4. 상태 갱신
         await this.missionRepo.updateStatus(mission.id, newStatus);
@@ -92,8 +90,17 @@ export class MissionScheduler {
       await this.newbieRedis.deleteMissionActive(guildId);
     }
 
-    // 6. 영향받은 길드의 Embed 갱신
+    // 6. 영향받은 길드의 미등록 멤버 자동 등록 + Embed 갱신
     for (const guildId of affectedGuildIds) {
+      const config = await this.configRepo.findByGuildId(guildId);
+      if (config) {
+        await this.missionService.registerMissingMembers(guildId, config).catch((err) => {
+          this.logger.warn(
+            `[MISSION SCHEDULER] registerMissingMembers failed: guild=${guildId}`,
+            (err as Error).stack,
+          );
+        });
+      }
       await this.missionService.refreshMissionEmbed(guildId).catch((err) => {
         this.logger.error(
           `[MISSION SCHEDULER] Failed to refresh embed: guild=${guildId}`,
