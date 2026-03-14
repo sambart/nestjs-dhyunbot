@@ -18,7 +18,6 @@ export interface MeProfileData {
   dailyChart: DailyChartEntry[];
   peakDayOfWeek: string | null;
   weeklyAvgSec: number;
-  dayOfWeekTotals: number[];
 }
 
 export interface DailyChartEntry {
@@ -61,7 +60,7 @@ export class MeProfileService {
     const micUsageRate =
       totalSec > 0 ? Math.round((globalStats.micOnSec / totalSec) * 1000) / 10 : 0;
 
-    const { peakDayOfWeek, weeklyAvgSec, dayOfWeekTotals } = this.calculatePeakDay(dailyChart);
+    const { peakDayOfWeek, weeklyAvgSec } = this.calculatePeakDay(dailyChart);
 
     return {
       rank: rankInfo.rank,
@@ -76,7 +75,6 @@ export class MeProfileService {
       dailyChart,
       peakDayOfWeek,
       weeklyAvgSec,
-      dayOfWeekTotals,
     };
   }
 
@@ -206,7 +204,6 @@ export class MeProfileService {
   private calculatePeakDay(dailyChart: DailyChartEntry[]): {
     peakDayOfWeek: string | null;
     weeklyAvgSec: number;
-    dayOfWeekTotals: number[];
   } {
     const totalSec = dailyChart.reduce((sum, d) => sum + d.durationSec, 0);
     const weeks = 15 / 7;
@@ -223,7 +220,7 @@ export class MeProfileService {
     const maxIdx = dayOfWeekTotals.indexOf(Math.max(...dayOfWeekTotals));
     const peakDayOfWeek = dayOfWeekTotals[maxIdx] > 0 ? DAY_NAMES[maxIdx] : null;
 
-    return { peakDayOfWeek, weeklyAvgSec, dayOfWeekTotals };
+    return { peakDayOfWeek, weeklyAvgSec };
   }
 
   private parseDate(yyyymmdd: string): Date {

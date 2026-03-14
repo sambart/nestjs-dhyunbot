@@ -1,11 +1,11 @@
 import { createCanvas, GlobalFonts, loadImage, SKRSContext2D } from '@napi-rs/canvas';
 import { Injectable, Logger } from '@nestjs/common';
 
-import { MeProfileData } from './me-profile.service';
+import { DailyChartEntry, MeProfileData } from './me-profile.service';
 
 // ── 레이아웃 상수 ──
 const W = 800;
-const H = 530;
+const H = 618;
 const PADDING = 32;
 const CARD_RADIUS = 16;
 
@@ -73,7 +73,7 @@ export class ProfileCardRenderer {
     await this.drawHeader(ctx, displayName, avatarUrl);
     this.drawRankCard(ctx, profile);
     this.drawStatCards(ctx, profile);
-    this.drawWeekdayChart(ctx, profile.dayOfWeekTotals);
+    this.drawBarChart(ctx, profile.dailyChart);
     this.drawFooter(ctx);
 
     return canvas.toBuffer('image/png');
@@ -184,7 +184,7 @@ export class ProfileCardRenderer {
 
   private drawStatCards(ctx: SKRSContext2D, profile: MeProfileData): void {
     const startY = 202;
-    const cardW = 230;
+    const cardW = 224;
     const cardH = 72;
     const gap = 16;
     const startX = PADDING + 16;
@@ -219,10 +219,9 @@ export class ProfileCardRenderer {
 
     // ── Row 2: 통합 카드들 ──
     const row2Y = startY + cardH + gap;
-    const row2CardH = 90;
 
     // 카드 1: 마이크 통합 (ON/OFF 비율 바 + 사용률 + 시간)
-    this.drawMicCard(ctx, startX, row2Y, cardW, row2CardH, profile);
+    this.drawMicCard(ctx, startX, row2Y, cardW, cardH, profile);
 
     // 카드 2: 혼자 비율
     const alonePercent =
@@ -232,7 +231,7 @@ export class ProfileCardRenderer {
       startX + cardW + gap,
       row2Y,
       cardW,
-      row2CardH,
+      cardH,
       '👤 혼자 있던 시간',
       formatTime(profile.aloneSec),
       `전체의 ${alonePercent}%`,
@@ -245,7 +244,7 @@ export class ProfileCardRenderer {
       startX + (cardW + gap) * 2,
       row2Y,
       cardW,
-      row2CardH,
+      cardH,
       '📊 주 평균',
       formatTime(profile.weeklyAvgSec),
       peakText,
@@ -267,9 +266,21 @@ export class ProfileCardRenderer {
     ctx.lineWidth = 1;
     ctx.stroke();
 
+    // 라벨
     ctx.fillStyle = TEXT_SECONDARY;
     ctx.font = '13px "NotoSansCJK", "NotoColorEmoji", sans-serif';
     ctx.fillText('🎤 마이크', x + 14, y + 24);
+
+    // ON/OFF 시간 (제목 오른쪽)
+    ctx.fillStyle = TEXT_MUTED;
+    ctx.font = '10px "NotoSansCJK", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(
+      `ON ${formatTime(profile.micOnSec)} · OFF ${formatTime(profile.micOffSec)}`,
+      x + w - 10,
+      y + 24,
+    );
+    ctx.textAlign = 'left';
 
     // 사용률 텍스트
     ctx.fillStyle = TEXT_PRIMARY;
@@ -340,68 +351,11 @@ export class ProfileCardRenderer {
     }
   }
 
-  private drawWeekdayChart(ctx: SKRSContext2D, dayOfWeekTotals: number[]): void {
-    const sectionX = PADDING + 16;
-    const sectionY = 378;
-    const chartW = W - PADDING * 2 - 32;
-
-    ctx.fillStyle = TEXT_SECONDARY;
-    ctx.font = 'bold 14px "NotoSansCJK", "NotoColorEmoji", sans-serif';
-    ctx.fillText('📊 요일별 활동 분포', sectionX, sectionY);
-
-    // 월~일 순서로 재배열 (JS Date: 0=일, 1=월 ... 6=토)
-    const dayLabels = ['월', '화', '수', '목', '금', '토', '일'];
-    const reordered = [
-      dayOfWeekTotals[1],
-      dayOfWeekTotals[2],
-      dayOfWeekTotals[3],
-      dayOfWeekTotals[4],
-      dayOfWeekTotals[5],
-      dayOfWeekTotals[6],
-      dayOfWeekTotals[0],
-    ];
-
-    const maxSec = Math.max(...reordered, 1);
-    const barStartX = sectionX + 24;
-    const barMaxW = chartW - 90;
-    const barH = 10;
-    const itemH = 12;
-    const startY = sectionY + 14;
-
-    for (let i = 0; i < 7; i++) {
-      const y = startY + i * itemH;
-      const isPeak = reordered[i] === maxSec && reordered[i] > 0;
-
-      // 요일 라벨
-      ctx.fillStyle = isPeak ? BLURPLE : TEXT_MUTED;
-      ctx.font = isPeak ? 'bold 11px "NotoSansCJK", sans-serif' : '11px "NotoSansCJK", sans-serif';
-      ctx.fillText(dayLabels[i], sectionX + 4, y + 9);
-
-      // 빈 바
-      this.roundRect(ctx, barStartX, y + 1, barMaxW, barH, 3);
-      ctx.fillStyle = BAR_EMPTY;
-      ctx.fill();
-
-      // 채워진 바
-      if (reordered[i] > 0) {
-        const fillW = Math.max((reordered[i] / maxSec) * barMaxW, 6);
-        this.roundRect(ctx, barStartX, y + 1, fillW, barH, 3);
-        ctx.fillStyle = isPeak ? BLURPLE : BLURPLE_DIM;
-        ctx.fill();
-      }
-
-      // 시간 텍스트
-      ctx.fillStyle = isPeak ? TEXT_PRIMARY : TEXT_MUTED;
-      ctx.font = '10px "NotoSansCJK", sans-serif';
-      ctx.fillText(formatTime(reordered[i]), barStartX + barMaxW + 8, y + 9);
-    }
-  }
-
   private drawBarChart(ctx: SKRSContext2D, dailyChart: DailyChartEntry[]): void {
     const chartX = PADDING + 16;
-    const chartY = 470;
+    const chartY = 398;
     const chartW = W - PADDING * 2 - 32;
-    const chartH = 210;
+    const chartH = 170;
 
     ctx.fillStyle = TEXT_SECONDARY;
     ctx.font = 'bold 14px "NotoSansCJK", "NotoColorEmoji", sans-serif';
