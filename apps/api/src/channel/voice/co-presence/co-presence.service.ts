@@ -8,6 +8,9 @@ import {
 } from './co-presence.events';
 import { CoPresenceDbRepository, UpsertPairDailyRow } from './co-presence-db.repository';
 
+/** 주기적 세션 회전 임계값 (분). 이 값 이상 누적되면 세션을 종료 후 재시작하여 DB에 중간 데이터를 저장한다. */
+const FLUSH_THRESHOLD_MINUTES = 5;
+
 interface ActiveCoPresenceSession {
   guildId: string;
   channelId: string;
@@ -33,8 +36,14 @@ export class CoPresenceService {
   /**
    * 스냅샷을 기반으로 세션을 시작/계속/종료한다.
    * Scheduler가 매 tick마다 호출한다.
+   *
+   * @param snapshots - 현재 음성 채널 스냅샷 (2명 이상 채널만)
+   * @param processedGuildIds - 이번 tick에서 처리된 모든 길드 ID (스냅샷 유무 무관)
    */
-  async reconcile(snapshots: CoPresenceTickSnapshot[]): Promise<void> {
+  async reconcile(
+    snapshots: CoPresenceTickSnapshot[],
+    processedGuildIds: string[] = [],
+  ): Promise<void> {
     // 스냅샷에서 현재 활성 사용자를 guildId:userId → snapshot info로 매핑
     const currentUsers = new Map<string, { channelId: string; peerIds: string[] }>();
 
@@ -64,13 +73,13 @@ export class CoPresenceService {
       }
     }
 
-    // 스냅샷에서 사라진 길드들의 세션만 종료
-    const activeGuildIds = new Set(snapshots.map((s) => s.guildId));
+    // 처리된 길드 중 스냅샷에서 사라진 사용자의 세션 종료
+    const allProcessedGuildIds = new Set(processedGuildIds);
     const keysToEnd: string[] = [];
 
     for (const [key, session] of this.activeSessions) {
-      // 해당 길드의 스냅샷이 있는데 이 사용자가 없으면 종료
-      if (activeGuildIds.has(session.guildId) && !currentUsers.has(key)) {
+      // 처리된 길드인데 이 사용자가 현재 스냅샷에 없으면 종료
+      if (allProcessedGuildIds.has(session.guildId) && !currentUsers.has(key)) {
         keysToEnd.push(key);
       }
     }
@@ -80,6 +89,15 @@ export class CoPresenceService {
       if (session) {
         await this.endSession(session);
         this.activeSessions.delete(key);
+      }
+    }
+
+    // 주기적 세션 회전: 임계값 이상 누적된 활성 세션을 종료 후 즉시 재시작
+    for (const [key, session] of this.activeSessions) {
+      if (session.accumulatedMinutes >= FLUSH_THRESHOLD_MINUTES && currentUsers.has(key)) {
+        await this.endSession(session);
+        const current = currentUsers.get(key)!;
+        this.startSession(key, current.channelId, current.peerIds);
       }
     }
   }

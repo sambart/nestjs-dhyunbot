@@ -56,9 +56,11 @@ export class CoPresenceScheduler implements OnApplicationBootstrap, OnApplicatio
     if (this.isShuttingDown) return;
 
     const allSnapshots: CoPresenceTickSnapshot[] = [];
+    const processedGuildIds: string[] = [];
 
     for (const [guildId, guild] of this.discord.guilds.cache) {
       try {
+        processedGuildIds.push(guildId);
         const snapshots = await this.processGuild(guildId, guild);
         allSnapshots.push(...snapshots);
       } catch (err) {
@@ -69,8 +71,8 @@ export class CoPresenceScheduler implements OnApplicationBootstrap, OnApplicatio
       }
     }
 
-    // 세션 조정
-    await this.coPresenceService.reconcile(allSnapshots);
+    // 세션 조정 (처리된 모든 길드 ID 전달)
+    await this.coPresenceService.reconcile(allSnapshots, processedGuildIds);
 
     // tick 이벤트 발행 (fire-and-forget)
     if (allSnapshots.length > 0) {
