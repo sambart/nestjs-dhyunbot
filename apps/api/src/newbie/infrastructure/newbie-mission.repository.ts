@@ -125,6 +125,12 @@ export class NewbieMissionRepository {
     return { items, total };
   }
 
+  /** 특정 멤버에게 미션이 존재하는지 확인 (상태 무관) */
+  async hasMission(guildId: string, memberId: string): Promise<boolean> {
+    const count = await this.repo.count({ where: { guildId, memberId } });
+    return count > 0;
+  }
+
   /**
    * 길드 내 미션이 존재하는 모든 멤버 ID 조회 (상태 무관).
    * registerMissingMembers에서 중복 미션 방지에 사용.
