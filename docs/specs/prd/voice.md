@@ -529,6 +529,32 @@ Discord Voice Event
   - 트리거 채널은 F-VOICE-007에서 이미 세션 추적을 제외하므로 별도 처리 불필요
   - 트리거 채널을 제외 채널로 추가 등록하더라도 동작 상 중복될 뿐 오류 없음
 
+## 데이터 보존 정책
+
+### 자동 삭제 스케줄러
+- **실행 시각**: 매일 04:00 (KST)
+- **삭제 기준**: `DATA_RETENTION_DAYS` 환경변수 초과 데이터 (기본 90일)
+- **삭제 대상**:
+  - `VoiceDailyEntity`
+  - `VoiceChannelHistory`
+  - `VoiceCoPresencePairDaily`
+- **환경변수**: `DATA_RETENTION_DAYS` (최소 7, 기본 90)
+
+### 사용자 데이터 삭제 API (F-VOICE-GDPR-001)
+- **엔드포인트**: `DELETE /api/users/me/data`
+- **인증**: JWT 필수 (본인 데이터만 삭제)
+- **삭제 대상**: 요청자의 모든 음성 활동 데이터 (전 길드)
+- **응답**:
+  ```json
+  {
+    "deletedCount": {
+      "voiceDaily": 1234,
+      "voiceHistory": 567,
+      "coPresence": 89
+    }
+  }
+  ```
+
 ## 음성 시간 제외 채널 데이터 모델
 
 ### VoiceExcludedChannel (voice_excluded_channel)

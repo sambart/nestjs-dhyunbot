@@ -14,6 +14,7 @@ import { VoiceChannelService } from './application/voice-channel.service';
 import { VoiceChannelHistoryService } from './application/voice-channel-history.service';
 import { VoiceDailyService } from './application/voice-daily.service';
 import { VoiceDailyFlushService } from './application/voice-daily-flush-service';
+import { VoiceDataRetentionScheduler } from './application/voice-data-retention.scheduler';
 import { VoiceExcludedChannelService } from './application/voice-excluded-channel.service';
 import { VoiceFlushCommand } from './application/voice-flush.command';
 import { VoiceHistoryService } from './application/voice-history.service';
@@ -21,6 +22,7 @@ import { VoiceRecoveryService } from './application/voice-recovery.service';
 import { VoiceSessionService } from './application/voice-session.service';
 import { VoiceStatsQueryService } from './application/voice-stats-query.service';
 import { VoiceTempChannelService } from './application/voice-temp-channel.service';
+import { VoiceCoPresencePairDaily } from './co-presence/domain/voice-co-presence-pair-daily.entity';
 import { VoiceChannelHistory } from './domain/voice-channel-history.entity';
 import { VoiceDailyEntity } from './domain/voice-daily.entity';
 import { VoiceExcludedChannel } from './domain/voice-excluded-channel.entity';
@@ -29,6 +31,7 @@ import { RedisTempChannelStore } from './infrastructure/redis-temp-channel-store
 import { VoiceDailyRepository } from './infrastructure/voice-daily.repository';
 import { VoiceExcludedChannelRepository } from './infrastructure/voice-excluded-channel.repository';
 import { VoiceRedisRepository } from './infrastructure/voice-redis.repository';
+import { DataDeletionController } from './presentation/data-deletion.controller';
 import { MemberSearchController } from './presentation/member-search.controller';
 import { VoiceDailyController } from './presentation/voice-daily.controller';
 import { VoiceExcludedChannelController } from './presentation/voice-excluded-channel.controller';
@@ -37,7 +40,12 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
 @Module({
   imports: [
     DiscordModule.forFeature(),
-    TypeOrmModule.forFeature([VoiceChannelHistory, VoiceDailyEntity, VoiceExcludedChannel]),
+    TypeOrmModule.forFeature([
+      VoiceChannelHistory,
+      VoiceDailyEntity,
+      VoiceExcludedChannel,
+      VoiceCoPresencePairDaily,
+    ]),
     MemberModule,
     ChannelModule,
     forwardRef(() => VoiceAnalyticsModule),
@@ -47,6 +55,7 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
     VoiceDailyController,
     MemberSearchController,
     VoiceHistoryController,
+    DataDeletionController,
   ],
   providers: [
     VoiceChannelService,
@@ -73,6 +82,7 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
     VoiceDailyService,
     MemberSearchService,
     VoiceHistoryService,
+    VoiceDataRetentionScheduler,
   ],
   exports: [
     VoiceChannelService,

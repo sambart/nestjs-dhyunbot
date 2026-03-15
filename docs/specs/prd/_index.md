@@ -68,6 +68,10 @@ libs/shared/  → 공유 타입 및 상수
 - Discord OAuth 로그인 흐름
 - 대시보드 (프로토타입 단계)
 - 자동방 설정 UI (서버별 트리거 채널, 버튼 구성, 네이밍 규칙 설정)
+- 시작 가이드 (Getting Started 위자드)
+- 도움말 페이지 (FAQ)
+- 개인정보처리방침/이용약관
+- 에러 바운더리
 
 ### 6. 자동방 생성 (auto-channel)
 - 트리거 채널 입장 시 대기방 자동 생성 및 사용자 이동
@@ -112,6 +116,17 @@ libs/shared/  → 공유 타입 및 상수
 - 웹 대시보드에서 비활동 회원 목록 조회, 등급/기간/닉네임 필터 및 검색
 - DM 알림 전송, 역할 부여/제거 일괄 조치 및 자동 조치 규칙 설정
 - 활동률 파이 차트 및 주/월별 비활동 추이 라인 차트
+
+### 13. 데이터 보존 및 삭제
+- 90일 자동 삭제 스케줄러 (매일 04:00 KST, `DATA_RETENTION_DAYS` 환경변수)
+- 삭제 대상: `VoiceDailyEntity`, `VoiceChannelHistory`, `VoiceCoPresencePairDaily`
+- 사용자 데이터 삭제 API (`DELETE /api/users/me/data`) — 본인 음성 활동 데이터 전 길드 삭제
+
+### 14. API 보안
+- Rate Limiting: 전역 60 req/min, auth 5 req/min, voice-analytics 10 req/min (`@nestjs/throttler`)
+- 보안 헤더: `helmet` 미들웨어 (CSP, X-Frame-Options, HSTS 등)
+- Guild 접근 제어: `GuildMembershipGuard` — JWT guilds 목록과 요청 guildId 대조, `/api/guilds/:guildId/*` 전역 적용
+- Health Check: `GET /health` (PostgreSQL + Redis + Discord Gateway), `GET /health/liveness` (`@nestjs/terminus`)
 
 ## 데이터베이스 엔티티
 

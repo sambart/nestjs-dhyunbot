@@ -71,3 +71,20 @@ VoiceDailyEntity 데이터를 집계하여 Google Gemini API로 AI 분석 리포
 1. VoiceDailyEntity의 userName/channelName 확인
 2. 비어있으면 Redis 캐시 조회 (7일 TTL)
 3. Redis에도 없으면 Discord API 배치 조회 → Redis 저장
+
+## 장애 대응 (Resilience)
+
+### Circuit Breaker
+- **라이브러리**: `cockatiel`
+- **개방 조건**: 30초 내 5회 연속 실패 시 회로 개방
+- **반개방**: 60초 후 반개방 상태로 전환
+
+### Timeout
+- 호출당 30초
+
+### Retry
+- 최대 2회 재시도
+- 지수 백오프 적용 (초기 1초)
+
+### 할당량 초과 처리
+- Gemini API 429 응답 시 `LlmQuotaExhaustedException` throw

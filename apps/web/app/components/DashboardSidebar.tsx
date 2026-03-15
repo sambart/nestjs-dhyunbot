@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, ArrowLeftRight, GitFork, LayoutDashboard, Mic, Settings, Sprout, UserX } from "lucide-react";
+import { Activity, ArrowLeftRight, GitFork, HelpCircle, LayoutDashboard, Mic, Settings, Sprout, UserX } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -136,6 +136,20 @@ export default function DashboardSidebar({
           <Settings className="w-5 h-5" />
           <span>설정으로 이동</span>
         </Link>
+        <div className="mt-1 pt-2 border-t border-gray-100">
+          <Link
+            href={`/dashboard/guild/${selectedGuildId}/help`}
+            onClick={close}
+            className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+              pathname === `/dashboard/guild/${selectedGuildId}/help`
+                ? "bg-indigo-50 text-indigo-700 font-medium"
+                : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            }`}
+          >
+            <HelpCircle className="w-5 h-5" />
+            <span>도움말</span>
+          </Link>
+        </div>
       </div>
     </div>
   );
