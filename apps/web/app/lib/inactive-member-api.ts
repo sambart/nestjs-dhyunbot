@@ -84,15 +84,7 @@ export type InactiveMemberConfigSaveDto = Partial<
 
 // ─── 유틸 함수 ───────────────────────────────────────────────────────────────
 
-/** totalMinutes → "N시간 M분" 또는 "M분" 형식 */
-export function formatMinutes(totalMinutes: number): string {
-  if (totalMinutes <= 0) return '0분';
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes}분`;
-  if (minutes === 0) return `${hours}시간`;
-  return `${hours}시간 ${minutes}분`;
-}
+export { formatMinutes } from './format-utils';
 
 /** 'YYYY-MM-DD' → 'MM/DD' 형식 (차트 X축용) */
 export function formatTrendDate(isoDate: string): string {

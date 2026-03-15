@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
 import { LocaleResolverService } from '../application/locale-resolver.service';
 
 class SetLocaleDto {

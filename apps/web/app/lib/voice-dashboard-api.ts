@@ -67,13 +67,7 @@ export interface VoiceUserStat {
 
 // ─── 유틸리티 ────────────────────────────────────────────────────────────────
 
-/** 초를 "HH시간 MM분" 형식으로 변환 */
-export function formatDuration(totalSec: number): string {
-  const hours = Math.floor(totalSec / 3600);
-  const minutes = Math.floor((totalSec % 3600) / 60);
-  if (hours > 0) return `${hours}시간 ${minutes}분`;
-  return `${minutes}분`;
-}
+export { formatDuration } from './format-utils';
 
 /** YYYYMMDD → MM/DD 형식 */
 export function formatDate(yyyymmdd: string): string {

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { NewbieMocoTemplateSaveDto } from '../dto/newbie-moco-template-save.dto';
+import { NewbieMocoTemplateSaveDto } from '../presentation/dto/newbie-moco-template-save.dto';
 import { NewbieMocoTemplateOrmEntity as NewbieMocoTemplate } from './newbie-moco-template.orm-entity';
 
 @Injectable()

@@ -16,7 +16,8 @@ import {
 import { Client } from 'discord.js';
 import type { Request } from 'express';
 
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
+import type { JwtUser } from '../../common/types/jwt-user.types';
 import { InactiveMemberService } from '../application/inactive-member.service';
 import { InactiveMemberActionService } from '../application/inactive-member-action.service';
 import { InactiveMemberActionType } from '../domain/inactive-member.types';
@@ -42,11 +43,6 @@ interface EnrichedMember {
   lastVoiceDate: string | null;
   gradeChangedAt: Date | null;
   classifiedAt: Date;
-}
-
-interface JwtUser {
-  discordId: string;
-  username: string;
 }
 
 @Controller('api/guilds/:guildId/inactive-members')

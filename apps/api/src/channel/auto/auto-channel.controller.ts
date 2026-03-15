@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
 import { AutoChannelSaveDto } from './dto/auto-channel-save.dto';
 import { AutoChannelConfigRepository } from './infrastructure/auto-channel-config.repository';
 import { AutoChannelDiscordGateway } from './infrastructure/auto-channel-discord.gateway';

@@ -2,27 +2,19 @@ import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ChannelType, Client } from 'discord.js';
 
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/infrastructure/jwt-auth.guard';
 
 @Controller('api/guilds/:guildId')
 @UseGuards(JwtAuthGuard)
 export class GuildInfoController {
-  constructor(
-    @InjectDiscordClient() private readonly client: Client,
-  ) {}
+  constructor(@InjectDiscordClient() private readonly client: Client) {}
 
   @Get('channels')
-  async getChannels(
-    @Param('guildId') guildId: string,
-    @Query('refresh') refresh?: string,
-  ) {
+  async getChannels(@Param('guildId') guildId: string, @Query('refresh') refresh?: string) {
     const guild = this.client.guilds.cache.get(guildId);
     if (!guild) return [];
 
-    const channels =
-      refresh === 'true'
-        ? await guild.channels.fetch()
-        : guild.channels.cache;
+    const channels = refresh === 'true' ? await guild.channels.fetch() : guild.channels.cache;
 
     return channels
       .filter((ch) => ch !== null)
@@ -32,22 +24,18 @@ export class GuildInfoController {
         type: ch!.type,
       }))
       .filter((ch) =>
-        [ChannelType.GuildText, ChannelType.GuildVoice, ChannelType.GuildCategory].includes(ch.type),
+        [ChannelType.GuildText, ChannelType.GuildVoice, ChannelType.GuildCategory].includes(
+          ch.type,
+        ),
       );
   }
 
   @Get('roles')
-  async getRoles(
-    @Param('guildId') guildId: string,
-    @Query('refresh') refresh?: string,
-  ) {
+  async getRoles(@Param('guildId') guildId: string, @Query('refresh') refresh?: string) {
     const guild = this.client.guilds.cache.get(guildId);
     if (!guild) return [];
 
-    const roles =
-      refresh === 'true'
-        ? await guild.roles.fetch()
-        : guild.roles.cache;
+    const roles = refresh === 'true' ? await guild.roles.fetch() : guild.roles.cache;
 
     return roles
       .filter((role) => !role.managed && role.name !== '@everyone')
@@ -60,17 +48,11 @@ export class GuildInfoController {
   }
 
   @Get('emojis')
-  async getEmojis(
-    @Param('guildId') guildId: string,
-    @Query('refresh') refresh?: string,
-  ) {
+  async getEmojis(@Param('guildId') guildId: string, @Query('refresh') refresh?: string) {
     const guild = this.client.guilds.cache.get(guildId);
     if (!guild) return [];
 
-    const emojis =
-      refresh === 'true'
-        ? await guild.emojis.fetch()
-        : guild.emojis.cache;
+    const emojis = refresh === 'true' ? await guild.emojis.fetch() : guild.emojis.cache;
 
     return emojis
       .filter((emoji) => emoji.available !== false)

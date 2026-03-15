@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
 import { RedisService } from '../../redis/redis.service';
 import { VoiceAiAnalysisService } from '../application/voice-ai-analysis.service';
 import { VoiceAnalyticsService } from '../application/voice-analytics.service';

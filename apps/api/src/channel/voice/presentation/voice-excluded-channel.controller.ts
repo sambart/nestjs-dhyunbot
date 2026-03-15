@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../auth/infrastructure/jwt-auth.guard';
 import { VoiceExcludedChannelService } from '../application/voice-excluded-channel.service';
 import { VoiceExcludedChannelSaveDto } from '../dto/voice-excluded-channel-save.dto';
 import { VoiceExcludedChannelSyncDto } from '../dto/voice-excluded-channel-sync.dto';

@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../auth/infrastructure/jwt-auth.guard';
 import { VoiceDailyService } from '../application/voice-daily.service';
 import { VoiceDailyQueryDto } from '../dto/voice-daily-query.dto';
 import { VoiceDailyRecordDto } from '../dto/voice-daily-record.dto';

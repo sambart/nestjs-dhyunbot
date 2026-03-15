@@ -1,12 +1,6 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
 import {
   BotStatusResponse,
   MetricsResponse,
@@ -23,9 +17,7 @@ export class MonitoringController {
    * 실시간 봇 상태 조회 (F-MONITORING-001)
    */
   @Get('status')
-  async getStatus(
-    @Param('guildId') guildId: string,
-  ): Promise<BotStatusResponse> {
+  async getStatus(@Param('guildId') guildId: string): Promise<BotStatusResponse> {
     return this.monitoringService.getStatus(guildId);
   }
 
@@ -41,20 +33,11 @@ export class MonitoringController {
     @Query('interval') interval?: string,
   ): Promise<MetricsResponse> {
     const to = toStr ? new Date(toStr) : new Date();
-    const from = fromStr
-      ? new Date(fromStr)
-      : new Date(to.getTime() - 24 * 60 * 60 * 1000);
+    const from = fromStr ? new Date(fromStr) : new Date(to.getTime() - 24 * 60 * 60 * 1000);
 
     const validIntervals = ['1m', '5m', '1h', '1d'];
-    const resolvedInterval = validIntervals.includes(interval ?? '')
-      ? interval!
-      : '1m';
+    const resolvedInterval = validIntervals.includes(interval ?? '') ? interval! : '1m';
 
-    return this.monitoringService.getMetrics(
-      guildId,
-      from,
-      to,
-      resolvedInterval,
-    );
+    return this.monitoringService.getMetrics(guildId, from, to, resolvedInterval);
   }
 }

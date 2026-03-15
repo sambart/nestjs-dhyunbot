@@ -102,29 +102,10 @@ export interface PairDetail {
   dailyData: { date: string; minutes: number }[];
 }
 
-// ─── 유틸리티 ────────────────────────────────────────────────────────────────
-
-/** 분 → "X시간 Y분" 또는 "Y분" 포맷 */
-export function formatMinutes(totalMinutes: number): string {
-  if (totalMinutes <= 0) return '0분';
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes}분`;
-  if (minutes === 0) return `${hours}시간`;
-  return `${hours}시간 ${minutes}분`;
-}
-
-/** ISO 날짜 문자열 → 'MM/DD' 형식 ('YYYY-MM-DD' 및 'YYYY-MM-DDTHH:mm:ss' 모두 지원) */
-export function formatShortDate(isoDate: string): string {
-  const dateOnly = isoDate.slice(0, 10);
-  const parts = dateOnly.split('-');
-  if (parts.length < 3) return isoDate;
-  return `${parts[1]}/${parts[2]}`;
-}
-
 // ─── API 함수 ────────────────────────────────────────────────────────────────
 
 import { apiClient } from './api-client';
+export { formatMinutes, formatShortDate } from './format-utils';
 
 /** F-007: 관계 분석 요약 카드 데이터 조회 */
 export async function fetchCoPresenceSummary(

@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
 import { getErrorStack } from '../../common/util/error.util';
 import { MissionService } from '../application/mission/mission.service';
 import { MocoService } from '../application/moco/moco.service';

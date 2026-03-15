@@ -1,13 +1,9 @@
 import { Controller, Delete, HttpCode, HttpStatus, Logger, Req, UseGuards } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../auth/infrastructure/jwt-auth.guard';
+import type { JwtUser } from '../../../common/types/jwt-user.types';
 import { type DataDeletionResult, DataDeletionService } from '../application/data-deletion.service';
-
-interface JwtUser {
-  discordId: string;
-  username: string;
-}
 
 interface DeletedCountDto {
   deletedCount: DataDeletionResult;

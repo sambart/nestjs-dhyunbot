@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
 import { StickyMessageConfigService } from '../application/sticky-message-config.service';
 import { StickyMessageSaveDto } from '../dto/sticky-message-save.dto';
 import type { StickyMessageConfigOrm } from '../infrastructure/sticky-message-config.orm-entity';
