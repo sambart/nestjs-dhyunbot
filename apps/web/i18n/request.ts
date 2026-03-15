@@ -3,6 +3,37 @@ import { getRequestConfig } from 'next-intl/server';
 
 import { defaultLocale, type Locale, LOCALE_COOKIE, locales } from './config';
 
+// 정적 import (Turbopack 호환 — 동적 경로 변수 resolve 불가)
+import koCommon from '../../../libs/i18n/locales/ko/web/common.json';
+import koLanding from '../../../libs/i18n/locales/ko/web/landing.json';
+import koDashboard from '../../../libs/i18n/locales/ko/web/dashboard.json';
+import koSettings from '../../../libs/i18n/locales/ko/web/settings.json';
+import koAuth from '../../../libs/i18n/locales/ko/web/auth.json';
+
+import enCommon from '../../../libs/i18n/locales/en/web/common.json';
+import enLanding from '../../../libs/i18n/locales/en/web/landing.json';
+import enDashboard from '../../../libs/i18n/locales/en/web/dashboard.json';
+import enSettings from '../../../libs/i18n/locales/en/web/settings.json';
+import enAuth from '../../../libs/i18n/locales/en/web/auth.json';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const messages: Record<Locale, Record<string, any>> = {
+  ko: {
+    common: koCommon,
+    landing: koLanding,
+    dashboard: koDashboard,
+    settings: koSettings,
+    auth: koAuth,
+  },
+  en: {
+    common: enCommon,
+    landing: enLanding,
+    dashboard: enDashboard,
+    settings: enSettings,
+    auth: enAuth,
+  },
+};
+
 function negotiateLocale(acceptLanguage: string): Locale {
   const segments = acceptLanguage.split(',');
   for (const segment of segments) {
@@ -13,28 +44,18 @@ function negotiateLocale(acceptLanguage: string): Locale {
   return defaultLocale;
 }
 
-async function loadMessages(locale: Locale) {
-  return {
-    common: (await import(`@dhyunbot/i18n/locales/${locale}/web/common.json`)).default,
-    landing: (await import(`@dhyunbot/i18n/locales/${locale}/web/landing.json`)).default,
-    dashboard: (await import(`@dhyunbot/i18n/locales/${locale}/web/dashboard.json`)).default,
-    settings: (await import(`@dhyunbot/i18n/locales/${locale}/web/settings.json`)).default,
-    auth: (await import(`@dhyunbot/i18n/locales/${locale}/web/auth.json`)).default,
-  };
-}
-
 export default getRequestConfig(async () => {
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(LOCALE_COOKIE)?.value;
 
   if (cookieLocale && locales.includes(cookieLocale as Locale)) {
     const locale = cookieLocale as Locale;
-    return { locale, messages: await loadMessages(locale) };
+    return { locale, messages: messages[locale] };
   }
 
   const headerStore = await headers();
   const acceptLang = headerStore.get('accept-language') ?? '';
   const detected = negotiateLocale(acceptLang);
 
-  return { locale: detected, messages: await loadMessages(detected) };
+  return { locale: detected, messages: messages[detected] };
 });
