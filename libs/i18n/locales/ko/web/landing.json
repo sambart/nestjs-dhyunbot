@@ -1,33 +1,61 @@
 {
-  "hero.description": "음성 채널 통계, 자동 채널 생성, 음악 재생 등을 지원하는 디스코드 봇입니다",
-  "hero.cta.invite": "서버에 추가하기",
-  "hero.cta.features": "기능 목록",
-  "features.sectionTitle": "기능",
-  "features.voiceStats.title": "음성 채널 통계",
-  "features.voiceStats.description": "멤버별 음성 채널 접속 시간을 기록하고, 일별/주별/월별 통계를 대시보드에서 확인할 수 있습니다",
-  "features.autoChannel.title": "자동 채널 생성",
-  "features.autoChannel.description": "지정된 음성 채널에 입장하면 개인 채널이 자동 생성되고, 모두 퇴장하면 자동 삭제됩니다",
-  "features.music.title": "음악 재생",
-  "features.music.description": "/play 명령어로 YouTube 음악을 음성 채널에서 재생할 수 있습니다",
-  "features.gemini.title": "Gemini 음성 분석",
-  "features.gemini.description": "음성 채널 대화를 Gemini AI로 분석하여 요약 리포트를 생성합니다",
-  "features.newbie.title": "신규 멤버 환영",
-  "features.newbie.description": "서버에 새 멤버가 참여하면 환영 메시지를 자동으로 전송합니다",
-  "features.dashboard.title": "웹 대시보드",
-  "features.dashboard.description": "Discord 로그인으로 접속하여 봇 설정과 통계를 웹에서 관리할 수 있습니다",
-  "setup.sectionTitle": "설정 가이드",
-  "setup.sectionDescription": "봇의 모든 기능이 정상 동작하려면 역할 설정이 필요합니다",
-  "setup.step1.title": "봇을 서버에 추가",
-  "setup.step1.description": "상단의 \"서버에 추가하기\" 버튼을 클릭하여 봇을 초대합니다. 필요한 최소 권한만 요청합니다.",
-  "setup.step2.title": "봇 역할을 최상위로 이동",
-  "setup.step2.description": "닉네임 변경, 역할 관리 등의 기능은 Discord의 역할 계층 규칙에 따라 봇 역할보다 하위에 있는 멤버에게만 적용됩니다.",
-  "setup.step2.howTo": "설정 방법",
-  "setup.step2.step1": "서버 설정 → 역할 메뉴로 이동",
-  "setup.step2.step2": "Dhyunbot 역할을 드래그하여 관리 대상 역할보다 위로 배치",
-  "setup.step2.step3": "변경사항 저장",
-  "setup.step2.notice": "* 서버 소유자의 닉네임은 어떤 봇도 변경할 수 없습니다",
-  "setup.step3.title": "웹 대시보드에서 설정",
-  "setup.step3.description": "Discord 계정으로 로그인한 뒤, 대시보드에서 자동 채널, 환영 메시지 등 세부 기능을 설정합니다.",
-  "footer.privacy": "개인정보처리방침",
-  "footer.terms": "이용약관"
+  "hero": {
+    "description": "음성 채널 통계, 자동 채널 생성, 음악 재생 등을 지원하는 디스코드 봇입니다",
+    "cta": {
+      "invite": "서버에 추가하기",
+      "features": "기능 목록"
+    }
+  },
+  "features": {
+    "sectionTitle": "기능",
+    "voiceStats": {
+      "title": "음성 채널 통계",
+      "description": "멤버별 음성 채널 접속 시간을 기록하고, 일별/주별/월별 통계를 대시보드에서 확인할 수 있습니다"
+    },
+    "autoChannel": {
+      "title": "자동 채널 생성",
+      "description": "지정된 음성 채널에 입장하면 개인 채널이 자동 생성되고, 모두 퇴장하면 자동 삭제됩니다"
+    },
+    "music": {
+      "title": "음악 재생",
+      "description": "/play 명령어로 YouTube 음악을 음성 채널에서 재생할 수 있습니다"
+    },
+    "gemini": {
+      "title": "Gemini 음성 분석",
+      "description": "음성 채널 대화를 Gemini AI로 분석하여 요약 리포트를 생성합니다"
+    },
+    "newbie": {
+      "title": "신규 멤버 환영",
+      "description": "서버에 새 멤버가 참여하면 환영 메시지를 자동으로 전송합니다"
+    },
+    "dashboard": {
+      "title": "웹 대시보드",
+      "description": "Discord 로그인으로 접속하여 봇 설정과 통계를 웹에서 관리할 수 있습니다"
+    }
+  },
+  "setup": {
+    "sectionTitle": "설정 가이드",
+    "sectionDescription": "봇의 모든 기능이 정상 동작하려면 역할 설정이 필요합니다",
+    "step1": {
+      "title": "봇을 서버에 추가",
+      "description": "상단의 \"서버에 추가하기\" 버튼을 클릭하여 봇을 초대합니다. 필요한 최소 권한만 요청합니다."
+    },
+    "step2": {
+      "title": "봇 역할을 최상위로 이동",
+      "description": "닉네임 변경, 역할 관리 등의 기능은 Discord의 역할 계층 규칙에 따라 봇 역할보다 하위에 있는 멤버에게만 적용됩니다.",
+      "howTo": "설정 방법",
+      "step1": "서버 설정 → 역할 메뉴로 이동",
+      "step2": "Dhyunbot 역할을 드래그하여 관리 대상 역할보다 위로 배치",
+      "step3": "변경사항 저장",
+      "notice": "* 서버 소유자의 닉네임은 어떤 봇도 변경할 수 없습니다"
+    },
+    "step3": {
+      "title": "웹 대시보드에서 설정",
+      "description": "Discord 계정으로 로그인한 뒤, 대시보드에서 자동 채널, 환영 메시지 등 세부 기능을 설정합니다."
+    }
+  },
+  "footer": {
+    "privacy": "개인정보처리방침",
+    "terms": "이용약관"
+  }
 }

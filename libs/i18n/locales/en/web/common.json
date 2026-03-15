@@ -1,36 +1,50 @@
 {
-  "nav.home": "Home",
-  "nav.dashboard": "Dashboard",
-  "nav.settings": "Settings",
-  "auth.login": "Login",
-  "auth.logout": "Logout",
-  "sidebar.open": "Open sidebar",
-  "sidebar.server": "Server",
-  "sidebar.dashboard": "Dashboard",
-  "sidebar.overview": "Overview",
-  "sidebar.voice": "Voice Activity",
-  "sidebar.newbie": "Newbie Management",
-  "sidebar.inactiveMember": "Inactive Members",
-  "sidebar.coPresence": "Relationship Analysis",
-  "sidebar.monitoring": "Monitoring",
-  "sidebar.settings": "Go to Settings",
-  "sidebar.help": "Help",
-  "sidebar.switchServer": "Switch Server",
-  "settings.general": "General Settings",
-  "settings.autoChannel": "Auto Channel Settings",
-  "settings.newbie": "Newbie Management",
-  "settings.statusPrefix": "Game Room Status Settings",
-  "settings.stickyMessage": "Sticky Message",
-  "settings.voice": "Voice Settings",
-  "settings.inactiveMember": "Inactive Member Settings",
-  "settings.voiceHealth": "Self-Diagnosis Settings",
-  "settings.sectionTitle": "Settings",
-  "sidebar.toDashboard": "Go to Dashboard",
-  "footer.privacy": "Privacy Policy",
-  "footer.terms": "Terms of Service",
-  "time.hours": "{hours}h",
-  "time.minutes": "{minutes}m",
-  "time.hoursMinutes": "{hours}h {minutes}m",
-  "time.days": "{days}d",
-  "timezone.label": "(KST)"
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "settings": "Settings"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout"
+  },
+  "sidebar": {
+    "open": "Open sidebar",
+    "server": "Server",
+    "dashboard": "Dashboard",
+    "overview": "Overview",
+    "voice": "Voice Activity",
+    "newbie": "Newbie Management",
+    "inactiveMember": "Inactive Members",
+    "coPresence": "Relationship Analysis",
+    "monitoring": "Monitoring",
+    "settings": "Go to Settings",
+    "help": "Help",
+    "switchServer": "Switch Server",
+    "toDashboard": "Go to Dashboard"
+  },
+  "settings": {
+    "general": "General Settings",
+    "autoChannel": "Auto Channel Settings",
+    "newbie": "Newbie Management",
+    "statusPrefix": "Game Room Status Settings",
+    "stickyMessage": "Sticky Message",
+    "voice": "Voice Settings",
+    "inactiveMember": "Inactive Member Settings",
+    "voiceHealth": "Self-Diagnosis Settings",
+    "sectionTitle": "Settings"
+  },
+  "footer": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service"
+  },
+  "time": {
+    "hours": "{hours}h",
+    "minutes": "{minutes}m",
+    "hoursMinutes": "{hours}h {minutes}m",
+    "days": "{days}d"
+  },
+  "timezone": {
+    "label": "(KST)"
+  }
 }
