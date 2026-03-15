@@ -69,9 +69,9 @@ export default function MicDistributionChart({ summary }: Props) {
               dataKey="value"
               nameKey="name"
               cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={100}
+              cy="45%"
+              innerRadius="40%"
+              outerRadius="65%"
               paddingAngle={2}
             >
               {chartData.map((_, index) => (

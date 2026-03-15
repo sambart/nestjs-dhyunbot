@@ -37,7 +37,7 @@ export default function WeeklyVoiceChart({ data }: Props) {
         <ChartContainer config={chartConfig} className="h-[250px] w-full">
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" tickLine={false} axisLine={false} />
+            <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
             <YAxis tickLine={false} axisLine={false} />
             <ChartTooltip content={<ChartTooltipContent />} />
             <Bar

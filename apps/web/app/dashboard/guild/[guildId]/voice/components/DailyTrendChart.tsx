@@ -61,7 +61,7 @@ export default function DailyTrendChart({ data }: Props) {
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
           <AreaChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" tickLine={false} axisLine={false} />
+            <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} interval="preserveStartEnd" />
             <YAxis tickLine={false} axisLine={false} />
             <ChartTooltip content={<ChartTooltipContent />} />
             <ChartLegend content={<ChartLegendContent />} />

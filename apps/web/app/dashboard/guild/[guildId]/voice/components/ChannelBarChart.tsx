@@ -109,7 +109,9 @@ export default function ChannelBarChart({ data, records }: Props) {
               dataKey="name"
               tickLine={false}
               axisLine={false}
-              width={140}
+              width={100}
+              tick={{ fontSize: 12 }}
+              tickFormatter={(value: string) => value.length > 8 ? `${value.slice(0, 8)}…` : value}
             />
             <ChartTooltip content={<ChartTooltipContent />} />
             <Bar

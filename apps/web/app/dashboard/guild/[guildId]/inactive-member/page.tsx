@@ -210,9 +210,9 @@ export default function InactiveMemberPage() {
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">비활동 회원 관리</h1>
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl md:text-2xl font-bold">비활동 회원 관리</h1>
         <div className="flex items-center gap-3">
           {classifyResult && (
             <span className="text-sm text-green-600">{classifyResult}</span>
@@ -256,11 +256,11 @@ export default function InactiveMemberPage() {
           )}
 
           {/* 필터바 */}
-          <div className="flex flex-wrap gap-3 items-center">
+          <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
             <select
               value={gradeFilter}
               onChange={(e) => handleGradeFilterChange(e.target.value)}
-              className="w-[160px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full sm:w-[160px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="all">등급 전체</option>
               <option value="FULLY_INACTIVE">완전 비활동</option>
@@ -273,13 +273,13 @@ export default function InactiveMemberPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="닉네임 검색..."
-              className="w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full sm:w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
 
             <select
               value={sortBy}
               onChange={(e) => handleSortByChange(e.target.value)}
-              className="w-[160px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full sm:w-[160px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="lastVoiceDate">마지막 접속일</option>
               <option value="totalMinutes">접속 시간</option>
@@ -288,7 +288,7 @@ export default function InactiveMemberPage() {
             <select
               value={sortOrder}
               onChange={(e) => handleSortOrderChange(e.target.value)}
-              className="w-[120px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full sm:w-[120px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="ASC">오름차순</option>
               <option value="DESC">내림차순</option>
