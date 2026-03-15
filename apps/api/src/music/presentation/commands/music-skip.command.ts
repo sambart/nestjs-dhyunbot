@@ -2,28 +2,42 @@ import { Command, EventParams, Handler } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { ClientEvents } from 'discord.js';
 
+import { BotI18nService } from '../../../common/application/bot-i18n.service';
+import { LocaleResolverService } from '../../../common/application/locale-resolver.service';
 import { MusicService } from '../../application/music.service';
 
 @Injectable()
 @Command({
   name: 'skip',
-  description: '음악을 스킵합니다.',
+  description: 'Skip the current song',
+  nameLocalizations: { ko: '스킵' },
+  descriptionLocalizations: { ko: '음악을 스킵합니다.' },
 })
 export class MusicSkipCommand {
   private readonly logger = new Logger(MusicSkipCommand.name);
-  constructor(private readonly musicService: MusicService) {}
+
+  constructor(
+    private readonly musicService: MusicService,
+    private readonly i18n: BotI18nService,
+    private readonly localeResolver: LocaleResolverService,
+  ) {}
 
   @Handler()
   async onSkip(@EventParams() args: ClientEvents['interactionCreate']): Promise<void> {
     const [interaction] = args;
     if (!interaction.isChatInputCommand()) return;
 
+    const locale = await this.localeResolver.resolve(
+      interaction.user.id,
+      interaction.guildId,
+      interaction.locale,
+    );
+
     try {
       await this.musicService.skip(interaction);
-      //await interaction.reply(`Playing: ${dto.url}`);
     } catch (error) {
       this.logger.error('Error skip music:', error);
-      await interaction.reply('음악을 스킵하는 동안 오류가 발생했습니다.');
+      await interaction.reply(this.i18n.t(locale, 'music.skipError'));
     }
   }
 }

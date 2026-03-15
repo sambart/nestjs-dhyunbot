@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { AutoChannelModule } from './channel/auto/auto-channel.module';
 import { ChannelModule } from './channel/channel.module';
 import { VoiceChannelModule } from './channel/voice/voice-channel.module';
+import { CommonModule } from './common/common.module';
 import { GuildMembershipGuard } from './common/guards/guild-membership.guard';
 import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 import { BaseConfig } from './config/base.config';
@@ -66,6 +67,7 @@ import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
     DiscordEventsModule,
     RedisModule,
     HealthModule,
+    CommonModule,
     VoiceAnalyticsModule,
     AuthModule,
     VersionModule,

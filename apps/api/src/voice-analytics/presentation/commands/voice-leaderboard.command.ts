@@ -3,28 +3,42 @@ import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Colors, CommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 
+import { BotI18nService } from '../../../common/application/bot-i18n.service';
+import { LocaleResolverService } from '../../../common/application/locale-resolver.service';
 import { VoiceAnalyticsService } from '../../application/voice-analytics.service';
 import { AnalyticsDaysDto } from './analytics-days.dto';
 
 @Command({
   name: 'voice-leaderboard',
-  description: '음성 채널 활동 리더보드를 표시합니다',
+  description: 'Show the voice channel activity leaderboard',
+  nameLocalizations: { ko: '음성리더보드' },
+  descriptionLocalizations: { ko: '음성 채널 활동 리더보드를 표시합니다' },
   defaultMemberPermissions: PermissionFlagsBits.Administrator,
 })
 @Injectable()
 export class VoiceLeaderboardCommand {
   private readonly logger = new Logger(VoiceLeaderboardCommand.name);
 
-  constructor(private readonly analyticsService: VoiceAnalyticsService) {}
+  constructor(
+    private readonly analyticsService: VoiceAnalyticsService,
+    private readonly i18n: BotI18nService,
+    private readonly localeResolver: LocaleResolverService,
+  ) {}
 
   @Handler()
   async onVoiceLeaderboard(
     @InteractionEvent() interaction: CommandInteraction,
     @InteractionEvent(SlashCommandPipe) dto: AnalyticsDaysDto,
   ): Promise<void> {
+    const locale = await this.localeResolver.resolve(
+      interaction.user.id,
+      interaction.guildId,
+      interaction.locale,
+    );
+
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
       await interaction.reply({
-        content: '관리자만 사용할 수 있는 명령어입니다.',
+        content: this.i18n.t(locale, 'errors.adminOnly'),
         ephemeral: true,
       });
       return;
@@ -35,7 +49,7 @@ export class VoiceLeaderboardCommand {
     try {
       const guildId = interaction.guildId;
       if (!guildId) {
-        await interaction.editReply('서버에서만 사용 가능한 명령어입니다.');
+        await interaction.editReply(this.i18n.t(locale, 'errors.guildOnly'));
         return;
       }
 
@@ -48,7 +62,7 @@ export class VoiceLeaderboardCommand {
       );
 
       if (activityData.userActivities.length === 0) {
-        await interaction.editReply('활동 데이터가 없습니다.');
+        await interaction.editReply(this.i18n.t(locale, 'voice.leaderboardNoData'));
         return;
       }
 
@@ -72,7 +86,7 @@ export class VoiceLeaderboardCommand {
         .join('\n\n');
 
       const embed = new EmbedBuilder()
-        .setTitle(`🏆 음성 채널 리더보드 (최근 ${days}일)`)
+        .setTitle(this.i18n.t(locale, 'voice.leaderboardTitle', { days }))
         .setColor(Colors.Gold)
         .setDescription(leaderboard)
         .setTimestamp();
@@ -81,7 +95,7 @@ export class VoiceLeaderboardCommand {
     } catch (error) {
       this.logger.error('Voice leaderboard command error:', error);
       await interaction.editReply({
-        content: '리더보드 조회 중 오류가 발생했습니다.',
+        content: this.i18n.t(locale, 'voice.leaderboardError'),
       });
     }
   }

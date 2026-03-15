@@ -4,13 +4,17 @@ import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Colors, CommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 
+import { BotI18nService } from '../../../common/application/bot-i18n.service';
+import { LocaleResolverService } from '../../../common/application/locale-resolver.service';
 import { VoiceAiAnalysisService } from '../../application/voice-ai-analysis.service';
 import { VoiceAnalyticsService } from '../../application/voice-analytics.service';
 import { AnalyticsDaysDto } from './analytics-days.dto';
 
 @Command({
   name: 'voice-stats',
-  description: '서버의 음성 채널 활동을 AI로 분석합니다',
+  description: 'Analyze voice channel activity with AI',
+  nameLocalizations: { ko: '음성통계' },
+  descriptionLocalizations: { ko: '서버의 음성 채널 활동을 AI로 분석합니다' },
   defaultMemberPermissions: PermissionFlagsBits.Administrator,
 })
 @Injectable()
@@ -20,6 +24,8 @@ export class VoiceStatsCommand {
   constructor(
     private readonly aiAnalysisService: VoiceAiAnalysisService,
     private readonly analyticsService: VoiceAnalyticsService,
+    private readonly i18n: BotI18nService,
+    private readonly localeResolver: LocaleResolverService,
   ) {}
 
   @Handler()
@@ -27,9 +33,15 @@ export class VoiceStatsCommand {
     @InteractionEvent() interaction: CommandInteraction,
     @InteractionEvent(SlashCommandPipe) dto: AnalyticsDaysDto,
   ): Promise<void> {
+    const locale = await this.localeResolver.resolve(
+      interaction.user.id,
+      interaction.guildId,
+      interaction.locale,
+    );
+
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
       await interaction.reply({
-        content: '관리자만 사용할 수 있는 명령어입니다.',
+        content: this.i18n.t(locale, 'errors.adminOnly'),
         ephemeral: true,
       });
       return;
@@ -40,7 +52,7 @@ export class VoiceStatsCommand {
     try {
       const guildId = interaction.guildId;
       if (!guildId) {
-        await interaction.editReply('서버에서만 사용 가능한 명령어입니다.');
+        await interaction.editReply(this.i18n.t(locale, 'errors.guildOnly'));
         return;
       }
 
@@ -54,7 +66,7 @@ export class VoiceStatsCommand {
 
       if (activityData.userActivities.length === 0) {
         await interaction.editReply({
-          content: `최근 ${days}일간 음성 채널 활동이 없습니다. 😢`,
+          content: this.i18n.t(locale, 'voice.statsNoActivity', { days }),
         });
         return;
       }
@@ -64,33 +76,35 @@ export class VoiceStatsCommand {
       const formatTime = (seconds: number) => {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
-        return hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`;
+        return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
       };
 
       this.logger.debug('AI analysis result', analysis);
 
       const MAX_EMBED_DESCRIPTION = 4096;
-      const statsHeader =
-        `📊 **기본 통계**\n` +
-        `👥 총 활성 유저: ${activityData.totalStats.totalUsers}명\n` +
-        `🎙️ 총 음성 시간: ${formatTime(activityData.totalStats.totalVoiceTime)}\n` +
-        `🔊 마이크 사용 시간: ${formatTime(activityData.totalStats.totalMicOnTime)}\n` +
-        `📈 일평균 활성 유저: ${activityData.totalStats.avgDailyActiveUsers}명\n\n`;
+      const statsHeader = this.i18n.t(locale, 'voice.statsHeader', {
+        totalUsers: activityData.totalStats.totalUsers,
+        totalVoiceTime: formatTime(activityData.totalStats.totalVoiceTime),
+        totalMicOnTime: formatTime(activityData.totalStats.totalMicOnTime),
+        avgDailyActiveUsers: activityData.totalStats.avgDailyActiveUsers,
+      });
+
       const fullDescription = statsHeader + analysis.text;
       const useInlineAnalysis = fullDescription.length <= MAX_EMBED_DESCRIPTION;
 
+      const overflowSuffix = this.i18n.t(locale, 'voice.statsAnalysisOverflow');
       const embed = new EmbedBuilder()
-        .setTitle(`🎤 음성 채널 활동 분석 (최근 ${days}일)`)
+        .setTitle(this.i18n.t(locale, 'voice.statsTitle', { days }))
         .setColor(Colors.Blue)
         .setDescription(
           useInlineAnalysis
             ? fullDescription
             : statsHeader +
                 truncate(analysis.text, MAX_EMBED_DESCRIPTION - statsHeader.length - 100) +
-                '\n\n📄 **전체 분석은 아래 메시지를 확인하세요.**',
+                overflowSuffix,
         )
         .setTimestamp()
-        .setFooter({ text: '💡 Powered by Gemini AI' });
+        .setFooter({ text: this.i18n.t(locale, 'voice.statsFooter') });
 
       await interaction.editReply({ embeds: [embed] });
 
@@ -106,7 +120,7 @@ export class VoiceStatsCommand {
     } catch (error) {
       this.logger.error('Voice stats command error:', error);
       await interaction.editReply({
-        content: '분석 중 오류가 발생했습니다. 나중에 다시 시도해주세요.',
+        content: this.i18n.t(locale, 'voice.statsError'),
       });
     }
   }

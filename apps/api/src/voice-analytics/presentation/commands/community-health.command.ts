@@ -4,13 +4,17 @@ import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Colors, CommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 
+import { BotI18nService } from '../../../common/application/bot-i18n.service';
+import { LocaleResolverService } from '../../../common/application/locale-resolver.service';
 import { VoiceAiAnalysisService } from '../../application/voice-ai-analysis.service';
 import { VoiceAnalyticsService } from '../../application/voice-analytics.service';
 import { AnalyticsDaysDto } from './analytics-days.dto';
 
 @Command({
   name: 'community-health',
-  description: '서버 커뮤니티의 건강도를 AI로 진단합니다',
+  description: 'Diagnose server community health with AI',
+  nameLocalizations: { ko: '커뮤니티건강도' },
+  descriptionLocalizations: { ko: '서버 커뮤니티의 건강도를 AI로 진단합니다' },
   defaultMemberPermissions: PermissionFlagsBits.Administrator,
 })
 @Injectable()
@@ -20,6 +24,8 @@ export class CommunityHealthCommand {
   constructor(
     private readonly aiAnalysisService: VoiceAiAnalysisService,
     private readonly analyticsService: VoiceAnalyticsService,
+    private readonly i18n: BotI18nService,
+    private readonly localeResolver: LocaleResolverService,
   ) {}
 
   @Handler()
@@ -27,9 +33,15 @@ export class CommunityHealthCommand {
     @InteractionEvent() interaction: CommandInteraction,
     @InteractionEvent(SlashCommandPipe) dto: AnalyticsDaysDto,
   ): Promise<void> {
+    const locale = await this.localeResolver.resolve(
+      interaction.user.id,
+      interaction.guildId,
+      interaction.locale,
+    );
+
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
       await interaction.reply({
-        content: '관리자만 사용할 수 있는 명령어입니다.',
+        content: this.i18n.t(locale, 'errors.adminOnly'),
         ephemeral: true,
       });
       return;
@@ -40,7 +52,7 @@ export class CommunityHealthCommand {
     try {
       const guildId = interaction.guildId;
       if (!guildId) {
-        await interaction.editReply('서버에서만 사용 가능한 명령어입니다.');
+        await interaction.editReply(this.i18n.t(locale, 'errors.guildOnly'));
         return;
       }
 
@@ -54,7 +66,7 @@ export class CommunityHealthCommand {
 
       if (activityData.userActivities.length === 0) {
         await interaction.editReply({
-          content: '활동 데이터가 부족하여 건강도를 측정할 수 없습니다.',
+          content: this.i18n.t(locale, 'voice.communityHealthNoData'),
         });
         return;
       }
@@ -63,23 +75,23 @@ export class CommunityHealthCommand {
 
       const MAX_EMBED_DESCRIPTION = 4096;
       const needsSplit = healthText.length > MAX_EMBED_DESCRIPTION;
+      const overflowSuffix = this.i18n.t(locale, 'voice.communityHealthAnalysisOverflow');
 
       const embed = new EmbedBuilder()
-        .setTitle('🏥 커뮤니티 건강도 진단')
+        .setTitle(this.i18n.t(locale, 'voice.communityHealthTitle'))
         .setColor(Colors.Blue)
         .setDescription(
           needsSplit
-            ? truncate(healthText, MAX_EMBED_DESCRIPTION - 80) +
-                '\n\n📄 **전체 분석은 아래 메시지를 확인하세요.**'
+            ? truncate(healthText, MAX_EMBED_DESCRIPTION - 80) + overflowSuffix
             : healthText,
         )
         .addFields({
-          name: '📅 분석 기간',
-          value: `최근 ${days}일`,
+          name: this.i18n.t(locale, 'voice.communityHealthFieldPeriod'),
+          value: this.i18n.t(locale, 'voice.communityHealthPeriodValue', { days }),
           inline: false,
         })
         .setTimestamp()
-        .setFooter({ text: 'AI 기반 분석 결과' });
+        .setFooter({ text: this.i18n.t(locale, 'voice.communityHealthFooter') });
 
       await interaction.editReply({ embeds: [embed] });
 
@@ -92,7 +104,7 @@ export class CommunityHealthCommand {
     } catch (error) {
       this.logger.error('Community health command error:', error);
       await interaction.editReply({
-        content: '건강도 측정 중 오류가 발생했습니다.',
+        content: this.i18n.t(locale, 'voice.communityHealthError'),
       });
     }
   }

@@ -3,28 +3,42 @@ import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Colors, CommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 
+import { BotI18nService } from '../../../common/application/bot-i18n.service';
+import { LocaleResolverService } from '../../../common/application/locale-resolver.service';
 import { VoiceAnalyticsService } from '../../application/voice-analytics.service';
 import { AnalyticsDaysDto } from './analytics-days.dto';
 
 @Command({
   name: 'my-voice-stats',
-  description: '내 음성 채널 활동 통계를 확인합니다',
+  description: 'Check your voice channel activity stats',
+  nameLocalizations: { ko: '내음성통계' },
+  descriptionLocalizations: { ko: '내 음성 채널 활동 통계를 확인합니다' },
   defaultMemberPermissions: PermissionFlagsBits.Administrator,
 })
 @Injectable()
 export class MyVoiceStatsCommand {
   private readonly logger = new Logger(MyVoiceStatsCommand.name);
 
-  constructor(private readonly analyticsService: VoiceAnalyticsService) {}
+  constructor(
+    private readonly analyticsService: VoiceAnalyticsService,
+    private readonly i18n: BotI18nService,
+    private readonly localeResolver: LocaleResolverService,
+  ) {}
 
   @Handler()
   async onMyVoiceStats(
     @InteractionEvent() interaction: CommandInteraction,
     @InteractionEvent(SlashCommandPipe) dto: AnalyticsDaysDto,
   ): Promise<void> {
+    const locale = await this.localeResolver.resolve(
+      interaction.user.id,
+      interaction.guildId,
+      interaction.locale,
+    );
+
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
       await interaction.reply({
-        content: '관리자만 사용할 수 있는 명령어입니다.',
+        content: this.i18n.t(locale, 'errors.adminOnly'),
         ephemeral: true,
       });
       return;
@@ -37,7 +51,7 @@ export class MyVoiceStatsCommand {
       const userId = interaction.user.id;
 
       if (!guildId) {
-        await interaction.editReply('서버에서만 사용 가능한 명령어입니다.');
+        await interaction.editReply(this.i18n.t(locale, 'errors.guildOnly'));
         return;
       }
 
@@ -53,7 +67,7 @@ export class MyVoiceStatsCommand {
 
       if (!myActivity) {
         await interaction.editReply({
-          content: `최근 ${days}일간 음성 채널 활동 기록이 없습니다.`,
+          content: this.i18n.t(locale, 'voice.myStatsNoActivity', { days }),
         });
         return;
       }
@@ -61,33 +75,50 @@ export class MyVoiceStatsCommand {
       const formatTime = (seconds: number) => {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
-        return hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`;
+        return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
       };
 
       const userRank = activityData.userActivities.findIndex((u) => u.userId === userId) + 1;
 
       const embed = new EmbedBuilder()
-        .setTitle(`🎤 ${interaction.user.displayName}님의 음성 활동 통계`)
+        .setTitle(
+          this.i18n.t(locale, 'voice.myStatsTitle', {
+            displayName: interaction.user.displayName,
+          }),
+        )
         .setColor(Colors.Green)
         .setThumbnail(interaction.user.displayAvatarURL())
         .addFields(
           {
-            name: '📊 기본 통계',
+            name: this.i18n.t(locale, 'voice.myStatsFieldBasic'),
             value: [
-              `🏆 활동 순위: ${userRank}위 / ${activityData.totalStats.totalUsers}명`,
-              `🎙️ 총 음성 시간: ${formatTime(myActivity.totalVoiceTime)}`,
-              `🔊 마이크 켠 시간: ${formatTime(myActivity.totalMicOnTime)}`,
-              `🔇 마이크 끈 시간: ${formatTime(myActivity.totalMicOffTime)}`,
-              `👤 혼자 있던 시간: ${formatTime(myActivity.aloneTime)}`,
+              this.i18n.t(locale, 'voice.myStatsRank', {
+                rank: userRank,
+                total: activityData.totalStats.totalUsers,
+              }),
+              this.i18n.t(locale, 'voice.myStatsTotalVoiceTime', {
+                time: formatTime(myActivity.totalVoiceTime),
+              }),
+              this.i18n.t(locale, 'voice.myStatsMicOnTime', {
+                time: formatTime(myActivity.totalMicOnTime),
+              }),
+              this.i18n.t(locale, 'voice.myStatsMicOffTime', {
+                time: formatTime(myActivity.totalMicOffTime),
+              }),
+              this.i18n.t(locale, 'voice.myStatsAloneTime', {
+                time: formatTime(myActivity.aloneTime),
+              }),
             ].join('\n'),
             inline: false,
           },
           {
-            name: '📈 활동 패턴',
+            name: this.i18n.t(locale, 'voice.myStatsFieldPattern'),
             value: [
-              `📅 활동한 날: ${myActivity.activeDays}일`,
-              `⏱️ 일평균 음성 시간: ${formatTime(myActivity.avgDailyVoiceTime)}`,
-              `🎤 마이크 사용률: ${myActivity.micUsageRate}%`,
+              this.i18n.t(locale, 'voice.myStatsActiveDays', { days: myActivity.activeDays }),
+              this.i18n.t(locale, 'voice.myStatsAvgDaily', {
+                time: formatTime(myActivity.avgDailyVoiceTime),
+              }),
+              this.i18n.t(locale, 'voice.myStatsMicUsage', { rate: myActivity.micUsageRate }),
             ].join('\n'),
             inline: false,
           },
@@ -101,7 +132,7 @@ export class MyVoiceStatsCommand {
           .join('\n');
 
         embed.addFields({
-          name: '📺 자주 사용한 채널 TOP 5',
+          name: this.i18n.t(locale, 'voice.myStatsFieldTopChannels'),
           value: topChannels,
           inline: false,
         });
@@ -111,7 +142,7 @@ export class MyVoiceStatsCommand {
     } catch (error) {
       this.logger.error('My voice stats command error:', error);
       await interaction.editReply({
-        content: '통계 조회 중 오류가 발생했습니다.',
+        content: this.i18n.t(locale, 'voice.myStatsError'),
       });
     }
   }

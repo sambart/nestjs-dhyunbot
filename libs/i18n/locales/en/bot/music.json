@@ -1,1 +1,6 @@
-{}
+{
+  "joinVoiceChannel": "You must join a voice channel to play music.",
+  "playError": "An error occurred while playing the URL.",
+  "skipError": "An error occurred while skipping the music.",
+  "stopError": "An error occurred while stopping the music."
+}
