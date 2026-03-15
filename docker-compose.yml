@@ -32,6 +32,7 @@ services:
       - .env
     environment:
       - TURBOPACK_ROOT=/workspace
+      - WATCHPACK_POLLING=true
     volumes:
       - .:/workspace
       - root_node_modules:/workspace/node_modules

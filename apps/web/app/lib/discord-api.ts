@@ -1,3 +1,5 @@
+import { apiGet } from './api-client';
+
 export interface DiscordChannel {
   id: string;
   name: string;
@@ -10,18 +12,24 @@ export interface DiscordRole {
   color: number;
 }
 
+export interface DiscordEmoji {
+  id: string;
+  name: string;
+  animated: boolean;
+}
+
+export interface SlashCommand {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export async function fetchGuildChannels(
   guildId: string,
   refresh = false,
 ): Promise<DiscordChannel[]> {
-  try {
-    const url = `/api/guilds/${guildId}/channels${refresh ? '?refresh=true' : ''}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    return res.json() as Promise<DiscordChannel[]>;
-  } catch {
-    return [];
-  }
+  const qs = refresh ? '?refresh=true' : '';
+  return apiGet<DiscordChannel[]>(`/api/guilds/${guildId}/channels${qs}`, []);
 }
 
 export async function fetchGuildTextChannels(
@@ -36,34 +44,16 @@ export async function fetchGuildRoles(
   guildId: string,
   refresh = false,
 ): Promise<DiscordRole[]> {
-  try {
-    const url = `/api/guilds/${guildId}/roles${refresh ? '?refresh=true' : ''}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    return res.json() as Promise<DiscordRole[]>;
-  } catch {
-    return [];
-  }
-}
-
-export interface DiscordEmoji {
-  id: string;
-  name: string;
-  animated: boolean;
+  const qs = refresh ? '?refresh=true' : '';
+  return apiGet<DiscordRole[]>(`/api/guilds/${guildId}/roles${qs}`, []);
 }
 
 export async function fetchGuildEmojis(
   guildId: string,
   refresh = false,
 ): Promise<DiscordEmoji[]> {
-  try {
-    const url = `/api/guilds/${guildId}/emojis${refresh ? '?refresh=true' : ''}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    return res.json() as Promise<DiscordEmoji[]>;
-  } catch {
-    return [];
-  }
+  const qs = refresh ? '?refresh=true' : '';
+  return apiGet<DiscordEmoji[]>(`/api/guilds/${guildId}/emojis${qs}`, []);
 }
 
 export function getEmojiCdnUrl(id: string, animated: boolean, size = 32): string {
@@ -75,20 +65,8 @@ export function formatEmojiString(emoji: DiscordEmoji): string {
   return emoji.animated ? `<a:${emoji.name}:${emoji.id}>` : `<:${emoji.name}:${emoji.id}>`;
 }
 
-export interface SlashCommand {
-  id: string;
-  name: string;
-  description: string;
-}
-
 export async function fetchGuildCommands(
   guildId: string,
 ): Promise<SlashCommand[]> {
-  try {
-    const res = await fetch(`/api/guilds/${guildId}/commands`);
-    if (!res.ok) return [];
-    return res.json() as Promise<SlashCommand[]>;
-  } catch {
-    return [];
-  }
+  return apiGet<SlashCommand[]>(`/api/guilds/${guildId}/commands`, []);
 }

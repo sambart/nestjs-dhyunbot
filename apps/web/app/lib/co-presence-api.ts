@@ -124,18 +124,14 @@ export function formatShortDate(isoDate: string): string {
 
 // ─── API 함수 ────────────────────────────────────────────────────────────────
 
+import { apiClient } from './api-client';
+
 /** F-007: 관계 분석 요약 카드 데이터 조회 */
 export async function fetchCoPresenceSummary(
   guildId: string,
   days: number,
 ): Promise<CoPresenceSummary> {
-  const res = await fetch(
-    `/api/guilds/${guildId}/co-presence/summary?days=${days}`,
-  );
-  if (!res.ok) {
-    throw new Error('요약 데이터를 불러오는데 실패했습니다.');
-  }
-  return res.json() as Promise<CoPresenceSummary>;
+  return apiClient<CoPresenceSummary>(`/api/guilds/${guildId}/co-presence/summary?days=${days}`);
 }
 
 /** F-008: 네트워크 그래프 데이터 조회 */
@@ -144,13 +140,9 @@ export async function fetchCoPresenceGraph(
   days: number,
   minMinutes: number,
 ): Promise<CoPresenceGraphData> {
-  const res = await fetch(
+  return apiClient<CoPresenceGraphData>(
     `/api/guilds/${guildId}/co-presence/graph?days=${days}&minMinutes=${minMinutes}`,
   );
-  if (!res.ok) {
-    throw new Error('그래프 데이터를 불러오는데 실패했습니다.');
-  }
-  return res.json() as Promise<CoPresenceGraphData>;
 }
 
 /** F-009: 친밀도 TOP N 쌍 조회 */
@@ -159,13 +151,9 @@ export async function fetchTopPairs(
   days: number,
   limit: number,
 ): Promise<TopPair[]> {
-  const res = await fetch(
+  return apiClient<TopPair[]>(
     `/api/guilds/${guildId}/co-presence/top-pairs?days=${days}&limit=${limit}`,
   );
-  if (!res.ok) {
-    throw new Error('친밀도 TOP 쌍 데이터를 불러오는데 실패했습니다.');
-  }
-  return res.json() as Promise<TopPair[]>;
 }
 
 /** F-010: 고립 멤버 목록 조회 */
@@ -173,13 +161,7 @@ export async function fetchIsolatedMembers(
   guildId: string,
   days: number,
 ): Promise<IsolatedMember[]> {
-  const res = await fetch(
-    `/api/guilds/${guildId}/co-presence/isolated?days=${days}`,
-  );
-  if (!res.ok) {
-    throw new Error('고립 멤버 데이터를 불러오는데 실패했습니다.');
-  }
-  return res.json() as Promise<IsolatedMember[]>;
+  return apiClient<IsolatedMember[]>(`/api/guilds/${guildId}/co-presence/isolated?days=${days}`);
 }
 
 /** F-011: 관계 상세 테이블 조회 */
@@ -200,13 +182,7 @@ export async function fetchPairs({
   params.set('sortOrder', sortOrder);
   if (search) params.set('search', search);
 
-  const res = await fetch(
-    `/api/guilds/${guildId}/co-presence/pairs?${params.toString()}`,
-  );
-  if (!res.ok) {
-    throw new Error('관계 테이블 데이터를 불러오는데 실패했습니다.');
-  }
-  return res.json() as Promise<PairsResponse>;
+  return apiClient<PairsResponse>(`/api/guilds/${guildId}/co-presence/pairs?${params.toString()}`);
 }
 
 /** F-012: 일별 동시접속 추이 조회 */
@@ -214,13 +190,7 @@ export async function fetchDailyTrend(
   guildId: string,
   days: number,
 ): Promise<DailyTrendPoint[]> {
-  const res = await fetch(
-    `/api/guilds/${guildId}/co-presence/daily-trend?days=${days}`,
-  );
-  if (!res.ok) {
-    throw new Error('일별 추이 데이터를 불러오는데 실패했습니다.');
-  }
-  return res.json() as Promise<DailyTrendPoint[]>;
+  return apiClient<DailyTrendPoint[]>(`/api/guilds/${guildId}/co-presence/daily-trend?days=${days}`);
 }
 
 /** F-013: 특정 쌍 일별 상세 조회 */
@@ -235,11 +205,5 @@ export async function fetchPairDetail({
   params.set('userB', userB);
   params.set('days', String(days));
 
-  const res = await fetch(
-    `/api/guilds/${guildId}/co-presence/pair-detail?${params.toString()}`,
-  );
-  if (!res.ok) {
-    throw new Error('쌍 상세 데이터를 불러오는데 실패했습니다.');
-  }
-  return res.json() as Promise<PairDetail>;
+  return apiClient<PairDetail>(`/api/guilds/${guildId}/co-presence/pair-detail?${params.toString()}`);
 }

@@ -1,3 +1,5 @@
+import { ApiError, apiClient, apiGet } from './api-client';
+
 export interface NewbieConfig {
   // 환영인사
   welcomeEnabled: boolean;
@@ -46,33 +48,27 @@ export interface NewbieConfig {
 
 // ─── API 함수 ────────────────────────────────────────────────────────────────
 
-/**
- * 현재 서버의 신입 관리 설정을 조회한다.
- * 설정이 없으면 null을 반환한다 (백엔드가 404를 반환하는 경우 처리).
- */
+/** 현재 서버의 신입 관리 설정을 조회한다. 404 시 null 반환. */
 export async function fetchNewbieConfig(
   guildId: string,
 ): Promise<NewbieConfig | null> {
-  const res = await fetch(`/api/guilds/${guildId}/newbie/config`);
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Failed to fetch newbie config: ${res.status}`);
-  return res.json() as Promise<NewbieConfig>;
+  try {
+    return await apiClient<NewbieConfig>(`/api/guilds/${guildId}/newbie/config`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
 }
 
-/**
- * 신입 관리 설정을 저장한다.
- * 4개 탭 설정을 하나의 DTO로 일괄 전송한다.
- */
+/** 신입 관리 설정을 저장한다. */
 export async function saveNewbieConfig(
   guildId: string,
   config: NewbieConfig,
 ): Promise<void> {
-  const res = await fetch(`/api/guilds/${guildId}/newbie/config`, {
+  await apiClient<void>(`/api/guilds/${guildId}/newbie/config`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(config),
+    body: config,
   });
-  if (!res.ok) throw new Error(`Failed to save newbie config: ${res.status}`);
 }
 
 // ─── 미션 관리 (F-NEWBIE-005) ────────────────────────────────────────────────
@@ -110,13 +106,7 @@ export interface MissionActionResult {
 export async function fetchActiveMissions(
   guildId: string,
 ): Promise<MissionItem[]> {
-  try {
-    const res = await fetch(`/api/guilds/${guildId}/newbie/missions`);
-    if (!res.ok) return [];
-    return res.json() as Promise<MissionItem[]>;
-  } catch {
-    return [];
-  }
+  return apiGet<MissionItem[]>(`/api/guilds/${guildId}/newbie/missions`, []);
 }
 
 /** 전체 미션 이력 조회 (페이지네이션 + 상태 필터) */
@@ -131,9 +121,7 @@ export async function fetchMissionHistory(
   params.set('page', String(page));
   params.set('pageSize', String(pageSize));
 
-  const res = await fetch(`/api/guilds/${guildId}/newbie/missions/history?${params}`);
-  if (!res.ok) throw new Error(`Failed to fetch mission history: ${res.status}`);
-  return res.json() as Promise<MissionHistoryResponse>;
+  return apiClient<MissionHistoryResponse>(`/api/guilds/${guildId}/newbie/missions/history?${params}`);
 }
 
 /** 미션 수동 성공 처리 */
@@ -142,18 +130,10 @@ export async function completeMission(
   missionId: number,
   roleId?: string | null,
 ): Promise<MissionActionResult> {
-  const res = await fetch(`/api/guilds/${guildId}/newbie/missions/complete`, {
+  return apiClient<MissionActionResult>(`/api/guilds/${guildId}/newbie/missions/complete`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ missionId, roleId: roleId || null }),
+    body: { missionId, roleId: roleId || null },
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(
-      (body as { message?: string }).message ?? `성공 처리 실패: ${res.status}`,
-    );
-  }
-  return res.json() as Promise<MissionActionResult>;
 }
 
 /** 미션 수동 실패 처리 */
@@ -163,18 +143,10 @@ export async function failMission(
   kick?: boolean,
   dmReason?: string | null,
 ): Promise<MissionActionResult> {
-  const res = await fetch(`/api/guilds/${guildId}/newbie/missions/fail`, {
+  return apiClient<MissionActionResult>(`/api/guilds/${guildId}/newbie/missions/fail`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ missionId, kick: kick ?? false, dmReason: dmReason || null }),
+    body: { missionId, kick: kick ?? false, dmReason: dmReason || null },
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(
-      (body as { message?: string }).message ?? `실패 처리 실패: ${res.status}`,
-    );
-  }
-  return res.json() as Promise<MissionActionResult>;
 }
 
 /** 미션 Embed 숨김 처리 */
@@ -182,12 +154,10 @@ export async function hideMission(
   guildId: string,
   missionId: number,
 ): Promise<void> {
-  const res = await fetch(`/api/guilds/${guildId}/newbie/missions/hide`, {
+  await apiClient<void>(`/api/guilds/${guildId}/newbie/missions/hide`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ missionId }),
+    body: { missionId },
   });
-  if (!res.ok) throw new Error(`Embed 숨김 처리 실패: ${res.status}`);
 }
 
 /** 미션 Embed 숨김 해제 */
@@ -195,12 +165,10 @@ export async function unhideMission(
   guildId: string,
   missionId: number,
 ): Promise<void> {
-  const res = await fetch(`/api/guilds/${guildId}/newbie/missions/unhide`, {
+  await apiClient<void>(`/api/guilds/${guildId}/newbie/missions/unhide`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ missionId }),
+    body: { missionId },
   });
-  if (!res.ok) throw new Error(`Embed 숨김 해제 실패: ${res.status}`);
 }
 
 // ─── 미션 템플릿 ─────────────────────────────────────────────────────────────
@@ -242,38 +210,27 @@ export const DEFAULT_MISSION_TEMPLATE: MissionTemplate = {
   },
 };
 
-/**
- * 미션 템플릿을 조회한다.
- * 백엔드에 레코드가 없으면 null을 반환하고, 프론트는 DEFAULT_MISSION_TEMPLATE을 표시한다.
- */
+/** 미션 템플릿 조회. 404 시 null 반환 (프론트에서 DEFAULT_MISSION_TEMPLATE 사용). */
 export async function fetchMissionTemplate(
   guildId: string,
 ): Promise<MissionTemplate | null> {
-  const res = await fetch(`/api/guilds/${guildId}/newbie/mission-template`);
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Failed to fetch mission template: ${res.status}`);
-  return res.json() as Promise<MissionTemplate>;
+  try {
+    return await apiClient<MissionTemplate>(`/api/guilds/${guildId}/newbie/mission-template`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
 }
 
-/**
- * 미션 템플릿을 저장한다.
- * 백엔드 유효성 검사 실패 시 { field, allowedVariables } 구조의 오류 응답이 온다.
- */
+/** 미션 템플릿을 저장한다. */
 export async function saveMissionTemplate(
   guildId: string,
   template: MissionTemplate,
 ): Promise<void> {
-  const res = await fetch(`/api/guilds/${guildId}/newbie/mission-template`, {
+  await apiClient<void>(`/api/guilds/${guildId}/newbie/mission-template`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(template),
+    body: template,
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(
-      (body as { message?: string }).message ?? `Failed to save mission template: ${res.status}`,
-    );
-  }
 }
 
 // ─── 모코코 템플릿 ────────────────────────────────────────────────────────────
@@ -300,25 +257,20 @@ export const DEFAULT_MOCO_TEMPLATE: MocoTemplate = {
 export async function fetchMocoTemplate(
   guildId: string,
 ): Promise<MocoTemplate | null> {
-  const res = await fetch(`/api/guilds/${guildId}/newbie/moco-template`);
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Failed to fetch moco template: ${res.status}`);
-  return res.json() as Promise<MocoTemplate>;
+  try {
+    return await apiClient<MocoTemplate>(`/api/guilds/${guildId}/newbie/moco-template`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 export async function saveMocoTemplate(
   guildId: string,
   template: MocoTemplate,
 ): Promise<void> {
-  const res = await fetch(`/api/guilds/${guildId}/newbie/moco-template`, {
+  await apiClient<void>(`/api/guilds/${guildId}/newbie/moco-template`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(template),
+    body: template,
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(
-      (body as { message?: string }).message ?? `Failed to save moco template: ${res.status}`,
-    );
-  }
 }

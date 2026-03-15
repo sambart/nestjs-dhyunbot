@@ -29,9 +29,9 @@ export interface MocoHunterDetailResponse {
   newbies: MocoNewbieDetail[];
 }
 
-/**
- * 모코코 사냥 순위 페이지 조회
- */
+import { apiClient } from './api-client';
+
+/** 모코코 사냥 순위 페이지 조회 */
 export async function fetchMocoRanking(
   guildId: string,
   page = 1,
@@ -40,19 +40,15 @@ export async function fetchMocoRanking(
   const params = new URLSearchParams();
   params.set('page', String(page));
   params.set('pageSize', String(pageSize));
-  const res = await fetch(`/api/guilds/${guildId}/newbie/moco?${params}`);
-  if (!res.ok) throw new Error(`Failed to fetch moco ranking: ${res.status}`);
-  return res.json() as Promise<MocoRankResponse>;
+  return apiClient<MocoRankResponse>(`/api/guilds/${guildId}/newbie/moco?${params}`);
 }
 
-/**
- * 사냥꾼 상세 — 도움받은 모코코 목록 조회
- */
+/** 사냥꾼 상세 — 도움받은 모코코 목록 조회 */
 export async function fetchMocoHunterDetail(
   guildId: string,
   hunterId: string,
 ): Promise<MocoHunterDetailResponse> {
-  const res = await fetch(`/api/guilds/${guildId}/newbie/moco/${encodeURIComponent(hunterId)}`);
-  if (!res.ok) throw new Error(`Failed to fetch moco hunter detail: ${res.status}`);
-  return res.json() as Promise<MocoHunterDetailResponse>;
+  return apiClient<MocoHunterDetailResponse>(
+    `/api/guilds/${guildId}/newbie/moco/${encodeURIComponent(hunterId)}`,
+  );
 }

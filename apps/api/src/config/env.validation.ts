@@ -31,4 +31,7 @@ export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().port().default(3000),
   WEB_URL: Joi.string().default('http://localhost:4000'),
+
+  // Data Retention
+  DATA_RETENTION_DAYS: Joi.number().integer().min(7).default(90),
 });

@@ -127,6 +127,8 @@ export function gradeBadgeClass(grade: InactiveMemberGrade): string {
 
 // ─── API 함수 ────────────────────────────────────────────────────────────────
 
+import { apiClient } from './api-client';
+
 /** 비활동 회원 목록 조회 */
 export async function fetchInactiveMembers(
   guildId: string,
@@ -142,37 +144,26 @@ export async function fetchInactiveMembers(
   if (query?.limit !== undefined) params.set('limit', String(query.limit));
 
   const qs = params.toString();
-  const url = `/api/guilds/${guildId}/inactive-members${qs ? `?${qs}` : ''}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error('비활동 회원 목록을 불러오는데 실패했습니다.');
-  }
-  return res.json() as Promise<InactiveMemberListResponse>;
+  return apiClient<InactiveMemberListResponse>(
+    `/api/guilds/${guildId}/inactive-members${qs ? `?${qs}` : ''}`,
+  );
 }
 
 /** 통계 조회 */
 export async function fetchInactiveMemberStats(
   guildId: string,
 ): Promise<InactiveMemberStats> {
-  const res = await fetch(`/api/guilds/${guildId}/inactive-members/stats`);
-  if (!res.ok) {
-    throw new Error('통계 데이터를 불러오는데 실패했습니다.');
-  }
-  return res.json() as Promise<InactiveMemberStats>;
+  return apiClient<InactiveMemberStats>(`/api/guilds/${guildId}/inactive-members/stats`);
 }
 
 /** 수동 분류 실행 */
 export async function classifyInactiveMembers(
   guildId: string,
 ): Promise<{ classifiedCount: number }> {
-  const res = await fetch(`/api/guilds/${guildId}/inactive-members/classify`, {
-    method: 'POST',
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { message?: string };
-    throw new Error(body.message ?? '분류 실행에 실패했습니다.');
-  }
-  return res.json() as Promise<{ classifiedCount: number }>;
+  return apiClient<{ classifiedCount: number }>(
+    `/api/guilds/${guildId}/inactive-members/classify`,
+    { method: 'POST' },
+  );
 }
 
 /** 조치 실행 */
@@ -180,27 +171,17 @@ export async function executeInactiveMemberAction(
   guildId: string,
   dto: ExecuteActionDto,
 ): Promise<ExecuteActionResponse> {
-  const res = await fetch(`/api/guilds/${guildId}/inactive-members/actions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(dto),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { message?: string };
-    throw new Error(body.message ?? '조치 실행에 실패했습니다.');
-  }
-  return res.json() as Promise<ExecuteActionResponse>;
+  return apiClient<ExecuteActionResponse>(
+    `/api/guilds/${guildId}/inactive-members/actions`,
+    { method: 'POST', body: dto },
+  );
 }
 
 /** 설정 조회 */
 export async function fetchInactiveMemberConfig(
   guildId: string,
 ): Promise<InactiveMemberConfig> {
-  const res = await fetch(`/api/guilds/${guildId}/inactive-members/config`);
-  if (!res.ok) {
-    throw new Error('설정을 불러오는데 실패했습니다.');
-  }
-  return res.json() as Promise<InactiveMemberConfig>;
+  return apiClient<InactiveMemberConfig>(`/api/guilds/${guildId}/inactive-members/config`);
 }
 
 /** 설정 저장 */
@@ -208,14 +189,8 @@ export async function saveInactiveMemberConfig(
   guildId: string,
   dto: InactiveMemberConfigSaveDto,
 ): Promise<InactiveMemberConfig> {
-  const res = await fetch(`/api/guilds/${guildId}/inactive-members/config`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(dto),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { message?: string };
-    throw new Error(body.message ?? '설정 저장에 실패했습니다.');
-  }
-  return res.json() as Promise<InactiveMemberConfig>;
+  return apiClient<InactiveMemberConfig>(
+    `/api/guilds/${guildId}/inactive-members/config`,
+    { method: 'PUT', body: dto },
+  );
 }

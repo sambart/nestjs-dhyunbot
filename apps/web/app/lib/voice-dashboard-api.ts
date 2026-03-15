@@ -82,6 +82,8 @@ export function formatDate(yyyymmdd: string): string {
 
 // ─── API 함수 ────────────────────────────────────────────────────────────────
 
+import { apiGet } from './api-client';
+
 /**
  * 음성 일별 집계 데이터를 조회한다.
  * @param guildId 서버 ID
@@ -93,11 +95,10 @@ export async function fetchVoiceDaily(
   from: string,
   to: string,
 ): Promise<VoiceDailyRecord[]> {
-  const res = await fetch(
+  return apiGet<VoiceDailyRecord[]>(
     `/api/guilds/${guildId}/voice/daily?from=${from}&to=${to}`,
+    [],
   );
-  if (!res.ok) return [];
-  return res.json();
 }
 
 // ─── 클라이언트 집계 함수 ─────────────────────────────────────────────────────

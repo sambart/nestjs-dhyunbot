@@ -31,20 +31,20 @@ export interface MetricsResponse {
 
 // ─── API 호출 ────────────────────────────────────────────────────────────────
 
+import { apiGet } from './api-client';
+
+const EMPTY_STATUS: BotStatus = {
+  online: false,
+  uptimeMs: 0,
+  startedAt: null,
+  pingMs: 0,
+  guildCount: 0,
+  memoryUsage: { heapUsedMb: 0, heapTotalMb: 0 },
+  voiceUserCount: 0,
+};
+
 export async function fetchBotStatus(guildId: string): Promise<BotStatus> {
-  const res = await fetch(`/api/guilds/${guildId}/bot/status`);
-  if (!res.ok) {
-    return {
-      online: false,
-      uptimeMs: 0,
-      startedAt: null,
-      pingMs: 0,
-      guildCount: 0,
-      memoryUsage: { heapUsedMb: 0, heapTotalMb: 0 },
-      voiceUserCount: 0,
-    };
-  }
-  return res.json();
+  return apiGet<BotStatus>(`/api/guilds/${guildId}/bot/status`, EMPTY_STATUS);
 }
 
 export async function fetchBotMetrics(
@@ -53,13 +53,10 @@ export async function fetchBotMetrics(
   to: string,
   interval: string,
 ): Promise<MetricsResponse> {
-  const res = await fetch(
+  return apiGet<MetricsResponse>(
     `/api/guilds/${guildId}/bot/metrics?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&interval=${interval}`,
+    { interval, availabilityPercent: 0, data: [] },
   );
-  if (!res.ok) {
-    return { interval, availabilityPercent: 0, data: [] };
-  }
-  return res.json();
 }
 
 // ─── 유틸리티 ────────────────────────────────────────────────────────────────
