@@ -15,4 +15,9 @@ export class VoiceDailyQueryDto {
   @IsString()
   @IsOptional()
   userId?: string;
+
+  /** IANA 타임존 (예: 'America/New_York'). 미제공 시 기본 KST 기준 조회 */
+  @IsString()
+  @IsOptional()
+  timezone?: string;
 }

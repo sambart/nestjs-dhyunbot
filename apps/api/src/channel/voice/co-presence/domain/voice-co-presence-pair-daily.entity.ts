@@ -21,4 +21,7 @@ export class VoiceCoPresencePairDaily {
 
   @Column({ type: 'int', default: 0 })
   sessionCount: number;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  recordedAt: Date | null;
 }

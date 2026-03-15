@@ -11,6 +11,13 @@ export class VoiceDailyRepository {
     private readonly repo: Repository<VoiceDailyEntity>,
   ) {}
 
+  private dateToRecordedAt(date: string): Date {
+    const year = parseInt(date.slice(0, 4), 10);
+    const month = parseInt(date.slice(4, 6), 10) - 1;
+    const day = parseInt(date.slice(6, 8), 10);
+    return new Date(Date.UTC(year, month, day));
+  }
+
   async accumulateChannelDuration(
     guildId: string,
     userId: string,
@@ -22,11 +29,12 @@ export class VoiceDailyRepository {
     categoryId: string | null,
     categoryName: string | null,
   ): Promise<void> {
+    const recordedAt = this.dateToRecordedAt(date);
     await this.repo.query(
       `
       INSERT INTO voice_daily AS vd
-          ("guildId","userId","userName","date","channelId","channelName","channelDurationSec","categoryId","categoryName")
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+          ("guildId","userId","userName","date","channelId","channelName","channelDurationSec","categoryId","categoryName","recordedAt")
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       ON CONFLICT ("guildId","userId","date","channelId")
       DO UPDATE SET
         "channelDurationSec" =
@@ -34,9 +42,21 @@ export class VoiceDailyRepository {
         "channelName" = EXCLUDED."channelName",
         "userName"    = EXCLUDED."userName",
         "categoryId"   = COALESCE(EXCLUDED."categoryId", vd."categoryId"),
-        "categoryName" = COALESCE(EXCLUDED."categoryName", vd."categoryName")
+        "categoryName" = COALESCE(EXCLUDED."categoryName", vd."categoryName"),
+        "recordedAt"   = COALESCE(EXCLUDED."recordedAt", vd."recordedAt")
       `,
-      [guildId, userId, userName, date, channelId, channelName, durationSec, categoryId, categoryName],
+      [
+        guildId,
+        userId,
+        userName,
+        date,
+        channelId,
+        channelName,
+        durationSec,
+        categoryId,
+        categoryName,
+        recordedAt,
+      ],
     );
   }
 
@@ -47,17 +67,19 @@ export class VoiceDailyRepository {
     micOnSec: number,
     micOffSec: number,
   ): Promise<void> {
+    const recordedAt = this.dateToRecordedAt(date);
     await this.repo.query(
       `
       INSERT INTO voice_daily AS vd
-          ("guildId","userId","date","channelId","micOnSec","micOffSec")
-      VALUES ($1,$2,$3,'GLOBAL',$4,$5)
+          ("guildId","userId","date","channelId","micOnSec","micOffSec","recordedAt")
+      VALUES ($1,$2,$3,'GLOBAL',$4,$5,$6)
       ON CONFLICT ("guildId","userId","date","channelId")
       DO UPDATE SET
-          "micOnSec"  = vd."micOnSec"  + EXCLUDED."micOnSec",
-          "micOffSec" = vd."micOffSec" + EXCLUDED."micOffSec"
+          "micOnSec"   = vd."micOnSec"  + EXCLUDED."micOnSec",
+          "micOffSec"  = vd."micOffSec" + EXCLUDED."micOffSec",
+          "recordedAt" = COALESCE(EXCLUDED."recordedAt", vd."recordedAt")
       `,
-      [guildId, userId, date, micOnSec, micOffSec],
+      [guildId, userId, date, micOnSec, micOffSec, recordedAt],
     );
   }
 
@@ -67,16 +89,18 @@ export class VoiceDailyRepository {
     date: string,
     aloneSec: number,
   ): Promise<void> {
+    const recordedAt = this.dateToRecordedAt(date);
     await this.repo.query(
       `
       INSERT INTO voice_daily AS vd
-          ("guildId","userId","date","channelId","aloneSec")
-      VALUES ($1,$2,$3,'GLOBAL',$4)
+          ("guildId","userId","date","channelId","aloneSec","recordedAt")
+      VALUES ($1,$2,$3,'GLOBAL',$4,$5)
       ON CONFLICT ("guildId","userId","date","channelId")
       DO UPDATE SET
-          "aloneSec" = vd."aloneSec" + EXCLUDED."aloneSec"
+          "aloneSec"   = vd."aloneSec" + EXCLUDED."aloneSec",
+          "recordedAt" = COALESCE(EXCLUDED."recordedAt", vd."recordedAt")
       `,
-      [guildId, userId, date, aloneSec],
+      [guildId, userId, date, aloneSec, recordedAt],
     );
   }
 
@@ -85,11 +109,49 @@ export class VoiceDailyRepository {
     from: string,
     to: string,
     userId?: string,
+    timezone?: string,
   ): Promise<VoiceDailyEntity[]> {
+    // timezone이 제공되고 KST가 아닌 경우, recordedAt 기반 타임존 쿼리 시도
+    if (timezone && timezone !== 'Asia/Seoul') {
+      return this.findByGuildIdAndDateRangeWithTimezone(guildId, from, to, timezone, userId);
+    }
+
     const qb = this.repo
       .createQueryBuilder('vd')
       .where('vd."guildId" = :guildId', { guildId })
       .andWhere('vd.date BETWEEN :from AND :to', { from, to });
+
+    if (userId) {
+      qb.andWhere('vd."userId" = :userId', { userId });
+    }
+
+    return qb.getMany();
+  }
+
+  /**
+   * recordedAt 컬럼의 AT TIME ZONE 변환을 활용해 타임존 기준으로 날짜 범위를 조회한다.
+   * recordedAt이 null인 레거시 레코드는 date 컬럼 기준으로 폴백한다.
+   */
+  async findByGuildIdAndDateRangeWithTimezone(
+    guildId: string,
+    from: string,
+    to: string,
+    timezone: string,
+    userId?: string,
+  ): Promise<VoiceDailyEntity[]> {
+    // recordedAt이 없는 레거시 데이터는 기존 date 컬럼으로 필터링하고,
+    // recordedAt이 있는 데이터는 해당 타임존 기준 날짜로 필터링한다
+    const qb = this.repo
+      .createQueryBuilder('vd')
+      .where('vd."guildId" = :guildId', { guildId })
+      .andWhere(
+        `(
+          (vd."recordedAt" IS NULL AND vd.date BETWEEN :from AND :to)
+          OR
+          (vd."recordedAt" IS NOT NULL AND to_char(vd."recordedAt" AT TIME ZONE :timezone, 'YYYYMMDD') BETWEEN :from AND :to)
+        )`,
+        { from, to, timezone },
+      );
 
     if (userId) {
       qb.andWhere('vd."userId" = :userId', { userId });

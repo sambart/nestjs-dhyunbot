@@ -8,6 +8,10 @@ export function getKSTDateString(): string {
   return kst.toISOString().slice(0, 10).replace(/-/g, '');
 }
 
+export function getUTCDateString(): string {
+  return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+}
+
 export function truncate(text: string, max: number): string {
   return text.length > max ? text.slice(0, max - 3) + '...' : text;
 }

@@ -4,7 +4,7 @@ import { type TypeOrmModuleAsyncOptions } from '@nestjs/typeorm';
 export const TypeORMConfig: TypeOrmModuleAsyncOptions = {
   imports: [ConfigModule],
   useFactory: (configService: ConfigService) => ({
-    timezone: 'Asia/Seoul',
+    timezone: 'UTC',
     type: 'postgres',
     host: configService.get('DATABASE_HOST'),
     port: configService.get('DATABASE_PORT'),

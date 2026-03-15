@@ -1,4 +1,4 @@
-import { Column, Entity, Index,PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity('voice_daily')
 @Index(['guildId', 'date']) // 날짜별 조회 최적화
@@ -40,4 +40,7 @@ export class VoiceDailyEntity {
 
   @Column({ default: 0 })
   aloneSec: number;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  recordedAt: Date | null;
 }

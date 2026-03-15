@@ -89,16 +89,17 @@ import { apiGet } from './api-client';
  * @param guildId 서버 ID
  * @param from 시작일 (YYYYMMDD)
  * @param to 종료일 (YYYYMMDD)
+ * @param timezone IANA 타임존 (예: 'America/New_York'). 미제공 시 서버 기본 KST 기준
  */
 export async function fetchVoiceDaily(
   guildId: string,
   from: string,
   to: string,
+  timezone?: string,
 ): Promise<VoiceDailyRecord[]> {
-  return apiGet<VoiceDailyRecord[]>(
-    `/api/guilds/${guildId}/voice/daily?from=${from}&to=${to}`,
-    [],
-  );
+  let url = `/api/guilds/${guildId}/voice/daily?from=${from}&to=${to}`;
+  if (timezone) url += `&timezone=${encodeURIComponent(timezone)}`;
+  return apiGet<VoiceDailyRecord[]>(url, []);
 }
 
 // ─── 클라이언트 집계 함수 ─────────────────────────────────────────────────────

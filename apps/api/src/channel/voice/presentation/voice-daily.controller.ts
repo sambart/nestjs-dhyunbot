@@ -15,6 +15,12 @@ export class VoiceDailyController {
     @Param('guildId') guildId: string,
     @Query() query: VoiceDailyQueryDto,
   ): Promise<VoiceDailyRecordDto[]> {
-    return this.voiceDailyService.getDailyRecords(guildId, query.from, query.to, query.userId);
+    return this.voiceDailyService.getDailyRecords(
+      guildId,
+      query.from,
+      query.to,
+      query.userId,
+      query.timezone,
+    );
   }
 }
