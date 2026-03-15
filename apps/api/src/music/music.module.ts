@@ -1,10 +1,10 @@
 import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 
-import { MusicService } from './music.service';
-import { MusicPlayCommand } from './music-play.command';
-import { MusicSkipCommand } from './music-skip.command';
-import { MusicStopCommand } from './music-stop.command';
+import { MusicService } from './application/music.service';
+import { MusicPlayCommand } from './presentation/commands/music-play.command';
+import { MusicSkipCommand } from './presentation/commands/music-skip.command';
+import { MusicStopCommand } from './presentation/commands/music-stop.command';
 
 @Module({
   imports: [DiscordModule.forFeature()],

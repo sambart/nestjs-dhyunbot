@@ -2,9 +2,9 @@ import { On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { ButtonInteraction, Interaction } from 'discord.js';
 
+import { MissionService } from '../../newbie/application/mission/mission.service';
+import { MocoService } from '../../newbie/application/moco/moco.service';
 import { NEWBIE_CUSTOM_ID } from '../../newbie/infrastructure/newbie-custom-id.constants';
-import { MissionService } from '../../newbie/mission/mission.service';
-import { MocoService } from '../../newbie/moco/moco.service';
 
 @Injectable()
 export class NewbieInteractionHandler {
@@ -54,10 +54,7 @@ export class NewbieInteractionHandler {
           await interaction.reply({ ephemeral: true, content });
         }
       } catch (replyError) {
-        this.logger.error(
-          `[NEWBIE] Failed to send error reply`,
-          (replyError as Error).stack,
-        );
+        this.logger.error(`[NEWBIE] Failed to send error reply`, (replyError as Error).stack);
       }
     }
   }

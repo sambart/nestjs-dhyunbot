@@ -8,6 +8,15 @@ import { VoiceChannelHistory } from '../channel/voice/domain/voice-channel-histo
 import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
 import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
 import { RedisModule } from '../redis/redis.module';
+import { MissionScheduler } from './application/mission/mission.scheduler';
+import { MissionService } from './application/mission/mission.service';
+import { MocoService } from './application/moco/moco.service';
+import { MocoBootstrapService } from './application/moco/moco-bootstrap.service';
+import { MocoEventHandler } from './application/moco/moco-event.handler';
+import { MocoResetScheduler } from './application/moco/moco-reset.scheduler';
+import { NewbieRoleScheduler } from './application/role/newbie-role.scheduler';
+import { NewbieRoleService } from './application/role/newbie-role.service';
+import { WelcomeService } from './application/welcome/welcome.service';
 import { MocoHuntingDaily } from './domain/moco-hunting-daily.entity';
 import { MocoHuntingSession } from './domain/moco-hunting-session.entity';
 import { NewbieConfig } from './domain/newbie-config.entity';
@@ -22,17 +31,8 @@ import { NewbieMissionTemplateRepository } from './infrastructure/newbie-mission
 import { NewbieMocoTemplateRepository } from './infrastructure/newbie-moco-template.repository';
 import { NewbiePeriodRepository } from './infrastructure/newbie-period.repository';
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
-import { MissionScheduler } from './mission/mission.scheduler';
-import { MissionService } from './mission/mission.service';
-import { MocoService } from './moco/moco.service';
-import { MocoBootstrapService } from './moco/moco-bootstrap.service';
-import { MocoEventHandler } from './moco/moco-event.handler';
-import { MocoResetScheduler } from './moco/moco-reset.scheduler';
-import { NewbieController } from './newbie.controller';
-import { NewbieGateway } from './newbie.gateway';
-import { NewbieRoleScheduler } from './role/newbie-role.scheduler';
-import { NewbieRoleService } from './role/newbie-role.service';
-import { WelcomeService } from './welcome/welcome.service';
+import { NewbieController } from './presentation/newbie.controller';
+import { NewbieGateway } from './presentation/newbie.gateway';
 
 @Module({
   imports: [

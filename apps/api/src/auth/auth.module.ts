@@ -3,11 +3,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { DiscordStrategy } from './discord.strategy';
-import { JwtStrategy } from './jwt.strategy';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { AuthService } from './application/auth.service';
+import { DiscordStrategy } from './infrastructure/discord.strategy';
+import { JwtStrategy } from './infrastructure/jwt.strategy';
+import { JwtAuthGuard } from './infrastructure/jwt-auth.guard';
+import { AuthController } from './presentation/auth.controller';
 
 @Module({
   imports: [

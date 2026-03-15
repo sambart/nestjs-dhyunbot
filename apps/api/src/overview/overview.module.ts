@@ -7,8 +7,8 @@ import { GatewayModule } from '../gateway/gateway.module';
 import { InactiveMemberRecord } from '../inactive-member/domain/inactive-member-record.entity';
 import { BotMetric } from '../monitoring/domain/bot-metric.entity';
 import { NewbieModule } from '../newbie/newbie.module';
-import { OverviewController } from './overview.controller';
-import { OverviewService } from './overview.service';
+import { OverviewService } from './application/overview.service';
+import { OverviewController } from './presentation/overview.controller';
 
 @Module({
   imports: [

@@ -1,12 +1,12 @@
 import { createCanvas, GlobalFonts, loadImage, SKRSContext2D } from '@napi-rs/canvas';
 import { Injectable, Logger } from '@nestjs/common';
 
-import type { BadgeCode } from '../../../voice-analytics/self-diagnosis/badge.constants';
+import type { BadgeCode } from '../../../voice-analytics/self-diagnosis/application/badge.constants';
 import {
   BADGE_DISPLAY,
   BADGE_PRIORITY,
   MAX_BADGE_DISPLAY,
-} from '../../../voice-analytics/self-diagnosis/badge.constants';
+} from '../../../voice-analytics/self-diagnosis/application/badge.constants';
 import { DailyChartEntry, MeProfileData } from './me-profile.service';
 
 // ── 레이아웃 상수 ──

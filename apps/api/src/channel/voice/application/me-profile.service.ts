@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import { BadgeQueryService } from '../../../voice-analytics/self-diagnosis/badge-query.service';
+import { BadgeQueryService } from '../../../voice-analytics/self-diagnosis/application/badge-query.service';
 import { VoiceDailyEntity } from '../domain/voice-daily.entity';
 import { VoiceDailyFlushService } from './voice-daily-flush-service';
 
