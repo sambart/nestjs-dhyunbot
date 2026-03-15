@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ButtonInteraction, GuildMember } from 'discord.js';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { StatusPrefixConfigRepository } from '../infrastructure/status-prefix-config.repository';
 import { StatusPrefixRedisRepository } from '../infrastructure/status-prefix-redis.repository';
 import { StatusPrefixConfigService } from './status-prefix-config.service';
@@ -97,7 +98,7 @@ export class StatusPrefixApplyService {
     } catch (err) {
       this.logger.warn(
         `[STATUS_PREFIX] setNickname failed: guild=${guildId} member=${memberId}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
       await interaction.reply({
         ephemeral: true,

@@ -2,6 +2,7 @@ import { On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Interaction } from 'discord.js';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { StatusPrefixApplyService } from '../application/status-prefix-apply.service';
 import { StatusPrefixResetService } from '../application/status-prefix-reset.service';
 
@@ -72,7 +73,7 @@ export class StatusPrefixInteractionHandler {
     } catch (error) {
       this.logger.error(
         `[STATUS_PREFIX] Interaction failed: customId=${customId}`,
-        (error as Error).stack,
+        getErrorStack(error),
       );
 
       try {

@@ -39,8 +39,8 @@ function getPeriodConfig(period: Period) {
 
 export default function MonitoringPage() {
   const t = useTranslations("dashboard");
-  const params = useParams();
-  const guildId = params.guildId as string;
+  const params = useParams<{ guildId: string }>();
+  const guildId = params.guildId;
 
   const [period, setPeriod] = useState<Period>("24h");
   const [status, setStatus] = useState<BotStatus | null>(null);

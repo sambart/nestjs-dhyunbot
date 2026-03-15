@@ -390,6 +390,7 @@ export default function AutoChannelSettingsPage() {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(`저장 실패 (${res.status})`);
+      // Response.json()은 Promise<any> 반환 — 응답 구조에 따라 좁힘
       const data = (await res.json()) as { configId: number };
       // 저장된 configId를 탭에 반영 (이후 수정 시 같은 탭으로 upsert)
       setTabs((prev) =>
@@ -476,6 +477,7 @@ export default function AutoChannelSettingsPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
+                    // Radix UI 이벤트 타입 불일치 — React.MouseEvent로 변환
                     handleDeleteTab(idx, e as unknown as React.MouseEvent);
                   }
                 }}

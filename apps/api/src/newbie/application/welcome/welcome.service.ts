@@ -1,6 +1,6 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Client, EmbedBuilder, GuildMember, TextChannel } from 'discord.js';
+import { Client, EmbedBuilder, GuildMember } from 'discord.js';
 
 import { NewbieConfigOrmEntity as NewbieConfig } from '../../infrastructure/newbie-config.orm-entity';
 
@@ -50,7 +50,7 @@ export class WelcomeService {
       ? this.applyTemplate(config.welcomeContent, vars)
       : undefined;
 
-    await (channel as TextChannel).send({ content, embeds: [embed] });
+    await channel.send({ content, embeds: [embed] });
 
     this.logger.log(
       `[WELCOME] Sent welcome message: guild=${member.guild.id} member=${member.id} channel=${config.welcomeChannelId}`,

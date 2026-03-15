@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import {
   CO_PRESENCE_SESSION_ENDED,
   CoPresenceSessionEndedEvent,
@@ -216,7 +217,7 @@ export class CoPresenceService {
     } catch (err) {
       this.logger.error(
         `[CO-PRESENCE] Failed to end session guild=${guildId} user=${userId}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
     }
   }

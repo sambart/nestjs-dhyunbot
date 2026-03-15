@@ -104,7 +104,7 @@ export async function fetchVoiceDaily(
 
 // ─── 클라이언트 집계 함수 ─────────────────────────────────────────────────────
 
-/** 요약 통계 계산 */
+/** 음성 활동 레코드를 기반으로 전체 통계 요약을 계산한다 */
 export function computeSummary(records: VoiceDailyRecord[]): VoiceSummary {
   const globalRecords = records.filter((r) => r.channelId === 'GLOBAL');
   const channelRecords = records.filter((r) => r.channelId !== 'GLOBAL');
@@ -125,7 +125,7 @@ export function computeSummary(records: VoiceDailyRecord[]): VoiceSummary {
   };
 }
 
-/** 일별 추이 데이터 생성 */
+/** 음성 활동 레코드를 일별 트렌드로 집계한다 */
 export function computeDailyTrends(
   records: VoiceDailyRecord[],
 ): VoiceDailyTrend[] {
@@ -172,7 +172,7 @@ export function computeDailyTrends(
   );
 }
 
-/** 채널별 통계 집계 */
+/** 음성 활동 레코드를 채널별 통계로 집계한다 */
 export function computeChannelStats(
   records: VoiceDailyRecord[],
 ): VoiceChannelStat[] {
@@ -203,7 +203,7 @@ export function computeChannelStats(
   );
 }
 
-/** 카테고리별 통계 집계 */
+/** 음성 활동 레코드를 카테고리별 통계로 집계한다 */
 export function computeCategoryStats(
   records: VoiceDailyRecord[],
 ): VoiceCategoryStat[] {
@@ -235,7 +235,7 @@ export function computeCategoryStats(
   );
 }
 
-/** 유저별 통계 집계 */
+/** 음성 활동 레코드를 사용자별 통계로 집계한다 */
 export function computeUserStats(
   records: VoiceDailyRecord[],
 ): VoiceUserStat[] {

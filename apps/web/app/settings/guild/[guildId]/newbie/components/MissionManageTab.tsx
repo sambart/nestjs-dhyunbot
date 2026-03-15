@@ -50,7 +50,7 @@ function CompleteModal({ mission, roles, guildId, onClose, onDone }: CompleteMod
         onClose();
       }
     } catch (err) {
-      setError((err as Error).message);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -131,7 +131,7 @@ function FailModal({ mission, guildId, onClose, onDone }: FailModalProps) {
         onClose();
       }
     } catch (err) {
-      setError((err as Error).message);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -249,6 +249,7 @@ function MissionRow({ mission, guildId, roles, onRefresh, showEmbed }: MissionRo
   useEffect(() => {
     if (!dropOpen) return;
     const handler = (e: MouseEvent) => {
+      // EventTarget → Node 좁히기 (contains() 호출에 필요)
       if (dropRef.current && !dropRef.current.contains(e.target as Node)) setDropOpen(false);
     };
     document.addEventListener('mousedown', handler);
@@ -465,6 +466,7 @@ export default function MissionManageTab({ guildId, roles }: MissionManageTabPro
             <select
               value={statusFilter}
               onChange={(e) => {
+                // select onChange: value는 런타임에 MissionStatusType | '' 멤버만 가능
                 setStatusFilter(e.target.value as MissionStatusType | '');
                 setPage(1);
               }}

@@ -2,6 +2,7 @@ import { InjectDiscordClient, Once } from '@discord-nestjs/core';
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { Client, type Guild, type VoiceState } from 'discord.js';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { RedisService } from '../../../redis/redis.service';
 import { VoiceRedisRepository } from '../infrastructure/voice-redis.repository';
 import { VoiceStateDto } from '../infrastructure/voice-state.dto';
@@ -82,7 +83,7 @@ export class VoiceRecoveryService implements OnApplicationShutdown {
       } catch (error) {
         this.logger.error(
           `Failed to sync voice state: guild=${guild.id} user=${voiceState.member?.id}`,
-          (error as Error).stack,
+          getErrorStack(error),
         );
       }
     }
@@ -133,7 +134,7 @@ export class VoiceRecoveryService implements OnApplicationShutdown {
 
         this.logger.log(`Recovered orphan session: guild=${guildId} user=${userId}`);
       } catch (error) {
-        this.logger.error(`Failed to recover session from key=${key}`, (error as Error).stack);
+        this.logger.error(`Failed to recover session from key=${key}`, getErrorStack(error));
       }
     }
   }
@@ -155,7 +156,7 @@ export class VoiceRecoveryService implements OnApplicationShutdown {
         await this.voiceRedisRepository.accumulateDuration(guildId, userId, session, now);
         await this.flushService.flushDate(guildId, userId, session.date);
       } catch (error) {
-        this.logger.error(`Failed to flush session from key=${key}`, (error as Error).stack);
+        this.logger.error(`Failed to flush session from key=${key}`, getErrorStack(error));
       }
     }
   }

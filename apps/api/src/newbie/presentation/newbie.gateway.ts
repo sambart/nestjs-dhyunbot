@@ -2,6 +2,7 @@ import { On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { GuildMember } from 'discord.js';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { MissionService } from '../application/mission/mission.service';
 import { NewbieRoleService } from '../application/role/newbie-role.service';
 import { WelcomeService } from '../application/welcome/welcome.service';
@@ -41,7 +42,7 @@ export class NewbieGateway {
         try {
           await this.welcomeService.sendWelcomeMessage(member, config);
         } catch (err) {
-          this.logger.error(`[welcome] guild=${guildId} member=${member.id}`, (err as Error).stack);
+          this.logger.error(`[welcome] guild=${guildId} member=${member.id}`, getErrorStack(err));
         }
       }
 
@@ -50,7 +51,7 @@ export class NewbieGateway {
         try {
           await this.missionService.createMission(member, config);
         } catch (err) {
-          this.logger.error(`[mission] guild=${guildId} member=${member.id}`, (err as Error).stack);
+          this.logger.error(`[mission] guild=${guildId} member=${member.id}`, getErrorStack(err));
         }
       }
 
@@ -59,13 +60,13 @@ export class NewbieGateway {
         try {
           await this.roleService.assignRole(member, config);
         } catch (err) {
-          this.logger.error(`[role] guild=${guildId} member=${member.id}`, (err as Error).stack);
+          this.logger.error(`[role] guild=${guildId} member=${member.id}`, getErrorStack(err));
         }
       }
     } catch (err) {
       this.logger.error(
         `[guildMemberAdd] unhandled error: guild=${member.guild.id} member=${member.id}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
     }
   }

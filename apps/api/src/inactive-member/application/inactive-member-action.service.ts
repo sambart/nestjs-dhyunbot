@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Client, EmbedBuilder, Guild } from 'discord.js';
 
 import { DomainException } from '../../common/domain-exception';
+import { getErrorStack } from '../../common/util/error.util';
 import { InactiveMemberActionType, InactiveMemberGrade } from '../domain/inactive-member.types';
 import { InactiveMemberRepository } from '../infrastructure/inactive-member.repository';
 import type { InactiveMemberConfigOrm } from '../infrastructure/inactive-member-config.orm-entity';
@@ -95,7 +96,7 @@ export class InactiveMemberActionService {
           null,
         );
       } catch (err) {
-        this.logger.error(`[INACTIVE] Auto role add failed guild=${guildId}`, (err as Error).stack);
+        this.logger.error(`[INACTIVE] Auto role add failed guild=${guildId}`, getErrorStack(err));
       }
     }
 
@@ -108,7 +109,7 @@ export class InactiveMemberActionService {
           null,
         );
       } catch (err) {
-        this.logger.error(`[INACTIVE] Auto DM failed guild=${guildId}`, (err as Error).stack);
+        this.logger.error(`[INACTIVE] Auto DM failed guild=${guildId}`, getErrorStack(err));
       }
     }
   }
@@ -137,7 +138,7 @@ export class InactiveMemberActionService {
         await member.kick('비활동 회원 관리 — 강제퇴장');
         successCount++;
       } catch (err) {
-        this.logger.warn(`[INACTIVE] Kick failed userId=${userId}`, (err as Error).stack);
+        this.logger.warn(`[INACTIVE] Kick failed userId=${userId}`, getErrorStack(err));
         failCount++;
       }
     }
@@ -165,7 +166,7 @@ export class InactiveMemberActionService {
         await member.send({ embeds: [embed] });
         successCount++;
       } catch (err) {
-        this.logger.warn(`[INACTIVE] DM failed userId=${userId}`, (err as Error).stack);
+        this.logger.warn(`[INACTIVE] DM failed userId=${userId}`, getErrorStack(err));
         failCount++;
       }
     }
@@ -197,7 +198,7 @@ export class InactiveMemberActionService {
         }
         successCount++;
       } catch (err) {
-        this.logger.warn(`[INACTIVE] Role ${action} failed userId=${userId}`, (err as Error).stack);
+        this.logger.warn(`[INACTIVE] Role ${action} failed userId=${userId}`, getErrorStack(err));
         failCount++;
       }
     }

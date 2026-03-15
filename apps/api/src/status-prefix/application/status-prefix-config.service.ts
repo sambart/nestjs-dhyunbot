@@ -1,15 +1,9 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  Client,
-  EmbedBuilder,
-  TextChannel,
-} from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, EmbedBuilder } from 'discord.js';
 
 import { DomainException } from '../../common/domain-exception';
+import { getErrorStack } from '../../common/util/error.util';
 import { StatusPrefixButtonType } from '../domain/status-prefix.types';
 import { StatusPrefixButtonOrm } from '../infrastructure/status-prefix-button.orm-entity';
 import { StatusPrefixConfigOrm } from '../infrastructure/status-prefix-config.orm-entity';
@@ -130,7 +124,7 @@ export class StatusPrefixConfigService {
       } catch (err) {
         this.logger.error(
           `[STATUS_PREFIX] Failed to send guide message: guild=${guildId}`,
-          (err as Error).stack,
+          getErrorStack(err),
         );
         throw err; // 채널/권한 오류는 컨트롤러까지 전파하여 API 오류 반환
       }
@@ -147,7 +141,7 @@ export class StatusPrefixConfigService {
   private async buildAndSendMessage(config: StatusPrefixConfigOrm): Promise<string> {
     const channel = await this.client.channels.fetch(config.channelId!);
 
-    if (!channel?.isTextBased()) {
+    if (!channel?.isTextBased() || !('send' in channel)) {
       throw new Error(`Channel ${config.channelId} is not a text-based channel`);
     }
 
@@ -164,7 +158,7 @@ export class StatusPrefixConfigService {
 
     if (config.messageId) {
       try {
-        const message = await (channel as TextChannel).messages.fetch(config.messageId);
+        const message = await channel.messages.fetch(config.messageId);
         await message.edit({ embeds: [embed], components });
         return config.messageId;
       } catch {
@@ -175,7 +169,7 @@ export class StatusPrefixConfigService {
       }
     }
 
-    const message = await (channel as TextChannel).send({ embeds: [embed], components });
+    const message = await channel.send({ embeds: [embed], components });
     return message.id;
   }
 

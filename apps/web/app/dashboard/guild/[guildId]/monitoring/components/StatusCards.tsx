@@ -3,8 +3,8 @@
 import { Activity, Clock, Cpu, Server, Users, Wifi } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import type { BotStatus } from "@/app/lib/monitoring-api";
 import { formatUptimeI18n } from "@/app/lib/format-utils";
+import type { BotStatus } from "@/app/lib/monitoring-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {

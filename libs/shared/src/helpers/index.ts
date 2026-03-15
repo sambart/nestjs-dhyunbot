@@ -1,21 +1,26 @@
+/** 오늘 날짜를 YYYYMMDD 형식 문자열로 반환한다 (로컬 시간 기준) */
 export function todayYYYYMMDD(): string {
   return new Date().toISOString().slice(0, 10).replace(/-/g, '');
 }
 
+/** 오늘 날짜를 YYYYMMDD 형식 문자열로 반환한다 (KST 기준) */
 export function getKSTDateString(): string {
   const now = new Date();
   const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
   return kst.toISOString().slice(0, 10).replace(/-/g, '');
 }
 
+/** 오늘 날짜를 YYYYMMDD 형식 문자열로 반환한다 (UTC 기준) */
 export function getUTCDateString(): string {
   return new Date().toISOString().slice(0, 10).replace(/-/g, '');
 }
 
+/** 문자열을 최대 길이로 자르고 말줄임표를 추가한다 */
 export function truncate(text: string, max: number): string {
   return text.length > max ? text.slice(0, max - 3) + '...' : text;
 }
 
+/** 문자열을 최대 길이 단위로 분할한다 */
 export function splitMessage(text: string, max: number): string[] {
   const chunks: string[] = [];
   let i = 0;

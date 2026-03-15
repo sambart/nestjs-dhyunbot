@@ -4,9 +4,9 @@ import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 
-import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { PairItem, PairsResponse } from "@/app/lib/co-presence-api";
 import { fetchPairs, formatShortDate } from "@/app/lib/co-presence-api";
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import PairDetailModal from "./PairDetailModal";

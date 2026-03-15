@@ -1,6 +1,7 @@
 import { VoiceActivityData, VoiceAnalysisResult } from '@dhyunbot/shared';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
+import { getErrorMessage, getErrorStack } from '../../common/util/error.util';
 import type { LlmProvider } from '../infrastructure/llm/llm-provider.interface';
 import { LLM_PROVIDER } from '../infrastructure/llm/llm-provider.interface';
 
@@ -20,7 +21,7 @@ export class VoiceAiAnalysisService {
       this.logger.log('Successfully analyzed voice activity');
       return { text };
     } catch (error) {
-      this.logger.error('Failed to analyze voice activity after retries', (error as Error).stack);
+      this.logger.error('Failed to analyze voice activity after retries', getErrorStack(error));
       return {
         text: this.buildFallbackAnalysis(activityData),
       };
@@ -148,7 +149,7 @@ ${JSON.stringify(userActivity, null, 2)}
     try {
       return await this.llmProvider.generateText(prompt);
     } catch (error) {
-      this.logger.error('Failed to analyze user after retries', (error as Error).stack);
+      this.logger.error('Failed to analyze user after retries', getErrorStack(error));
       const formatTime = (seconds: number) => {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
@@ -220,10 +221,7 @@ ${JSON.stringify(summarizedData, null, 2)}
     try {
       return await this.llmProvider.generateText(prompt);
     } catch (error) {
-      this.logger.error(
-        'Failed to calculate health score after retries:',
-        (error as Error).message,
-      );
+      this.logger.error('Failed to calculate health score after retries:', getErrorMessage(error));
       return (
         '> AI 분석을 일시적으로 사용할 수 없어 기본 통계를 표시합니다.\n\n' +
         `- 총 활성 유저: ${activityData.totalStats.totalUsers}명\n` +

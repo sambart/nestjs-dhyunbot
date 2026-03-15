@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { BotMetricRepository } from '../infrastructure/bot-metric.repository';
 import { MonitoringService } from './monitoring.service';
 
@@ -24,10 +25,7 @@ export class MonitoringScheduler {
 
       await this.metricRepo.saveBatch(metrics);
     } catch (error) {
-      this.logger.error(
-        '[MONITORING] Failed to collect metrics',
-        (error as Error).stack,
-      );
+      this.logger.error('[MONITORING] Failed to collect metrics', getErrorStack(error));
     }
   }
 
@@ -42,15 +40,10 @@ export class MonitoringScheduler {
 
       const deleted = await this.metricRepo.deleteOlderThan(cutoff);
       if (deleted > 0) {
-        this.logger.log(
-          `[MONITORING] Cleanup: deleted ${deleted} metrics older than 30 days`,
-        );
+        this.logger.log(`[MONITORING] Cleanup: deleted ${deleted} metrics older than 30 days`);
       }
     } catch (error) {
-      this.logger.error(
-        '[MONITORING] Cleanup failed',
-        (error as Error).stack,
-      );
+      this.logger.error('[MONITORING] Cleanup failed', getErrorStack(error));
     }
   }
 }

@@ -1,6 +1,7 @@
 import { getKSTDateString } from '@dhyunbot/shared';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { RedisService } from '../../../redis/redis.service';
 import { VoiceDailyRepository } from '../infrastructure/voice-daily.repository';
 import { VoiceRedisRepository } from '../infrastructure/voice-redis.repository';
@@ -125,7 +126,7 @@ export class VoiceDailyFlushService {
           skipped += isFlushed ? 0 : 1;
         } catch (error) {
           skipped++;
-          this.logger.error(`Failed to flush session: ${key}`, (error as Error).stack);
+          this.logger.error(`Failed to flush session: ${key}`, getErrorStack(error));
         }
       }
 

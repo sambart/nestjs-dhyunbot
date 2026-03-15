@@ -5,6 +5,7 @@ import { VoiceState } from 'discord.js';
 
 import { VoiceExcludedChannelService } from '../../channel/voice/application/voice-excluded-channel.service';
 import { VoiceStateDto } from '../../channel/voice/infrastructure/voice-state.dto';
+import { getErrorStack } from '../../common/util/error.util';
 import {
   AUTO_CHANNEL_EVENTS,
   AutoChannelChannelEmptyEvent,
@@ -121,7 +122,7 @@ export class VoiceStateDispatcher {
     } catch (error) {
       this.logger.error(
         `[voiceStateUpdate] guild=${newState.guild?.id} user=${newState.member?.id ?? 'unknown'}`,
-        (error as Error).stack,
+        getErrorStack(error),
       );
     }
   }

@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { VoiceHealthConfigRepository } from '../infrastructure/voice-health-config.repository';
 import { BadgeService } from './badge.service';
 
@@ -17,7 +18,7 @@ export class BadgeScheduler implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     // 비동기로 실행하여 앱 기동을 블로킹하지 않음
     void this.runDailyBadgeCalc().catch((err) =>
-      this.logger.error('[BADGE] Bootstrap calc failed', (err as Error).stack),
+      this.logger.error('[BADGE] Bootstrap calc failed', getErrorStack(err)),
     );
   }
 
@@ -37,13 +38,13 @@ export class BadgeScheduler implements OnApplicationBootstrap {
           totalProcessed += count;
           this.logger.log(`[BADGE] guild=${config.guildId} processed=${count}`);
         } catch (err) {
-          this.logger.error(`[BADGE] Failed guild=${config.guildId}`, (err as Error).stack);
+          this.logger.error(`[BADGE] Failed guild=${config.guildId}`, getErrorStack(err));
         }
       }
 
       this.logger.log(`[BADGE] Completed. Total processed=${totalProcessed}`);
     } catch (err) {
-      this.logger.error('[BADGE] Unhandled error', (err as Error).stack);
+      this.logger.error('[BADGE] Unhandled error', getErrorStack(err));
     }
   }
 }

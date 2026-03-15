@@ -27,8 +27,8 @@ const LIMIT = 20;
 
 export default function InactiveMemberPage() {
   const t = useTranslations("dashboard");
-  const params = useParams();
-  const guildId = params.guildId as string;
+  const params = useParams<{ guildId: string }>();
+  const guildId = params.guildId;
   const mountedRef = useRef(true);
 
   const [stats, setStats] = useState<InactiveMemberStats | null>(null);
@@ -125,16 +125,19 @@ export default function InactiveMemberPage() {
 
   // 필터/정렬 변경 시 페이지 리셋
   const handleGradeFilterChange = (value: string) => {
+    // select onChange: value는 런타임에 InactiveMemberGrade | 'all' 멤버만 가능
     setGradeFilter(value as InactiveMemberGrade | 'all');
     setPage(1);
   };
 
   const handleSortByChange = (value: string) => {
+    // select onChange: value는 런타임에 해당 유니온 멤버만 가능
     setSortBy(value as 'lastVoiceDate' | 'totalMinutes');
     setPage(1);
   };
 
   const handleSortOrderChange = (value: string) => {
+    // select onChange: value는 런타임에 'ASC' | 'DESC' 멤버만 가능
     setSortOrder(value as 'ASC' | 'DESC');
     setPage(1);
   };

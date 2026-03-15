@@ -618,7 +618,8 @@ export default function StatusPrefixSettingsPage() {
                       value={btn.type}
                       onChange={(e) =>
                         updateButton(btn.id, {
-                          type: e.target.value as StatusPrefixButtonType,
+                          // select onChange: value는 런타임에 StatusPrefixButtonType 멤버만 가능
+                        type: e.target.value as StatusPrefixButtonType,
                           prefix:
                             e.target.value === 'RESET' ? null : btn.prefix,
                         })

@@ -17,9 +17,8 @@ type TabKey = 'mission' | 'moco';
 
 export default function NewbieDashboardPage() {
   const t = useTranslations('dashboard');
-  const params = useParams();
-  // Next.js 동적 라우트 세그먼트는 단일 값임이 라우트 정의에 의해 보장된다
-  const guildId = params.guildId as string;
+  const params = useParams<{ guildId: string }>();
+  const guildId = params.guildId;
 
   const [config, setConfig] = useState<NewbieConfig | null>(null);
   const [roles, setRoles] = useState<DiscordRole[]>([]);

@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import Redis from 'ioredis';
 
 import { CoPresenceScheduler } from '../../../channel/voice/co-presence/co-presence.scheduler';
+import { getErrorStack } from '../../../common/util/error.util';
 import { REDIS_CLIENT } from '../../../redis/redis.constants';
 import { NewbieKeys } from '../../infrastructure/newbie-cache.keys';
 import { NewbieConfigRepository } from '../../infrastructure/newbie-config.repository';
@@ -30,7 +31,7 @@ export class MocoResetScheduler {
     try {
       await this.processAllGuilds();
     } catch (err) {
-      this.logger.error('[MOCO RESET] Unhandled error during reset check', (err as Error).stack);
+      this.logger.error('[MOCO RESET] Unhandled error during reset check', getErrorStack(err));
     }
   }
 
@@ -45,7 +46,7 @@ export class MocoResetScheduler {
           await this.resetGuild(config);
         }
       } catch (err) {
-        this.logger.error(`[MOCO RESET] Failed guild=${config.guildId}`, (err as Error).stack);
+        this.logger.error(`[MOCO RESET] Failed guild=${config.guildId}`, getErrorStack(err));
       }
     }
   }
@@ -95,10 +96,7 @@ export class MocoResetScheduler {
     await this.mocoService
       .sendOrUpdateRankEmbed(guildId, 1)
       .catch((err) =>
-        this.logger.warn(
-          `[MOCO RESET] Embed refresh failed guild=${guildId}`,
-          (err as Error).stack,
-        ),
+        this.logger.warn(`[MOCO RESET] Embed refresh failed guild=${guildId}`, getErrorStack(err)),
       );
 
     this.logger.log(`[MOCO RESET] Completed guild=${guildId}`);

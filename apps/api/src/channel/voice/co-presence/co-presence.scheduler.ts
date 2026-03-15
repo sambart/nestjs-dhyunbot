@@ -3,6 +3,7 @@ import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } fro
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Client, VoiceBasedChannel } from 'discord.js';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { VoiceExcludedChannelService } from '../application/voice-excluded-channel.service';
 import {
   CO_PRESENCE_TICK,
@@ -66,7 +67,7 @@ export class CoPresenceScheduler implements OnApplicationBootstrap, OnApplicatio
       } catch (err) {
         this.logger.error(
           `[CO-PRESENCE SCHEDULER] Failed to process guild=${guildId}`,
-          (err as Error).stack,
+          getErrorStack(err),
         );
       }
     }

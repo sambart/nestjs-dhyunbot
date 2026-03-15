@@ -53,8 +53,8 @@ function formatYmd(date: Date): string {
 
 export default function VoiceDashboardPage() {
   const t = useTranslations("dashboard");
-  const params = useParams();
-  const guildId = params.guildId as string;
+  const params = useParams<{ guildId: string }>();
+  const guildId = params.guildId;
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedUserId = searchParams.get("userId");
@@ -125,6 +125,7 @@ export default function VoiceDashboardPage() {
         <h1 className="text-xl md:text-2xl font-bold">{t("voice.title")}</h1>
         <Select
           value={period}
+          // select onChange: value는 런타임에 Period 유니온 멤버만 가능
           onValueChange={(v) => setPeriod(v as Period)}
         >
           <SelectTrigger className="w-[140px]">

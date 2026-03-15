@@ -2,6 +2,7 @@ import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Client, EmbedBuilder, TextChannel } from 'discord.js';
 
+import { getErrorMessage, getErrorStack } from '../../common/util/error.util';
 import { StickyMessageConfigRepository } from '../infrastructure/sticky-message-config.repository';
 import { STICKY_FOOTER_MARKER } from '../sticky-message.constants';
 
@@ -75,7 +76,7 @@ export class StickyMessageRefreshService {
       } catch (err) {
         this.logger.error(
           `[STICKY_MESSAGE] refresh: Failed to send embed: guild=${guildId} channel=${channelId} config=${config.id}`,
-          (err as Error).stack,
+          getErrorStack(err),
         );
       }
     }
@@ -144,7 +145,7 @@ export class StickyMessageRefreshService {
       }
     } catch (err) {
       this.logger.warn(
-        `[STICKY_MESSAGE] cleanupOrphanedMessages failed: channel=${channelId}: ${(err as Error).message}`,
+        `[STICKY_MESSAGE] cleanupOrphanedMessages failed: channel=${channelId}: ${getErrorMessage(err)}`,
       );
     }
   }
@@ -158,7 +159,7 @@ export class StickyMessageRefreshService {
       await message.delete();
     } catch (err) {
       this.logger.warn(
-        `[STICKY_MESSAGE] Failed to delete message ${messageId} in channel ${channelId}: ${(err as Error).message}`,
+        `[STICKY_MESSAGE] Failed to delete message ${messageId} in channel ${channelId}: ${getErrorMessage(err)}`,
       );
     }
   }

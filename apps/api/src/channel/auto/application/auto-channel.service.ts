@@ -7,6 +7,7 @@ import {
   GuildMember,
 } from 'discord.js';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { VoiceChannelService } from '../../voice/application/voice-channel.service';
 import { DiscordVoiceGateway } from '../../voice/infrastructure/discord-voice.gateway';
 import { VoiceStateDto } from '../../voice/infrastructure/voice-state.dto';
@@ -424,7 +425,7 @@ export class AutoChannelService {
     } catch (error) {
       this.logger.error(
         `[AUTO CHANNEL] Failed to delete confirmed channel: ${channelId}`,
-        (error as Error).stack,
+        getErrorStack(error),
       );
     }
   }

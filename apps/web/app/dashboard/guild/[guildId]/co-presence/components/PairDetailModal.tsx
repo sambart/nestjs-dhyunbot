@@ -11,9 +11,9 @@ import {
   YAxis,
 } from "recharts";
 
-import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { PairDetail } from "@/app/lib/co-presence-api";
 import { fetchPairDetail, formatShortDate } from "@/app/lib/co-presence-api";
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import {
   type ChartConfig,
   ChartContainer,
@@ -169,6 +169,7 @@ export default function PairDetailModal({
                   content={
                     <ChartTooltipContent
                       formatter={(value) => [
+                        // recharts formatter: value는 런타임에 number (라이브러리 타입 정의 부정확)
                         formatMinutesI18n(value as number, tc),
                         t("coPresence.pairDetail.tooltipLabel"),
                       ]}

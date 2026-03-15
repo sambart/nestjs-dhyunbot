@@ -9,6 +9,7 @@ import {
   TextChannel,
 } from 'discord.js';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { NewbieConfigOrmEntity as NewbieConfig } from '../../infrastructure/newbie-config.orm-entity';
 import { NewbieConfigRepository } from '../../infrastructure/newbie-config.repository';
 import { NEWBIE_CUSTOM_ID } from '../../infrastructure/newbie-custom-id.constants';
@@ -109,7 +110,7 @@ export class MocoService {
     } catch (err) {
       this.logger.warn(
         `[MOCO] Failed to fetch guild ${guildId}, using fallback IDs`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
       for (const newbieId of Object.keys(details)) {
         newbieNames[newbieId] = newbieId;
@@ -156,7 +157,7 @@ export class MocoService {
     } catch (err) {
       this.logger.warn(
         `[MOCO] Failed to delete old embed: channel=${channelId} message=${messageId}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
     }
   }
@@ -203,7 +204,7 @@ export class MocoService {
       const sent = await channel.send(payload);
       await this.configRepo.updateMocoRankMessageId(guildId, sent.id);
     } catch (err) {
-      this.logger.error(`[MOCO] Failed to send rank embed: guild=${guildId}`, (err as Error).stack);
+      this.logger.error(`[MOCO] Failed to send rank embed: guild=${guildId}`, getErrorStack(err));
     }
   }
 

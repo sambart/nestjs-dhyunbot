@@ -9,9 +9,9 @@ import {
   YAxis,
 } from "recharts";
 
-import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { DailyTrendPoint } from "@/app/lib/co-presence-api";
 import { formatShortDate } from "@/app/lib/co-presence-api";
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   type ChartConfig,
@@ -78,6 +78,7 @@ export default function DailyTrendChart({ data }: DailyTrendChartProps) {
               content={
                 <ChartTooltipContent
                   formatter={(value) => [
+                    // recharts formatter: value는 런타임에 number (라이브러리 타입 정의 부정확)
                     formatMinutesI18n(value as number, tc),
                     t("coPresence.dailyTrend.tooltipLabel"),
                   ]}

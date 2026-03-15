@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { MissionStatus } from '../../domain/newbie-mission.types';
 import { NewbieConfigRepository } from '../../infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from '../../infrastructure/newbie-mission.repository';
@@ -31,7 +32,7 @@ export class MissionScheduler {
     } catch (err) {
       this.logger.error(
         '[MISSION SCHEDULER] Unhandled error during expiry check',
-        (err as Error).stack,
+        getErrorStack(err),
       );
     }
   }
@@ -79,7 +80,7 @@ export class MissionScheduler {
       } catch (err) {
         this.logger.error(
           `[MISSION SCHEDULER] Failed to process mission id=${mission.id}`,
-          (err as Error).stack,
+          getErrorStack(err),
         );
         // 개별 실패는 로그 후 다음 미션 계속 처리
       }
@@ -97,14 +98,14 @@ export class MissionScheduler {
         await this.missionService.registerMissingMembers(guildId, config).catch((err) => {
           this.logger.warn(
             `[MISSION SCHEDULER] registerMissingMembers failed: guild=${guildId}`,
-            (err as Error).stack,
+            getErrorStack(err),
           );
         });
       }
       await this.missionService.refreshMissionEmbed(guildId).catch((err) => {
         this.logger.error(
           `[MISSION SCHEDULER] Failed to refresh embed: guild=${guildId}`,
-          (err as Error).stack,
+          getErrorStack(err),
         );
       });
     }

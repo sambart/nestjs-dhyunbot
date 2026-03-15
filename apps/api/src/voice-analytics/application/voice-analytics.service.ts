@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Not, Repository } from 'typeorm';
 
 import { VoiceDailyOrm } from '../../channel/voice/infrastructure/voice-daily.orm-entity';
+import { getErrorStack } from '../../common/util/error.util';
 import { DiscordGateway } from '../../gateway/discord.gateway';
 import { UserAggregateData, VoiceNameEnricherService } from './voice-name-enricher.service';
 
@@ -74,7 +75,7 @@ export class VoiceAnalyticsService {
         dailyTrends,
       };
     } catch (error) {
-      this.logger.error('Failed to collect voice activity data', (error as Error).stack);
+      this.logger.error('Failed to collect voice activity data', getErrorStack(error));
       throw error;
     }
   }

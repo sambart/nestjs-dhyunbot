@@ -2,8 +2,8 @@
 
 import { useTranslations } from "next-intl";
 
-import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { IsolatedMember } from "@/app/lib/co-presence-api";
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface IsolatedMemberListProps {

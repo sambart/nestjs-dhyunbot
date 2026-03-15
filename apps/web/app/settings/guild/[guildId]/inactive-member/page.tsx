@@ -50,6 +50,7 @@ export default function InactiveMemberSettingsPage() {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      // EventTarget → Node 좁히기 (contains() 호출에 필요)
       if (
         excludeDropdownRef.current &&
         !excludeDropdownRef.current.contains(e.target as Node)

@@ -1,20 +1,18 @@
 import { cookies, headers } from 'next/headers';
 import { getRequestConfig } from 'next-intl/server';
 
-import { defaultLocale, type Locale, LOCALE_COOKIE, locales } from './config';
-
 // 정적 import (Turbopack 호환 — 동적 경로 변수 resolve 불가)
-import koCommon from '../../../libs/i18n/locales/ko/web/common.json';
-import koLanding from '../../../libs/i18n/locales/ko/web/landing.json';
-import koDashboard from '../../../libs/i18n/locales/ko/web/dashboard.json';
-import koSettings from '../../../libs/i18n/locales/ko/web/settings.json';
-import koAuth from '../../../libs/i18n/locales/ko/web/auth.json';
-
-import enCommon from '../../../libs/i18n/locales/en/web/common.json';
-import enLanding from '../../../libs/i18n/locales/en/web/landing.json';
-import enDashboard from '../../../libs/i18n/locales/en/web/dashboard.json';
-import enSettings from '../../../libs/i18n/locales/en/web/settings.json';
 import enAuth from '../../../libs/i18n/locales/en/web/auth.json';
+import enCommon from '../../../libs/i18n/locales/en/web/common.json';
+import enDashboard from '../../../libs/i18n/locales/en/web/dashboard.json';
+import enLanding from '../../../libs/i18n/locales/en/web/landing.json';
+import enSettings from '../../../libs/i18n/locales/en/web/settings.json';
+import koAuth from '../../../libs/i18n/locales/ko/web/auth.json';
+import koCommon from '../../../libs/i18n/locales/ko/web/common.json';
+import koDashboard from '../../../libs/i18n/locales/ko/web/dashboard.json';
+import koLanding from '../../../libs/i18n/locales/ko/web/landing.json';
+import koSettings from '../../../libs/i18n/locales/ko/web/settings.json';
+import { defaultLocale, type Locale, LOCALE_COOKIE, locales } from './config';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const messages: Record<Locale, Record<string, any>> = {

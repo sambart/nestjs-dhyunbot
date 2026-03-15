@@ -2,6 +2,7 @@ import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { ButtonInteraction, Client, GuildMember } from 'discord.js';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { StatusPrefixConfigRepository } from '../infrastructure/status-prefix-config.repository';
 import { StatusPrefixRedisRepository } from '../infrastructure/status-prefix-redis.repository';
 import { StatusPrefixConfigService } from './status-prefix-config.service';
@@ -31,11 +32,7 @@ export class StatusPrefixResetService {
    * @param memberId - 클릭한 멤버 ID
    * @param interaction - ButtonInteraction 인스턴스 (응답 및 멤버 정보 추출용)
    */
-  async reset(
-    guildId: string,
-    memberId: string,
-    interaction: ButtonInteraction,
-  ): Promise<void> {
+  async reset(guildId: string, memberId: string, interaction: ButtonInteraction): Promise<void> {
     // 1. Redis에서 원래 닉네임 조회
     const originalNickname = await this.redis.getOriginalNickname(guildId, memberId);
 
@@ -62,7 +59,7 @@ export class StatusPrefixResetService {
     } catch (err) {
       this.logger.warn(
         `[STATUS_PREFIX] reset setNickname failed: guild=${guildId} member=${memberId}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
       await interaction.reply({
         ephemeral: true,
@@ -139,7 +136,7 @@ export class StatusPrefixResetService {
     } catch (err) {
       this.logger.warn(
         `[STATUS_PREFIX] restoreOnLeave: Failed to fetch member guild=${guildId} member=${memberId}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
       // 멤버 fetch 실패 시 Redis 키는 유지 (비정상 종료 대비)
       return;
@@ -151,7 +148,7 @@ export class StatusPrefixResetService {
     } catch (err) {
       this.logger.warn(
         `[STATUS_PREFIX] restoreOnLeave setNickname failed: guild=${guildId} member=${memberId}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
       // setNickname 실패 시도 Redis 키 삭제 (봇 권한 없으면 계속 실패하므로 키 누적 방지)
     }

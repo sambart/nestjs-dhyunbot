@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import { VoiceChannelService } from '../../channel/voice/application/voice-channel.service';
+import { getErrorStack } from '../../common/util/error.util';
 import { StatusPrefixResetService } from '../../status-prefix/application/status-prefix-reset.service';
 import { VOICE_EVENTS, VoiceLeaveEvent } from './voice-events';
 
@@ -23,7 +24,7 @@ export class VoiceLeaveHandler {
     this.statusPrefixResetService
       .restoreOnLeave(event.state.guildId, event.state.userId)
       .catch((err) =>
-        this.logger.error('[STATUS_PREFIX] restoreOnLeave failed', (err as Error).stack),
+        this.logger.error('[STATUS_PREFIX] restoreOnLeave failed', getErrorStack(err)),
       );
   }
 }

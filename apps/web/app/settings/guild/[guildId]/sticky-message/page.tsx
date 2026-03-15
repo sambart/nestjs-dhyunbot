@@ -362,6 +362,7 @@ export default function StickyMessageSettingsPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
+                    // Radix UI 이벤트 타입 불일치 — React.MouseEvent로 변환
                     handleDelete(idx, e as unknown as React.MouseEvent);
                   }
                 }}

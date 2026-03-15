@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Interaction } from 'discord.js';
 
 import { AutoChannelService } from '../../channel/auto/application/auto-channel.service';
+import { getErrorStack } from '../../common/util/error.util';
 
 /** 자동방 customId 접두사 */
 const CUSTOM_ID_PREFIX = {
@@ -29,7 +30,10 @@ export class AutoChannelInteractionHandler {
 
     const customId = interaction.customId;
 
-    if (!customId.startsWith(CUSTOM_ID_PREFIX.BUTTON) && !customId.startsWith(CUSTOM_ID_PREFIX.SUB_OPTION)) {
+    if (
+      !customId.startsWith(CUSTOM_ID_PREFIX.BUTTON) &&
+      !customId.startsWith(CUSTOM_ID_PREFIX.SUB_OPTION)
+    ) {
       return;
     }
 
@@ -42,7 +46,7 @@ export class AutoChannelInteractionHandler {
     } catch (error) {
       this.logger.error(
         `[interactionCreate] Failed to handle interaction: customId=${customId}`,
-        (error as Error).stack,
+        getErrorStack(error),
       );
 
       try {

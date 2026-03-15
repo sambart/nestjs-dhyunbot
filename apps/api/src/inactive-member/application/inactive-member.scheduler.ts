@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Client } from 'discord.js';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { InactiveMemberGrade } from '../domain/inactive-member.types';
 import { InactiveMemberService } from './inactive-member.service';
 import { InactiveMemberActionService } from './inactive-member-action.service';
@@ -26,7 +27,7 @@ export class InactiveMemberScheduler {
     try {
       await this.processAllGuilds();
     } catch (err) {
-      this.logger.error('[INACTIVE] Unhandled error during daily classify', (err as Error).stack);
+      this.logger.error('[INACTIVE] Unhandled error during daily classify', getErrorStack(err));
     }
   }
 
@@ -47,7 +48,7 @@ export class InactiveMemberScheduler {
           await this.actionService.executeAutoActions(guildId, newlyFullyInactiveIds);
         }
       } catch (err) {
-        this.logger.error(`[INACTIVE] Failed guild=${guildId}`, (err as Error).stack);
+        this.logger.error(`[INACTIVE] Failed guild=${guildId}`, getErrorStack(err));
       }
     }
   }

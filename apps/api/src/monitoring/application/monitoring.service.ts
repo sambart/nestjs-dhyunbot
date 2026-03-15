@@ -2,6 +2,7 @@ import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Client, Status } from 'discord.js';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { RedisService } from '../../redis/redis.service';
 import { BotStatus } from '../domain/bot-metric.types';
 import { AggregatedMetric, BotMetricRepository } from '../infrastructure/bot-metric.repository';
@@ -171,7 +172,7 @@ export class MonitoringService {
         voiceUserCount,
       };
     } catch (error) {
-      this.logger.error('[MONITORING] Failed to collect status', (error as Error).stack);
+      this.logger.error('[MONITORING] Failed to collect status', getErrorStack(error));
       return {
         online: false,
         uptimeMs: 0,

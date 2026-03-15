@@ -2,6 +2,7 @@ import { On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { ButtonInteraction, Interaction } from 'discord.js';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { MissionService } from '../../newbie/application/mission/mission.service';
 import { MocoService } from '../../newbie/application/moco/moco.service';
 import { NEWBIE_CUSTOM_ID } from '../../newbie/infrastructure/newbie-custom-id.constants';
@@ -41,10 +42,7 @@ export class NewbieInteractionHandler {
         await this.handleMocoButton(interaction);
       }
     } catch (error) {
-      this.logger.error(
-        `[NEWBIE] Interaction failed: customId=${customId}`,
-        (error as Error).stack,
-      );
+      this.logger.error(`[NEWBIE] Interaction failed: customId=${customId}`, getErrorStack(error));
 
       try {
         const content = '오류가 발생했습니다. 잠시 후 다시 시도하세요.';

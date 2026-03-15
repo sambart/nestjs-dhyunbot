@@ -1,11 +1,8 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
-import {
-  Injectable,
-  Logger,
-  OnApplicationBootstrap,
-  OnApplicationShutdown,
-} from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { Client, Guild } from 'discord.js';
+
+import { getErrorMessage } from '../common/util/error.util';
 
 interface CacheEntry<T> {
   value: T;
@@ -149,7 +146,7 @@ export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShut
       this.putCache(this.userCache, cacheKey, username);
       return username;
     } catch (error) {
-      this.logger.warn(`Failed to fetch user ${userId}:`, (error as Error).message);
+      this.logger.warn(`Failed to fetch user ${userId}:`, getErrorMessage(error));
       return `User-${userId.slice(0, 6)}`;
     }
   }
@@ -176,7 +173,7 @@ export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShut
       this.putCache(this.channelCache, cacheKey, channelName);
       return channelName;
     } catch (error) {
-      this.logger.warn(`Failed to fetch channel ${channelId}:`, (error as Error).message);
+      this.logger.warn(`Failed to fetch channel ${channelId}:`, getErrorMessage(error));
       return `Channel-${channelId.slice(0, 6)}`;
     }
   }
@@ -206,7 +203,7 @@ export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShut
         // 일괄 조회
         await guild.members.fetch({ user: uncachedUserIds });
       } catch (error) {
-        this.logger.warn('Failed to fetch members in bulk:', (error as Error).message);
+        this.logger.warn('Failed to fetch members in bulk:', getErrorMessage(error));
       }
     }
 

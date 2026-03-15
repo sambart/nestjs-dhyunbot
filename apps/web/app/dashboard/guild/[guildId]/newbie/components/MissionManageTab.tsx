@@ -224,6 +224,7 @@ function StatusBadge({ status }: { status: MissionStatusType }) {
 
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${styles[status]}`}>
+      {/* labelKeys[status]는 런타임에 항상 유효한 t() 키 — 타입 정의의 string 제한을 좁힘 */}
       {t(labelKeys[status] as Parameters<typeof t>[0])}
     </span>
   );
@@ -263,6 +264,7 @@ function MissionRow({ mission, guildId, roles, onRefresh, showEmbed, readonly }:
   useEffect(() => {
     if (!dropOpen) return;
     const handler = (e: MouseEvent) => {
+      // EventTarget → Node 좁히기 (contains() 호출에 필요)
       if (dropRef.current && !dropRef.current.contains(e.target as Node)) setDropOpen(false);
     };
     document.addEventListener('mousedown', handler);
@@ -491,6 +493,7 @@ export default function MissionManageTab({ guildId, roles, readonly }: MissionMa
             <select
               value={statusFilter}
               onChange={(e) => {
+                // select onChange: value는 런타임에 MissionStatusType | '' 멤버만 가능
                 setStatusFilter(e.target.value as MissionStatusType | '');
                 setPage(1);
               }}

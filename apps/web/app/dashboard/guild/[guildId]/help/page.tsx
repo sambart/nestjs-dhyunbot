@@ -87,9 +87,8 @@ function FaqSectionCard({ section }: FaqSectionCardProps) {
 export default function HelpPage() {
   const t = useTranslations("dashboard");
   // guildId는 향후 서버별 도움말 컨텍스트에 활용 가능
-  const params = useParams();
-  // Next.js 동적 라우트 세그먼트는 단일 값임이 라우트 정의에 의해 보장된다
-  void (params.guildId as string);
+  const params = useParams<{ guildId: string }>();
+  void params.guildId;
 
   const faqSections: FaqSection[] = [
     {

@@ -5,6 +5,7 @@ import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { VoiceCoPresencePairDailyOrm } from '../co-presence/infrastructure/voice-co-presence-pair-daily.orm-entity';
 import { VoiceChannelHistoryOrm } from '../infrastructure/voice-channel-history.orm-entity';
 import { VoiceDailyOrm } from '../infrastructure/voice-daily.orm-entity';
@@ -63,7 +64,7 @@ export class VoiceDataRetentionScheduler {
           ` CoPresencePairDaily: ${coPresenceResult.affected ?? 0}건`,
       );
     } catch (error) {
-      this.logger.error('[DATA RETENTION] 데이터 삭제 중 오류 발생', (error as Error).stack);
+      this.logger.error('[DATA RETENTION] 데이터 삭제 중 오류 발생', getErrorStack(error));
     }
   }
 

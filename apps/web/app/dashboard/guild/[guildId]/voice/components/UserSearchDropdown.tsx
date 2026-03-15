@@ -52,6 +52,7 @@ export default function UserSearchDropdown({ guildId, onSelect }: Props) {
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
+      // EventTarget → Node 좁히기 (contains() 호출에 필요)
       if (
         containerRef.current &&
         !containerRef.current.contains(e.target as Node)

@@ -9,7 +9,6 @@ import {
   DiscordAPIError,
   EmbedBuilder,
   GuildMember,
-  TextChannel,
 } from 'discord.js';
 import { Repository } from 'typeorm';
 
@@ -17,6 +16,7 @@ import { VoiceDailyFlushService } from '../../../channel/voice/application/voice
 import { VoiceChannelHistoryOrm } from '../../../channel/voice/infrastructure/voice-channel-history.orm-entity';
 import { VoiceDailyOrm } from '../../../channel/voice/infrastructure/voice-daily.orm-entity';
 import { DomainException } from '../../../common/domain-exception';
+import { getErrorMessage, getErrorStack } from '../../../common/util/error.util';
 import { MissionStatus } from '../../domain/newbie-mission.types';
 import { NewbieConfigOrmEntity as NewbieConfig } from '../../infrastructure/newbie-config.orm-entity';
 import { NewbieConfigRepository } from '../../infrastructure/newbie-config.repository';
@@ -96,7 +96,7 @@ export class MissionService {
       await this.refreshMissionEmbed(member.guild.id, config).catch((err) => {
         this.logger.error(
           `[MISSION] Failed to refresh embed after create: guild=${member.guild.id}`,
-          (err as Error).stack,
+          getErrorStack(err),
         );
       });
     }
@@ -281,11 +281,9 @@ export class MissionService {
       return;
     }
 
-    const textChannel = channel as TextChannel;
-
     if (resolvedConfig.missionNotifyMessageId) {
       // 기존 메시지 수정 시도
-      const message = await textChannel.messages
+      const message = await channel.messages
         .fetch(resolvedConfig.missionNotifyMessageId)
         .catch(() => null);
 
@@ -297,7 +295,7 @@ export class MissionService {
     }
 
     // 신규 메시지 전송 후 messageId 저장
-    const sent = await textChannel.send({ embeds: [embed], components: [row] });
+    const sent = await channel.send({ embeds: [embed], components: [row] });
     await this.configRepo.updateMissionNotifyMessageId(guildId, sent.id);
   }
 
@@ -309,7 +307,7 @@ export class MissionService {
     try {
       const channel = await this.discord.channels.fetch(channelId).catch(() => null);
       if (channel?.isTextBased()) {
-        const message = await (channel as TextChannel).messages.fetch(messageId).catch(() => null);
+        const message = await channel.messages.fetch(messageId).catch(() => null);
         if (message) {
           await message.delete();
         }
@@ -317,7 +315,7 @@ export class MissionService {
     } catch (err) {
       this.logger.warn(
         `[MISSION] Failed to delete old embed: channel=${channelId} message=${messageId}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
     }
   }
@@ -393,14 +391,14 @@ export class MissionService {
         await member.roles.add(roleId);
         this.logger.log(`[MISSION] Role granted: member=${mission.memberId} role=${roleId}`);
       } catch (err) {
-        warning = `역할 부여에 실패했습니다: ${(err as Error).message}`;
+        warning = `역할 부여에 실패했습니다: ${getErrorMessage(err)}`;
         this.logger.warn(`[MISSION] Role grant failed: ${warning}`);
       }
     }
 
     await this.newbieRedis.deleteMissionActive(guildId);
     await this.refreshMissionEmbed(guildId).catch((err) => {
-      this.logger.error(`[MISSION] Embed refresh failed after complete`, (err as Error).stack);
+      this.logger.error(`[MISSION] Embed refresh failed after complete`, getErrorStack(err));
     });
 
     return warning ? { ok: true, warning } : { ok: true };
@@ -457,14 +455,14 @@ export class MissionService {
         await member.kick('미션 실패 처리');
         this.logger.log(`[MISSION] Kicked: member=${mission.memberId}`);
       } catch (err) {
-        warning = `강퇴에 실패했습니다: ${(err as Error).message}`;
+        warning = `강퇴에 실패했습니다: ${getErrorMessage(err)}`;
         this.logger.warn(`[MISSION] Kick failed: ${warning}`);
       }
     }
 
     await this.newbieRedis.deleteMissionActive(guildId);
     await this.refreshMissionEmbed(guildId).catch((err) => {
-      this.logger.error(`[MISSION] Embed refresh failed after fail`, (err as Error).stack);
+      this.logger.error(`[MISSION] Embed refresh failed after fail`, getErrorStack(err));
     });
 
     return warning ? { ok: true, warning } : { ok: true };
@@ -484,7 +482,7 @@ export class MissionService {
 
     await this.newbieRedis.deleteMissionActive(guildId);
     await this.refreshMissionEmbed(guildId).catch((err) => {
-      this.logger.error(`[MISSION] Embed refresh failed after hide`, (err as Error).stack);
+      this.logger.error(`[MISSION] Embed refresh failed after hide`, getErrorStack(err));
     });
   }
 
@@ -501,7 +499,7 @@ export class MissionService {
 
     await this.newbieRedis.deleteMissionActive(guildId);
     await this.refreshMissionEmbed(guildId).catch((err) => {
-      this.logger.error(`[MISSION] Embed refresh failed after unhide`, (err as Error).stack);
+      this.logger.error(`[MISSION] Embed refresh failed after unhide`, getErrorStack(err));
     });
   }
 
@@ -582,7 +580,7 @@ export class MissionService {
         } else {
           // Rate limit, 네트워크 오류 등 → 판단 불가, 기존 상태 유지
           this.logger.warn(
-            `[MISSION] Member fetch failed (keeping mission): id=${mission.id} member=${mission.memberId} error=${(err as Error).message}`,
+            `[MISSION] Member fetch failed (keeping mission): id=${mission.id} member=${mission.memberId} error=${getErrorMessage(err)}`,
           );
           valid.push(mission);
           continue;

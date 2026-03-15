@@ -9,6 +9,7 @@ import {
   CoPresenceSessionEndedEvent,
   CoPresenceTickEvent,
 } from '../../../channel/voice/co-presence/co-presence.events';
+import { getErrorStack } from '../../../common/util/error.util';
 import { MocoDbRepository } from '../../infrastructure/moco-db.repository';
 import { NewbieConfigOrmEntity as NewbieConfig } from '../../infrastructure/newbie-config.orm-entity';
 import { NewbieConfigRepository } from '../../infrastructure/newbie-config.repository';
@@ -36,10 +37,7 @@ export class MocoEventHandler {
       try {
         await this.processTickSnapshot(snapshot.guildId, snapshot.channelId, snapshot.userIds);
       } catch (err) {
-        this.logger.error(
-          `[MOCO EVENT] tick failed guild=${snapshot.guildId}`,
-          (err as Error).stack,
-        );
+        this.logger.error(`[MOCO EVENT] tick failed guild=${snapshot.guildId}`, getErrorStack(err));
       }
     }
   }
@@ -97,7 +95,7 @@ export class MocoEventHandler {
     } catch (err) {
       this.logger.error(
         `[MOCO EVENT] session ended failed guild=${event.guildId} user=${event.userId}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
     }
   }

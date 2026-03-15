@@ -43,10 +43,12 @@ const EMPTY_STATUS: BotStatus = {
   voiceUserCount: 0,
 };
 
+/** 봇의 현재 상태 정보를 조회한다 */
 export async function fetchBotStatus(guildId: string): Promise<BotStatus> {
   return apiGet<BotStatus>(`/api/guilds/${guildId}/bot/status`, EMPTY_STATUS);
 }
 
+/** 봇 메트릭 시계열 데이터를 조회한다 */
 export async function fetchBotMetrics(
   guildId: string,
   from: string,
@@ -61,6 +63,7 @@ export async function fetchBotMetrics(
 
 // ─── 유틸리티 ────────────────────────────────────────────────────────────────
 
+/** 밀리초를 사람이 읽기 쉬운 가동 시간 문자열로 변환한다 */
 export function formatUptime(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const days = Math.floor(totalSeconds / 86400);

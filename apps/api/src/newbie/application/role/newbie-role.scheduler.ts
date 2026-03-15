@@ -3,6 +3,7 @@ import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { Client } from 'discord.js';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { NewbieConfigRepository } from '../../infrastructure/newbie-config.repository';
 import { NewbiePeriodRepository } from '../../infrastructure/newbie-period.repository';
 import { NewbieRedisRepository } from '../../infrastructure/newbie-redis.repository';
@@ -95,7 +96,7 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
     } catch (error) {
       this.logger.error(
         '[NEWBIE ROLE SCHEDULER] Failed to query expired periods',
-        (error as Error).stack,
+        getErrorStack(error),
       );
       return;
     }
@@ -125,7 +126,7 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
       } catch (error) {
         this.logger.error(
           `[NEWBIE ROLE SCHEDULER] Failed to invalidate cache: guild=${guildId}`,
-          (error as Error).stack,
+          getErrorStack(error),
         );
       }
     }
@@ -152,7 +153,7 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
     } catch (error) {
       this.logger.error(
         `[NEWBIE ROLE SCHEDULER] Failed to mark expired: periodId=${periodId}`,
-        (error as Error).stack,
+        getErrorStack(error),
       );
     }
   }
@@ -177,7 +178,7 @@ export class NewbieRoleScheduler implements OnApplicationBootstrap, OnApplicatio
       this.logger.warn(
         `[NEWBIE ROLE SCHEDULER] Failed to remove role (will still mark expired): ` +
           `guild=${guildId} member=${memberId}`,
-        (error as Error).stack,
+        getErrorStack(error),
       );
     }
   }

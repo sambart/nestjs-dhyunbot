@@ -45,9 +45,8 @@ const DAY_OPTIONS: Days[] = [7, 30, 90];
 
 export default function CoPresencePage() {
   const t = useTranslations("dashboard");
-  const params = useParams();
-  // Next.js 동적 라우트 파라미터는 string임이 보장되나 타입이 string | string[]로 추론됨
-  const guildId = params.guildId as string;
+  const params = useParams<{ guildId: string }>();
+  const guildId = params.guildId;
 
   const [days, setDays] = useState<Days>(30);
   const [loading, setLoading] = useState(true);

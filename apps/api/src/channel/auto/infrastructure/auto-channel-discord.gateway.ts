@@ -1,13 +1,8 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  Client,
-  EmbedBuilder,
-  TextChannel,
-} from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, EmbedBuilder } from 'discord.js';
+
+import { getErrorMessage } from '../../../common/util/error.util';
 
 /** 안내 메시지 전송/수정에 사용하는 버튼 페이로드 */
 export interface GuideMessageButtonPayload {
@@ -37,13 +32,13 @@ export class AutoChannelDiscordGateway {
     buttons: GuideMessageButtonPayload[],
   ): Promise<string> {
     const channel = await this.client.channels.fetch(channelId);
-    if (!channel?.isTextBased()) {
+    if (!channel?.isTextBased() || !('send' in channel)) {
       throw new Error(`Channel ${channelId} is not a text-based channel`);
     }
 
     const embed = this.buildEmbed(guideMessage, embedTitle, embedColor);
     const components = this.buildActionRows(buttons);
-    const message = await (channel as TextChannel).send({
+    const message = await channel.send({
       embeds: [embed],
       components,
     });
@@ -65,11 +60,11 @@ export class AutoChannelDiscordGateway {
   ): Promise<string | null> {
     try {
       const channel = await this.client.channels.fetch(channelId);
-      if (!channel?.isTextBased()) {
+      if (!channel?.isTextBased() || !('send' in channel)) {
         throw new Error(`Channel ${channelId} is not a text-based channel`);
       }
 
-      const message = await (channel as TextChannel).messages.fetch(messageId);
+      const message = await channel.messages.fetch(messageId);
       const embed = this.buildEmbed(guideMessage, embedTitle, embedColor);
       const components = this.buildActionRows(buttons);
 
@@ -81,7 +76,7 @@ export class AutoChannelDiscordGateway {
       return messageId;
     } catch (error) {
       this.logger.warn(
-        `Failed to edit guide message (channelId=${channelId}, messageId=${messageId}): ${(error as Error).message}`,
+        `Failed to edit guide message (channelId=${channelId}, messageId=${messageId}): ${getErrorMessage(error)}`,
       );
       return null;
     }
@@ -94,13 +89,13 @@ export class AutoChannelDiscordGateway {
   async deleteGuideMessage(channelId: string, messageId: string): Promise<void> {
     try {
       const channel = await this.client.channels.fetch(channelId);
-      if (!channel?.isTextBased()) return;
+      if (!channel?.isTextBased() || !('send' in channel)) return;
 
-      const message = await (channel as TextChannel).messages.fetch(messageId);
+      const message = await channel.messages.fetch(messageId);
       await message.delete();
     } catch (error) {
       this.logger.warn(
-        `Failed to delete guide message (channelId=${channelId}, messageId=${messageId}): ${(error as Error).message}`,
+        `Failed to delete guide message (channelId=${channelId}, messageId=${messageId}): ${getErrorMessage(error)}`,
       );
     }
   }

@@ -1,7 +1,8 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Client, EmbedBuilder, TextChannel } from 'discord.js';
+import { Client, EmbedBuilder } from 'discord.js';
 
+import { getErrorMessage, getErrorStack } from '../../common/util/error.util';
 import { StickyMessageSaveDto } from '../dto/sticky-message-save.dto';
 import { StickyMessageConfigOrm } from '../infrastructure/sticky-message-config.orm-entity';
 import { StickyMessageConfigRepository } from '../infrastructure/sticky-message-config.repository';
@@ -61,7 +62,7 @@ export class StickyMessageConfigService {
       } catch (err) {
         this.logger.error(
           `[STICKY_MESSAGE] Failed to send embed: guild=${guildId} channel=${config.channelId}`,
-          (err as Error).stack,
+          getErrorStack(err),
         );
         throw err;
       }
@@ -124,8 +125,8 @@ export class StickyMessageConfigService {
   ): Promise<string> {
     const channel = await this.client.channels.fetch(channelId);
 
-    if (!channel?.isTextBased()) {
-      throw new Error(`Channel ${channelId} is not a text-based channel`);
+    if (!channel?.isTextBased() || channel.isDMBased()) {
+      throw new Error(`Channel ${channelId} is not a guild text-based channel`);
     }
 
     const embed = new EmbedBuilder();
@@ -134,7 +135,7 @@ export class StickyMessageConfigService {
     if (config.embedColor) embed.setColor(config.embedColor as `#${string}`);
     embed.setFooter({ text: STICKY_FOOTER_MARKER });
 
-    const message = await (channel as TextChannel).send({ embeds: [embed] });
+    const message = await channel.send({ embeds: [embed] });
     return message.id;
   }
 
@@ -142,12 +143,12 @@ export class StickyMessageConfigService {
   private async tryDeleteMessage(channelId: string, messageId: string): Promise<void> {
     try {
       const channel = await this.client.channels.fetch(channelId);
-      if (!channel?.isTextBased()) return;
-      const message = await (channel as TextChannel).messages.fetch(messageId);
+      if (!channel?.isTextBased() || channel.isDMBased()) return;
+      const message = await channel.messages.fetch(messageId);
       await message.delete();
     } catch (err) {
       this.logger.warn(
-        `[STICKY_MESSAGE] Failed to delete message ${messageId} in channel ${channelId}: ${(err as Error).message}`,
+        `[STICKY_MESSAGE] Failed to delete message ${messageId} in channel ${channelId}: ${getErrorMessage(err)}`,
       );
     }
   }

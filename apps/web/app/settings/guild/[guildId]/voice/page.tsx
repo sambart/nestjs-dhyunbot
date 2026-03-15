@@ -40,6 +40,7 @@ export default function VoiceSettingsPage() {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      // EventTarget → Node 좁히기 (contains() 호출에 필요)
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsDropdownOpen(false);
       }
@@ -63,6 +64,7 @@ export default function VoiceSettingsPage() {
       .then(([excludedIds, allChannels]) => {
         const options: ChannelOption[] = allChannels
           .filter((ch) => ch.type === 2 || ch.type === 4)
+          // Discord.js ChannelType enum → 리터럴 (필터로 2 | 4 임이 보장됨)
           .map((ch) => ({ id: ch.id, name: ch.name, type: ch.type as 2 | 4 }));
         setChannelOptions(options);
         setSelectedIds(excludedIds);
@@ -82,6 +84,7 @@ export default function VoiceSettingsPage() {
       );
       const options: ChannelOption[] = allChannels
         .filter((ch) => ch.type === 2 || ch.type === 4)
+        // Discord.js ChannelType enum → 리터럴 (필터로 2 | 4 임이 보장됨)
         .map((ch) => ({ id: ch.id, name: ch.name, type: ch.type as 2 | 4 }));
       setChannelOptions(options);
     } finally {

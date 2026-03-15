@@ -4,8 +4,8 @@ import { ArrowLeftRight } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
-import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { PairUser, TopPair } from "@/app/lib/co-presence-api";
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface TopPairsPanelProps {

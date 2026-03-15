@@ -13,11 +13,11 @@ export default function DashboardGuildLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const params = useParams();
+  const params = useParams<{ guildId: string }>();
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations("auth");
-  const guildId = params.guildId as string;
+  const guildId = params.guildId;
 
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [isLoading, setIsLoading] = useState(true);

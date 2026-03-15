@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { MocoHuntingDailyOrmEntity as MocoHuntingDaily } from '../../infrastructure/moco-hunting-daily.orm-entity';
 import { MocoHuntingSessionOrmEntity as MocoHuntingSession } from '../../infrastructure/moco-hunting-session.orm-entity';
 import { NewbieConfigRepository } from '../../infrastructure/newbie-config.repository';
@@ -31,7 +32,7 @@ export class MocoBootstrapService implements OnApplicationBootstrap {
     try {
       await this.recoverAllGuilds();
     } catch (err) {
-      this.logger.error('[MOCO BOOTSTRAP] Recovery failed', (err as Error).stack);
+      this.logger.error('[MOCO BOOTSTRAP] Recovery failed', getErrorStack(err));
     }
   }
 

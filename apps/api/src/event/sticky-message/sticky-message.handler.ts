@@ -2,6 +2,7 @@ import { InjectDiscordClient, On } from '@discord-nestjs/core';
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { Client, Message } from 'discord.js';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { StickyMessageRefreshService } from '../../sticky-message/application/sticky-message-refresh.service';
 import { StickyMessageConfigRepository } from '../../sticky-message/infrastructure/sticky-message-config.repository';
 import { StickyMessageRedisRepository } from '../../sticky-message/infrastructure/sticky-message-redis.repository';
@@ -71,7 +72,7 @@ export class StickyMessageHandler implements OnApplicationShutdown {
     } catch (err) {
       this.logger.error(
         `[messageCreate] unhandled error: guild=${message.guildId} channel=${message.channelId}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
     }
   }

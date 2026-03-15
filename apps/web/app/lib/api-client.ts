@@ -62,8 +62,10 @@ export async function apiClient<T>(url: string, options?: RequestOptions): Promi
   }
 
   // 204 No Content
+  // fallback 반환: T가 undefined 허용 타입일 때만 호출됨
   if (res.status === 204) return undefined as T;
 
+  // Response.json()은 Promise<any> 반환 — 제네릭 T로 좁힘
   return res.json() as Promise<T>;
 }
 

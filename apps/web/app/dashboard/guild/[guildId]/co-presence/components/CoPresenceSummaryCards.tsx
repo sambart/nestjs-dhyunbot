@@ -3,8 +3,8 @@
 import { BarChart3, Clock, Link2, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { CoPresenceSummary } from "@/app/lib/co-presence-api";
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface CoPresenceSummaryCardsProps {

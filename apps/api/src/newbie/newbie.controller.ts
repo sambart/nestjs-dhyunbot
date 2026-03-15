@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { getErrorStack } from '../common/util/error.util';
 import { MissionStatus } from './domain/newbie-mission.types';
 import { MissionCompleteDto, MissionFailDto, MissionHideDto } from './dto/mission-action.dto';
 import { NewbieConfigSaveDto } from './dto/newbie-config-save.dto';
@@ -129,7 +130,7 @@ export class NewbieController {
         await this.configRepo.updateMissionNotifyMessageId(guildId, null);
       }
     } catch (err) {
-      this.logger.error(`[MISSION] Embed 갱신 실패: guild=${guildId}`, (err as Error).stack);
+      this.logger.error(`[MISSION] Embed 갱신 실패: guild=${guildId}`, getErrorStack(err));
     }
 
     // 모코코 Embed: 저장 시 항상 기존 메시지 삭제 후 새로 전송한다.
@@ -146,7 +147,7 @@ export class NewbieController {
         await this.configRepo.updateMocoRankMessageId(guildId, null);
       }
     } catch (err) {
-      this.logger.error(`[MOCO] Embed 갱신 실패: guild=${guildId}`, (err as Error).stack);
+      this.logger.error(`[MOCO] Embed 갱신 실패: guild=${guildId}`, getErrorStack(err));
     }
 
     return { ok: true };
