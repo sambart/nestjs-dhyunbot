@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Client, Status } from 'discord.js';
 
 import { RedisService } from '../../redis/redis.service';
-import { BotStatus } from '../domain/bot-metric.entity';
+import { BotStatus } from '../domain/bot-metric.types';
 import { AggregatedMetric, BotMetricRepository } from '../infrastructure/bot-metric.repository';
 
 export interface BotStatusResponse {

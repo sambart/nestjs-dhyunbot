@@ -10,17 +10,17 @@ import { VoiceChannelModule } from '../voice/voice-channel.module';
 import { AutoChannelService } from './application/auto-channel.service';
 import { AutoChannelBootstrapService } from './application/auto-channel-bootstrap.service';
 import { AutoChannelController } from './auto-channel.controller';
-import { AutoChannelButton } from './domain/auto-channel-button.entity';
-import { AutoChannelConfig } from './domain/auto-channel-config.entity';
-import { AutoChannelSubOption } from './domain/auto-channel-sub-option.entity';
+import { AutoChannelButtonOrm } from './infrastructure/auto-channel-button.orm-entity';
+import { AutoChannelConfigOrm } from './infrastructure/auto-channel-config.orm-entity';
 import { AutoChannelConfigRepository } from './infrastructure/auto-channel-config.repository';
 import { AutoChannelDiscordGateway } from './infrastructure/auto-channel-discord.gateway';
 import { AutoChannelRedisRepository } from './infrastructure/auto-channel-redis.repository';
+import { AutoChannelSubOptionOrm } from './infrastructure/auto-channel-sub-option.orm-entity';
 
 @Module({
   imports: [
     DiscordModule.forFeature(),
-    TypeOrmModule.forFeature([AutoChannelConfig, AutoChannelButton, AutoChannelSubOption]),
+    TypeOrmModule.forFeature([AutoChannelConfigOrm, AutoChannelButtonOrm, AutoChannelSubOptionOrm]),
     AuthModule,
     VoiceChannelModule,
   ],

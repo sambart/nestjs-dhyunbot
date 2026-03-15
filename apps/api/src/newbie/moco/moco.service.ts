@@ -9,7 +9,7 @@ import {
   TextChannel,
 } from 'discord.js';
 
-import { NewbieConfig } from '../domain/newbie-config.entity';
+import { NewbieConfigOrmEntity as NewbieConfig } from '../infrastructure/newbie-config.orm-entity';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { NEWBIE_CUSTOM_ID } from '../infrastructure/newbie-custom-id.constants';
 import { NewbieMocoTemplateRepository } from '../infrastructure/newbie-moco-template.repository';

@@ -5,9 +5,9 @@ import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { VoiceCoPresencePairDaily } from '../co-presence/domain/voice-co-presence-pair-daily.entity';
-import { VoiceChannelHistory } from '../domain/voice-channel-history.entity';
-import { VoiceDailyEntity } from '../domain/voice-daily.entity';
+import { VoiceCoPresencePairDailyOrm } from '../co-presence/infrastructure/voice-co-presence-pair-daily.orm-entity';
+import { VoiceChannelHistoryOrm } from '../infrastructure/voice-channel-history.orm-entity';
+import { VoiceDailyOrm } from '../infrastructure/voice-daily.orm-entity';
 
 @Injectable()
 export class VoiceDataRetentionScheduler {
@@ -15,12 +15,12 @@ export class VoiceDataRetentionScheduler {
 
   constructor(
     private readonly configService: ConfigService,
-    @InjectRepository(VoiceDailyEntity)
-    private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
-    @InjectRepository(VoiceChannelHistory)
-    private readonly voiceHistoryRepo: Repository<VoiceChannelHistory>,
-    @InjectRepository(VoiceCoPresencePairDaily)
-    private readonly coPresenceRepo: Repository<VoiceCoPresencePairDaily>,
+    @InjectRepository(VoiceDailyOrm)
+    private readonly voiceDailyRepo: Repository<VoiceDailyOrm>,
+    @InjectRepository(VoiceChannelHistoryOrm)
+    private readonly voiceHistoryRepo: Repository<VoiceChannelHistoryOrm>,
+    @InjectRepository(VoiceCoPresencePairDailyOrm)
+    private readonly coPresenceRepo: Repository<VoiceCoPresencePairDailyOrm>,
   ) {}
 
   /** 매일 04:00 KST(19:00 UTC) 실행 — 보존 기간 초과 음성 데이터 일괄 삭제 */

@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import { VoiceCoPresencePairDaily } from '../../../channel/voice/co-presence/domain/voice-co-presence-pair-daily.entity';
-import { VoiceDailyEntity } from '../../../channel/voice/domain/voice-daily.entity';
-import { MocoHuntingDaily } from '../../../newbie/domain/moco-hunting-daily.entity';
-import { VoiceHealthBadge } from '../domain/voice-health-badge.entity';
-import { VoiceHealthConfig } from '../domain/voice-health-config.entity';
+import { VoiceCoPresencePairDailyOrm } from '../../../channel/voice/co-presence/infrastructure/voice-co-presence-pair-daily.orm-entity';
+import { VoiceDailyOrm } from '../../../channel/voice/infrastructure/voice-daily.orm-entity';
+import { MocoHuntingDailyOrmEntity as MocoHuntingDaily } from '../../../newbie/infrastructure/moco-hunting-daily.orm-entity';
+import { VoiceHealthBadgeOrmEntity as VoiceHealthBadge } from '../infrastructure/voice-health-badge.orm-entity';
+import { VoiceHealthConfigOrmEntity as VoiceHealthConfig } from '../infrastructure/voice-health-config.orm-entity';
 import { BADGE_CODE, type BadgeCode } from './badge.constants';
 import { calculateHhi } from './hhi-calculator';
 
@@ -49,10 +49,10 @@ interface UserBadgeData {
 export class BadgeService {
   // eslint-disable-next-line max-params
   constructor(
-    @InjectRepository(VoiceDailyEntity)
-    private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
-    @InjectRepository(VoiceCoPresencePairDaily)
-    private readonly pairDailyRepo: Repository<VoiceCoPresencePairDaily>,
+    @InjectRepository(VoiceDailyOrm)
+    private readonly voiceDailyRepo: Repository<VoiceDailyOrm>,
+    @InjectRepository(VoiceCoPresencePairDailyOrm)
+    private readonly pairDailyRepo: Repository<VoiceCoPresencePairDailyOrm>,
     @InjectRepository(MocoHuntingDaily)
     private readonly mocoRepo: Repository<MocoHuntingDaily>,
     @InjectRepository(VoiceHealthBadge)

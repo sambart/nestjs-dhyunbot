@@ -4,11 +4,11 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from '../auth/auth.module';
-import { VoiceCoPresencePairDaily } from '../channel/voice/co-presence/domain/voice-co-presence-pair-daily.entity';
-import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
+import { VoiceCoPresencePairDailyOrm } from '../channel/voice/co-presence/infrastructure/voice-co-presence-pair-daily.orm-entity';
+import { VoiceDailyOrm } from '../channel/voice/infrastructure/voice-daily.orm-entity';
 import { VoiceRedisRepository } from '../channel/voice/infrastructure/voice-redis.repository';
 import { GatewayModule } from '../gateway/gateway.module';
-import { MocoHuntingDaily } from '../newbie/domain/moco-hunting-daily.entity';
+import { MocoHuntingDailyOrmEntity as MocoHuntingDaily } from '../newbie/infrastructure/moco-hunting-daily.orm-entity';
 import { VoiceAiAnalysisService } from './application/voice-ai-analysis.service';
 import { VoiceAnalyticsService } from './application/voice-analytics.service';
 import { VoiceNameEnricherService } from './application/voice-name-enricher.service';
@@ -22,8 +22,8 @@ import { BadgeScheduler } from './self-diagnosis/application/badge.scheduler';
 import { BadgeService } from './self-diagnosis/application/badge.service';
 import { BadgeQueryService } from './self-diagnosis/application/badge-query.service';
 import { SelfDiagnosisService } from './self-diagnosis/application/self-diagnosis.service';
-import { VoiceHealthBadge } from './self-diagnosis/domain/voice-health-badge.entity';
-import { VoiceHealthConfig } from './self-diagnosis/domain/voice-health-config.entity';
+import { VoiceHealthBadgeOrmEntity } from './self-diagnosis/infrastructure/voice-health-badge.orm-entity';
+import { VoiceHealthConfigOrmEntity } from './self-diagnosis/infrastructure/voice-health-config.orm-entity';
 import { VoiceHealthConfigRepository } from './self-diagnosis/infrastructure/voice-health-config.repository';
 import { SelfDiagnosisCommand } from './self-diagnosis/presentation/self-diagnosis.command';
 import { SelfDiagnosisController } from './self-diagnosis/presentation/self-diagnosis.controller';
@@ -33,11 +33,11 @@ import { SelfDiagnosisController } from './self-diagnosis/presentation/self-diag
     DiscordModule.forFeature(),
     ConfigModule,
     TypeOrmModule.forFeature([
-      VoiceDailyEntity,
-      VoiceCoPresencePairDaily,
+      VoiceDailyOrm,
+      VoiceCoPresencePairDailyOrm,
       MocoHuntingDaily,
-      VoiceHealthConfig,
-      VoiceHealthBadge,
+      VoiceHealthConfigOrmEntity,
+      VoiceHealthBadgeOrmEntity,
     ]),
     GatewayModule,
     AuthModule,

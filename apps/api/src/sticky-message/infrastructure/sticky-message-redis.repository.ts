@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
 import { RedisService } from '../../redis/redis.service';
-import { StickyMessageConfig } from '../domain/sticky-message-config.entity';
 import { StickyMessageKeys } from './sticky-message-cache.keys';
+import { StickyMessageConfigOrm } from './sticky-message-config.orm-entity';
 
 /** Redis TTL 상수 (초 단위) */
 const TTL = {
@@ -17,12 +17,12 @@ export class StickyMessageRedisRepository {
   constructor(private readonly redis: RedisService) {}
 
   /** 설정 캐시 조회 (GET → JSON 역직렬화) */
-  async getConfig(guildId: string): Promise<StickyMessageConfig[] | null> {
-    return this.redis.get<StickyMessageConfig[]>(StickyMessageKeys.config(guildId));
+  async getConfig(guildId: string): Promise<StickyMessageConfigOrm[] | null> {
+    return this.redis.get<StickyMessageConfigOrm[]>(StickyMessageKeys.config(guildId));
   }
 
   /** 설정 캐시 저장 (SET EX 3600 — TTL 1시간) */
-  async setConfig(guildId: string, configs: StickyMessageConfig[]): Promise<void> {
+  async setConfig(guildId: string, configs: StickyMessageConfigOrm[]): Promise<void> {
     await this.redis.set(StickyMessageKeys.config(guildId), configs, TTL.CONFIG);
   }
 

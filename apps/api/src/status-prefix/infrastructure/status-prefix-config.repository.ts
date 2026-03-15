@@ -2,17 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 
-import { StatusPrefixButton } from '../domain/status-prefix-button.entity';
-import { StatusPrefixConfig } from '../domain/status-prefix-config.entity';
 import { StatusPrefixConfigSaveDto } from '../presentation/status-prefix-config-save.dto';
+import { StatusPrefixButtonOrm } from './status-prefix-button.orm-entity';
+import { StatusPrefixConfigOrm } from './status-prefix-config.orm-entity';
 
 @Injectable()
 export class StatusPrefixConfigRepository {
   constructor(
-    @InjectRepository(StatusPrefixConfig)
-    private readonly configRepo: Repository<StatusPrefixConfig>,
-    @InjectRepository(StatusPrefixButton)
-    private readonly buttonRepo: Repository<StatusPrefixButton>,
+    @InjectRepository(StatusPrefixConfigOrm)
+    private readonly configRepo: Repository<StatusPrefixConfigOrm>,
+    @InjectRepository(StatusPrefixButtonOrm)
+    private readonly buttonRepo: Repository<StatusPrefixButtonOrm>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -20,7 +20,7 @@ export class StatusPrefixConfigRepository {
    * guildId로 설정 단건 조회 (buttons 관계 포함).
    * F-STATUS-PREFIX-001, F-STATUS-PREFIX-005에서 enabled 확인 시 사용.
    */
-  async findByGuildId(guildId: string): Promise<StatusPrefixConfig | null> {
+  async findByGuildId(guildId: string): Promise<StatusPrefixConfigOrm | null> {
     return this.configRepo.findOne({
       where: { guildId },
       relations: { buttons: true },
@@ -32,7 +32,7 @@ export class StatusPrefixConfigRepository {
    * 버튼 ID로 버튼 단건 조회.
    * 인터랙션 핸들러에서 버튼의 prefix, type 확인용으로 사용 (Unit B).
    */
-  async findButtonById(buttonId: number): Promise<StatusPrefixButton | null> {
+  async findButtonById(buttonId: number): Promise<StatusPrefixButtonOrm | null> {
     return this.buttonRepo.findOne({
       where: { id: buttonId },
       relations: { config: true }, // prefixTemplate 조회를 위해 config 포함
@@ -48,10 +48,10 @@ export class StatusPrefixConfigRepository {
    * 트랜잭션 내에서 처리하여 부분 실패를 방지한다.
    * messageId는 upsert에서 초기화하지 않고 updateMessageId()로만 변경한다.
    */
-  async upsert(guildId: string, dto: StatusPrefixConfigSaveDto): Promise<StatusPrefixConfig> {
+  async upsert(guildId: string, dto: StatusPrefixConfigSaveDto): Promise<StatusPrefixConfigOrm> {
     return this.dataSource.transaction(async (manager) => {
       // 1. 기존 설정 조회
-      let config = await manager.findOne(StatusPrefixConfig, {
+      let config = await manager.findOne(StatusPrefixConfigOrm, {
         where: { guildId },
       });
 
@@ -63,13 +63,13 @@ export class StatusPrefixConfigRepository {
         config.embedDescription = dto.embedDescription ?? null;
         config.embedColor = dto.embedColor ?? null;
         config.prefixTemplate = dto.prefixTemplate;
-        await manager.save(StatusPrefixConfig, config);
+        await manager.save(StatusPrefixConfigOrm, config);
 
         // 2b. 기존 버튼 전체 삭제 (CASCADE로 재삽입)
-        await manager.delete(StatusPrefixButton, { configId: config.id });
+        await manager.delete(StatusPrefixButtonOrm, { configId: config.id });
       } else {
         // 3. 신규 생성
-        config = manager.create(StatusPrefixConfig, {
+        config = manager.create(StatusPrefixConfigOrm, {
           guildId,
           enabled: dto.enabled,
           channelId: dto.channelId ?? null,
@@ -79,12 +79,12 @@ export class StatusPrefixConfigRepository {
           prefixTemplate: dto.prefixTemplate,
           messageId: null,
         });
-        config = await manager.save(StatusPrefixConfig, config);
+        config = await manager.save(StatusPrefixConfigOrm, config);
       }
 
       // 4. 버튼 INSERT
       for (const btnDto of dto.buttons) {
-        const button = manager.create(StatusPrefixButton, {
+        const button = manager.create(StatusPrefixButtonOrm, {
           configId: config.id,
           label: btnDto.label,
           emoji: btnDto.emoji ?? null,
@@ -92,11 +92,11 @@ export class StatusPrefixConfigRepository {
           type: btnDto.type,
           sortOrder: btnDto.sortOrder,
         });
-        await manager.save(StatusPrefixButton, button);
+        await manager.save(StatusPrefixButtonOrm, button);
       }
 
       // 5. 최종 상태를 relations 포함하여 반환
-      return manager.findOneOrFail(StatusPrefixConfig, {
+      return manager.findOneOrFail(StatusPrefixConfigOrm, {
         where: { id: config.id },
         relations: { buttons: true },
         order: { buttons: { sortOrder: 'ASC' } },

@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { NewbieConfig } from '../domain/newbie-config.entity';
 import { NewbieConfigSaveDto } from '../dto/newbie-config-save.dto';
+import { NewbieConfigOrmEntity as NewbieConfig } from './newbie-config.orm-entity';
 
 @Injectable()
 export class NewbieConfigRepository {

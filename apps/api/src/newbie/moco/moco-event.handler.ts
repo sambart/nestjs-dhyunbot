@@ -9,8 +9,8 @@ import {
   CoPresenceSessionEndedEvent,
   CoPresenceTickEvent,
 } from '../../channel/voice/co-presence/co-presence.events';
-import { NewbieConfig } from '../domain/newbie-config.entity';
 import { MocoDbRepository } from '../infrastructure/moco-db.repository';
+import { NewbieConfigOrmEntity as NewbieConfig } from '../infrastructure/newbie-config.orm-entity';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { NewbieRedisRepository } from '../infrastructure/newbie-redis.repository';
 

@@ -3,7 +3,7 @@ import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Client, GuildMember } from 'discord.js';
 
-import { NewbieConfig } from '../../domain/newbie-config.entity';
+import { NewbieConfigOrmEntity as NewbieConfig } from '../../infrastructure/newbie-config.orm-entity';
 import { NewbiePeriodRepository } from '../../infrastructure/newbie-period.repository';
 import { NewbieRedisRepository } from '../../infrastructure/newbie-redis.repository';
 

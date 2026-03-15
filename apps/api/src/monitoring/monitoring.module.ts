@@ -6,14 +6,14 @@ import { AuthModule } from '../auth/auth.module';
 import { RedisModule } from '../redis/redis.module';
 import { MonitoringScheduler } from './application/monitoring.scheduler';
 import { MonitoringService } from './application/monitoring.service';
-import { BotMetric } from './domain/bot-metric.entity';
+import { BotMetricOrm } from './infrastructure/bot-metric.orm-entity';
 import { BotMetricRepository } from './infrastructure/bot-metric.repository';
 import { MonitoringController } from './presentation/monitoring.controller';
 
 @Module({
   imports: [
     DiscordModule.forFeature(),
-    TypeOrmModule.forFeature([BotMetric]),
+    TypeOrmModule.forFeature([BotMetricOrm]),
     AuthModule,
     RedisModule,
   ],

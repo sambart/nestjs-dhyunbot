@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { VoiceDailyEntity } from '../domain/voice-daily.entity';
+import { VoiceDailyOrm } from './voice-daily.orm-entity';
 
 @Injectable()
 export class VoiceDailyRepository {
   constructor(
-    @InjectRepository(VoiceDailyEntity)
-    private readonly repo: Repository<VoiceDailyEntity>,
+    @InjectRepository(VoiceDailyOrm)
+    private readonly repo: Repository<VoiceDailyOrm>,
   ) {}
 
   private dateToRecordedAt(date: string): Date {
@@ -110,7 +110,7 @@ export class VoiceDailyRepository {
     to: string,
     userId?: string,
     timezone?: string,
-  ): Promise<VoiceDailyEntity[]> {
+  ): Promise<VoiceDailyOrm[]> {
     // timezone이 제공되고 KST가 아닌 경우, recordedAt 기반 타임존 쿼리 시도
     if (timezone && timezone !== 'Asia/Seoul') {
       return this.findByGuildIdAndDateRangeWithTimezone(guildId, from, to, timezone, userId);
@@ -138,7 +138,7 @@ export class VoiceDailyRepository {
     to: string,
     timezone: string,
     userId?: string,
-  ): Promise<VoiceDailyEntity[]> {
+  ): Promise<VoiceDailyOrm[]> {
     // recordedAt이 없는 레거시 데이터는 기존 date 컬럼으로 필터링하고,
     // recordedAt이 있는 데이터는 해당 타임존 기준 날짜로 필터링한다
     const qb = this.repo

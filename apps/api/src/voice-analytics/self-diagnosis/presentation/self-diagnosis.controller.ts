@@ -11,7 +11,7 @@ import {
 
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { BadgeService } from '../application/badge.service';
-import { VoiceHealthConfig } from '../domain/voice-health-config.entity';
+import { VoiceHealthConfigOrmEntity as VoiceHealthConfig } from '../infrastructure/voice-health-config.orm-entity';
 import { VoiceHealthConfigRepository } from '../infrastructure/voice-health-config.repository';
 import { VoiceHealthConfigSaveDto } from './dto/voice-health-config-save.dto';
 

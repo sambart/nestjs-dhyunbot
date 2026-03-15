@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
-import { MissionStatus } from '../domain/newbie-mission.entity';
+import { MissionStatus } from '../domain/newbie-mission.types';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from '../infrastructure/newbie-mission.repository';
 import { NewbieRedisRepository } from '../infrastructure/newbie-redis.repository';

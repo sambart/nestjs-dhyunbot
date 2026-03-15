@@ -3,8 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { RedisService } from '../../redis/redis.service';
-import { GuildSetting } from '../domain/guild-setting.entity';
-import { UserSetting } from '../domain/user-setting.entity';
+import { GuildSettingOrmEntity as GuildSetting } from '../infrastructure/guild-setting.orm-entity';
+import { UserSettingOrmEntity as UserSetting } from '../infrastructure/user-setting.orm-entity';
 
 const SUPPORTED_LOCALES = ['ko', 'en'];
 const DEFAULT_LOCALE = 'en';

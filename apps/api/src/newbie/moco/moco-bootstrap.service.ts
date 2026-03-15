@@ -2,8 +2,8 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import { MocoHuntingDaily } from '../domain/moco-hunting-daily.entity';
-import { MocoHuntingSession } from '../domain/moco-hunting-session.entity';
+import { MocoHuntingDailyOrmEntity as MocoHuntingDaily } from '../infrastructure/moco-hunting-daily.orm-entity';
+import { MocoHuntingSessionOrmEntity as MocoHuntingSession } from '../infrastructure/moco-hunting-session.orm-entity';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { NewbieRedisRepository } from '../infrastructure/newbie-redis.repository';
 

@@ -2,20 +2,20 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 
-import { AutoChannelButton } from '../domain/auto-channel-button.entity';
-import { AutoChannelConfig } from '../domain/auto-channel-config.entity';
-import { AutoChannelSubOption } from '../domain/auto-channel-sub-option.entity';
 import { AutoChannelSaveDto } from '../dto/auto-channel-save.dto';
+import { AutoChannelButtonOrm } from './auto-channel-button.orm-entity';
+import { AutoChannelConfigOrm } from './auto-channel-config.orm-entity';
+import { AutoChannelSubOptionOrm } from './auto-channel-sub-option.orm-entity';
 
 @Injectable()
 export class AutoChannelConfigRepository {
   constructor(
-    @InjectRepository(AutoChannelConfig)
-    private readonly configRepo: Repository<AutoChannelConfig>,
-    @InjectRepository(AutoChannelButton)
-    private readonly buttonRepo: Repository<AutoChannelButton>,
-    @InjectRepository(AutoChannelSubOption)
-    private readonly subOptionRepo: Repository<AutoChannelSubOption>,
+    @InjectRepository(AutoChannelConfigOrm)
+    private readonly configRepo: Repository<AutoChannelConfigOrm>,
+    @InjectRepository(AutoChannelButtonOrm)
+    private readonly buttonRepo: Repository<AutoChannelButtonOrm>,
+    @InjectRepository(AutoChannelSubOptionOrm)
+    private readonly subOptionRepo: Repository<AutoChannelSubOptionOrm>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -23,7 +23,7 @@ export class AutoChannelConfigRepository {
    * 봇 기동 초기화에서 사용.
    * relations 없이 guildId, triggerChannelId만 조회한다.
    */
-  async findAllConfigs(): Promise<AutoChannelConfig[]> {
+  async findAllConfigs(): Promise<AutoChannelConfigOrm[]> {
     return this.configRepo.find();
   }
 
@@ -31,7 +31,7 @@ export class AutoChannelConfigRepository {
    * 설정 ID로 단건 조회 (buttons, subOptions 포함).
    * F-VOICE-009: sendOrUpdateGuideMessage에서 사용.
    */
-  async findById(configId: number): Promise<AutoChannelConfig | null> {
+  async findById(configId: number): Promise<AutoChannelConfigOrm | null> {
     return this.configRepo.findOne({
       where: { id: configId },
       relations: { buttons: { subOptions: true } },
@@ -42,7 +42,7 @@ export class AutoChannelConfigRepository {
    * 서버 내 모든 설정 조회 (buttons, subOptions 포함).
    * 웹 대시보드 초기 데이터 로드에서 사용.
    */
-  async findAllByGuildId(guildId: string): Promise<AutoChannelConfig[]> {
+  async findAllByGuildId(guildId: string): Promise<AutoChannelConfigOrm[]> {
     return this.configRepo.find({
       where: { guildId },
       relations: { buttons: { subOptions: true } },
@@ -55,7 +55,7 @@ export class AutoChannelConfigRepository {
   async findByTriggerChannel(
     guildId: string,
     triggerChannelId: string,
-  ): Promise<AutoChannelConfig | null> {
+  ): Promise<AutoChannelConfigOrm | null> {
     return this.configRepo.findOne({
       where: { guildId, triggerChannelId },
       relations: { buttons: { subOptions: true } },
@@ -71,10 +71,10 @@ export class AutoChannelConfigRepository {
    * 트랜잭션 내에서 처리하여 부분 실패를 방지한다.
    * guideMessageId는 upsert에서 초기화하지 않고 updateGuideMessageId()로만 변경한다.
    */
-  async upsert(guildId: string, dto: AutoChannelSaveDto): Promise<AutoChannelConfig> {
+  async upsert(guildId: string, dto: AutoChannelSaveDto): Promise<AutoChannelConfigOrm> {
     return this.dataSource.transaction(async (manager) => {
       // 1. 기존 설정 조회
-      let config = await manager.findOne(AutoChannelConfig, {
+      let config = await manager.findOne(AutoChannelConfigOrm, {
         where: { guildId, triggerChannelId: dto.triggerChannelId },
       });
 
@@ -86,13 +86,13 @@ export class AutoChannelConfigRepository {
         config.guideMessage = dto.guideMessage;
         config.embedTitle = dto.embedTitle ?? null;
         config.embedColor = dto.embedColor ?? null;
-        await manager.save(AutoChannelConfig, config);
+        await manager.save(AutoChannelConfigOrm, config);
 
         // 2b. 기존 버튼 전체 삭제 (CASCADE로 subOptions도 삭제됨)
-        await manager.delete(AutoChannelButton, { configId: config.id });
+        await manager.delete(AutoChannelButtonOrm, { configId: config.id });
       } else {
         // 3. 신규 생성
-        config = manager.create(AutoChannelConfig, {
+        config = manager.create(AutoChannelConfigOrm, {
           guildId,
           name: dto.name,
           triggerChannelId: dto.triggerChannelId,
@@ -103,12 +103,12 @@ export class AutoChannelConfigRepository {
           embedColor: dto.embedColor ?? null,
           guideMessageId: null,
         });
-        config = await manager.save(AutoChannelConfig, config);
+        config = await manager.save(AutoChannelConfigOrm, config);
       }
 
       // 4. 버튼 + 하위 선택지 INSERT
       for (const btnDto of dto.buttons) {
-        let button = manager.create(AutoChannelButton, {
+        let button = manager.create(AutoChannelButtonOrm, {
           configId: config.id,
           label: btnDto.label,
           emoji: btnDto.emoji ?? null,
@@ -116,22 +116,22 @@ export class AutoChannelConfigRepository {
           channelNameTemplate: btnDto.channelNameTemplate ?? null,
           sortOrder: btnDto.sortOrder,
         });
-        button = await manager.save(AutoChannelButton, button);
+        button = await manager.save(AutoChannelButtonOrm, button);
 
         for (const subDto of btnDto.subOptions) {
-          const sub = manager.create(AutoChannelSubOption, {
+          const sub = manager.create(AutoChannelSubOptionOrm, {
             buttonId: button.id,
             label: subDto.label,
             emoji: subDto.emoji ?? null,
             channelNameTemplate: subDto.channelNameTemplate,
             sortOrder: subDto.sortOrder,
           });
-          await manager.save(AutoChannelSubOption, sub);
+          await manager.save(AutoChannelSubOptionOrm, sub);
         }
       }
 
       // 5. 최종 상태를 relations 포함하여 반환
-      return manager.findOneOrFail(AutoChannelConfig, {
+      return manager.findOneOrFail(AutoChannelConfigOrm, {
         where: { id: config.id },
         relations: { buttons: { subOptions: true } },
       });
@@ -159,7 +159,7 @@ export class AutoChannelConfigRepository {
    * 버튼 ID로 버튼 조회 (subOptions 관계 포함).
    * F-VOICE-010/011: 버튼 클릭 인터랙션 처리에서 사용.
    */
-  async findButtonById(buttonId: number): Promise<AutoChannelButton | null> {
+  async findButtonById(buttonId: number): Promise<AutoChannelButtonOrm | null> {
     return this.buttonRepo.findOne({
       where: { id: buttonId },
       relations: { subOptions: true, config: true },
@@ -170,11 +170,10 @@ export class AutoChannelConfigRepository {
    * 하위 선택지 ID로 하위 선택지 조회 (button + config 관계 포함).
    * F-VOICE-011: 2단계 하위 선택지 클릭 인터랙션 처리에서 사용.
    */
-  async findSubOptionById(subOptionId: number): Promise<AutoChannelSubOption | null> {
+  async findSubOptionById(subOptionId: number): Promise<AutoChannelSubOptionOrm | null> {
     return this.subOptionRepo.findOne({
       where: { id: subOptionId },
       relations: { button: { config: true } },
     });
   }
-
 }

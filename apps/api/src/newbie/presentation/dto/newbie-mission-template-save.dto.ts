@@ -1,6 +1,6 @@
 import { IsObject, IsOptional, IsString } from 'class-validator';
 
-import { StatusMapping } from '../../domain/newbie-mission-template.entity';
+import { type StatusMapping } from '../../domain/newbie-mission.types';
 
 export class NewbieMissionTemplateSaveDto {
   @IsOptional()

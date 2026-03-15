@@ -3,9 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import { RedisService } from '../../../redis/redis.service';
-import { VoiceHealthConfig } from '../domain/voice-health-config.entity';
 import type { VoiceHealthConfigSaveDto } from '../presentation/dto/voice-health-config-save.dto';
 import { VoiceHealthKeys } from './voice-health-cache.keys';
+import { VoiceHealthConfigOrmEntity as VoiceHealthConfig } from './voice-health-config.orm-entity';
 
 const CONFIG_TTL = 3600;
 

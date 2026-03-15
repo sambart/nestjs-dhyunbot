@@ -10,17 +10,17 @@ import { CoPresenceAnalyticsController } from './co-presence-analytics.controlle
 import { CoPresenceAnalyticsService } from './co-presence-analytics.service';
 import { CoPresenceCleanupScheduler } from './co-presence-cleanup.scheduler';
 import { CoPresenceDbRepository } from './co-presence-db.repository';
-import { VoiceCoPresenceDaily } from './domain/voice-co-presence-daily.entity';
-import { VoiceCoPresencePairDaily } from './domain/voice-co-presence-pair-daily.entity';
-import { VoiceCoPresenceSession } from './domain/voice-co-presence-session.entity';
+import { VoiceCoPresenceDailyOrm } from './infrastructure/voice-co-presence-daily.orm-entity';
+import { VoiceCoPresencePairDailyOrm } from './infrastructure/voice-co-presence-pair-daily.orm-entity';
+import { VoiceCoPresenceSessionOrm } from './infrastructure/voice-co-presence-session.orm-entity';
 
 @Module({
   imports: [
     DiscordModule.forFeature(),
     TypeOrmModule.forFeature([
-      VoiceCoPresenceSession,
-      VoiceCoPresenceDaily,
-      VoiceCoPresencePairDaily,
+      VoiceCoPresenceSessionOrm,
+      VoiceCoPresenceDailyOrm,
+      VoiceCoPresencePairDailyOrm,
       Member,
     ]),
     VoiceChannelModule,

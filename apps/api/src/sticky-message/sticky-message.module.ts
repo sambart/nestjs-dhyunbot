@@ -8,7 +8,7 @@ import { StickyMessageRefreshService } from './application/sticky-message-refres
 import { StickyMessageDeleteCommand } from './command/sticky-message-delete.command';
 import { StickyMessageListCommand } from './command/sticky-message-list.command';
 import { StickyMessageRegisterCommand } from './command/sticky-message-register.command';
-import { StickyMessageConfig } from './domain/sticky-message-config.entity';
+import { StickyMessageConfigOrm } from './infrastructure/sticky-message-config.orm-entity';
 import { StickyMessageConfigRepository } from './infrastructure/sticky-message-config.repository';
 import { StickyMessageRedisRepository } from './infrastructure/sticky-message-redis.repository';
 import { StickyMessageController } from './presentation/sticky-message.controller';
@@ -16,7 +16,7 @@ import { StickyMessageController } from './presentation/sticky-message.controlle
 @Module({
   imports: [
     DiscordModule.forFeature(),
-    TypeOrmModule.forFeature([StickyMessageConfig]),
+    TypeOrmModule.forFeature([StickyMessageConfigOrm]),
     AuthModule,
   ],
   controllers: [StickyMessageController],

@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { NewbieMocoTemplate } from '../domain/newbie-moco-template.entity';
 import { NewbieMocoTemplateSaveDto } from '../dto/newbie-moco-template-save.dto';
+import { NewbieMocoTemplateOrmEntity as NewbieMocoTemplate } from './newbie-moco-template.orm-entity';
 
 @Injectable()
 export class NewbieMocoTemplateRepository {

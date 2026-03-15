@@ -16,7 +16,7 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { MissionService } from '../application/mission/mission.service';
 import { MocoService } from '../application/moco/moco.service';
 import { findInvalidVars } from '../application/util/newbie-template-validator.util';
-import { MissionStatus } from '../domain/newbie-mission.entity';
+import { MissionStatus } from '../domain/newbie-mission.types';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from '../infrastructure/newbie-mission.repository';
 import { NewbieMissionTemplateRepository } from '../infrastructure/newbie-mission-template.repository';

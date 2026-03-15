@@ -14,25 +14,21 @@ import {
 
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { VoiceExcludedChannelService } from '../application/voice-excluded-channel.service';
-import { VoiceExcludedChannel } from '../domain/voice-excluded-channel.entity';
 import { VoiceExcludedChannelSaveDto } from '../dto/voice-excluded-channel-save.dto';
 import { VoiceExcludedChannelSyncDto } from '../dto/voice-excluded-channel-sync.dto';
+import { VoiceExcludedChannelOrm } from '../infrastructure/voice-excluded-channel.orm-entity';
 
 @Controller('api/guilds/:guildId/voice/excluded-channels')
 @UseGuards(JwtAuthGuard)
 export class VoiceExcludedChannelController {
-  constructor(
-    private readonly excludedChannelService: VoiceExcludedChannelService,
-  ) {}
+  constructor(private readonly excludedChannelService: VoiceExcludedChannelService) {}
 
   /**
    * GET /api/guilds/:guildId/voice/excluded-channels
    * 제외 채널 목록 조회 (F-VOICE-013).
    */
   @Get()
-  async getExcludedChannels(
-    @Param('guildId') guildId: string,
-  ): Promise<VoiceExcludedChannel[]> {
+  async getExcludedChannels(@Param('guildId') guildId: string): Promise<VoiceExcludedChannelOrm[]> {
     return this.excludedChannelService.getExcludedChannels(guildId);
   }
 
@@ -45,7 +41,7 @@ export class VoiceExcludedChannelController {
   async saveExcludedChannel(
     @Param('guildId') guildId: string,
     @Body() dto: VoiceExcludedChannelSaveDto,
-  ): Promise<VoiceExcludedChannel> {
+  ): Promise<VoiceExcludedChannelOrm> {
     return this.excludedChannelService.saveExcludedChannel(guildId, dto);
   }
 

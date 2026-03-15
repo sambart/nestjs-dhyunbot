@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import { VoiceHealthBadge } from '../domain/voice-health-badge.entity';
+import { VoiceHealthBadgeOrmEntity as VoiceHealthBadge } from '../infrastructure/voice-health-badge.orm-entity';
 
 @Injectable()
 export class BadgeQueryService {

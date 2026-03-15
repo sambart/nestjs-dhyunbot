@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import { BadgeQueryService } from '../../../voice-analytics/self-diagnosis/application/badge-query.service';
-import { VoiceDailyEntity } from '../domain/voice-daily.entity';
+import { VoiceDailyOrm } from '../infrastructure/voice-daily.orm-entity';
 import { VoiceDailyFlushService } from './voice-daily-flush-service';
 
 export interface MeProfileData {
@@ -34,8 +34,8 @@ export class MeProfileService {
   private readonly logger = new Logger(MeProfileService.name);
 
   constructor(
-    @InjectRepository(VoiceDailyEntity)
-    private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
+    @InjectRepository(VoiceDailyOrm)
+    private readonly voiceDailyRepo: Repository<VoiceDailyOrm>,
     private readonly flushService: VoiceDailyFlushService,
     private readonly badgeQueryService: BadgeQueryService,
   ) {}

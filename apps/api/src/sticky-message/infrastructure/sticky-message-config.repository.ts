@@ -2,18 +2,18 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { StickyMessageConfig } from '../domain/sticky-message-config.entity';
 import { StickyMessageSaveDto } from '../dto/sticky-message-save.dto';
+import { StickyMessageConfigOrm } from './sticky-message-config.orm-entity';
 
 @Injectable()
 export class StickyMessageConfigRepository {
   constructor(
-    @InjectRepository(StickyMessageConfig)
-    private readonly configRepo: Repository<StickyMessageConfig>,
+    @InjectRepository(StickyMessageConfigOrm)
+    private readonly configRepo: Repository<StickyMessageConfigOrm>,
   ) {}
 
   /** guildId로 전체 설정 목록 조회 (sortOrder ASC). 캐시 미스 워밍업 및 슬래시 커맨드용. */
-  async findByGuildId(guildId: string): Promise<StickyMessageConfig[]> {
+  async findByGuildId(guildId: string): Promise<StickyMessageConfigOrm[]> {
     return this.configRepo.find({
       where: { guildId },
       order: { sortOrder: 'ASC' },
@@ -24,7 +24,7 @@ export class StickyMessageConfigRepository {
   async findByGuildAndChannel(
     guildId: string,
     channelId: string,
-  ): Promise<StickyMessageConfig[]> {
+  ): Promise<StickyMessageConfigOrm[]> {
     return this.configRepo.find({
       where: { guildId, channelId, enabled: true },
       order: { sortOrder: 'ASC' },
@@ -32,7 +32,7 @@ export class StickyMessageConfigRepository {
   }
 
   /** id로 단건 조회. 삭제 시 messageId, channelId 확인용. */
-  async findById(id: number): Promise<StickyMessageConfig | null> {
+  async findById(id: number): Promise<StickyMessageConfigOrm | null> {
     return this.configRepo.findOne({ where: { id } });
   }
 
@@ -42,7 +42,7 @@ export class StickyMessageConfigRepository {
    *   - id 있으면 기존 레코드 갱신 (UPDATE)
    *   - messageId는 건드리지 않음 (updateMessageId()로만 변경)
    */
-  async save(guildId: string, dto: StickyMessageSaveDto): Promise<StickyMessageConfig> {
+  async save(guildId: string, dto: StickyMessageSaveDto): Promise<StickyMessageConfigOrm> {
     if (dto.id == null) {
       const entity = this.configRepo.create({
         guildId,

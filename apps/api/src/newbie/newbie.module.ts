@@ -4,8 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from '../auth/auth.module';
 import { CoPresenceModule } from '../channel/voice/co-presence/co-presence.module';
-import { VoiceChannelHistory } from '../channel/voice/domain/voice-channel-history.entity';
-import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
+import { VoiceChannelHistoryOrm } from '../channel/voice/infrastructure/voice-channel-history.orm-entity';
+import { VoiceDailyOrm } from '../channel/voice/infrastructure/voice-daily.orm-entity';
 import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
 import { RedisModule } from '../redis/redis.module';
 import { MissionScheduler } from './application/mission/mission.scheduler';
@@ -17,18 +17,18 @@ import { MocoResetScheduler } from './application/moco/moco-reset.scheduler';
 import { NewbieRoleScheduler } from './application/role/newbie-role.scheduler';
 import { NewbieRoleService } from './application/role/newbie-role.service';
 import { WelcomeService } from './application/welcome/welcome.service';
-import { MocoHuntingDaily } from './domain/moco-hunting-daily.entity';
-import { MocoHuntingSession } from './domain/moco-hunting-session.entity';
-import { NewbieConfig } from './domain/newbie-config.entity';
-import { NewbieMission } from './domain/newbie-mission.entity';
-import { NewbieMissionTemplate } from './domain/newbie-mission-template.entity';
-import { NewbieMocoTemplate } from './domain/newbie-moco-template.entity';
-import { NewbiePeriod } from './domain/newbie-period.entity';
 import { MocoDbRepository } from './infrastructure/moco-db.repository';
+import { MocoHuntingDailyOrmEntity } from './infrastructure/moco-hunting-daily.orm-entity';
+import { MocoHuntingSessionOrmEntity } from './infrastructure/moco-hunting-session.orm-entity';
+import { NewbieConfigOrmEntity } from './infrastructure/newbie-config.orm-entity';
 import { NewbieConfigRepository } from './infrastructure/newbie-config.repository';
+import { NewbieMissionOrmEntity } from './infrastructure/newbie-mission.orm-entity';
 import { NewbieMissionRepository } from './infrastructure/newbie-mission.repository';
+import { NewbieMissionTemplateOrmEntity } from './infrastructure/newbie-mission-template.orm-entity';
 import { NewbieMissionTemplateRepository } from './infrastructure/newbie-mission-template.repository';
+import { NewbieMocoTemplateOrmEntity } from './infrastructure/newbie-moco-template.orm-entity';
 import { NewbieMocoTemplateRepository } from './infrastructure/newbie-moco-template.repository';
+import { NewbiePeriodOrmEntity } from './infrastructure/newbie-period.orm-entity';
 import { NewbiePeriodRepository } from './infrastructure/newbie-period.repository';
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
 import { NewbieController } from './presentation/newbie.controller';
@@ -38,15 +38,15 @@ import { NewbieGateway } from './presentation/newbie.gateway';
   imports: [
     DiscordModule.forFeature(),
     TypeOrmModule.forFeature([
-      NewbieConfig,
-      NewbieMissionTemplate,
-      NewbieMission,
-      NewbieMocoTemplate,
-      NewbiePeriod,
-      MocoHuntingSession,
-      MocoHuntingDaily,
-      VoiceDailyEntity,
-      VoiceChannelHistory,
+      NewbieConfigOrmEntity,
+      NewbieMissionTemplateOrmEntity,
+      NewbieMissionOrmEntity,
+      NewbieMocoTemplateOrmEntity,
+      NewbiePeriodOrmEntity,
+      MocoHuntingSessionOrmEntity,
+      MocoHuntingDailyOrmEntity,
+      VoiceDailyOrm,
+      VoiceChannelHistoryOrm,
     ]),
     CoPresenceModule,
     VoiceChannelModule,

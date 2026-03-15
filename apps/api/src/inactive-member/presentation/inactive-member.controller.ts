@@ -19,12 +19,12 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { InactiveMemberService } from '../application/inactive-member.service';
 import { InactiveMemberActionService } from '../application/inactive-member-action.service';
-import { InactiveMemberActionType } from '../domain/inactive-member-action-log.entity';
-import { InactiveMemberRecord } from '../domain/inactive-member-record.entity';
+import { InactiveMemberActionType } from '../domain/inactive-member.types';
 import { InactiveMemberActionDto } from '../dto/inactive-member-action.dto';
 import { InactiveMemberConfigSaveDto } from '../dto/inactive-member-config-save.dto';
 import { InactiveMemberRepository } from '../infrastructure/inactive-member.repository';
 import { InactiveMemberQueryRepository } from '../infrastructure/inactive-member-query.repository';
+import type { InactiveMemberRecordOrm } from '../infrastructure/inactive-member-record.orm-entity';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -147,7 +147,7 @@ export class InactiveMemberController {
       }
     }
 
-    let enriched: EnrichedMember[] = items.map((record: InactiveMemberRecord) => ({
+    let enriched: EnrichedMember[] = items.map((record: InactiveMemberRecordOrm) => ({
       userId: record.userId,
       nickName: memberMap.get(record.userId) ?? record.userId,
       grade: record.grade,

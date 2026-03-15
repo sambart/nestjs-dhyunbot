@@ -12,8 +12,8 @@ import {
   SelfDiagnosisService,
 } from '../application/self-diagnosis.service';
 import type { SelfDiagnosisResult } from '../application/self-diagnosis.types';
-import { VoiceHealthConfig } from '../domain/voice-health-config.entity';
 import { VoiceHealthKeys } from '../infrastructure/voice-health-cache.keys';
+import { VoiceHealthConfigOrmEntity as VoiceHealthConfig } from '../infrastructure/voice-health-config.orm-entity';
 import { VoiceHealthConfigRepository } from '../infrastructure/voice-health-config.repository';
 
 const EMBED_COLOR = 0x5b8def;

@@ -2,8 +2,8 @@ import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Client, EmbedBuilder, TextChannel } from 'discord.js';
 
-import { StickyMessageConfig } from '../domain/sticky-message-config.entity';
 import { StickyMessageSaveDto } from '../dto/sticky-message-save.dto';
+import { StickyMessageConfigOrm } from '../infrastructure/sticky-message-config.orm-entity';
 import { StickyMessageConfigRepository } from '../infrastructure/sticky-message-config.repository';
 import { StickyMessageRedisRepository } from '../infrastructure/sticky-message-redis.repository';
 import { STICKY_FOOTER_MARKER } from '../sticky-message.constants';
@@ -22,7 +22,7 @@ export class StickyMessageConfigService {
    * 설정 목록 조회 (F-STICKY-001).
    * Redis 캐시 우선, 미스 시 DB 조회 후 캐시 저장.
    */
-  async getConfigs(guildId: string): Promise<StickyMessageConfig[]> {
+  async getConfigs(guildId: string): Promise<StickyMessageConfigOrm[]> {
     const cached = await this.redisRepo.getConfig(guildId);
     if (cached) return cached;
 
@@ -40,7 +40,7 @@ export class StickyMessageConfigService {
    *   2. Redis 설정 캐시 갱신
    *   3. enabled = true이면 기존 메시지 삭제 후 신규 Embed 전송 및 messageId 갱신
    */
-  async saveConfig(guildId: string, dto: StickyMessageSaveDto): Promise<StickyMessageConfig> {
+  async saveConfig(guildId: string, dto: StickyMessageSaveDto): Promise<StickyMessageConfigOrm> {
     // 1. DB save
     const config = await this.configRepo.save(guildId, dto);
 

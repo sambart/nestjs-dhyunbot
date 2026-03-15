@@ -2,15 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { VoiceChannelHistory } from '../domain/voice-channel-history.entity';
 import { VoiceHistoryItemDto, VoiceHistoryPageDto } from '../dto/voice-history-page.dto';
 import { VoiceHistoryQueryDto } from '../dto/voice-history-query.dto';
+import { VoiceChannelHistoryOrm } from '../infrastructure/voice-channel-history.orm-entity';
 
 @Injectable()
 export class VoiceHistoryService {
   constructor(
-    @InjectRepository(VoiceChannelHistory)
-    private readonly historyRepo: Repository<VoiceChannelHistory>,
+    @InjectRepository(VoiceChannelHistoryOrm)
+    private readonly historyRepo: Repository<VoiceChannelHistoryOrm>,
   ) {}
 
   async getHistory(
@@ -26,7 +26,13 @@ export class VoiceHistoryService {
       .createQueryBuilder('h')
       .innerJoin('h.member', 'm')
       .innerJoin('h.channel', 'c')
-      .addSelect(['m.discordMemberId', 'c.discordChannelId', 'c.channelName', 'c.categoryId', 'c.categoryName'])
+      .addSelect([
+        'm.discordMemberId',
+        'c.discordChannelId',
+        'c.channelName',
+        'c.categoryId',
+        'c.categoryName',
+      ])
       .where('m."discordMemberId" = :userId', { userId })
       .andWhere('c."guildId" = :guildId', { guildId })
       .orderBy('h.joinedAt', 'DESC')
@@ -34,16 +40,14 @@ export class VoiceHistoryService {
       .take(limit);
 
     if (query.from) {
-      qb.andWhere(
-        "DATE(h.joinedAt AT TIME ZONE 'Asia/Seoul') >= TO_DATE(:from, 'YYYYMMDD')",
-        { from: query.from },
-      );
+      qb.andWhere("DATE(h.joinedAt AT TIME ZONE 'Asia/Seoul') >= TO_DATE(:from, 'YYYYMMDD')", {
+        from: query.from,
+      });
     }
     if (query.to) {
-      qb.andWhere(
-        "DATE(h.joinedAt AT TIME ZONE 'Asia/Seoul') <= TO_DATE(:to, 'YYYYMMDD')",
-        { to: query.to },
-      );
+      qb.andWhere("DATE(h.joinedAt AT TIME ZONE 'Asia/Seoul') <= TO_DATE(:to, 'YYYYMMDD')", {
+        to: query.to,
+      });
     }
 
     const [items, total] = await qb.getManyAndCount();
@@ -56,7 +60,7 @@ export class VoiceHistoryService {
     };
   }
 
-  private toItemDto(h: VoiceChannelHistory): VoiceHistoryItemDto {
+  private toItemDto(h: VoiceChannelHistoryOrm): VoiceHistoryItemDto {
     return {
       id: h.id,
       channelId: h.channel.discordChannelId,

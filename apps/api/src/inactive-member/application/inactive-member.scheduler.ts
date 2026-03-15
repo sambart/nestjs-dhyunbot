@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Client } from 'discord.js';
 
-import { InactiveMemberGrade } from '../domain/inactive-member-record.entity';
+import { InactiveMemberGrade } from '../domain/inactive-member.types';
 import { InactiveMemberService } from './inactive-member.service';
 import { InactiveMemberActionService } from './inactive-member-action.service';
 

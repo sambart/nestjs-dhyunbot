@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 
-import { VoiceCoPresenceDaily } from './domain/voice-co-presence-daily.entity';
-import { VoiceCoPresenceSession } from './domain/voice-co-presence-session.entity';
+import { VoiceCoPresenceDailyOrm } from './infrastructure/voice-co-presence-daily.orm-entity';
+import { VoiceCoPresenceSessionOrm } from './infrastructure/voice-co-presence-session.orm-entity';
 
 export interface SaveSessionDto {
   guildId: string;
@@ -28,10 +28,10 @@ export interface UpsertPairDailyRow {
 @Injectable()
 export class CoPresenceDbRepository {
   constructor(
-    @InjectRepository(VoiceCoPresenceSession)
-    private readonly sessionRepo: Repository<VoiceCoPresenceSession>,
-    @InjectRepository(VoiceCoPresenceDaily)
-    private readonly dailyRepo: Repository<VoiceCoPresenceDaily>,
+    @InjectRepository(VoiceCoPresenceSessionOrm)
+    private readonly sessionRepo: Repository<VoiceCoPresenceSessionOrm>,
+    @InjectRepository(VoiceCoPresenceDailyOrm)
+    private readonly dailyRepo: Repository<VoiceCoPresenceDailyOrm>,
     private readonly dataSource: DataSource,
   ) {}
 

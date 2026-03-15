@@ -10,12 +10,12 @@ import {
 import { VoiceChannelService } from '../../voice/application/voice-channel.service';
 import { DiscordVoiceGateway } from '../../voice/infrastructure/discord-voice.gateway';
 import { VoiceStateDto } from '../../voice/infrastructure/voice-state.dto';
-import { AutoChannelButton } from '../domain/auto-channel-button.entity';
-import { AutoChannelSubOption } from '../domain/auto-channel-sub-option.entity';
+import { AutoChannelButtonOrm } from '../infrastructure/auto-channel-button.orm-entity';
 import { AutoChannelConfigRepository } from '../infrastructure/auto-channel-config.repository';
 import { AutoChannelDiscordGateway } from '../infrastructure/auto-channel-discord.gateway';
 import { AutoChannelRedisRepository } from '../infrastructure/auto-channel-redis.repository';
 import { AutoChannelConfirmedState } from '../infrastructure/auto-channel-state';
+import { AutoChannelSubOptionOrm } from '../infrastructure/auto-channel-sub-option.orm-entity';
 
 /** Discord 버튼 제약: ActionRow당 최대 버튼 수 */
 const BUTTONS_PER_ROW = 5;
@@ -246,8 +246,8 @@ export class AutoChannelService {
     guildId: string,
     userId: string,
     member: GuildMember,
-    button: AutoChannelButton,
-    subOption?: AutoChannelSubOption,
+    button: AutoChannelButtonOrm,
+    subOption?: AutoChannelSubOptionOrm,
   ): Promise<void> {
     const userName = member.displayName;
 
@@ -315,8 +315,8 @@ export class AutoChannelService {
    */
   private buildChannelName(
     userName: string,
-    button: AutoChannelButton,
-    subOption?: AutoChannelSubOption,
+    button: AutoChannelButtonOrm,
+    subOption?: AutoChannelSubOptionOrm,
   ): string {
     const buttonTemplate = button.channelNameTemplate || `{username}의 ${button.label}`;
     const baseName = buttonTemplate.replace(/{username}/g, userName);
@@ -377,7 +377,7 @@ export class AutoChannelService {
    * customId 형식: auto_sub:{subOptionId}
    */
   private buildSubOptionActionRows(
-    subOptions: AutoChannelSubOption[],
+    subOptions: AutoChannelSubOptionOrm[],
   ): ActionRowBuilder<ButtonBuilder>[] {
     const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 

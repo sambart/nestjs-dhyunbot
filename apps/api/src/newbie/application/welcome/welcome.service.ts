@@ -2,7 +2,7 @@ import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Client, EmbedBuilder, GuildMember, TextChannel } from 'discord.js';
 
-import { NewbieConfig } from '../../domain/newbie-config.entity';
+import { NewbieConfigOrmEntity as NewbieConfig } from '../../infrastructure/newbie-config.orm-entity';
 
 @Injectable()
 export class WelcomeService {

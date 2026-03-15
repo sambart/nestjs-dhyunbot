@@ -14,11 +14,12 @@ import {
 import { Repository } from 'typeorm';
 
 import { VoiceDailyFlushService } from '../../channel/voice/application/voice-daily-flush-service';
-import { VoiceChannelHistory } from '../../channel/voice/domain/voice-channel-history.entity';
-import { VoiceDailyEntity } from '../../channel/voice/domain/voice-daily.entity';
-import { NewbieConfig } from '../domain/newbie-config.entity';
-import { MissionStatus, NewbieMission } from '../domain/newbie-mission.entity';
+import { VoiceChannelHistoryOrm } from '../../channel/voice/infrastructure/voice-channel-history.orm-entity';
+import { VoiceDailyOrm } from '../../channel/voice/infrastructure/voice-daily.orm-entity';
+import { MissionStatus } from '../domain/newbie-mission.types';
+import { NewbieConfigOrmEntity as NewbieConfig } from '../infrastructure/newbie-config.orm-entity';
 import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
+import { NewbieMissionOrmEntity as NewbieMission } from '../infrastructure/newbie-mission.orm-entity';
 import { NewbieMissionRepository } from '../infrastructure/newbie-mission.repository';
 import { NewbieMissionTemplateRepository } from '../infrastructure/newbie-mission-template.repository';
 import { NewbieRedisRepository } from '../infrastructure/newbie-redis.repository';
@@ -41,10 +42,10 @@ export class MissionService {
     private readonly newbieRedis: NewbieRedisRepository,
     private readonly voiceDailyFlushService: VoiceDailyFlushService,
     private readonly missionTmplRepo: NewbieMissionTemplateRepository,
-    @InjectRepository(VoiceDailyEntity)
-    private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
-    @InjectRepository(VoiceChannelHistory)
-    private readonly voiceHistoryRepo: Repository<VoiceChannelHistory>,
+    @InjectRepository(VoiceDailyOrm)
+    private readonly voiceDailyRepo: Repository<VoiceDailyOrm>,
+    @InjectRepository(VoiceChannelHistoryOrm)
+    private readonly voiceHistoryRepo: Repository<VoiceChannelHistoryOrm>,
     @InjectDiscordClient()
     private readonly discord: Client,
   ) {}
@@ -145,7 +146,7 @@ export class MissionService {
 
   /**
    * 기간 내 플레이타임 합산 (초 단위).
-   * VoiceDailyEntity에서 channelId != 'GLOBAL' 레코드의 channelDurationSec 합산.
+   * VoiceDailyOrm에서 channelId != 'GLOBAL' 레코드의 channelDurationSec 합산.
    * startDate/endDate는 YYYYMMDD 형식.
    */
   async getPlaytimeSec(
@@ -167,9 +168,9 @@ export class MissionService {
   }
 
   /**
-   * 기간 내 플레이횟수 (VoiceChannelHistory 세션 수).
+   * 기간 내 플레이횟수 (VoiceChannelHistoryOrm 세션 수).
    * startDate/endDate는 YYYYMMDD 형식; KST 기준으로 Date 범위 변환.
-   * guildId 필터: VoiceDailyEntity를 통해 해당 길드에 속한 채널만 조회.
+   * guildId 필터: VoiceDailyOrm를 통해 해당 길드에 속한 채널만 조회.
    */
   async getPlayCount(
     guildId: string,

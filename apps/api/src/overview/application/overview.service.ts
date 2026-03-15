@@ -3,10 +3,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { VoiceDailyEntity } from '../../channel/voice/domain/voice-daily.entity';
+import { VoiceDailyOrm } from '../../channel/voice/infrastructure/voice-daily.orm-entity';
 import { DiscordGateway } from '../../gateway/discord.gateway';
-import { InactiveMemberRecord } from '../../inactive-member/domain/inactive-member-record.entity';
-import { BotMetric } from '../../monitoring/domain/bot-metric.entity';
+import { InactiveMemberRecordOrm } from '../../inactive-member/infrastructure/inactive-member-record.orm-entity';
+import { BotMetricOrm } from '../../monitoring/infrastructure/bot-metric.orm-entity';
 import { NewbieConfigRepository } from '../../newbie/infrastructure/newbie-config.repository';
 import { NewbieMissionRepository } from '../../newbie/infrastructure/newbie-mission.repository';
 
@@ -19,12 +19,12 @@ export class OverviewService {
     private readonly discordGateway: DiscordGateway,
     private readonly newbieConfigRepo: NewbieConfigRepository,
     private readonly newbieMissionRepo: NewbieMissionRepository,
-    @InjectRepository(VoiceDailyEntity)
-    private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
-    @InjectRepository(BotMetric)
-    private readonly botMetricRepo: Repository<BotMetric>,
-    @InjectRepository(InactiveMemberRecord)
-    private readonly inactiveRecordRepo: Repository<InactiveMemberRecord>,
+    @InjectRepository(VoiceDailyOrm)
+    private readonly voiceDailyRepo: Repository<VoiceDailyOrm>,
+    @InjectRepository(BotMetricOrm)
+    private readonly botMetricRepo: Repository<BotMetricOrm>,
+    @InjectRepository(InactiveMemberRecordOrm)
+    private readonly inactiveRecordRepo: Repository<InactiveMemberRecordOrm>,
   ) {}
 
   async getOverview(guildId: string): Promise<GuildOverviewResponse> {

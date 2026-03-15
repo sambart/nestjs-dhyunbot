@@ -3,8 +3,8 @@ import Redis from 'ioredis';
 
 import { REDIS_CLIENT } from '../../redis/redis.constants';
 import { RedisService } from '../../redis/redis.service';
-import { StatusPrefixConfig } from '../domain/status-prefix-config.entity';
 import { StatusPrefixKeys } from './status-prefix-cache.keys';
+import { StatusPrefixConfigOrm } from './status-prefix-config.orm-entity';
 
 /** Redis TTL 상수 (초 단위) */
 const TTL = {
@@ -48,12 +48,12 @@ export class StatusPrefixRedisRepository {
   // --- 설정 캐시 ---
 
   /** 설정 캐시 조회 (GET → JSON 역직렬화) */
-  async getConfig(guildId: string): Promise<StatusPrefixConfig | null> {
-    return this.redis.get<StatusPrefixConfig>(StatusPrefixKeys.config(guildId));
+  async getConfig(guildId: string): Promise<StatusPrefixConfigOrm | null> {
+    return this.redis.get<StatusPrefixConfigOrm>(StatusPrefixKeys.config(guildId));
   }
 
   /** 설정 캐시 저장 (SET EX 3600 — TTL 1시간) */
-  async setConfig(guildId: string, config: StatusPrefixConfig): Promise<void> {
+  async setConfig(guildId: string, config: StatusPrefixConfigOrm): Promise<void> {
     await this.redis.set(StatusPrefixKeys.config(guildId), config, TTL.CONFIG);
   }
 

@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MemberModule } from '../../member/member.module';
 import { VoiceAnalyticsModule } from '../../voice-analytics/voice-analytics.module';
 import { ChannelModule } from '../channel.module';
+import { DataDeletionService } from './application/data-deletion.service';
 import { MeCommand } from './application/me.command';
 import { MeProfileService } from './application/me-profile.service';
 import { MemberSearchService } from './application/member-search.service';
@@ -22,13 +23,13 @@ import { VoiceRecoveryService } from './application/voice-recovery.service';
 import { VoiceSessionService } from './application/voice-session.service';
 import { VoiceStatsQueryService } from './application/voice-stats-query.service';
 import { VoiceTempChannelService } from './application/voice-temp-channel.service';
-import { VoiceCoPresencePairDaily } from './co-presence/domain/voice-co-presence-pair-daily.entity';
-import { VoiceChannelHistory } from './domain/voice-channel-history.entity';
-import { VoiceDailyEntity } from './domain/voice-daily.entity';
-import { VoiceExcludedChannel } from './domain/voice-excluded-channel.entity';
+import { VoiceCoPresencePairDailyOrm } from './co-presence/infrastructure/voice-co-presence-pair-daily.orm-entity';
 import { DiscordVoiceGateway } from './infrastructure/discord-voice.gateway';
 import { RedisTempChannelStore } from './infrastructure/redis-temp-channel-store';
+import { VoiceChannelHistoryOrm } from './infrastructure/voice-channel-history.orm-entity';
+import { VoiceDailyOrm } from './infrastructure/voice-daily.orm-entity';
 import { VoiceDailyRepository } from './infrastructure/voice-daily.repository';
+import { VoiceExcludedChannelOrm } from './infrastructure/voice-excluded-channel.orm-entity';
 import { VoiceExcludedChannelRepository } from './infrastructure/voice-excluded-channel.repository';
 import { VoiceRedisRepository } from './infrastructure/voice-redis.repository';
 import { DataDeletionController } from './presentation/data-deletion.controller';
@@ -41,10 +42,10 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
   imports: [
     DiscordModule.forFeature(),
     TypeOrmModule.forFeature([
-      VoiceChannelHistory,
-      VoiceDailyEntity,
-      VoiceExcludedChannel,
-      VoiceCoPresencePairDaily,
+      VoiceChannelHistoryOrm,
+      VoiceDailyOrm,
+      VoiceExcludedChannelOrm,
+      VoiceCoPresencePairDailyOrm,
     ]),
     MemberModule,
     ChannelModule,
@@ -83,6 +84,7 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
     MemberSearchService,
     VoiceHistoryService,
     VoiceDataRetentionScheduler,
+    DataDeletionService,
   ],
   exports: [
     VoiceChannelService,

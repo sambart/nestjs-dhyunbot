@@ -3,15 +3,15 @@ import Redis from 'ioredis';
 
 import { REDIS_CLIENT } from '../../redis/redis.constants';
 import { RedisService } from '../../redis/redis.service';
-import { NewbieConfig } from '../domain/newbie-config.entity';
-import { NewbieMission } from '../domain/newbie-mission.entity';
 import { NewbieKeys } from './newbie-cache.keys';
+import { NewbieConfigOrmEntity as NewbieConfig } from './newbie-config.orm-entity';
+import { NewbieMissionOrmEntity as NewbieMission } from './newbie-mission.orm-entity';
 
 /** Redis TTL 상수 (초 단위) */
 const TTL = {
-  CONFIG: 60 * 60,         // 1시간
+  CONFIG: 60 * 60, // 1시간
   MISSION_ACTIVE: 60 * 30, // 30분
-  PERIOD_ACTIVE: 60 * 60,  // 1시간
+  PERIOD_ACTIVE: 60 * 60, // 1시간
 } as const;
 
 @Injectable()
@@ -152,10 +152,7 @@ export class NewbieRedisRepository {
    * 사냥꾼의 신규사용자별 상세 시간 조회 (HGETALL)
    * 반환값: { newbieMemberId: minutes }
    */
-  async getMocoHunterDetail(
-    guildId: string,
-    hunterId: string,
-  ): Promise<Record<string, number>> {
+  async getMocoHunterDetail(guildId: string, hunterId: string): Promise<Record<string, number>> {
     const raw = await this.client.hgetall(NewbieKeys.mocoTotal(guildId, hunterId));
     const result: Record<string, number> = {};
     for (const [key, value] of Object.entries(raw)) {
@@ -240,7 +237,12 @@ export class NewbieRedisRepository {
   async getMocoHunterMeta(
     guildId: string,
     hunterId: string,
-  ): Promise<{ score: number; sessionCount: number; uniqueNewbieCount: number; totalMinutes: number } | null> {
+  ): Promise<{
+    score: number;
+    sessionCount: number;
+    uniqueNewbieCount: number;
+    totalMinutes: number;
+  } | null> {
     const raw = await this.client.hgetall(NewbieKeys.mocoMeta(guildId, hunterId));
     if (!raw || Object.keys(raw).length === 0) return null;
     return {
@@ -262,10 +264,7 @@ export class NewbieRedisRepository {
   }
 
   /** 모코코별 세션 횟수 전체 조회 (HGETALL) */
-  async getMocoNewbieSessions(
-    guildId: string,
-    hunterId: string,
-  ): Promise<Record<string, number>> {
+  async getMocoNewbieSessions(guildId: string, hunterId: string): Promise<Record<string, number>> {
     const raw = await this.client.hgetall(NewbieKeys.mocoNewbieSessions(guildId, hunterId));
     const result: Record<string, number> = {};
     for (const [key, value] of Object.entries(raw)) {

@@ -1,11 +1,11 @@
 import { InjectDiscordClient } from '@discord-nestjs/core';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Client, EmbedBuilder, Guild } from 'discord.js';
 
-import { InactiveMemberActionType } from '../domain/inactive-member-action-log.entity';
-import { InactiveMemberConfig } from '../domain/inactive-member-config.entity';
-import { InactiveMemberGrade } from '../domain/inactive-member-record.entity';
+import { DomainException } from '../../common/domain-exception';
+import { InactiveMemberActionType, InactiveMemberGrade } from '../domain/inactive-member.types';
 import { InactiveMemberRepository } from '../infrastructure/inactive-member.repository';
+import type { InactiveMemberConfigOrm } from '../infrastructure/inactive-member-config.orm-entity';
 import { InactiveMemberService } from './inactive-member.service';
 
 export interface ActionResult {
@@ -41,8 +41,9 @@ export class InactiveMemberActionService {
       ({ successCount, failCount } = await this.executeDmAction(guild, config, targetUserIds));
     } else if (actionType === InactiveMemberActionType.ACTION_ROLE_ADD) {
       if (!config.inactiveRoleId) {
-        throw new NotFoundException(
+        throw new DomainException(
           'inactiveRoleId가 설정되지 않아 역할 부여를 실행할 수 없습니다.',
+          'INACTIVE_ROLE_NOT_CONFIGURED',
         );
       }
       ({ successCount, failCount } = await this.executeRoleAction(
@@ -53,7 +54,10 @@ export class InactiveMemberActionService {
       ));
     } else if (actionType === InactiveMemberActionType.ACTION_ROLE_REMOVE) {
       if (!config.removeRoleId) {
-        throw new NotFoundException('removeRoleId가 설정되지 않아 역할 제거를 실행할 수 없습니다.');
+        throw new DomainException(
+          'removeRoleId가 설정되지 않아 역할 제거를 실행할 수 없습니다.',
+          'REMOVE_ROLE_NOT_CONFIGURED',
+        );
       }
       ({ successCount, failCount } = await this.executeRoleAction(
         guild,
@@ -143,7 +147,7 @@ export class InactiveMemberActionService {
 
   private async executeDmAction(
     guild: Guild,
-    config: InactiveMemberConfig,
+    config: InactiveMemberConfigOrm,
     targetUserIds: string[],
   ): Promise<{ successCount: number; failCount: number }> {
     let successCount = 0;
@@ -202,7 +206,7 @@ export class InactiveMemberActionService {
   }
 
   private buildDmEmbed(
-    config: InactiveMemberConfig,
+    config: InactiveMemberConfigOrm,
     nickName: string,
     serverName: string,
   ): EmbedBuilder {

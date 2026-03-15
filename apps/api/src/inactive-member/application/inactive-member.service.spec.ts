@@ -1,12 +1,107 @@
-import { InactiveMemberConfig } from '../domain/inactive-member-config.entity';
-import { InactiveMemberGrade } from '../domain/inactive-member-record.entity';
+import {
+  type InactiveMemberClassifyParams,
+  InactiveMemberGrade,
+} from '../domain/inactive-member.types';
+import { InactiveMemberRecord } from '../domain/inactive-member-record.entity';
 import { InactiveMemberService } from './inactive-member.service';
 
 /**
- * InactiveMemberService 단위 테스트.
- * determineGrade 로직이 핵심 비즈니스 규칙이므로 집중 테스트한다.
- * NestJS DI를 우회하여 직접 인스턴스를 생성한다.
+ * InactiveMemberRecord 도메인 Entity + InactiveMemberService 단위 테스트.
+ * classify 로직이 핵심 비즈니스 규칙이므로 집중 테스트한다.
  */
+describe('InactiveMemberRecord.classify (도메인 로직)', () => {
+  const defaultConfig: InactiveMemberClassifyParams = {
+    lowActiveThresholdMin: 30,
+    decliningPercent: 50,
+  };
+
+  function createAndClassify(
+    totalMinutes: number,
+    prevTotalMinutes: number,
+    config: InactiveMemberClassifyParams = defaultConfig,
+  ): InactiveMemberRecord {
+    const record = InactiveMemberRecord.create('guild-1', 'user-1');
+    record.classify(totalMinutes, prevTotalMinutes, null, config);
+    return record;
+  }
+
+  it('음성 활동이 0분이면 FULLY_INACTIVE', () => {
+    const record = createAndClassify(0, 100);
+    expect(record.grade).toBe(InactiveMemberGrade.FULLY_INACTIVE);
+  });
+
+  it('음성 활동이 0분이고 이전 기간도 0이면 FULLY_INACTIVE', () => {
+    const record = createAndClassify(0, 0);
+    expect(record.grade).toBe(InactiveMemberGrade.FULLY_INACTIVE);
+  });
+
+  it('활동 시간이 lowActiveThresholdMin 미만이면 LOW_ACTIVE', () => {
+    const record = createAndClassify(29, 100);
+    expect(record.grade).toBe(InactiveMemberGrade.LOW_ACTIVE);
+  });
+
+  it('활동 시간이 lowActiveThresholdMin과 정확히 같으면 LOW_ACTIVE가 아님', () => {
+    const record = createAndClassify(30, 0);
+    expect(record.grade).not.toBe(InactiveMemberGrade.LOW_ACTIVE);
+  });
+
+  it('이전 대비 50% 이상 감소하면 DECLINING', () => {
+    const record = createAndClassify(50, 100);
+    expect(record.grade).toBe(InactiveMemberGrade.DECLINING);
+  });
+
+  it('이전 대비 50% 미만 감소하면 활동 회원 (null)', () => {
+    const record = createAndClassify(51, 100);
+    expect(record.grade).toBeNull();
+  });
+
+  it('이전 기간 활동이 0이면 DECLINING 판정하지 않는다', () => {
+    const record = createAndClassify(30, 0);
+    expect(record.grade).toBeNull();
+  });
+
+  it('활동이 증가한 경우 활동 회원 (null)', () => {
+    const record = createAndClassify(100, 50);
+    expect(record.grade).toBeNull();
+  });
+
+  it('커스텀 lowActiveThresholdMin=60 적용', () => {
+    const config: InactiveMemberClassifyParams = {
+      lowActiveThresholdMin: 60,
+      decliningPercent: 50,
+    };
+    expect(createAndClassify(59, 0, config).grade).toBe(InactiveMemberGrade.LOW_ACTIVE);
+    expect(createAndClassify(60, 0, config).grade).toBeNull();
+  });
+
+  it('커스텀 decliningPercent=30 적용', () => {
+    const config: InactiveMemberClassifyParams = {
+      lowActiveThresholdMin: 30,
+      decliningPercent: 30,
+    };
+    expect(createAndClassify(70, 100, config).grade).toBe(InactiveMemberGrade.DECLINING);
+    expect(createAndClassify(71, 100, config).grade).toBeNull();
+  });
+
+  it('lowActiveThresholdMin보다 낮으면 DECLINING보다 LOW_ACTIVE가 우선', () => {
+    const record = createAndClassify(10, 100);
+    expect(record.grade).toBe(InactiveMemberGrade.LOW_ACTIVE);
+  });
+
+  it('등급이 변경되면 gradeChangedAt이 갱신된다', () => {
+    const record = InactiveMemberRecord.create('guild-1', 'user-1');
+    expect(record.gradeChangedAt).toBeNull();
+
+    record.classify(0, 0, null, defaultConfig);
+    expect(record.gradeChangedAt).toBeInstanceOf(Date);
+  });
+
+  it('isInactive getter 동작', () => {
+    expect(createAndClassify(0, 0).isInactive).toBe(true);
+    expect(createAndClassify(100, 50).isInactive).toBe(false);
+  });
+});
+
 describe('InactiveMemberService', () => {
   let service: InactiveMemberService;
 
@@ -28,83 +123,15 @@ describe('InactiveMemberService', () => {
   const mockDiscordClient = { guilds: { cache: { get: jest.fn() } } };
 
   beforeEach(() => {
-    // DI 없이 직접 의존성 주입
     service = new (InactiveMemberService as unknown as new (
       ...args: unknown[]
     ) => InactiveMemberService)(mockRepo, mockQueryRepo, mockFlushService, mockDiscordClient);
     jest.clearAllMocks();
   });
 
-  function createConfig(overrides: Partial<InactiveMemberConfig> = {}): InactiveMemberConfig {
-    const config = new InactiveMemberConfig();
-    config.periodDays = 30;
-    config.lowActiveThresholdMin = 30;
-    config.decliningPercent = 50;
-    config.excludedRoleIds = [];
-    return Object.assign(config, overrides);
-  }
-
   // private 메서드 접근
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const callPrivate = (method: string, ...args: unknown[]) => (service as any)[method](...args);
-
-  describe('determineGrade', () => {
-    const config = createConfig();
-
-    it('음성 활동이 0분이면 FULLY_INACTIVE', () => {
-      expect(callPrivate('determineGrade', 0, 100, config)).toBe(
-        InactiveMemberGrade.FULLY_INACTIVE,
-      );
-    });
-
-    it('음성 활동이 0분이고 이전 기간도 0이면 FULLY_INACTIVE', () => {
-      expect(callPrivate('determineGrade', 0, 0, config)).toBe(InactiveMemberGrade.FULLY_INACTIVE);
-    });
-
-    it('활동 시간이 lowActiveThresholdMin 미만이면 LOW_ACTIVE', () => {
-      expect(callPrivate('determineGrade', 29, 100, config)).toBe(InactiveMemberGrade.LOW_ACTIVE);
-    });
-
-    it('활동 시간이 lowActiveThresholdMin과 정확히 같으면 LOW_ACTIVE가 아님', () => {
-      expect(callPrivate('determineGrade', 30, 0, config)).not.toBe(InactiveMemberGrade.LOW_ACTIVE);
-    });
-
-    it('이전 대비 50% 이상 감소하면 DECLINING', () => {
-      expect(callPrivate('determineGrade', 50, 100, config)).toBe(InactiveMemberGrade.DECLINING);
-    });
-
-    it('이전 대비 50% 미만 감소하면 활동 회원 (null)', () => {
-      expect(callPrivate('determineGrade', 51, 100, config)).toBeNull();
-    });
-
-    it('이전 기간 활동이 0이면 DECLINING 판정하지 않는다', () => {
-      expect(callPrivate('determineGrade', 30, 0, config)).toBeNull();
-    });
-
-    it('활동이 증가한 경우 활동 회원 (null)', () => {
-      expect(callPrivate('determineGrade', 100, 50, config)).toBeNull();
-    });
-
-    it('커스텀 lowActiveThresholdMin=60 적용', () => {
-      const customConfig = createConfig({ lowActiveThresholdMin: 60 });
-      expect(callPrivate('determineGrade', 59, 0, customConfig)).toBe(
-        InactiveMemberGrade.LOW_ACTIVE,
-      );
-      expect(callPrivate('determineGrade', 60, 0, customConfig)).toBeNull();
-    });
-
-    it('커스텀 decliningPercent=30 적용', () => {
-      const customConfig = createConfig({ decliningPercent: 30 });
-      expect(callPrivate('determineGrade', 70, 100, customConfig)).toBe(
-        InactiveMemberGrade.DECLINING,
-      );
-      expect(callPrivate('determineGrade', 71, 100, customConfig)).toBeNull();
-    });
-
-    it('lowActiveThresholdMin보다 낮으면 DECLINING보다 LOW_ACTIVE가 우선', () => {
-      expect(callPrivate('determineGrade', 10, 100, config)).toBe(InactiveMemberGrade.LOW_ACTIVE);
-    });
-  });
 
   describe('buildDateRanges', () => {
     it('30일 기간에 대해 올바른 날짜 범위를 생성한다', () => {

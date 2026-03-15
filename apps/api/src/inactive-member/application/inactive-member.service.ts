@@ -4,12 +4,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Client, Collection, type Guild, type GuildMember } from 'discord.js';
 
 import { VoiceDailyFlushService } from '../../channel/voice/application/voice-daily-flush-service';
-import { InactiveMemberConfig } from '../domain/inactive-member-config.entity';
-import { InactiveMemberGrade, InactiveMemberRecord } from '../domain/inactive-member-record.entity';
+import { InactiveMemberRecord } from '../domain/inactive-member-record.entity';
 import {
   InactiveMemberRepository,
   type UpsertRecordData,
 } from '../infrastructure/inactive-member.repository';
+import { InactiveMemberConfigOrm } from '../infrastructure/inactive-member-config.orm-entity';
 import {
   InactiveMemberQueryRepository,
   type TrendEntry,
@@ -38,7 +38,7 @@ export class InactiveMemberService {
     @InjectDiscordClient() private readonly discord: Client,
   ) {}
 
-  async getOrCreateConfig(guildId: string): Promise<InactiveMemberConfig> {
+  async getOrCreateConfig(guildId: string): Promise<InactiveMemberConfigOrm> {
     const config = await this.repo.findConfigByGuildId(guildId);
     return config ?? this.repo.createDefaultConfig(guildId);
   }
@@ -75,8 +75,8 @@ export class InactiveMemberService {
       this.queryRepo.findLastVoiceDateByUser(guildId, prevFromDate),
     ]);
 
-    const classifiedAt = new Date();
-    const records: UpsertRecordData[] = [];
+    const domainRecords: InactiveMemberRecord[] = [];
+    const upsertData: UpsertRecordData[] = [];
 
     for (const [, member] of targetMembers) {
       const userId = member.user.id;
@@ -86,35 +86,29 @@ export class InactiveMemberService {
       const prevTotalMinutes = Math.floor(prevTotalSec / SEC_PER_MIN);
       const lastVoiceDate = lastVoiceDateMap.get(userId) ?? null;
 
-      const grade = this.determineGrade(totalMinutes, prevTotalMinutes, config);
+      const record = InactiveMemberRecord.create(guildId, userId);
+      record.classify(totalMinutes, prevTotalMinutes, lastVoiceDate, {
+        lowActiveThresholdMin: config.lowActiveThresholdMin,
+        decliningPercent: config.decliningPercent,
+      });
 
-      records.push({
+      domainRecords.push(record);
+      upsertData.push({
         guildId,
         userId,
-        grade,
-        totalMinutes,
-        prevTotalMinutes,
-        lastVoiceDate,
-        classifiedAt,
+        grade: record.grade,
+        totalMinutes: record.totalMinutes,
+        prevTotalMinutes: record.prevTotalMinutes,
+        lastVoiceDate: record.lastVoiceDate,
+        classifiedAt: record.classifiedAt,
       });
     }
 
-    await this.repo.batchUpsertRecords(records);
+    await this.repo.batchUpsertRecords(upsertData);
 
-    this.logger.log(`[INACTIVE] Classified guild=${guildId} members=${records.length}`);
+    this.logger.log(`[INACTIVE] Classified guild=${guildId} members=${domainRecords.length}`);
 
-    // 갱신된 레코드를 메모리에서 구성해 반환 (batchUpsert는 RETURNING 미지원)
-    return records.map((r) => {
-      const record = new InactiveMemberRecord();
-      record.guildId = r.guildId;
-      record.userId = r.userId;
-      record.grade = r.grade as InactiveMemberGrade | null;
-      record.totalMinutes = r.totalMinutes;
-      record.prevTotalMinutes = r.prevTotalMinutes;
-      record.lastVoiceDate = r.lastVoiceDate;
-      record.classifiedAt = r.classifiedAt;
-      return record;
-    });
+    return domainRecords;
   }
 
   async getStats(guildId: string): Promise<InactiveStats> {
@@ -139,27 +133,6 @@ export class InactiveMemberService {
       returnedCount,
       trend,
     };
-  }
-
-  private determineGrade(
-    totalMinutes: number,
-    prevTotalMinutes: number,
-    config: InactiveMemberConfig,
-  ): InactiveMemberGrade | null {
-    if (totalMinutes === 0) return InactiveMemberGrade.FULLY_INACTIVE;
-
-    if (totalMinutes < config.lowActiveThresholdMin) {
-      return InactiveMemberGrade.LOW_ACTIVE;
-    }
-
-    if (prevTotalMinutes > 0) {
-      const declineRatio = ((prevTotalMinutes - totalMinutes) / prevTotalMinutes) * 100;
-      if (declineRatio >= config.decliningPercent) {
-        return InactiveMemberGrade.DECLINING;
-      }
-    }
-
-    return null;
   }
 
   private buildDateRanges(periodDays: number): {

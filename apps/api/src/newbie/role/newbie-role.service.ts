@@ -3,7 +3,7 @@ import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Client, GuildMember } from 'discord.js';
 
-import { NewbieConfig } from '../domain/newbie-config.entity';
+import { NewbieConfigOrmEntity as NewbieConfig } from '../infrastructure/newbie-config.orm-entity';
 import { NewbiePeriodRepository } from '../infrastructure/newbie-period.repository';
 import { NewbieRedisRepository } from '../infrastructure/newbie-redis.repository';
 
@@ -24,9 +24,7 @@ export class NewbieRoleService {
    */
   async assignRole(member: GuildMember, config: NewbieConfig): Promise<void> {
     if (!config.newbieRoleId) {
-      this.logger.debug(
-        `[NEWBIE ROLE] newbieRoleId not set: guild=${member.guild.id}`,
-      );
+      this.logger.debug(`[NEWBIE ROLE] newbieRoleId not set: guild=${member.guild.id}`);
       return;
     }
 
@@ -36,9 +34,7 @@ export class NewbieRoleService {
 
     // 1. Discord API — 역할 부여
     await member.roles.add(roleId);
-    this.logger.log(
-      `[NEWBIE ROLE] Assigned role ${roleId} to ${memberId} in guild ${guildId}`,
-    );
+    this.logger.log(`[NEWBIE ROLE] Assigned role ${roleId} to ${memberId} in guild ${guildId}`);
 
     // 2. NewbiePeriod 레코드 생성
     const startDate = getKSTDateString();

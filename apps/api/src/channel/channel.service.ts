@@ -2,14 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Channel } from './channel.entity';
+import { ChannelOrm } from './infrastructure/channel.orm-entity';
 
 @Injectable()
 export class ChannelService {
   private readonly logger = new Logger(ChannelService.name);
   constructor(
-    @InjectRepository(Channel)
-    private readonly channelRepository: Repository<Channel>,
+    @InjectRepository(ChannelOrm)
+    private readonly channelRepository: Repository<ChannelOrm>,
   ) {}
 
   async findOrCreateChannel(
@@ -18,7 +18,7 @@ export class ChannelService {
     guildId?: string,
     categoryId?: string | null,
     categoryName?: string | null,
-  ): Promise<Channel> {
+  ): Promise<ChannelOrm> {
     let channel = await this.channelRepository.findOne({
       where: { discordChannelId: channelId },
     });
@@ -51,7 +51,7 @@ export class ChannelService {
     return channel;
   }
 
-  async getAllChannels(): Promise<Channel[]> {
+  async getAllChannels(): Promise<ChannelOrm[]> {
     return this.channelRepository.find();
   }
 }

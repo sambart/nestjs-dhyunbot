@@ -2,17 +2,17 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
-import { VoiceCoPresencePairDaily } from '../../../channel/voice/co-presence/domain/voice-co-presence-pair-daily.entity';
-import { VoiceDailyEntity } from '../../../channel/voice/domain/voice-daily.entity';
-import { MocoHuntingDaily } from '../../../newbie/domain/moco-hunting-daily.entity';
+import { VoiceCoPresencePairDailyOrm } from '../../../channel/voice/co-presence/infrastructure/voice-co-presence-pair-daily.orm-entity';
+import { VoiceDailyOrm } from '../../../channel/voice/infrastructure/voice-daily.orm-entity';
+import { MocoHuntingDailyOrmEntity as MocoHuntingDaily } from '../../../newbie/infrastructure/moco-hunting-daily.orm-entity';
 import { RedisService } from '../../../redis/redis.service';
 import type { LlmProvider } from '../../infrastructure/llm/llm-provider.interface';
 import {
   LLM_PROVIDER,
   LlmQuotaExhaustedException,
 } from '../../infrastructure/llm/llm-provider.interface';
-import { VoiceHealthConfig } from '../domain/voice-health-config.entity';
 import { VoiceHealthKeys } from '../infrastructure/voice-health-cache.keys';
+import { VoiceHealthConfigOrmEntity as VoiceHealthConfig } from '../infrastructure/voice-health-config.orm-entity';
 import { VoiceHealthConfigRepository } from '../infrastructure/voice-health-config.repository';
 import { BADGE_CODE, BADGE_DISPLAY, type BadgeCode } from './badge.constants';
 import { BadgeQueryService } from './badge-query.service';
@@ -64,10 +64,10 @@ export class DiagnosisCooldownException extends Error {
 export class SelfDiagnosisService {
   // eslint-disable-next-line max-params
   constructor(
-    @InjectRepository(VoiceDailyEntity)
-    private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
-    @InjectRepository(VoiceCoPresencePairDaily)
-    private readonly pairDailyRepo: Repository<VoiceCoPresencePairDaily>,
+    @InjectRepository(VoiceDailyOrm)
+    private readonly voiceDailyRepo: Repository<VoiceDailyOrm>,
+    @InjectRepository(VoiceCoPresencePairDailyOrm)
+    private readonly pairDailyRepo: Repository<VoiceCoPresencePairDailyOrm>,
     @InjectRepository(MocoHuntingDaily)
     private readonly mocoRepo: Repository<MocoHuntingDaily>,
     private readonly configRepo: VoiceHealthConfigRepository,

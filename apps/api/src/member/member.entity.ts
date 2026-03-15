@@ -1,2 +1,2 @@
 // re-export for backward compatibility
-export { Member } from './domain/member.entity';
+export { MemberOrmEntity as Member } from './infrastructure/member.orm-entity';

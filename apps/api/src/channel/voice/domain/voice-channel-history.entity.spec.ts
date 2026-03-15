@@ -1,8 +1,8 @@
-import { VoiceChannelHistory } from './voice-channel-history.entity';
+import { VoiceChannelHistoryOrm } from '../infrastructure/voice-channel-history.orm-entity';
 
-describe('VoiceChannelHistory', () => {
-  function createHistory(joinedAt: Date, leftAt: Date | null): VoiceChannelHistory {
-    const h = new VoiceChannelHistory();
+describe('VoiceChannelHistoryOrm', () => {
+  function createHistory(joinedAt: Date, leftAt: Date | null): VoiceChannelHistoryOrm {
+    const h = new VoiceChannelHistoryOrm();
     h.joinedAt = joinedAt;
     h.leftAt = leftAt;
     return h;

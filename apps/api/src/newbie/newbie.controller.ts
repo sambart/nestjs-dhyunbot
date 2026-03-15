@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { MissionStatus } from './domain/newbie-mission.entity';
+import { MissionStatus } from './domain/newbie-mission.types';
 import { MissionCompleteDto, MissionFailDto, MissionHideDto } from './dto/mission-action.dto';
 import { NewbieConfigSaveDto } from './dto/newbie-config-save.dto';
 import { NewbieMissionTemplateSaveDto } from './dto/newbie-mission-template-save.dto';

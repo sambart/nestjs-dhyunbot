@@ -2,13 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import {
-  InactiveMemberActionLog,
-  InactiveMemberActionType,
-} from '../domain/inactive-member-action-log.entity';
-import { InactiveMemberConfig } from '../domain/inactive-member-config.entity';
-import { InactiveMemberRecord } from '../domain/inactive-member-record.entity';
+import { InactiveMemberActionType } from '../domain/inactive-member.types';
 import type { InactiveMemberConfigSaveDto } from '../dto/inactive-member-config-save.dto';
+import { InactiveMemberActionLogOrm } from './inactive-member-action-log.orm-entity';
+import { InactiveMemberConfigOrm } from './inactive-member-config.orm-entity';
+import { InactiveMemberRecordOrm } from './inactive-member-record.orm-entity';
 
 export interface UpsertRecordData {
   guildId: string;
@@ -33,19 +31,19 @@ export interface CreateActionLogData {
 @Injectable()
 export class InactiveMemberRepository {
   constructor(
-    @InjectRepository(InactiveMemberConfig)
-    private readonly configRepo: Repository<InactiveMemberConfig>,
-    @InjectRepository(InactiveMemberRecord)
-    private readonly recordRepo: Repository<InactiveMemberRecord>,
-    @InjectRepository(InactiveMemberActionLog)
-    private readonly actionLogRepo: Repository<InactiveMemberActionLog>,
+    @InjectRepository(InactiveMemberConfigOrm)
+    private readonly configRepo: Repository<InactiveMemberConfigOrm>,
+    @InjectRepository(InactiveMemberRecordOrm)
+    private readonly recordRepo: Repository<InactiveMemberRecordOrm>,
+    @InjectRepository(InactiveMemberActionLogOrm)
+    private readonly actionLogRepo: Repository<InactiveMemberActionLogOrm>,
   ) {}
 
-  async findConfigByGuildId(guildId: string): Promise<InactiveMemberConfig | null> {
+  async findConfigByGuildId(guildId: string): Promise<InactiveMemberConfigOrm | null> {
     return this.configRepo.findOne({ where: { guildId } });
   }
 
-  async createDefaultConfig(guildId: string): Promise<InactiveMemberConfig> {
+  async createDefaultConfig(guildId: string): Promise<InactiveMemberConfigOrm> {
     const config = this.configRepo.create({ guildId });
     return this.configRepo.save(config);
   }
@@ -53,7 +51,7 @@ export class InactiveMemberRepository {
   async upsertConfig(
     guildId: string,
     dto: InactiveMemberConfigSaveDto,
-  ): Promise<InactiveMemberConfig> {
+  ): Promise<InactiveMemberConfigOrm> {
     let config = await this.findConfigByGuildId(guildId);
 
     if (!config) {
@@ -114,7 +112,7 @@ export class InactiveMemberRepository {
   async findNewlyFullyInactive(
     guildId: string,
     classifiedAt: Date,
-  ): Promise<InactiveMemberRecord[]> {
+  ): Promise<InactiveMemberRecordOrm[]> {
     return this.recordRepo
       .createQueryBuilder('r')
       .where('r.guildId = :guildId', { guildId })
@@ -123,7 +121,7 @@ export class InactiveMemberRepository {
       .getMany();
   }
 
-  async saveActionLog(data: CreateActionLogData): Promise<InactiveMemberActionLog> {
+  async saveActionLog(data: CreateActionLogData): Promise<InactiveMemberActionLogOrm> {
     const log = this.actionLogRepo.create({
       guildId: data.guildId,
       actionType: data.actionType,

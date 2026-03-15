@@ -5,13 +5,17 @@ import { AuthModule } from '../auth/auth.module';
 import { RedisModule } from '../redis/redis.module';
 import { BotI18nService } from './application/bot-i18n.service';
 import { LocaleResolverService } from './application/locale-resolver.service';
-import { GuildSetting } from './domain/guild-setting.entity';
-import { UserSetting } from './domain/user-setting.entity';
+import { GuildSettingOrmEntity } from './infrastructure/guild-setting.orm-entity';
+import { UserSettingOrmEntity } from './infrastructure/user-setting.orm-entity';
 import { LocaleController } from './presentation/locale.controller';
 
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([UserSetting, GuildSetting]), RedisModule, AuthModule],
+  imports: [
+    TypeOrmModule.forFeature([UserSettingOrmEntity, GuildSettingOrmEntity]),
+    RedisModule,
+    AuthModule,
+  ],
   controllers: [LocaleController],
   providers: [LocaleResolverService, BotI18nService],
   exports: [LocaleResolverService, BotI18nService],

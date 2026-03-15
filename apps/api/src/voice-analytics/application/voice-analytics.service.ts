@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Not, Repository } from 'typeorm';
 
-import { VoiceDailyEntity } from '../../channel/voice/domain/voice-daily.entity';
+import { VoiceDailyOrm } from '../../channel/voice/infrastructure/voice-daily.orm-entity';
 import { DiscordGateway } from '../../gateway/discord.gateway';
 import { UserAggregateData, VoiceNameEnricherService } from './voice-name-enricher.service';
 
@@ -29,8 +29,8 @@ export class VoiceAnalyticsService {
   private readonly logger = new Logger(VoiceAnalyticsService.name);
 
   constructor(
-    @InjectRepository(VoiceDailyEntity)
-    private voiceDailyRepo: Repository<VoiceDailyEntity>,
+    @InjectRepository(VoiceDailyOrm)
+    private voiceDailyRepo: Repository<VoiceDailyOrm>,
     private discordGateway: DiscordGateway,
     private nameEnricher: VoiceNameEnricherService,
   ) {}
@@ -79,7 +79,7 @@ export class VoiceAnalyticsService {
     }
   }
 
-  private calculateTotalStatsFromGlobal(globalData: VoiceDailyEntity[]) {
+  private calculateTotalStatsFromGlobal(globalData: VoiceDailyOrm[]) {
     const uniqueUsers = new Set<string>();
     let totalVoiceTime = 0;
     let totalMicOnTime = 0;
@@ -113,8 +113,8 @@ export class VoiceAnalyticsService {
   // eslint-disable-next-line max-lines-per-function
   private async aggregateUserActivities(
     guildId: string,
-    globalData: VoiceDailyEntity[],
-    channelData: VoiceDailyEntity[],
+    globalData: VoiceDailyOrm[],
+    channelData: VoiceDailyOrm[],
   ) {
     const userMap = new Map<string, UserAggregateData>();
 
@@ -206,7 +206,7 @@ export class VoiceAnalyticsService {
       .sort((a, b) => b.totalVoiceTime - a.totalVoiceTime);
   }
 
-  private async aggregateChannelStats(guildId: string, channelData: VoiceDailyEntity[]) {
+  private async aggregateChannelStats(guildId: string, channelData: VoiceDailyOrm[]) {
     const channelMap = new Map<string, ChannelAggregate>();
 
     channelData.forEach((record) => {
@@ -241,7 +241,7 @@ export class VoiceAnalyticsService {
       .sort((a, b) => b.totalVoiceTime - a.totalVoiceTime);
   }
 
-  private aggregateDailyTrends(globalData: VoiceDailyEntity[], channelData: VoiceDailyEntity[]) {
+  private aggregateDailyTrends(globalData: VoiceDailyOrm[], channelData: VoiceDailyOrm[]) {
     const dailyMap = new Map<string, DailyAggregate>();
 
     globalData.forEach((record) => {

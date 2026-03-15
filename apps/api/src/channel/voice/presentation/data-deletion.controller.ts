@@ -1,12 +1,8 @@
 import { Controller, Delete, HttpCode, HttpStatus, Logger, Req, UseGuards } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
-import { VoiceCoPresencePairDaily } from '../co-presence/domain/voice-co-presence-pair-daily.entity';
-import { VoiceChannelHistory } from '../domain/voice-channel-history.entity';
-import { VoiceDailyEntity } from '../domain/voice-daily.entity';
+import { type DataDeletionResult, DataDeletionService } from '../application/data-deletion.service';
 
 interface JwtUser {
   discordId: string;
@@ -14,11 +10,7 @@ interface JwtUser {
 }
 
 interface DeletedCountDto {
-  deletedCount: {
-    voiceDaily: number;
-    voiceHistory: number;
-    coPresence: number;
-  };
+  deletedCount: DataDeletionResult;
 }
 
 @Controller('api/users/me')
@@ -26,14 +18,7 @@ interface DeletedCountDto {
 export class DataDeletionController {
   private readonly logger = new Logger(DataDeletionController.name);
 
-  constructor(
-    @InjectRepository(VoiceDailyEntity)
-    private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
-    @InjectRepository(VoiceChannelHistory)
-    private readonly voiceHistoryRepo: Repository<VoiceChannelHistory>,
-    @InjectRepository(VoiceCoPresencePairDaily)
-    private readonly coPresenceRepo: Repository<VoiceCoPresencePairDaily>,
-  ) {}
+  constructor(private readonly dataDeletionService: DataDeletionService) {}
 
   /**
    * DELETE /api/users/me/data
@@ -44,44 +29,7 @@ export class DataDeletionController {
   @SkipThrottle()
   async deleteMyData(@Req() req: Request): Promise<DeletedCountDto> {
     const user = (req as unknown as { user: JwtUser }).user;
-    const discordId = user.discordId;
-
-    const [voiceDailyResult, voiceHistoryResult, coPresenceResult] = await Promise.all([
-      this.voiceDailyRepo
-        .createQueryBuilder()
-        .delete()
-        .where('userId = :discordId', { discordId })
-        .execute(),
-      this.voiceHistoryRepo
-        .createQueryBuilder('vch')
-        .delete()
-        .where(
-          'id IN (SELECT vch2.id FROM voice_channel_history vch2 INNER JOIN member m ON m.id = vch2."memberId" WHERE m."discordMemberId" = :discordId)',
-          { discordId },
-        )
-        .execute(),
-      this.coPresenceRepo
-        .createQueryBuilder()
-        .delete()
-        .where('userId = :discordId OR peerId = :discordId', { discordId })
-        .execute(),
-    ]);
-
-    const result: DeletedCountDto = {
-      deletedCount: {
-        voiceDaily: voiceDailyResult.affected ?? 0,
-        voiceHistory: voiceHistoryResult.affected ?? 0,
-        coPresence: coPresenceResult.affected ?? 0,
-      },
-    };
-
-    this.logger.log(
-      `[DATA DELETION] 사용자 데이터 삭제 완료 userId=${discordId}` +
-        ` — VoiceDaily: ${result.deletedCount.voiceDaily}건,` +
-        ` VoiceHistory: ${result.deletedCount.voiceHistory}건,` +
-        ` CoPresence: ${result.deletedCount.coPresence}건`,
-    );
-
-    return result;
+    const deletedCount = await this.dataDeletionService.deleteUserData(user.discordId);
+    return { deletedCount };
   }
 }
