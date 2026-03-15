@@ -1,4 +1,4 @@
-import { ApiError, apiClient, apiGet } from './api-client';
+import { apiClient, ApiError, apiGet } from './api-client';
 
 export interface NewbieConfig {
   // 환영인사

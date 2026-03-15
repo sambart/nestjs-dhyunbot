@@ -1,5 +1,31 @@
 # CLAUDE.md
 
+## Project Overview
+
+DHyunBot — 디스코드 서버의 음성 채널 활동을 실시간 추적하고, Gemini AI 기반 분석 리포트를 제공하며, 음악 재생·신규사용자 관리·비활동 회원 분류 등을 수행하는 다목적 디스코드 봇.
+
+### 기술 스택
+
+| 계층 | 기술 |
+|------|------|
+| Backend | NestJS 10 + TypeORM 0.3 + PostgreSQL 15 + Redis 7 |
+| Frontend | Next.js 16 + React 19 + Tailwind CSS 3 |
+| Discord | Discord.js 14 + discord-nestjs 5 |
+| AI | Google Gemini (@google/generative-ai) |
+| 인프라 | Docker Compose, pnpm workspaces 모노레포 |
+
+### 모노레포 구조
+
+```
+apps/api/     → NestJS 백엔드 API (포트 3000)
+apps/web/     → Next.js 웹 대시보드 (포트 4000)
+libs/shared/  → 공유 타입 및 상수
+```
+
+### 주요 도메인
+
+voice(음성 추적) · gemini(AI 분석) · music(음악 재생) · auth(OAuth2 인증) · web(대시보드) · newbie(신규사용자) · status-prefix(게임방 접두사) · sticky-message(고정메세지) · monitoring(봇 모니터링) · inactive-member(비활동 회원) · voice-co-presence(동시접속 추적) · auto-channel(자동방 생성)
+
 ## Code Style Guide
 
 코드 스타일 가이드 전문: `docs/guides/code-style-guide.md`

@@ -30,7 +30,7 @@ export interface StatusPrefixConfig {
 
 // ─── API 함수 ────────────────────────────────────────────────────────────────
 
-import { ApiError, apiClient } from './api-client';
+import { apiClient,ApiError } from './api-client';
 
 /**
  * 현재 서버의 Status Prefix 설정을 조회한다.
