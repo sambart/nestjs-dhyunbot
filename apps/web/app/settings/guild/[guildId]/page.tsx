@@ -1,6 +1,7 @@
 'use client';
 
 import { Bot, Hash, Loader2, Mic, Music } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import type { SlashCommand } from '../../../lib/discord-api';
@@ -18,6 +19,7 @@ export default function SettingsPage() {
   const { selectedGuildId } = useSettings();
   const [commands, setCommands] = useState<SlashCommand[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const t = useTranslations('settings');
 
   useEffect(() => {
     if (!selectedGuildId) return;
@@ -33,16 +35,16 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">일반 설정</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('general.title')}</h1>
 
       {/* 봇 정보 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">봇 정보</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('general.botInfo')}</h2>
         <div className="space-y-4">
           <div className="flex items-center justify-between py-3 border-b border-gray-100">
             <div className="flex items-center space-x-3">
               <Hash className="w-5 h-5 text-gray-400" />
-              <span className="text-sm text-gray-700">커맨드 프리픽스</span>
+              <span className="text-sm text-gray-700">{t('general.commandPrefix')}</span>
             </div>
             <span className="text-sm font-mono bg-gray-100 px-3 py-1 rounded">
               !
@@ -51,10 +53,10 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center space-x-3">
               <Bot className="w-5 h-5 text-gray-400" />
-              <span className="text-sm text-gray-700">등록된 명령어</span>
+              <span className="text-sm text-gray-700">{t('general.registeredCommands')}</span>
             </div>
             <span className="text-sm text-gray-500">
-              {isLoading ? '—' : `${commands.length}개`}
+              {isLoading ? '—' : t('general.commandCount', { count: commands.length })}
             </span>
           </div>
         </div>
@@ -63,7 +65,7 @@ export default function SettingsPage() {
       {/* 슬래시 커맨드 목록 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          슬래시 커맨드
+          {t('general.slashCommands')}
         </h2>
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -71,7 +73,7 @@ export default function SettingsPage() {
           </div>
         ) : commands.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-sm text-gray-400">등록된 슬래시 커맨드가 없습니다.</p>
+            <p className="text-sm text-gray-400">{t('general.noSlashCommands')}</p>
           </div>
         ) : (
           <div className="space-y-2">

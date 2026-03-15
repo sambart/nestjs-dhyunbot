@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import type { MetricPoint } from "@/app/lib/monitoring-api";
@@ -11,19 +12,21 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartConfig = {
-  status: {
-    label: "상태",
-    color: "var(--chart-2)",
-  },
-} satisfies ChartConfig;
-
 interface Props {
   data: MetricPoint[];
   availabilityPercent: number;
 }
 
 export default function UptimeChart({ data, availabilityPercent }: Props) {
+  const t = useTranslations("dashboard");
+
+  const chartConfig = {
+    status: {
+      label: t("monitoring.uptimeChart.statusLabel"),
+      color: "var(--chart-2)",
+    },
+  } satisfies ChartConfig;
+
   const chartData = data.map((d) => ({
     time: new Date(d.timestamp).toLocaleString("ko-KR", {
       month: "numeric",
@@ -38,12 +41,12 @@ export default function UptimeChart({ data, availabilityPercent }: Props) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>업타임 히스토리</CardTitle>
+          <CardTitle>{t("monitoring.uptimeChart.title")}</CardTitle>
           <CardDescription className="text-right">
             <span className="text-lg font-semibold text-foreground">
               {availabilityPercent}%
             </span>{" "}
-            가용률
+            {t("monitoring.uptimeChart.availability")}
           </CardDescription>
         </div>
       </CardHeader>
@@ -60,7 +63,7 @@ export default function UptimeChart({ data, availabilityPercent }: Props) {
             <YAxis
               domain={[0, 1]}
               ticks={[0, 1]}
-              tickFormatter={(v) => (v === 1 ? "ON" : "OFF")}
+              tickFormatter={(v) => (v === 1 ? t("monitoring.uptimeChart.on") : t("monitoring.uptimeChart.off"))}
               tickLine={false}
               axisLine={false}
             />
@@ -68,7 +71,7 @@ export default function UptimeChart({ data, availabilityPercent }: Props) {
               content={
                 <ChartTooltipContent
                   formatter={(value) =>
-                    value === 1 ? "온라인" : "오프라인"
+                    value === 1 ? t("monitoring.uptimeChart.online") : t("monitoring.uptimeChart.offline")
                   }
                 />
               }

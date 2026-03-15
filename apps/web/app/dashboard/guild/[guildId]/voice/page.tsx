@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { fetchMemberProfiles } from "@/app/lib/user-detail-api";
@@ -51,6 +52,7 @@ function formatYmd(date: Date): string {
 }
 
 export default function VoiceDashboardPage() {
+  const t = useTranslations("dashboard");
   const params = useParams();
   const guildId = params.guildId as string;
   const router = useRouter();
@@ -120,7 +122,7 @@ export default function VoiceDashboardPage() {
     <div className="space-y-6 p-4 md:p-6">
       {/* 헤더 */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl md:text-2xl font-bold">음성 활동 대시보드</h1>
+        <h1 className="text-xl md:text-2xl font-bold">{t("voice.title")}</h1>
         <Select
           value={period}
           onValueChange={(v) => setPeriod(v as Period)}
@@ -129,16 +131,16 @@ export default function VoiceDashboardPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="7d">최근 7일</SelectItem>
-            <SelectItem value="14d">최근 14일</SelectItem>
-            <SelectItem value="30d">최근 30일</SelectItem>
+            <SelectItem value="7d">{t("voice.period.7d")}</SelectItem>
+            <SelectItem value="14d">{t("voice.period.14d")}</SelectItem>
+            <SelectItem value="30d">{t("voice.period.30d")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="text-muted-foreground">데이터 로딩 중...</div>
+          <div className="text-muted-foreground">{t("common.loading")}</div>
         </div>
       ) : (
         <>

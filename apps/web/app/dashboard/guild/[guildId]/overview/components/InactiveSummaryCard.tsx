@@ -1,6 +1,7 @@
 "use client";
 
 import { UserX } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -13,22 +14,23 @@ interface Props {
 }
 
 export default function InactiveSummaryCard({ grades }: Props) {
+  const t = useTranslations("dashboard");
   const total =
     grades.fullyInactive + grades.lowActive + grades.declining;
 
   const items = [
     {
-      label: "완전 비활동",
+      label: t("overview.inactiveGrade.fullyInactive"),
       count: grades.fullyInactive,
       color: "bg-red-500",
     },
     {
-      label: "저활동",
+      label: t("overview.inactiveGrade.lowActive"),
       count: grades.lowActive,
       color: "bg-orange-500",
     },
     {
-      label: "활동 감소",
+      label: t("overview.inactiveGrade.declining"),
       count: grades.declining,
       color: "bg-yellow-500",
     },
@@ -39,7 +41,7 @@ export default function InactiveSummaryCard({ grades }: Props) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <UserX className="h-5 w-5" />
-          비활동 회원 요약
+          {t("overview.inactiveGrade.title")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -47,7 +49,7 @@ export default function InactiveSummaryCard({ grades }: Props) {
           <div key={item.label} className="space-y-1">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{item.label}</span>
-              <span className="font-medium">{item.count}명</span>
+              <span className="font-medium">{item.count}{t("common.unit.person")}</span>
             </div>
             <div className="h-2 w-full rounded-full bg-gray-100">
               <div
@@ -61,7 +63,7 @@ export default function InactiveSummaryCard({ grades }: Props) {
           </div>
         ))}
         <div className="pt-2 border-t text-sm text-muted-foreground">
-          총 {total}명
+          {t("overview.inactiveGrade.total", { count: total })}
         </div>
       </CardContent>
     </Card>

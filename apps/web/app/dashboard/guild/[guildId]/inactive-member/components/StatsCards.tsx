@@ -1,6 +1,7 @@
 "use client";
 
 import { BarChart2, TrendingDown, UserCheck, Users, UserX } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import type { InactiveMemberStats } from "@/app/lib/inactive-member-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,34 +11,36 @@ interface Props {
 }
 
 export default function StatsCards({ stats }: Props) {
+  const t = useTranslations("dashboard");
+
   const cards = [
     {
-      title: "활동 회원",
-      value: `${stats.activeCount}명`,
+      title: t("inactive.statsCards.active"),
+      value: `${stats.activeCount}${t("common.unit.person")}`,
       icon: UserCheck,
       valueClass: "text-green-600",
     },
     {
-      title: "완전 비활동",
-      value: `${stats.fullyInactiveCount}명`,
+      title: t("inactive.statsCards.fullyInactive"),
+      value: `${stats.fullyInactiveCount}${t("common.unit.person")}`,
       icon: UserX,
       valueClass: "text-red-600",
     },
     {
-      title: "저활동",
-      value: `${stats.lowActiveCount}명`,
+      title: t("inactive.statsCards.lowActive"),
+      value: `${stats.lowActiveCount}${t("common.unit.person")}`,
       icon: BarChart2,
       valueClass: "text-orange-600",
     },
     {
-      title: "활동 감소",
-      value: `${stats.decliningCount}명`,
+      title: t("inactive.statsCards.declining"),
+      value: `${stats.decliningCount}${t("common.unit.person")}`,
       icon: TrendingDown,
       valueClass: "text-yellow-600",
     },
     {
-      title: "전체 회원",
-      value: `${stats.totalMembers}명`,
+      title: t("inactive.statsCards.total"),
+      value: `${stats.totalMembers}${t("common.unit.person")}`,
       icon: Users,
       valueClass: "",
     },

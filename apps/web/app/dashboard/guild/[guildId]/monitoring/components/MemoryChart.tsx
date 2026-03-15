@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import type { MetricPoint } from "@/app/lib/monitoring-api";
@@ -13,22 +14,24 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartConfig = {
-  heapUsedMb: {
-    label: "사용 중 (MB)",
-    color: "var(--chart-1)",
-  },
-  heapTotalMb: {
-    label: "전체 (MB)",
-    color: "var(--chart-3)",
-  },
-} satisfies ChartConfig;
-
 interface Props {
   data: MetricPoint[];
 }
 
 export default function MemoryChart({ data }: Props) {
+  const t = useTranslations("dashboard");
+
+  const chartConfig = {
+    heapUsedMb: {
+      label: t("monitoring.memoryChart.used"),
+      color: "var(--chart-1)",
+    },
+    heapTotalMb: {
+      label: t("monitoring.memoryChart.total"),
+      color: "var(--chart-3)",
+    },
+  } satisfies ChartConfig;
+
   const chartData = data.map((d) => ({
     time: new Date(d.timestamp).toLocaleString("ko-KR", {
       month: "numeric",
@@ -43,7 +46,7 @@ export default function MemoryChart({ data }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>메모리 사용량</CardTitle>
+        <CardTitle>{t("monitoring.memoryChart.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[250px] w-full">

@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import type { MemberProfile, VoiceHistoryPage } from "@/app/lib/user-detail-api";
@@ -69,11 +70,7 @@ function computeUserSummary(records: VoiceDailyRecord[]): {
 
 const HISTORY_LIMIT = 20;
 
-const PERIOD_LABELS: Record<Period, string> = {
-  "7d": "7일",
-  "14d": "14일",
-  "30d": "30일",
-};
+// Period labels are resolved inside the component using t()
 
 interface Props {
   guildId: string;
@@ -88,6 +85,7 @@ export default function UserDetailView({
   onBack,
   onUserSelect,
 }: Props) {
+  const t = useTranslations("dashboard");
   const [period, setPeriod] = useState<Period>("7d");
   const [dailyRecords, setDailyRecords] = useState<VoiceDailyRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,7 +177,7 @@ export default function UserDetailView({
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={onBack}>
             <ArrowLeft className="mr-1 h-4 w-4" />
-            서버 전체 보기
+            {t("voice.userDetail.backButton")}
           </Button>
         </div>
         <UserSearchDropdown guildId={guildId} onSelect={onUserSelect} />
@@ -196,7 +194,7 @@ export default function UserDetailView({
               size="sm"
               onClick={() => setPeriod(p)}
             >
-              {PERIOD_LABELS[p]}
+              {t(`voice.periodLabel.${p}`)}
             </Button>
           ))}
         </div>
@@ -204,7 +202,7 @@ export default function UserDetailView({
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <p className="text-muted-foreground">데이터 로딩 중...</p>
+          <p className="text-muted-foreground">{t("common.loading")}</p>
         </div>
       ) : (
         <>

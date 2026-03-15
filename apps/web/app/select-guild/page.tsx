@@ -2,6 +2,7 @@
 
 import { Loader2, Server, Shield } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Suspense, useCallback, useEffect, useState } from "react";
 
 import type { Guild, User } from "../components/Header";
@@ -9,6 +10,7 @@ import type { Guild, User } from "../components/Header";
 function SelectGuildContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("auth");
   const mode = searchParams.get("mode"); // "dashboard" | null (설정)
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,10 +62,10 @@ function SelectGuildContent() {
         <div className="text-center">
           <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h2 className="text-lg font-semibold text-gray-900 mb-2">
-            관리 가능한 서버가 없습니다
+            {t("selectGuild.empty")}
           </h2>
           <p className="text-sm text-gray-500">
-            관리자 또는 서버 관리 권한이 있는 서버가 필요합니다.
+            {t("selectGuild.emptyDesc")}
           </p>
         </div>
       </div>
@@ -74,11 +76,11 @@ function SelectGuildContent() {
     <div className="max-w-4xl mx-auto px-4 py-16">
       <div className="text-center mb-12">
         <Server className="w-12 h-12 text-indigo-500 mx-auto mb-4" />
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">서버 선택</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">{t("selectGuild.title")}</h1>
         <p className="text-gray-500">
           {mode === "dashboard"
-            ? "대시보드를 확인할 서버를 선택하세요"
-            : "관리할 서버를 선택하세요"}
+            ? t("selectGuild.subtitleDashboard")
+            : t("selectGuild.subtitleSettings")}
         </p>
       </div>
 

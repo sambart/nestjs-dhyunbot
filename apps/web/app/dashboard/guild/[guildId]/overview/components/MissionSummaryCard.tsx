@@ -1,6 +1,7 @@
 "use client";
 
 import { Target } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -13,21 +14,22 @@ interface Props {
 }
 
 export default function MissionSummaryCard({ mission }: Props) {
+  const t = useTranslations("dashboard");
   const items = [
     {
-      label: "진행 중",
+      label: t("overview.missionSummary.inProgress"),
       count: mission.inProgress,
       color: "text-blue-600",
       bg: "bg-blue-100",
     },
     {
-      label: "완료",
+      label: t("overview.missionSummary.completed"),
       count: mission.completed,
       color: "text-green-600",
       bg: "bg-green-100",
     },
     {
-      label: "실패",
+      label: t("overview.missionSummary.failed"),
       count: mission.failed,
       color: "text-red-600",
       bg: "bg-red-100",
@@ -39,7 +41,7 @@ export default function MissionSummaryCard({ mission }: Props) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Target className="h-5 w-5" />
-          신입 미션 현황
+          {t("overview.missionSummary.title")}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -51,7 +53,7 @@ export default function MissionSummaryCard({ mission }: Props) {
               >
                 {item.label}
               </span>
-              <span className="text-lg font-bold">{item.count}명</span>
+              <span className="text-lg font-bold">{item.count}{t("common.unit.person")}</span>
             </div>
           ))}
         </div>

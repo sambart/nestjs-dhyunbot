@@ -1,0 +1,537 @@
+{
+  "common": {
+    "loading": "데이터 로딩 중...",
+    "loadingList": "목록 로딩 중...",
+    "loadingConfig": "설정 로딩 중...",
+    "noData": "데이터가 없습니다",
+    "loadFailed": "데이터를 불러오는데 실패했습니다.",
+    "prev": "이전",
+    "next": "다음",
+    "refresh": "새로고침",
+    "cancel": "취소",
+    "processing": "처리 중...",
+    "pageOf": "{current} / {total} 페이지 (총 {count}{unit})",
+    "pagination": "{page} / {totalPages} 페이지 (총 {total}명)",
+    "unit": {
+      "person": "명",
+      "pair": "쌍",
+      "channel": "개",
+      "server": "개 서버",
+      "session": "회",
+      "minute": "분"
+    }
+  },
+  "overview": {
+    "title": "서버 개요",
+    "totalMembers": "총 멤버 수",
+    "todayVoice": "오늘 음성 활동",
+    "currentVoice": "현재 음성 접속자",
+    "activeRate": "활성/비활성 비율",
+    "weeklyChart": {
+      "title": "최근 7일 음성 활동",
+      "durationMin": "음성 시간(분)"
+    },
+    "inactiveGrade": {
+      "title": "비활동 회원 요약",
+      "fullyInactive": "완전 비활동",
+      "lowActive": "저활동",
+      "declining": "활동 감소",
+      "total": "총 {count}명"
+    },
+    "missionSummary": {
+      "title": "신입 미션 현황",
+      "inProgress": "진행 중",
+      "completed": "완료",
+      "failed": "실패"
+    }
+  },
+  "voice": {
+    "title": "음성 활동 대시보드",
+    "period": {
+      "7d": "최근 7일",
+      "14d": "최근 14일",
+      "30d": "최근 30일"
+    },
+    "periodLabel": {
+      "7d": "7일",
+      "14d": "14일",
+      "30d": "30일"
+    },
+    "summary": {
+      "totalDuration": "총 음성 시간",
+      "micOn": "마이크 ON",
+      "micOff": "마이크 OFF",
+      "alone": "혼자 있는 시간",
+      "activeUsers": "활성 유저",
+      "usedChannels": "사용 채널"
+    },
+    "dailyTrend": {
+      "title": "일별 음성 활동 추이",
+      "durationMin": "체류 시간(분)",
+      "micOnMin": "마이크 ON(분)",
+      "micOffMin": "마이크 OFF(분)",
+      "aloneMin": "혼자(분)"
+    },
+    "channelChart": {
+      "title": "음성 활동 (Top 10)",
+      "tabChannel": "채널별",
+      "tabCategory": "카테고리별",
+      "durationMin": "체류(분)",
+      "micOnMin": "마이크 ON(분)",
+      "micOffMin": "마이크 OFF(분)"
+    },
+    "micDistribution": {
+      "title": "음성 활동 분포",
+      "micOn": "마이크 ON",
+      "micOff": "마이크 OFF",
+      "alone": "혼자"
+    },
+    "userRanking": {
+      "title": "유저별 음성 활동 랭킹",
+      "rank": "#",
+      "user": "유저",
+      "duration": "체류 시간",
+      "micOn": "마이크 ON",
+      "alone": "혼자",
+      "noData": "데이터가 없습니다"
+    },
+    "userSearch": {
+      "placeholder": "유저 검색..."
+    },
+    "userDetail": {
+      "backButton": "서버 전체 보기",
+      "dailyChart": {
+        "title": "일별 음성 활동",
+        "durationMin": "체류 시간(분)"
+      },
+      "micPieChart": {
+        "title": "마이크 ON/OFF 분포",
+        "micOn": "마이크 ON",
+        "micOff": "마이크 OFF"
+      },
+      "channelPieChart": {
+        "title": "채널별 활동 비율",
+        "tabChannel": "채널별",
+        "tabCategory": "카테고리별",
+        "etc": "기타"
+      },
+      "historyTable": {
+        "title": "입퇴장 이력",
+        "category": "카테고리",
+        "channel": "채널",
+        "joinAt": "입장 시각",
+        "leftAt": "퇴장 시각",
+        "duration": "체류 시간",
+        "uncategorized": "미분류",
+        "online": "접속 중",
+        "noData": "데이터가 없습니다"
+      }
+    }
+  },
+  "inactive": {
+    "title": "비활동 회원 관리",
+    "classify": "지금 분류 실행",
+    "classifying": "분류 중...",
+    "classifyDone": "{count}명 분류 완료",
+    "grade": {
+      "all": "등급 전체",
+      "fullyInactive": "완전 비활동",
+      "lowActive": "저활동",
+      "declining": "활동 감소"
+    },
+    "filter": {
+      "search": "닉네임 검색...",
+      "sortBy": {
+        "lastVoiceDate": "마지막 접속일",
+        "totalMinutes": "접속 시간"
+      },
+      "sortOrder": {
+        "ASC": "오름차순",
+        "DESC": "내림차순"
+      }
+    },
+    "statsCards": {
+      "active": "활동 회원",
+      "fullyInactive": "완전 비활동",
+      "lowActive": "저활동",
+      "declining": "활동 감소",
+      "total": "전체 회원"
+    },
+    "activityChart": {
+      "title": "활동 비율",
+      "active": "활동",
+      "fullyInactive": "완전 비활동",
+      "lowActive": "저활동",
+      "declining": "활동 감소"
+    },
+    "trendChart": {
+      "title": "비활동 회원 추이",
+      "fullyInactive": "완전 비활동",
+      "lowActive": "저활동",
+      "declining": "활동 감소"
+    },
+    "table": {
+      "selectAll": "전체 선택",
+      "nickname": "닉네임",
+      "grade": "등급",
+      "lastVoiceDate": "마지막 접속일",
+      "totalMinutes": "접속 시간",
+      "gradeChangedAt": "등급 변경일",
+      "noData": "비활동 회원이 없습니다.",
+      "noVoiceDate": "없음"
+    },
+    "action": {
+      "selected": "선택됨",
+      "dm": "DM 전송",
+      "roleAdd": "역할 부여",
+      "roleRemove": "역할 제거",
+      "kick": "강제퇴장",
+      "result": "성공 {success}명 / 실패 {fail}명",
+      "kickModal": {
+        "title": "강제퇴장 확인",
+        "description": "선택된 {count}명을 서버에서 강제퇴장합니다. 이 작업은 되돌릴 수 없습니다.",
+        "inputHint": "계속하려면 아래에 {text}을 입력하세요.",
+        "confirmText": "강제퇴장",
+        "confirm": "강제퇴장 실행",
+        "cancel": "취소"
+      }
+    }
+  },
+  "newbie": {
+    "title": "신입 관리",
+    "missionTab": "미션 관리",
+    "mocoTab": "모코코 순위",
+    "inactive": "비활성",
+    "bothDisabled": "미션 관리 및 모코코 사냥 기능이 모두 비활성화 상태입니다.",
+    "missionDisabled": "미션 관리 기능이 비활성화 상태입니다.",
+    "mocoDisabled": "모코코 사냥 기능이 비활성화 상태입니다.",
+    "goToSettings": "설정에서 기능 활성화하기",
+    "disabledBanner": "{featureName} 기능이 비활성화 상태입니다. 데이터는 읽기 전용으로 조회할 수 있습니다.",
+    "goToSettingsLink": "설정으로 이동",
+    "missionManage": {
+      "inProgress": "진행 중",
+      "history": "전체 이력",
+      "refresh": "새로고침",
+      "loading": "불러오는 중...",
+      "noActive": "진행 중인 미션이 없습니다.",
+      "noHistory": "미션 이력이 없습니다.",
+      "filterAll": "전체",
+      "filterCompleted": "완료",
+      "filterFailed": "실패",
+      "filterLeft": "퇴장",
+      "table": {
+        "member": "멤버",
+        "start": "시작",
+        "end": "마감",
+        "playtime": "플레이타임",
+        "status": "상태",
+        "embedTooltip": "디스코드 임베드 메시지에 표시 여부"
+      },
+      "status": {
+        "inProgress": "진행중",
+        "completed": "완료",
+        "failed": "실패",
+        "left": "퇴장"
+      },
+      "completeModal": {
+        "title": "성공 처리",
+        "description": "멤버 {name}의 미션을 성공 처리합니다.",
+        "roleLabel": "역할 부여 (옵션)",
+        "roleNone": "역할 부여 안함",
+        "cancel": "취소",
+        "confirm": "성공 처리"
+      },
+      "failModal": {
+        "title": "실패 처리",
+        "description": "멤버 {name}의 미션을 실패 처리합니다.",
+        "kickLabel": "서버에서 강퇴",
+        "dmLabel": "DM 사유 메시지 (옵션)",
+        "dmPlaceholder": "강퇴 전 멤버에게 보낼 메시지",
+        "cancel": "취소",
+        "confirm": "실패 처리"
+      }
+    },
+    "moco": {
+      "period": "집계 기간: {period}",
+      "periodNone": "전체 기간 (누적)",
+      "topHunters": "상위 사냥꾼",
+      "totalParticipants": "총 {count}명 참여",
+      "table": {
+        "rank": "순위",
+        "hunter": "사냥꾼",
+        "score": "총 점수",
+        "huntTime": "사냥 시간",
+        "sessions": "세션 횟수",
+        "assistedMoco": "도움 모코코",
+        "detail": "상세",
+        "noData": "순위 데이터가 없습니다."
+      },
+      "detail": {
+        "loading": "불러오는 중...",
+        "noMoco": "도움받은 모코코가 없습니다.",
+        "listTitle": "도움받은 모코코 목록",
+        "nickname": "닉네임",
+        "coPresenceTime": "동시접속 시간",
+        "sessionCount": "세션 횟수"
+      },
+      "rankLabel": {
+        "1": "1위",
+        "2": "2위",
+        "3": "3위"
+      },
+      "stats": {
+        "huntMinutes": "사냥 {minutes}분",
+        "sessions": "세션 {count}회",
+        "mocoCount": "모코코 {count}명"
+      }
+    }
+  },
+  "coPresence": {
+    "title": "관계 분석",
+    "dayUnit": "일",
+    "summary": {
+      "activeMembers": "활성 멤버",
+      "totalPairs": "총 관계 수",
+      "totalTime": "총 동시접속 시간",
+      "avgPairs": "평균 관계 수/인"
+    },
+    "graph": {
+      "title": "관계 네트워크 그래프",
+      "resetView": "뷰 초기화",
+      "minThreshold": "최소 임계값: {value}분",
+      "updating": "그래프 갱신 중...",
+      "noData": "기간 내 동시접속 데이터가 없습니다.",
+      "hint": "노드 클릭: 관계 강조 | 노드 드래그: 위치 이동 | 빈 영역 드래그: 화면 이동 | 마우스 휠: 확대/축소",
+      "loading": "그래프 로딩 중...",
+      "legend": {
+        "title": "범례",
+        "nodeSize": "크기 = 활동시간",
+        "edgeWidth": "두께 = 관계 강도"
+      },
+      "tooltip": {
+        "activity": "활동: {value}",
+        "connections": "연결: {count}명"
+      }
+    },
+    "topPairs": {
+      "title": "친밀도 TOP {count}",
+      "noData": "기간 내 동시접속 데이터가 없습니다.",
+      "sessionLabel": "{count}세션"
+    },
+    "dailyTrend": {
+      "title": "일별 동시접속 추이",
+      "noData": "기간 내 동시접속 데이터가 없습니다.",
+      "label": "동시접속 시간(분)",
+      "tooltipLabel": "동시접속 시간"
+    },
+    "pairsTable": {
+      "title": "관계 상세 테이블",
+      "searchPlaceholder": "닉네임으로 검색...",
+      "userA": "유저A",
+      "userB": "유저B",
+      "totalTime": "총 동시접속 시간",
+      "sessionCount": "세션 수",
+      "lastDate": "마지막 함께한 날짜",
+      "noData": "검색 결과가 없습니다.",
+      "pagination": "{page} / {totalPages} 페이지 (총 {total}쌍)"
+    },
+    "pairDetail": {
+      "period": "{days}일 기간 내 총 {time}",
+      "noData": "기간 내 동시접속 데이터가 없습니다.",
+      "closeLabel": "닫기",
+      "label": "동시접속(분)",
+      "tooltipLabel": "동시접속 시간"
+    },
+    "isolated": {
+      "title": "고립 멤버",
+      "description": "음성 채널에 접속했지만 기간 내 단 한 번도 다른 멤버와 동시에 있지 않은 멤버입니다.",
+      "noData": "고립 멤버가 없습니다.",
+      "username": "사용자명",
+      "totalVoice": "총 음성 시간",
+      "lastVoiceDate": "마지막 접속일"
+    }
+  },
+  "monitoring": {
+    "title": "모니터링",
+    "period": {
+      "24h": "24시간",
+      "7d": "7일",
+      "30d": "30일"
+    },
+    "status": {
+      "title": "봇 상태",
+      "online": "온라인",
+      "offline": "오프라인",
+      "uptime": "업타임",
+      "ping": "핑",
+      "guildCount": "서버 수",
+      "memory": "메모리",
+      "voiceUsers": "음성 접속자"
+    },
+    "uptimeChart": {
+      "title": "업타임 히스토리",
+      "availability": "가용률",
+      "on": "ON",
+      "off": "OFF",
+      "online": "온라인",
+      "offline": "오프라인",
+      "statusLabel": "상태"
+    },
+    "pingChart": {
+      "title": "핑 추이",
+      "label": "핑 (ms)"
+    },
+    "memoryChart": {
+      "title": "메모리 사용량",
+      "used": "사용 중 (MB)",
+      "total": "전체 (MB)"
+    },
+    "voiceUserChart": {
+      "title": "시간대별 음성 접속자",
+      "avgUsers": "평균 접속자",
+      "hourLabel": "{hour}시"
+    },
+    "noMetrics": "해당 기간의 메트릭 데이터가 없습니다.",
+    "loadFailed": "메트릭 데이터를 불러오는데 실패했습니다."
+  },
+  "gettingStarted": {
+    "title": "시작하기",
+    "subtitle": "DHyunBot을 처음 사용한다면 아래 단계를 따라 설정하세요.",
+    "stepOf": "{current} / {total}단계",
+    "prev": "이전",
+    "next": "다음",
+    "finish": "대시보드로 이동",
+    "steps": {
+      "1": {
+        "title": "봇 권한 확인",
+        "subtitle": "봇이 서버에 정상 연결되어 있는지 확인합니다"
+      },
+      "2": {
+        "title": "음성 추적 설정",
+        "subtitle": "음성 채널 활동 추적 방식을 안내합니다"
+      },
+      "3": {
+        "title": "알림 채널",
+        "subtitle": "주요 알림 채널을 연결합니다"
+      },
+      "4": {
+        "title": "완료",
+        "subtitle": "모든 설정이 준비되었습니다"
+      }
+    },
+    "botPermission": {
+      "connectionTitle": "봇 연결 상태",
+      "checking": "확인 중...",
+      "online": "온라인 — 정상 연결되어 있습니다",
+      "offline": "오프라인 — 봇이 서버에 연결되어 있지 않습니다",
+      "permissionsTitle": "필수 권한 목록",
+      "permissions": {
+        "readMembers": "서버 멤버 목록 읽기",
+        "detectVoice": "음성 채널 접속 상태 감지",
+        "sendMessage": "메시지 전송",
+        "sendEmbed": "임베드 메시지 전송"
+      },
+      "offlineWarning": "봇이 오프라인 상태입니다. 봇을 서버에 초대했는지 확인하고, 잠시 후 다시 시도해 주세요."
+    },
+    "voiceTracking": {
+      "autoTitle": "자동 활성화됨",
+      "autoDesc": "음성 추적은 봇이 서버에 연결되는 순간 자동으로 시작됩니다. 별도의 활성화 없이 모든 음성 채널의 입장·퇴장 시간이 기록됩니다.",
+      "dataTitle": "기록되는 데이터",
+      "dataItems": {
+        "joinLeave": "음성 채널 입장 / 퇴장 시각",
+        "channelDuration": "채널별 누적 체류 시간",
+        "stats": "일·주·월 단위 활동 통계"
+      },
+      "excludeTitle": "특정 채널을 제외하려면?",
+      "excludeDesc": "AFK 채널이나 특정 채널을 추적에서 제외할 수 있습니다.",
+      "excludeLink": "음성 추적 설정으로 이동"
+    },
+    "notifications": {
+      "optionalNote": "알림 채널을 설정하지 않아도 봇은 정상 동작합니다. 필요한 기능만 선택적으로 활성화하세요.",
+      "newbie": {
+        "title": "신입 알림",
+        "description": "새 멤버 입장 시 환영 메시지와 신입 미션을 전달합니다.",
+        "link": "신입 알림 설정"
+      },
+      "inactive": {
+        "title": "비활동 회원 알림",
+        "description": "일정 기간 활동이 없는 멤버를 자동으로 분류하고 알림을 보냅니다.",
+        "link": "비활동 회원 설정"
+      }
+    },
+    "complete": {
+      "title": "설정 완료!",
+      "description": "DHyunBot이 서버에서 활동을 추적할 준비가 되었습니다.",
+      "featuresTitle": "주요 기능 바로가기",
+      "features": {
+        "overview": {
+          "label": "서버 개요",
+          "desc": "활동 요약과 주간 통계를 한눈에 확인합니다"
+        },
+        "voice": {
+          "label": "음성 활동",
+          "desc": "멤버별 음성 채널 활동 현황을 조회합니다"
+        },
+        "newbie": {
+          "label": "신입 관리",
+          "desc": "신입 멤버 현황과 미션 달성률을 관리합니다"
+        },
+        "inactive": {
+          "label": "비활동 회원",
+          "desc": "비활동 회원 분류 결과를 확인합니다"
+        }
+      }
+    }
+  },
+  "help": {
+    "title": "도움말",
+    "subtitle": "DHyunBot의 주요 기능에 대해 자주 묻는 질문을 모았습니다.",
+    "contactTitle": "더 궁금한 점이 있으신가요?",
+    "contactDesc": "디스코드 서버에서 {command} 커맨드를 입력하거나 관리자에게 문의하세요.",
+    "sections": {
+      "voice": {
+        "title": "음성 활동 추적",
+        "q1": "어떤 데이터가 기록되나요?",
+        "a1": "멤버가 음성 채널에 입장한 시각, 퇴장한 시각, 그리고 채널별 누적 체류 시간이 기록됩니다. 서버 내 모든 음성 채널이 기본적으로 추적 대상이며, 음소거·영상 상태는 기록하지 않습니다.",
+        "q2": "제외 채널은 어떻게 설정하나요?",
+        "a2": "설정 → 음성 추적 메뉴에서 추적에서 제외할 채널을 선택할 수 있습니다. AFK 채널이나 관리자 전용 채널처럼 기록이 불필요한 채널을 제외하는 데 활용하세요."
+      },
+      "gemini": {
+        "title": "AI 분석 (Gemini)",
+        "q1": "Gemini AI 분석은 어떻게 사용하나요?",
+        "a1": "디스코드 내에서 슬래시 커맨드를 사용합니다. 봇이 지난 7일간의 음성 활동 데이터를 분석해 서버의 활성 시간대, 주요 참여자, 활동 트렌드 등을 요약한 리포트를 생성합니다.",
+        "q2": "슬래시 커맨드는 무엇인가요?",
+        "a2": "/voice-report 커맨드를 입력하면 AI 분석 리포트가 생성됩니다. 리포트 생성에는 최대 10초 정도 소요될 수 있습니다. 관리자 권한이 있는 멤버만 사용할 수 있습니다."
+      },
+      "newbie": {
+        "title": "신입 관리",
+        "q1": "미션은 어떻게 만드나요?",
+        "a1": "설정 → 신입 관리 메뉴에서 신입 멤버에게 부여할 미션 목록을 구성할 수 있습니다. 미션 유형(음성 채널 참여, 메시지 전송 등), 목표치, 완료 보상 역할을 설정합니다. 설정 후 입장하는 신규 멤버에게 자동으로 미션이 부여됩니다.",
+        "q2": "모코코 사냥이란?",
+        "a2": "신입 미션 완료 후 일정 기간이 지나도 서버에서 활동하지 않는 멤버를 식별하는 기능입니다. '서버만 가입하고 실제로 참여하지 않는 유령 회원'을 정리하는 데 활용됩니다."
+      },
+      "inactive": {
+        "title": "비활동 회원",
+        "q1": "비활동 분류 기준은 무엇인가요?",
+        "a1": "설정에서 지정한 기간(기본 30일) 동안 음성 채널 활동이 없는 멤버가 비활동으로 분류됩니다. 등급은 설정한 기준에 따라 경고·주의·비활동으로 나뉩니다.",
+        "q2": "자동 조치는 어떻게 동작하나요?",
+        "a2": "비활동 회원 분류 주기(기본 매주)에 맞춰 봇이 자동으로 분류를 실행합니다. 분류 후 지정된 채널에 결과를 알리거나, 특정 역할을 부여하거나 제거하는 자동 조치를 설정할 수 있습니다. 실제 추방은 자동으로 이루어지지 않으며 관리자가 직접 수행해야 합니다."
+      },
+      "coPresence": {
+        "title": "관계 분석 (동시 접속)",
+        "q1": "친밀도 점수는 어떻게 계산되나요?",
+        "a1": "두 멤버가 같은 음성 채널에 동시에 접속해 있던 누적 시간을 기반으로 점수를 산출합니다. 함께 보낸 시간이 길수록 친밀도 점수가 높아집니다. 관계 분석 그래프에서 멤버 간의 연결 강도를 시각적으로 확인할 수 있습니다."
+      },
+      "autoChannel": {
+        "title": "자동 채널 생성",
+        "q1": "트리거 채널 설정법은?",
+        "a1": "설정 → 자동 채널 메뉴에서 트리거 채널을 지정합니다. 멤버가 트리거 채널에 입장하면 봇이 자동으로 새 음성 채널을 생성하고 해당 멤버를 이동시킵니다. 채널이 비워지면 자동으로 삭제됩니다."
+      }
+    }
+  },
+  "error": {
+    "title": "페이지를 불러오는 중 오류가 발생했습니다",
+    "unknown": "알 수 없는 오류가 발생했습니다.",
+    "retry": "다시 시도"
+  }
+}

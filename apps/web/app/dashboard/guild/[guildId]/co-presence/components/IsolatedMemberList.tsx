@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import type { IsolatedMember } from "@/app/lib/co-presence-api";
 import { formatMinutes } from "@/app/lib/co-presence-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,20 +13,21 @@ interface IsolatedMemberListProps {
 export default function IsolatedMemberList({
   members,
 }: IsolatedMemberListProps) {
+  const t = useTranslations("dashboard");
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>고립 멤버</CardTitle>
+        <CardTitle>{t("coPresence.isolated.title")}</CardTitle>
         <p className="text-sm text-muted-foreground">
-          음성 채널에 접속했지만 기간 내 단 한 번도 다른 멤버와 동시에 있지
-          않은 멤버입니다.
+          {t("coPresence.isolated.description")}
         </p>
       </CardHeader>
       <CardContent>
         {members.length === 0 ? (
           <div className="flex items-center justify-center py-8">
             <p className="text-sm text-muted-foreground">
-              고립 멤버가 없습니다.
+              {t("coPresence.isolated.noData")}
             </p>
           </div>
         ) : (
@@ -33,13 +36,13 @@ export default function IsolatedMemberList({
               <thead>
                 <tr className="border-b border-border">
                   <th className="pb-3 text-left font-medium text-muted-foreground">
-                    사용자명
+                    {t("coPresence.isolated.username")}
                   </th>
                   <th className="pb-3 text-right font-medium text-muted-foreground">
-                    총 음성 시간
+                    {t("coPresence.isolated.totalVoice")}
                   </th>
                   <th className="pb-3 text-right font-medium text-muted-foreground">
-                    마지막 접속일
+                    {t("coPresence.isolated.lastVoiceDate")}
                   </th>
                 </tr>
               </thead>

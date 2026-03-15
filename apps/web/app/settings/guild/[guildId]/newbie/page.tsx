@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2, RefreshCw, Server } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import type { DiscordChannel, DiscordEmoji, DiscordRole } from '../../../../lib/discord-api';
@@ -24,13 +25,6 @@ import RoleTab from './components/RoleTab';
 import WelcomeTab from './components/WelcomeTab';
 
 type TabId = 'welcome' | 'mission' | 'moco' | 'role';
-
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'welcome', label: '환영인사 설정' },
-  { id: 'mission', label: '미션 설정' },
-  { id: 'moco', label: '모코코 사냥 설정' },
-  { id: 'role', label: '신입기간 설정' },
-];
 
 const DEFAULT_CONFIG: NewbieConfig = {
   welcomeEnabled: false,
@@ -68,6 +62,7 @@ const DEFAULT_CONFIG: NewbieConfig = {
 
 export default function NewbieSettingsPage() {
   const { selectedGuildId } = useSettings();
+  const t = useTranslations('settings');
   const [config, setConfig] = useState<NewbieConfig>(DEFAULT_CONFIG);
   const [activeTab, setActiveTab] = useState<TabId>('welcome');
   const [isSaving, setIsSaving] = useState(false);
@@ -91,6 +86,13 @@ export default function NewbieSettingsPage() {
   const [isSavingMocoTemplate, setIsSavingMocoTemplate] = useState(false);
   const [mocoTemplateSaveError, setMocoTemplateSaveError] = useState<string | null>(null);
   const [mocoTemplateSaveSuccess, setMocoTemplateSaveSuccess] = useState(false);
+
+  const TABS: { id: TabId; label: string }[] = [
+    { id: 'welcome', label: t('newbie.tabWelcome') },
+    { id: 'mission', label: t('newbie.tabMission') },
+    { id: 'moco', label: t('newbie.tabMoco') },
+    { id: 'role', label: t('newbie.tabRole') },
+  ];
 
   useEffect(() => {
     if (!selectedGuildId) return;
@@ -151,13 +153,13 @@ export default function NewbieSettingsPage() {
     // 채널 필수값 유효성 검사
     const errors: string[] = [];
     if (config.welcomeEnabled && !config.welcomeChannelId) {
-      errors.push('환영인사 채널을 선택해주세요.');
+      errors.push(t('newbie.validationWelcomeChannel'));
     }
     if (config.missionEnabled && !config.missionNotifyChannelId) {
-      errors.push('미션 알림 채널을 선택해주세요.');
+      errors.push(t('newbie.validationMissionChannel'));
     }
     if (config.mocoEnabled && !config.mocoRankChannelId) {
-      errors.push('모코코 순위 채널을 선택해주세요.');
+      errors.push(t('newbie.validationMocoChannel'));
     }
     if (errors.length > 0) {
       setSaveError(errors.join(' '));
@@ -174,7 +176,7 @@ export default function NewbieSettingsPage() {
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setSaveError(
-        err instanceof Error ? err.message : '저장에 실패했습니다.',
+        err instanceof Error ? err.message : t('common.saveError'),
       );
     } finally {
       setIsSaving(false);
@@ -204,7 +206,7 @@ export default function NewbieSettingsPage() {
       setTimeout(() => setMissionTemplateSaveSuccess(false), 3000);
     } catch (err) {
       setMissionTemplateSaveError(
-        err instanceof Error ? err.message : '저장에 실패했습니다.',
+        err instanceof Error ? err.message : t('common.saveError'),
       );
     } finally {
       setIsSavingMissionTemplate(false);
@@ -234,7 +236,7 @@ export default function NewbieSettingsPage() {
       setTimeout(() => setMocoTemplateSaveSuccess(false), 3000);
     } catch (err) {
       setMocoTemplateSaveError(
-        err instanceof Error ? err.message : '저장에 실패했습니다.',
+        err instanceof Error ? err.message : t('common.saveError'),
       );
     } finally {
       setIsSavingMocoTemplate(false);
@@ -244,12 +246,12 @@ export default function NewbieSettingsPage() {
   if (!selectedGuildId) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">신입 관리 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('newbie.title')}</h1>
         <section className="bg-white rounded-xl border border-gray-200 p-8">
           <div className="flex flex-col items-center text-center py-8">
             <Server className="w-12 h-12 text-gray-300 mb-4" />
             <p className="text-sm text-gray-500">
-              사이드바에서 서버를 선택하세요.
+              {t('common.selectServer')}
             </p>
           </div>
         </section>
@@ -260,7 +262,7 @@ export default function NewbieSettingsPage() {
   if (isLoading) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">신입 관리 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('newbie.title')}</h1>
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
         </div>
@@ -325,16 +327,16 @@ export default function NewbieSettingsPage() {
   return (
     <div className="max-w-3xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">신입 관리 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('newbie.title')}</h1>
         <button
           type="button"
           onClick={() => { void refreshChannels(); }}
           disabled={isRefreshing}
-          title="채널/역할 목록 새로고침"
+          title={t('newbie.refreshChannels')}
           className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>채널 새로고침</span>
+          <span>{t('newbie.refreshChannels')}</span>
         </button>
       </div>
 
@@ -366,7 +368,7 @@ export default function NewbieSettingsPage() {
         <div className="flex-1">
           {saveSuccess && (
             <p className="text-sm text-green-600 font-medium">
-              저장되었습니다.
+              {t('newbie.saveSuccess')}
             </p>
           )}
           {saveError && (
@@ -379,7 +381,7 @@ export default function NewbieSettingsPage() {
           disabled={isSaving || !selectedGuildId || !configLoaded}
           className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
         >
-          {isSaving ? '저장 중...' : '저장'}
+          {isSaving ? t('common.saving') : t('common.save')}
         </button>
       </div>
     </div>

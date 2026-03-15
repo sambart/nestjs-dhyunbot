@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,22 +11,24 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartConfig = {
-  avgUsers: {
-    label: "평균 접속자",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
-
 interface Props {
   data: Array<{ hour: number; avgUsers: number }>;
 }
 
 export default function VoiceUserChart({ data }: Props) {
+  const t = useTranslations("dashboard");
+
+  const chartConfig = {
+    avgUsers: {
+      label: t("monitoring.voiceUserChart.avgUsers"),
+      color: "var(--chart-1)",
+    },
+  } satisfies ChartConfig;
+
   const maxVal = Math.max(...data.map((d) => d.avgUsers), 0);
 
   const chartData = data.map((d) => ({
-    hour: `${d.hour}시`,
+    hour: t("monitoring.voiceUserChart.hourLabel", { hour: d.hour }),
     avgUsers: d.avgUsers,
     isPeak: d.avgUsers === maxVal && maxVal > 0,
   }));
@@ -33,7 +36,7 @@ export default function VoiceUserChart({ data }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>시간대별 음성 접속자</CardTitle>
+        <CardTitle>{t("monitoring.voiceUserChart.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[250px] w-full">

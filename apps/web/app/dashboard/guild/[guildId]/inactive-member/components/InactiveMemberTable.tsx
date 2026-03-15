@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import type { InactiveMemberItem } from "@/app/lib/inactive-member-api";
 import {
   formatMinutes,
@@ -30,6 +32,7 @@ export default function InactiveMemberTable({
   onToggleSelect,
   onToggleAll,
 }: Props) {
+  const t = useTranslations("dashboard");
   const isAllSelected =
     items.length > 0 && items.every((item) => selectedIds.has(item.userId));
 
@@ -45,24 +48,24 @@ export default function InactiveMemberTable({
                     type="checkbox"
                     checked={isAllSelected}
                     onChange={(e) => onToggleAll(e.target.checked)}
-                    aria-label="전체 선택"
+                    aria-label={t("inactive.table.selectAll")}
                     className="rounded border-gray-300"
                   />
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  닉네임
+                  {t("inactive.table.nickname")}
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  등급
+                  {t("inactive.table.grade")}
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  마지막 접속일
+                  {t("inactive.table.lastVoiceDate")}
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  접속 시간
+                  {t("inactive.table.totalMinutes")}
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  등급 변경일
+                  {t("inactive.table.gradeChangedAt")}
                 </th>
               </tr>
             </thead>
@@ -73,7 +76,7 @@ export default function InactiveMemberTable({
                     colSpan={6}
                     className="px-4 py-10 text-center text-muted-foreground"
                   >
-                    비활동 회원이 없습니다.
+                    {t("inactive.table.noData")}
                   </td>
                 </tr>
               ) : (
@@ -87,7 +90,7 @@ export default function InactiveMemberTable({
                         type="checkbox"
                         checked={selectedIds.has(item.userId)}
                         onChange={() => onToggleSelect(item.userId)}
-                        aria-label={`${item.nickName} 선택`}
+                        aria-label={item.nickName}
                         className="rounded border-gray-300"
                       />
                     </td>
@@ -100,7 +103,7 @@ export default function InactiveMemberTable({
                       </span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {item.lastVoiceDate ?? '없음'}
+                      {item.lastVoiceDate ?? t("inactive.table.noVoiceDate")}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {formatMinutes(item.totalMinutes)}

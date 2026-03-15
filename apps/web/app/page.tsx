@@ -9,6 +9,7 @@ import {
   UserPlus,
   Zap,
 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
 const BOT_PERMISSIONS = 411108370;
 
@@ -18,7 +19,8 @@ function getInviteUrl(): string | null {
   return `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${BOT_PERMISSIONS}&scope=bot+applications.commands`;
 }
 
-export default function Home() {
+export default async function Home() {
+  const t = await getTranslations("landing");
   const inviteUrl = getInviteUrl();
 
   return (
@@ -31,8 +33,7 @@ export default function Home() {
           </h1>
 
           <p className="text-xl text-gray-600 mb-8">
-            음성 채널 통계, 자동 채널 생성, 음악 재생 등을 지원하는 디스코드
-            봇입니다
+            {t("hero.description")}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -43,7 +44,7 @@ export default function Home() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold text-lg"
               >
-                서버에 추가하기
+                {t("hero.cta.invite")}
                 <ExternalLink className="w-5 h-5" />
               </a>
             )}
@@ -55,7 +56,7 @@ export default function Home() {
                   : "bg-indigo-600 text-white hover:bg-indigo-700"
               }`}
             >
-              기능 목록
+              {t("hero.cta.features")}
             </a>
           </div>
         </div>
@@ -67,7 +68,9 @@ export default function Home() {
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20"
       >
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">기능</h2>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            {t("features.sectionTitle")}
+          </h2>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -76,11 +79,10 @@ export default function Home() {
               <TrendingUp className="w-6 h-6 text-indigo-600" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              음성 채널 통계
+              {t("features.voiceStats.title")}
             </h3>
             <p className="text-gray-600">
-              멤버별 음성 채널 접속 시간을 기록하고, 일별/주별/월별 통계를
-              대시보드에서 확인할 수 있습니다
+              {t("features.voiceStats.description")}
             </p>
           </div>
 
@@ -89,11 +91,10 @@ export default function Home() {
               <Mic className="w-6 h-6 text-purple-600" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              자동 채널 생성
+              {t("features.autoChannel.title")}
             </h3>
             <p className="text-gray-600">
-              지정된 음성 채널에 입장하면 개인 채널이 자동 생성되고, 모두
-              퇴장하면 자동 삭제됩니다
+              {t("features.autoChannel.description")}
             </p>
           </div>
 
@@ -102,10 +103,10 @@ export default function Home() {
               <Music className="w-6 h-6 text-pink-600" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              음악 재생
+              {t("features.music.title")}
             </h3>
             <p className="text-gray-600">
-              /play 명령어로 YouTube 음악을 음성 채널에서 재생할 수 있습니다
+              {t("features.music.description")}
             </p>
           </div>
 
@@ -114,10 +115,10 @@ export default function Home() {
               <Zap className="w-6 h-6 text-blue-600" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Gemini 음성 분석
+              {t("features.gemini.title")}
             </h3>
             <p className="text-gray-600">
-              음성 채널 대화를 Gemini AI로 분석하여 요약 리포트를 생성합니다
+              {t("features.gemini.description")}
             </p>
           </div>
 
@@ -126,10 +127,10 @@ export default function Home() {
               <UserPlus className="w-6 h-6 text-green-600" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              신규 멤버 환영
+              {t("features.newbie.title")}
             </h3>
             <p className="text-gray-600">
-              서버에 새 멤버가 참여하면 환영 메시지를 자동으로 전송합니다
+              {t("features.newbie.description")}
             </p>
           </div>
 
@@ -138,11 +139,10 @@ export default function Home() {
               <Settings className="w-6 h-6 text-yellow-600" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              웹 대시보드
+              {t("features.dashboard.title")}
             </h3>
             <p className="text-gray-600">
-              Discord 로그인으로 접속하여 봇 설정과 통계를 웹에서 관리할 수
-              있습니다
+              {t("features.dashboard.description")}
             </p>
           </div>
         </div>
@@ -151,9 +151,11 @@ export default function Home() {
       {/* 설정 가이드 섹션 */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 border-t border-gray-200">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">설정 가이드</h2>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            {t("setup.sectionTitle")}
+          </h2>
           <p className="text-lg text-gray-600">
-            봇의 모든 기능이 정상 동작하려면 역할 설정이 필요합니다
+            {t("setup.sectionDescription")}
           </p>
         </div>
 
@@ -165,11 +167,10 @@ export default function Home() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  봇을 서버에 추가
+                  {t("setup.step1.title")}
                 </h3>
                 <p className="text-gray-600">
-                  상단의 &quot;서버에 추가하기&quot; 버튼을 클릭하여 봇을
-                  초대합니다. 필요한 최소 권한만 요청합니다.
+                  {t("setup.step1.description")}
                 </p>
               </div>
             </div>
@@ -187,32 +188,28 @@ export default function Home() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    봇 역할을 최상위로 이동
+                    {t("setup.step2.title")}
                   </h3>
                   <Shield className="w-5 h-5 text-amber-600" />
                 </div>
                 <p className="text-gray-600 mb-3">
-                  닉네임 변경, 역할 관리 등의 기능은 Discord의 역할 계층 규칙에
-                  따라 <strong>봇 역할보다 하위에 있는 멤버</strong>에게만
-                  적용됩니다.
+                  {t("setup.step2.description")}
                 </p>
                 <div className="bg-white rounded-lg p-4 border border-amber-200">
                   <p className="text-sm font-medium text-gray-900 mb-2">
-                    설정 방법
+                    {t("setup.step2.howTo")}
                   </p>
                   <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
                     <li>
-                      서버 설정 <ChevronRight className="w-3 h-3 inline" />{" "}
-                      역할 메뉴로 이동
+                      {t("setup.step2.step1")}
                     </li>
                     <li>
-                      <strong>Dhyunbot</strong> 역할을 드래그하여 관리 대상
-                      역할보다 위로 배치
+                      {t("setup.step2.step2")}
                     </li>
-                    <li>변경사항 저장</li>
+                    <li>{t("setup.step2.step3")}</li>
                   </ol>
                   <p className="text-xs text-amber-700 mt-3">
-                    * 서버 소유자의 닉네임은 어떤 봇도 변경할 수 없습니다
+                    {t("setup.step2.notice")}
                   </p>
                 </div>
               </div>
@@ -230,11 +227,10 @@ export default function Home() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  웹 대시보드에서 설정
+                  {t("setup.step3.title")}
                 </h3>
                 <p className="text-gray-600">
-                  Discord 계정으로 로그인한 뒤, 대시보드에서 자동 채널, 환영
-                  메시지 등 세부 기능을 설정합니다.
+                  {t("setup.step3.description")}
                 </p>
               </div>
             </div>
@@ -248,10 +244,10 @@ export default function Home() {
           <span>DHyunBot</span>
           <div className="flex gap-6">
             <a href="/privacy" className="hover:text-gray-700 transition-colors">
-              개인정보처리방침
+              {t("footer.privacy")}
             </a>
             <a href="/terms" className="hover:text-gray-700 transition-colors">
-              이용약관
+              {t("footer.terms")}
             </a>
           </div>
         </div>

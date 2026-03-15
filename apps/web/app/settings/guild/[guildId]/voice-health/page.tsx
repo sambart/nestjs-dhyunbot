@@ -1,6 +1,7 @@
 'use client';
 
 import { HeartPulse, Loader2, Server } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import type { VoiceHealthConfig } from '../../../../lib/voice-health-api';
@@ -27,6 +28,7 @@ const DEFAULT_CONFIG: VoiceHealthConfig = {
 
 export default function VoiceHealthSettingsPage() {
   const { selectedGuildId } = useSettings();
+  const t = useTranslations('settings');
 
   const [form, setForm] = useState<VoiceHealthConfig>(DEFAULT_CONFIG);
   const [isLoading, setIsLoading] = useState(false);
@@ -74,7 +76,7 @@ export default function VoiceHealthSettingsPage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3_000);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : '저장에 실패했습니다.');
+      setSaveError(err instanceof Error ? err.message : t('common.saveError'));
     } finally {
       setIsSaving(false);
     }
@@ -105,11 +107,11 @@ export default function VoiceHealthSettingsPage() {
   if (!selectedGuildId) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">자가진단 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('voiceHealth.title')}</h1>
         <section className="bg-white rounded-xl border border-gray-200 p-8">
           <div className="flex flex-col items-center text-center py-8">
             <Server className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="text-sm text-gray-500">사이드바에서 서버를 선택하세요.</p>
+            <p className="text-sm text-gray-500">{t('common.selectServer')}</p>
           </div>
         </section>
       </div>
@@ -119,7 +121,7 @@ export default function VoiceHealthSettingsPage() {
   if (isLoading) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">자가진단 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('voiceHealth.title')}</h1>
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
         </div>
@@ -134,21 +136,21 @@ export default function VoiceHealthSettingsPage() {
       {/* 페이지 헤더 */}
       <div className="flex items-center space-x-3 mb-6">
         <HeartPulse className="w-6 h-6 text-indigo-600" />
-        <h1 className="text-2xl font-bold text-gray-900">자가진단 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('voiceHealth.title')}</h1>
       </div>
 
       <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-8">
 
         {/* 섹션 1: 기본 설정 */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">기본 설정</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">{t('voiceHealth.basicSettings')}</h2>
           <div className="space-y-4">
 
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900">기능 활성화</p>
+                <p className="text-sm font-medium text-gray-900">{t('voiceHealth.enableFeature')}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  자가진단 기능을 활성화합니다.
+                  {t('voiceHealth.enableFeatureDesc')}
                 </p>
               </div>
               {renderToggle(form.isEnabled, () => updateForm('isEnabled', !form.isEnabled))}
@@ -159,10 +161,10 @@ export default function VoiceHealthSettingsPage() {
                 htmlFor="analysis-days"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                분석 기간 (일)
+                {t('voiceHealth.analysisDays')}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                음성 활동을 분석할 기간입니다. (7~90일)
+                {t('voiceHealth.analysisDaysDesc')}
               </p>
               <input
                 id="analysis-days"
@@ -177,9 +179,9 @@ export default function VoiceHealthSettingsPage() {
 
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900">쿨다운 활성화</p>
+                <p className="text-sm font-medium text-gray-900">{t('voiceHealth.cooldown')}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  동일 사용자의 연속 진단을 제한합니다.
+                  {t('voiceHealth.cooldownDesc')}
                 </p>
               </div>
               {renderToggle(
@@ -194,10 +196,10 @@ export default function VoiceHealthSettingsPage() {
                   htmlFor="cooldown-hours"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  쿨다운 시간 (시간)
+                  {t('voiceHealth.cooldownHours')}
                 </label>
                 <p className="text-xs text-gray-500 mb-1">
-                  자가진단을 다시 실행하기까지 대기 시간입니다. (1~168시간)
+                  {t('voiceHealth.cooldownHoursDesc')}
                 </p>
                 <input
                   id="cooldown-hours"
@@ -213,9 +215,9 @@ export default function VoiceHealthSettingsPage() {
 
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900">AI 요약 활성화</p>
+                <p className="text-sm font-medium text-gray-900">{t('voiceHealth.llmSummary')}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  LLM을 사용하여 자가진단 결과 요약 메시지를 생성합니다.
+                  {t('voiceHealth.llmSummaryDesc')}
                 </p>
               </div>
               {renderToggle(
@@ -230,7 +232,7 @@ export default function VoiceHealthSettingsPage() {
 
         {/* 섹션 2: 정책 기준 */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">정책 기준</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">{t('voiceHealth.policyCriteria')}</h2>
           <div className="space-y-4">
 
             <div>
@@ -238,10 +240,10 @@ export default function VoiceHealthSettingsPage() {
                 htmlFor="min-activity-minutes"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                최소 활동 시간 (분)
+                {t('voiceHealth.minActivityMinutes')}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                분석 기간 내 최소 음성 활동 시간입니다.
+                {t('voiceHealth.minActivityMinutesDesc')}
               </p>
               <input
                 id="min-activity-minutes"
@@ -255,13 +257,10 @@ export default function VoiceHealthSettingsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                최소 활동일 비율:{' '}
-                <span className="text-indigo-600 font-semibold">
-                  {Math.round(form.minActiveDaysRatio * 100)}%
-                </span>
+                {t('voiceHealth.minActiveDaysRatio', { value: Math.round(form.minActiveDaysRatio * 100) })}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                분석 기간 중 최소 활동일 비율입니다.
+                {t('voiceHealth.minActiveDaysRatioDesc')}
               </p>
               <input
                 type="range"
@@ -278,13 +277,10 @@ export default function VoiceHealthSettingsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                관계 다양성 점수:{' '}
-                <span className="text-indigo-600 font-semibold">
-                  {Math.round((1 - form.hhiThreshold) * 100)}점
-                </span>
+                {t('voiceHealth.diversityScore', { value: Math.round((1 - form.hhiThreshold) * 100) })}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                관계가 다양할수록 높은 점수입니다. 이 점수 이상이면 기준을 충족합니다. (0~100점)
+                {t('voiceHealth.diversityScoreDesc')}
               </p>
               <input
                 type="range"
@@ -299,16 +295,16 @@ export default function VoiceHealthSettingsPage() {
               />
               <div className="flex gap-2 mt-2">
                 {[
-                  { label: '느슨', score: 50, hhiThreshold: 0.50, minPeerCount: 2 },
-                  { label: '보통', score: 70, hhiThreshold: 0.30, minPeerCount: 3 },
-                  { label: '엄격', score: 80, hhiThreshold: 0.20, minPeerCount: 5 },
+                  { labelKey: 'voiceHealth.presetLoose' as const, score: 50, hhiThreshold: 0.50, minPeerCount: 2 },
+                  { labelKey: 'voiceHealth.presetNormal' as const, score: 70, hhiThreshold: 0.30, minPeerCount: 3 },
+                  { labelKey: 'voiceHealth.presetStrict' as const, score: 80, hhiThreshold: 0.20, minPeerCount: 5 },
                 ].map((preset) => {
                   const isActive =
                     form.hhiThreshold === preset.hhiThreshold &&
                     form.minPeerCount === preset.minPeerCount;
                   return (
                     <button
-                      key={preset.label}
+                      key={preset.labelKey}
                       type="button"
                       onClick={() => {
                         // hhiThreshold + minPeerCount 동시 업데이트 — 원자적 처리를 위해 단일 setForm 호출
@@ -324,7 +320,7 @@ export default function VoiceHealthSettingsPage() {
                           : 'border-gray-300 text-gray-600 hover:border-gray-400'
                       }`}
                     >
-                      {preset.label} ({preset.score}점)
+                      {t('voiceHealth.presetLabel', { label: t(preset.labelKey), score: preset.score })}
                     </button>
                   );
                 })}
@@ -336,10 +332,10 @@ export default function VoiceHealthSettingsPage() {
                 htmlFor="min-peer-count"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                최소 교류 인원
+                {t('voiceHealth.minPeerCount')}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                사회성 판정에 필요한 최소 교류 인원입니다.
+                {t('voiceHealth.minPeerCountDesc')}
               </p>
               <input
                 id="min-peer-count"
@@ -357,7 +353,7 @@ export default function VoiceHealthSettingsPage() {
 
         {/* 섹션 3: 뱃지 기준 */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">뱃지 기준</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">{t('voiceHealth.badgeCriteria')}</h2>
           <div className="space-y-4">
 
             <div>
@@ -365,10 +361,10 @@ export default function VoiceHealthSettingsPage() {
                 htmlFor="badge-activity-top-percent"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                활동왕 기준 상위 (%)
+                {t('voiceHealth.badgeActivityTopPercent')}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                전체 사용자 중 상위 N%에 해당하면 활동왕 뱃지를 부여합니다. (1~100)
+                {t('voiceHealth.badgeActivityTopPercentDesc')}
               </p>
               <input
                 id="badge-activity-top-percent"
@@ -383,13 +379,10 @@ export default function VoiceHealthSettingsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                사교왕 다양성 점수:{' '}
-                <span className="text-indigo-600 font-semibold">
-                  {Math.round((1 - form.badgeSocialHhiMax) * 100)}점
-                </span>
+                {t('voiceHealth.badgeSocialDiversity', { value: Math.round((1 - form.badgeSocialHhiMax) * 100) })}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                관계 다양성 점수가 이 값 이상일 때 사교왕 뱃지를 부여합니다. (0~100점)
+                {t('voiceHealth.badgeSocialDiversityDesc')}
               </p>
               <input
                 type="range"
@@ -409,10 +402,10 @@ export default function VoiceHealthSettingsPage() {
                 htmlFor="badge-social-min-peers"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                사교왕 최소 교류 인원
+                {t('voiceHealth.badgeSocialMinPeers')}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                사교왕 뱃지 부여에 필요한 최소 교류 인원입니다.
+                {t('voiceHealth.badgeSocialMinPeersDesc')}
               </p>
               <input
                 id="badge-social-min-peers"
@@ -429,10 +422,10 @@ export default function VoiceHealthSettingsPage() {
                 htmlFor="badge-hunter-top-percent"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                헌터 기준 상위 (%)
+                {t('voiceHealth.badgeHunterTopPercent')}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                채널 탐험 수 기준 상위 N%에 해당하면 헌터 뱃지를 부여합니다. (1~100)
+                {t('voiceHealth.badgeHunterTopPercentDesc')}
               </p>
               <input
                 id="badge-hunter-top-percent"
@@ -447,13 +440,10 @@ export default function VoiceHealthSettingsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                꾸준러 최소 활동일 비율:{' '}
-                <span className="text-indigo-600 font-semibold">
-                  {Math.round(form.badgeConsistentMinRatio * 100)}%
-                </span>
+                {t('voiceHealth.badgeConsistentMinRatio', { value: Math.round(form.badgeConsistentMinRatio * 100) })}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                이 비율 이상 활동일을 채우면 꾸준러 뱃지를 부여합니다.
+                {t('voiceHealth.badgeConsistentMinRatioDesc')}
               </p>
               <input
                 type="range"
@@ -470,13 +460,10 @@ export default function VoiceHealthSettingsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                소통러 최소 마이크 사용률:{' '}
-                <span className="text-indigo-600 font-semibold">
-                  {Math.round(form.badgeMicMinRate * 100)}%
-                </span>
+                {t('voiceHealth.badgeMicMinRate', { value: Math.round(form.badgeMicMinRate * 100) })}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                이 비율 이상 마이크를 켜면 소통러 뱃지를 부여합니다.
+                {t('voiceHealth.badgeMicMinRateDesc')}
               </p>
               <input
                 type="range"
@@ -497,7 +484,7 @@ export default function VoiceHealthSettingsPage() {
         <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-100">
           <div className="flex-1">
             {saveSuccess && (
-              <p className="text-sm text-green-600 font-medium">저장되었습니다.</p>
+              <p className="text-sm text-green-600 font-medium">{t('common.saveSuccess')}</p>
             )}
             {saveError && (
               <p className="text-sm text-red-600 font-medium">{saveError}</p>
@@ -509,7 +496,7 @@ export default function VoiceHealthSettingsPage() {
             disabled={isSaving}
             className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
           >
-            {isSaving ? '저장 중...' : '저장'}
+            {isSaving ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </section>

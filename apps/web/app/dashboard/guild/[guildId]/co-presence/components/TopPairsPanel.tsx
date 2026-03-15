@@ -2,6 +2,7 @@
 
 import { ArrowLeftRight } from "lucide-react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import type { PairUser, TopPair } from "@/app/lib/co-presence-api";
 import { formatMinutes } from "@/app/lib/co-presence-api";
@@ -37,16 +38,18 @@ function UserAvatar({ user }: UserAvatarProps) {
 }
 
 export default function TopPairsPanel({ topPairs }: TopPairsPanelProps) {
+  const t = useTranslations("dashboard");
+
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle>친밀도 TOP {topPairs.length}</CardTitle>
+        <CardTitle>{t("coPresence.topPairs.title", { count: topPairs.length })}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         {topPairs.length === 0 ? (
           <div className="flex items-center justify-center py-10 px-6">
             <p className="text-sm text-muted-foreground">
-              기간 내 동시접속 데이터가 없습니다.
+              {t("coPresence.topPairs.noData")}
             </p>
           </div>
         ) : (
@@ -68,7 +71,7 @@ export default function TopPairsPanel({ topPairs }: TopPairsPanelProps) {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {formatMinutes(pair.totalMinutes)} · {pair.sessionCount}세션
+                  {formatMinutes(pair.totalMinutes)} · {t("coPresence.topPairs.sessionLabel", { count: pair.sessionCount })}
                 </p>
               </li>
             ))}

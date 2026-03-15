@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Cell, Pie, PieChart } from "recharts";
 
@@ -50,6 +51,7 @@ interface Props {
 
 function toChartData(
   items: Array<{ id: string; label: string; totalDurationSec: number }>,
+  etcLabel: string,
 ): Array<{ name: string; label: string; value: number }> {
   if (items.length <= MAX_ITEMS) {
     return items.map((item) => ({
@@ -68,7 +70,7 @@ function toChartData(
       label: item.label,
       value: Math.round(item.totalDurationSec / 60),
     })),
-    { name: "etc", label: "기타", value: Math.round(restTotal / 60) },
+    { name: "etc", label: etcLabel, value: Math.round(restTotal / 60) },
   ];
 }
 
@@ -116,7 +118,10 @@ export default function UserChannelPieChart({
   channelStats,
   categoryStats,
 }: Props) {
+  const t = useTranslations("dashboard");
   const [tab, setTab] = useState<TabValue>("channel");
+
+  const etcLabel = t("voice.userDetail.channelPieChart.etc");
 
   const channelChartData = toChartData(
     channelStats.map((ch) => ({
@@ -124,6 +129,7 @@ export default function UserChannelPieChart({
       label: ch.channelName,
       totalDurationSec: ch.totalDurationSec,
     })),
+    etcLabel,
   );
 
   const categoryChartData = toChartData(
@@ -132,6 +138,7 @@ export default function UserChannelPieChart({
       label: cat.categoryName,
       totalDurationSec: cat.totalDurationSec,
     })),
+    etcLabel,
   );
 
   const chartData = tab === "channel" ? channelChartData : categoryChartData;
@@ -139,7 +146,7 @@ export default function UserChannelPieChart({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>채널별 활동 비율</CardTitle>
+        <CardTitle>{t("voice.userDetail.channelPieChart.title")}</CardTitle>
         <CardAction>
           <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-[3px]">
             <button
@@ -147,14 +154,14 @@ export default function UserChannelPieChart({
               className={cn(TAB_BASE, tab === "channel" ? TAB_ACTIVE : TAB_INACTIVE)}
               onClick={() => setTab("channel")}
             >
-              채널별
+              {t("voice.userDetail.channelPieChart.tabChannel")}
             </button>
             <button
               type="button"
               className={cn(TAB_BASE, tab === "category" ? TAB_ACTIVE : TAB_INACTIVE)}
               onClick={() => setTab("category")}
             >
-              카테고리별
+              {t("voice.userDetail.channelPieChart.tabCategory")}
             </button>
           </div>
         </CardAction>

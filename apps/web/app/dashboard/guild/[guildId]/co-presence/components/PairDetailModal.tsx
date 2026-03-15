@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import {
   Bar,
@@ -20,13 +21,6 @@ import {
 } from "@/components/ui/chart";
 
 type Days = 7 | 30 | 90;
-
-const chartConfig = {
-  minutes: {
-    label: "동시접속(분)",
-    color: "#6366F1",
-  },
-} satisfies ChartConfig;
 
 interface PairDetailModalProps {
   guildId: string;
@@ -49,9 +43,17 @@ export default function PairDetailModal({
   isOpen,
   onClose,
 }: PairDetailModalProps) {
+  const t = useTranslations("dashboard");
   const [detail, setDetail] = useState<PairDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const chartConfig = {
+    minutes: {
+      label: t("coPresence.pairDetail.label"),
+      color: "#6366F1",
+    },
+  } satisfies ChartConfig;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -68,7 +70,7 @@ export default function PairDetailModal({
       } catch (err) {
         if (!cancelled) {
           setError(
-            err instanceof Error ? err.message : '상세 데이터를 불러오는데 실패했습니다.',
+            err instanceof Error ? err.message : t("common.loadFailed"),
           );
         }
       } finally {
@@ -80,7 +82,7 @@ export default function PairDetailModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, guildId, userA, userB, days]);
+  }, [isOpen, guildId, userA, userB, days, t]);
 
   // ESC 키로 닫기
   useEffect(() => {
@@ -93,6 +95,8 @@ export default function PairDetailModal({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const minuteUnit = t("common.unit.minute");
 
   const chartData = detail?.dailyData.map((d) => ({
     date: formatShortDate(d.date),
@@ -113,7 +117,7 @@ export default function PairDetailModal({
           type="button"
           onClick={onClose}
           className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:bg-muted transition-colors"
-          aria-label="닫기"
+          aria-label={t("coPresence.pairDetail.closeLabel")}
         >
           <X className="h-5 w-5" />
         </button>
@@ -125,7 +129,7 @@ export default function PairDetailModal({
           </h2>
           {detail && (
             <p className="mt-1 text-sm text-muted-foreground">
-              {days}일 기간 내 총 {formatMinutes(detail.totalMinutes)}
+              {t("coPresence.pairDetail.period", { days, time: formatMinutes(detail.totalMinutes) })}
             </p>
           )}
         </div>
@@ -140,13 +144,13 @@ export default function PairDetailModal({
         {/* 로딩 */}
         {loading ? (
           <div className="flex h-[250px] items-center justify-center">
-            <div className="text-muted-foreground">데이터 로딩 중...</div>
+            <div className="text-muted-foreground">{t("common.loading")}</div>
           </div>
         ) : detail ? (
           chartData.length === 0 ? (
             <div className="flex h-[250px] items-center justify-center">
               <p className="text-sm text-muted-foreground">
-                기간 내 동시접속 데이터가 없습니다.
+                {t("coPresence.pairDetail.noData")}
               </p>
             </div>
           ) : (
@@ -157,14 +161,14 @@ export default function PairDetailModal({
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(v: number) => `${v}분`}
+                  tickFormatter={(v: number) => `${v}${minuteUnit}`}
                 />
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
                       formatter={(value) => [
                         formatMinutes(value as number),
-                        "동시접속 시간",
+                        t("coPresence.pairDetail.tooltipLabel"),
                       ]}
                     />
                   }

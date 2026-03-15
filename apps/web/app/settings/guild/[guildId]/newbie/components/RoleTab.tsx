@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { DiscordRole } from '../../../../../lib/discord-api';
 import type { NewbieConfig } from '../../../../../lib/newbie-api';
 
@@ -11,15 +13,16 @@ interface RoleTabProps {
 
 export default function RoleTab({ config, roles, onChange }: RoleTabProps) {
   const isEnabled = config.roleEnabled;
+  const t = useTranslations('settings');
 
   return (
     <div className="space-y-6">
       {/* 기능 활성화 토글 */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-900">신입기간 역할 자동관리</p>
+          <p className="text-sm font-medium text-gray-900">{t('newbie.role.toggle')}</p>
           <p className="text-xs text-gray-500 mt-0.5">
-            신규 멤버에게 신입기간 역할을 자동으로 부여하고 만료 시 제거합니다.
+            {t('newbie.role.toggleDesc')}
           </p>
         </div>
         <button
@@ -45,7 +48,7 @@ export default function RoleTab({ config, roles, onChange }: RoleTabProps) {
           htmlFor="role-duration-days"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          신입기간 (일)
+          {t('newbie.role.durationDays')}
         </label>
         <input
           id="role-duration-days"
@@ -62,7 +65,7 @@ export default function RoleTab({ config, roles, onChange }: RoleTabProps) {
           className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
         />
         <p className="text-xs text-gray-400 mt-1">
-          역할이 자동으로 제거될 때까지의 기간(일수)
+          {t('newbie.role.durationDaysDesc')}
         </p>
       </div>
 
@@ -72,7 +75,7 @@ export default function RoleTab({ config, roles, onChange }: RoleTabProps) {
           htmlFor="newbie-role"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          신입 역할
+          {t('newbie.role.newbieRole')}
         </label>
         <select
           id="newbie-role"
@@ -83,7 +86,7 @@ export default function RoleTab({ config, roles, onChange }: RoleTabProps) {
           disabled={!isEnabled}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
         >
-          <option value="">역할을 선택하세요</option>
+          <option value="">{t('common.roleSelect')}</option>
           {roles.map((role) => (
             <option key={role.id} value={role.id}>
               {role.name}
@@ -91,11 +94,11 @@ export default function RoleTab({ config, roles, onChange }: RoleTabProps) {
           ))}
         </select>
         <p className="text-xs text-gray-400 mt-1">
-          신규 멤버에게 자동으로 부여할 Discord 역할
+          {t('newbie.role.newbieRoleDesc')}
         </p>
         {roles.length === 0 && (
           <p className="text-xs text-amber-500 mt-1">
-            역할 목록을 불러올 수 없습니다. 백엔드 연동 후 사용 가능합니다.
+            {t('newbie.role.noRoles')}
           </p>
         )}
       </div>

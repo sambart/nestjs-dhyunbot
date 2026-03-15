@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Cell, Pie, PieChart } from "recharts";
 
 import type { VoiceSummary } from "@/app/lib/voice-dashboard-api";
@@ -13,26 +14,28 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartConfig = {
-  micOn: {
-    label: "마이크 ON",
-    color: "var(--chart-2)",
-  },
-  micOff: {
-    label: "마이크 OFF",
-    color: "var(--chart-3)",
-  },
-  alone: {
-    label: "혼자",
-    color: "var(--chart-4)",
-  },
-} satisfies ChartConfig;
-
 interface Props {
   summary: VoiceSummary;
 }
 
 export default function MicDistributionChart({ summary }: Props) {
+  const t = useTranslations("dashboard");
+
+  const chartConfig = {
+    micOn: {
+      label: t("voice.micDistribution.micOn"),
+      color: "var(--chart-2)",
+    },
+    micOff: {
+      label: t("voice.micDistribution.micOff"),
+      color: "var(--chart-3)",
+    },
+    alone: {
+      label: t("voice.micDistribution.alone"),
+      color: "var(--chart-4)",
+    },
+  } satisfies ChartConfig;
+
   const chartData = [
     {
       name: "micOn",
@@ -57,7 +60,7 @@ export default function MicDistributionChart({ summary }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>음성 활동 분포</CardTitle>
+        <CardTitle>{t("voice.micDistribution.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">

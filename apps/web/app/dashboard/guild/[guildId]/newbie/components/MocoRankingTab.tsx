@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
 import type { NewbieConfig } from '../../../../../lib/newbie-api';
@@ -34,11 +35,11 @@ function formatPeriodDate(yyyymmdd: string): string {
 }
 
 /** 기간 표시 문자열 생성 */
-function buildPeriodLabel(config: NewbieConfig): string {
+function buildPeriodLabel(config: NewbieConfig, noneLabel: string): string {
   const period = config.mocoResetPeriod ?? 'NONE';
 
   if (period === 'NONE') {
-    return '전체 기간 (누적)';
+    return noneLabel;
   }
 
   if (period === 'MONTHLY') {
@@ -63,10 +64,11 @@ function buildPeriodLabel(config: NewbieConfig): string {
     return `${formatPeriodDate(startStr)} ~ ${formatPeriodDate(endStr)}`;
   }
 
-  return '전체 기간 (누적)';
+  return noneLabel;
 }
 
 export default function MocoRankingTab({ guildId, config, isEnabled, settingsUrl }: MocoRankingTabProps) {
+  const t = useTranslations('dashboard');
   const [rankData, setRankData] = useState<MocoRankResponse | null>(null);
   const [profiles, setProfiles] = useState<Record<string, MemberProfile>>({});
   const [page, setPage] = useState(1);
@@ -86,11 +88,11 @@ export default function MocoRankingTab({ guildId, config, isEnabled, settingsUrl
         setProfiles(profileMap);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '데이터를 불러오는데 실패했습니다.');
+      setError(err instanceof Error ? err.message : t('common.loadFailed'));
     } finally {
       setIsLoading(false);
     }
-  }, [guildId]);
+  }, [guildId, t]);
 
   useEffect(() => {
     void loadRanking(page);
@@ -124,19 +126,20 @@ export default function MocoRankingTab({ guildId, config, isEnabled, settingsUrl
     setPage(newPage);
   }
 
-  const periodLabel = buildPeriodLabel(config);
+  const periodNoneLabel = t('newbie.moco.periodNone');
+  const periodLabel = buildPeriodLabel(config, periodNoneLabel);
   const hasData = (rankData?.total ?? 0) > 0;
 
   // 비활성 + 데이터 없음
   if (!isEnabled && !isLoading && !hasData) {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
-        <p className="text-gray-500">모코코 사냥 기능이 비활성화 상태입니다.</p>
+        <p className="text-gray-500">{t('newbie.mocoDisabled')}</p>
         <Link
           href={settingsUrl}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
-          설정으로 이동
+          {t('newbie.goToSettings')}
         </Link>
       </div>
     );
@@ -146,26 +149,26 @@ export default function MocoRankingTab({ guildId, config, isEnabled, settingsUrl
     <div className="space-y-6">
       {/* 비활성 배너 */}
       {!isEnabled && hasData && (
-        <DisabledBanner featureName="모코코 사냥" settingsUrl={settingsUrl} />
+        <DisabledBanner featureName={t('newbie.mocoTab')} settingsUrl={settingsUrl} />
       )}
 
       {/* 기간 표시 */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          집계 기간: <span className="font-medium text-gray-700">{periodLabel}</span>
+          {t('newbie.moco.period', { period: periodLabel })}
         </p>
         <button
           type="button"
           onClick={() => void loadRanking(page)}
           className="text-xs text-indigo-600 hover:text-indigo-800"
         >
-          새로고침
+          {t('common.refresh')}
         </button>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="text-gray-400">데이터 로딩 중...</div>
+          <div className="text-gray-400">{t('common.loading')}</div>
         </div>
       ) : error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">

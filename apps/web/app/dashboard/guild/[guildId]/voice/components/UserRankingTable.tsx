@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import type { VoiceUserStat } from "@/app/lib/voice-dashboard-api";
 import { formatDuration } from "@/app/lib/voice-dashboard-api";
 import { Badge } from "@/components/ui/badge";
@@ -26,12 +28,13 @@ export default function UserRankingTable({
   profiles,
   onUserSelect,
 }: Props) {
+  const t = useTranslations("dashboard");
   const top20 = data.slice(0, 20);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>유저별 음성 활동 랭킹</CardTitle>
+        <CardTitle>{t("voice.userRanking.title")}</CardTitle>
         <CardAction>
           <UserSearchDropdown guildId={guildId} onSelect={onUserSelect} />
         </CardAction>
@@ -39,11 +42,11 @@ export default function UserRankingTable({
       <CardContent>
         <div className="space-y-2">
           <div className="grid grid-cols-6 gap-2 text-sm font-medium text-muted-foreground border-b pb-2">
-            <span>#</span>
-            <span className="col-span-2">유저</span>
-            <span>체류 시간</span>
-            <span>마이크 ON</span>
-            <span>혼자</span>
+            <span>{t("voice.userRanking.rank")}</span>
+            <span className="col-span-2">{t("voice.userRanking.user")}</span>
+            <span>{t("voice.userRanking.duration")}</span>
+            <span>{t("voice.userRanking.micOn")}</span>
+            <span>{t("voice.userRanking.alone")}</span>
           </div>
           {top20.map((user, index) => {
             const profile = profiles?.[user.userId];
@@ -91,7 +94,7 @@ export default function UserRankingTable({
           })}
           {top20.length === 0 && (
             <p className="text-center text-muted-foreground py-8">
-              데이터가 없습니다
+              {t("voice.userRanking.noData")}
             </p>
           )}
         </div>

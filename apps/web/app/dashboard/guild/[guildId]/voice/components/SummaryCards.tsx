@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, Hash, Mic, MicOff, User, UserX } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import type { VoiceSummary } from "@/app/lib/voice-dashboard-api";
 import { formatDuration } from "@/app/lib/voice-dashboard-api";
@@ -11,35 +12,36 @@ interface Props {
 }
 
 export default function SummaryCards({ summary }: Props) {
+  const t = useTranslations("dashboard");
   const cards = [
     {
-      title: "총 음성 시간",
+      title: t("voice.summary.totalDuration"),
       value: formatDuration(summary.totalDurationSec),
       icon: Clock,
     },
     {
-      title: "마이크 ON",
+      title: t("voice.summary.micOn"),
       value: formatDuration(summary.totalMicOnSec),
       icon: Mic,
     },
     {
-      title: "마이크 OFF",
+      title: t("voice.summary.micOff"),
       value: formatDuration(summary.totalMicOffSec),
       icon: MicOff,
     },
     {
-      title: "혼자 있는 시간",
+      title: t("voice.summary.alone"),
       value: formatDuration(summary.totalAloneSec),
       icon: UserX,
     },
     {
-      title: "활성 유저",
-      value: `${summary.uniqueUsers}명`,
+      title: t("voice.summary.activeUsers"),
+      value: `${summary.uniqueUsers}${t("common.unit.person")}`,
       icon: User,
     },
     {
-      title: "사용 채널",
-      value: `${summary.uniqueChannels}개`,
+      title: t("voice.summary.usedChannels"),
+      value: `${summary.uniqueChannels}${t("common.unit.channel")}`,
       icon: Hash,
     },
   ];

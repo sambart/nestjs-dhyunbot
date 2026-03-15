@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, Mic, MicOff, UserX } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { formatDuration } from "@/app/lib/voice-dashboard-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,24 +19,25 @@ export default function UserSummaryCards({
   totalMicOffSec,
   totalAloneSec,
 }: Props) {
+  const t = useTranslations("dashboard");
   const cards = [
     {
-      title: "총 음성 시간",
+      title: t("voice.summary.totalDuration"),
       value: formatDuration(totalDurationSec),
       icon: Clock,
     },
     {
-      title: "마이크 ON",
+      title: t("voice.summary.micOn"),
       value: formatDuration(totalMicOnSec),
       icon: Mic,
     },
     {
-      title: "마이크 OFF",
+      title: t("voice.summary.micOff"),
       value: formatDuration(totalMicOffSec),
       icon: MicOff,
     },
     {
-      title: "혼자 있는 시간",
+      title: t("voice.summary.alone"),
       value: formatDuration(totalAloneSec),
       icon: UserX,
     },

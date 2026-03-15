@@ -3,8 +3,10 @@
 import { Home, LayoutDashboard, Menu, PanelLeft, Settings, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import LocaleSwitcher from "./LocaleSwitcher";
 import { useSidebar } from "./SidebarContext";
 
 export interface Guild {
@@ -36,6 +38,7 @@ function getGuildPath(mode: "dashboard" | "settings"): string {
 }
 
 export default function Header() {
+  const t = useTranslations("common");
   const router = useRouter();
   const pathname = usePathname();
   const { toggle: toggleSidebar } = useSidebar();
@@ -103,7 +106,7 @@ export default function Header() {
                 <button
                   onClick={toggleSidebar}
                   className="md:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
-                  aria-label="사이드바 열기"
+                  aria-label={t("sidebar.open")}
                 >
                   <PanelLeft className="w-5 h-5 text-gray-700" />
                 </button>
@@ -124,7 +127,7 @@ export default function Header() {
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <Home className="w-4 h-4" />
-                <span>홈</span>
+                <span>{t("nav.home")}</span>
               </Link>
 
               <button
@@ -132,7 +135,7 @@ export default function Header() {
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <LayoutDashboard className="w-4 h-4" />
-                <span>대시보드</span>
+                <span>{t("nav.dashboard")}</span>
               </button>
 
               <button
@@ -140,13 +143,14 @@ export default function Header() {
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <Settings className="w-4 h-4" />
-                <span>설정</span>
+                <span>{t("nav.settings")}</span>
               </button>
             </div>
           </div>
 
-          {/* 오른쪽: 로그인/사용자 정보 */}
+          {/* 오른쪽: 언어 선택 + 로그인/사용자 정보 */}
           <div className="hidden md:flex items-center space-x-4">
+            <LocaleSwitcher />
             {isLoading ? (
               <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />
             ) : user ? (
@@ -173,7 +177,7 @@ export default function Header() {
                   onClick={handleLogout}
                   className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
                 >
-                  로그아웃
+                  {t("auth.logout")}
                 </button>
               </>
             ) : (
@@ -181,7 +185,7 @@ export default function Header() {
                 onClick={handleLogin}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
               >
-                로그인
+                {t("auth.login")}
               </button>
             )}
           </div>
@@ -209,7 +213,7 @@ export default function Header() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 <Home className="w-4 h-4" />
-                <span>홈</span>
+                <span>{t("nav.home")}</span>
               </Link>
 
               <button
@@ -220,7 +224,7 @@ export default function Header() {
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 text-left"
               >
                 <LayoutDashboard className="w-4 h-4" />
-                <span>대시보드</span>
+                <span>{t("nav.dashboard")}</span>
               </button>
 
               <button
@@ -231,7 +235,7 @@ export default function Header() {
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 text-left"
               >
                 <Settings className="w-4 h-4" />
-                <span>설정</span>
+                <span>{t("nav.settings")}</span>
               </button>
 
               <div className="pt-4 border-t border-gray-200">
@@ -243,7 +247,7 @@ export default function Header() {
                     }}
                     className="w-full px-3 py-2 text-left text-gray-700 hover:bg-gray-100 rounded-lg"
                   >
-                    로그아웃
+                    {t("auth.logout")}
                   </button>
                 ) : (
                   <button
@@ -253,7 +257,7 @@ export default function Header() {
                     }}
                     className="w-full px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
                   >
-                    로그인
+                    {t("auth.login")}
                   </button>
                 )}
               </div>

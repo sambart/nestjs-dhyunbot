@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Fragment, useState } from 'react';
 
 import type { MocoRankItem } from '../../../../../lib/newbie-dashboard-api';
@@ -33,6 +34,7 @@ export default function MocoRankingTable({
   total,
   onPageChange,
 }: MocoRankingTableProps) {
+  const t = useTranslations('dashboard');
   const [expandedHunterId, setExpandedHunterId] = useState<string | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -47,20 +49,20 @@ export default function MocoRankingTable({
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">순위</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">사냥꾼</th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">총 점수</th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">사냥 시간</th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">세션 횟수</th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">도움 모코코</th>
-              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">상세</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.moco.table.rank')}</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.moco.table.hunter')}</th>
+              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">{t('newbie.moco.table.score')}</th>
+              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">{t('newbie.moco.table.huntTime')}</th>
+              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">{t('newbie.moco.table.sessions')}</th>
+              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">{t('newbie.moco.table.assistedMoco')}</th>
+              <th className="px-4 py-2 text-center text-xs font-medium text-gray-500">{t('newbie.moco.table.detail')}</th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
                 <td colSpan={TABLE_COL_SPAN} className="px-4 py-8 text-center text-sm text-gray-400">
-                  순위 데이터가 없습니다.
+                  {t('newbie.moco.table.noData')}
                 </td>
               </tr>
             ) : (
@@ -91,16 +93,16 @@ export default function MocoRankingTable({
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-semibold text-indigo-700 tabular-nums">
-                        {item.score.toLocaleString()}점
+                        {t('newbie.moco.stats.huntMinutes', { minutes: item.score.toLocaleString() })}
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-gray-600 tabular-nums">
-                        {item.channelMinutes}분
+                        {t('newbie.moco.stats.huntMinutes', { minutes: item.channelMinutes })}
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-gray-600 tabular-nums">
-                        {item.sessionCount}회
+                        {t('newbie.moco.stats.sessions', { count: item.sessionCount })}
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-gray-600 tabular-nums">
-                        {item.uniqueNewbieCount}명
+                        {t('newbie.moco.stats.mocoCount', { count: item.uniqueNewbieCount })}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {isExpanded ? (
@@ -128,7 +130,7 @@ export default function MocoRankingTable({
       {/* 페이지네이션 */}
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-500">
-          {page} / {totalPages} 페이지 (총 {total}명)
+          {t('common.pagination', { page, totalPages, total })}
         </span>
         <div className="flex gap-2">
           <button
@@ -137,7 +139,7 @@ export default function MocoRankingTable({
             onClick={() => onPageChange(page - 1)}
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            이전
+            {t('common.prev')}
           </button>
           <button
             type="button"
@@ -145,7 +147,7 @@ export default function MocoRankingTable({
             onClick={() => onPageChange(page + 1)}
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            다음
+            {t('common.next')}
           </button>
         </div>
       </div>

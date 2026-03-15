@@ -1,6 +1,7 @@
 'use client';
 
 import { Check, ChevronDown, Loader2, Mic, RefreshCw, Server } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
 import type { DiscordChannel } from '../../../../lib/discord-api';
@@ -22,6 +23,7 @@ interface ChannelOption {
 
 export default function VoiceSettingsPage() {
   const { selectedGuildId } = useSettings();
+  const t = useTranslations('settings');
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [channelOptions, setChannelOptions] = useState<ChannelOption[]>([]);
@@ -121,7 +123,7 @@ export default function VoiceSettingsPage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : '저장에 실패했습니다.');
+      setSaveError(err instanceof Error ? err.message : t('common.saveError'));
     } finally {
       setIsSaving(false);
     }
@@ -137,11 +139,11 @@ export default function VoiceSettingsPage() {
   if (!selectedGuildId) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">음성 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('voice.title')}</h1>
         <section className="bg-white rounded-xl border border-gray-200 p-8">
           <div className="flex flex-col items-center text-center py-8">
             <Server className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="text-sm text-gray-500">사이드바에서 서버를 선택하세요.</p>
+            <p className="text-sm text-gray-500">{t('common.selectServer')}</p>
           </div>
         </section>
       </div>
@@ -151,7 +153,7 @@ export default function VoiceSettingsPage() {
   if (isLoading) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">음성 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('voice.title')}</h1>
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
         </div>
@@ -167,23 +169,23 @@ export default function VoiceSettingsPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <Mic className="w-6 h-6 text-indigo-600" />
-          <h1 className="text-2xl font-bold text-gray-900">음성 설정</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('voice.title')}</h1>
         </div>
         <button
           type="button"
           onClick={refreshChannels}
           disabled={isRefreshing}
-          title="채널 목록 새로고침"
+          title={t('common.refreshChannels')}
           className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>채널 새로고침</span>
+          <span>{t('common.refreshChannels')}</span>
         </button>
       </div>
 
       {/* 설정 섹션 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">음성 시간 제외 채널</h2>
+        <h2 className="text-sm font-semibold text-gray-900 mb-4">{t('voice.excludedChannels')}</h2>
 
         {/* 선택된 태그 목록 */}
         {selectedOptions.length > 0 && (
@@ -197,7 +199,7 @@ export default function VoiceSettingsPage() {
                 <button
                   type="button"
                   onClick={() => removeSelected(opt.id)}
-                  aria-label={`${opt.name} 선택 해제`}
+                  aria-label={t('voice.deselect', { name: opt.name })}
                   className="ml-1 text-indigo-400 hover:text-indigo-700"
                 >
                   ×
@@ -214,7 +216,7 @@ export default function VoiceSettingsPage() {
             onClick={() => setIsDropdownOpen((v) => !v)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <span className="text-gray-500">채널 또는 카테고리 선택...</span>
+            <span className="text-gray-500">{t('voice.channelOrCategorySelect')}</span>
             <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
@@ -222,7 +224,7 @@ export default function VoiceSettingsPage() {
             <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
               {channelOptions.length === 0 ? (
                 <li className="px-3 py-2 text-sm text-gray-400">
-                  채널 목록을 불러올 수 없습니다.
+                  {t('voice.noChannelOptions')}
                 </li>
               ) : (
                 channelOptions.map((opt) => {
@@ -251,7 +253,7 @@ export default function VoiceSettingsPage() {
         {/* 카테고리 선택 안내 문구 */}
         {hasCategorySelected && (
           <p className="text-xs text-amber-600 mt-2">
-            카테고리 선택 시 하위 음성 채널 전체가 제외됩니다.
+            {t('voice.categoryNote')}
           </p>
         )}
 
@@ -259,7 +261,7 @@ export default function VoiceSettingsPage() {
         <div className="flex items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-100">
           <div className="flex-1">
             {saveSuccess && (
-              <p className="text-sm text-green-600 font-medium">저장되었습니다.</p>
+              <p className="text-sm text-green-600 font-medium">{t('common.saveSuccess')}</p>
             )}
             {saveError && (
               <p className="text-sm text-red-600 font-medium">{saveError}</p>
@@ -271,7 +273,7 @@ export default function VoiceSettingsPage() {
             disabled={isSaving}
             className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
           >
-            {isSaving ? '저장 중...' : '저장'}
+            {isSaving ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </section>

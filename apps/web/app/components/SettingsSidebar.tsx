@@ -3,6 +3,7 @@
 import { ArrowLeftRight, BarChart3, HeartPulse, Mic, Pin, Radio, Settings, Tag, Users, UserX } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import type { Guild } from "./Header";
 import { useSidebar } from "./SidebarContext";
@@ -17,6 +18,7 @@ export default function SettingsSidebar({
   guilds,
   selectedGuildId,
 }: SettingsSidebarProps) {
+  const t = useTranslations("common");
   const pathname = usePathname();
   const { close } = useSidebar();
 
@@ -28,14 +30,14 @@ export default function SettingsSidebar({
       : null;
 
   const menuItems = [
-    { href: `/settings/guild/${selectedGuildId}`, label: "일반 설정", icon: Settings },
-    { href: `/settings/guild/${selectedGuildId}/auto-channel`, label: "자동방 설정", icon: Radio },
-    { href: `/settings/guild/${selectedGuildId}/newbie`, label: "신입 관리", icon: Users },
-    { href: `/settings/guild/${selectedGuildId}/status-prefix`, label: "게임방 상태 설정", icon: Tag },
-    { href: `/settings/guild/${selectedGuildId}/sticky-message`, label: "고정메세지", icon: Pin },
-    { href: `/settings/guild/${selectedGuildId}/voice`, label: "음성 설정", icon: Mic },
-    { href: `/settings/guild/${selectedGuildId}/inactive-member`, label: "비활동 회원 설정", icon: UserX },
-    { href: `/settings/guild/${selectedGuildId}/voice-health`, label: "자가진단 설정", icon: HeartPulse },
+    { href: `/settings/guild/${selectedGuildId}`, label: t("settings.general"), icon: Settings },
+    { href: `/settings/guild/${selectedGuildId}/auto-channel`, label: t("settings.autoChannel"), icon: Radio },
+    { href: `/settings/guild/${selectedGuildId}/newbie`, label: t("settings.newbie"), icon: Users },
+    { href: `/settings/guild/${selectedGuildId}/status-prefix`, label: t("settings.statusPrefix"), icon: Tag },
+    { href: `/settings/guild/${selectedGuildId}/sticky-message`, label: t("settings.stickyMessage"), icon: Pin },
+    { href: `/settings/guild/${selectedGuildId}/voice`, label: t("settings.voice"), icon: Mic },
+    { href: `/settings/guild/${selectedGuildId}/inactive-member`, label: t("settings.inactiveMember"), icon: UserX },
+    { href: `/settings/guild/${selectedGuildId}/voice-health`, label: t("settings.voiceHealth"), icon: HeartPulse },
   ];
 
   const sidebarContent = (
@@ -43,7 +45,7 @@ export default function SettingsSidebar({
       {/* 선택된 길드 표시 */}
       <div className="mb-6">
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-          서버
+          {t("sidebar.server")}
         </h2>
         <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
           {selectedGuild && guildIconUrl(selectedGuild) ? (
@@ -72,14 +74,14 @@ export default function SettingsSidebar({
             className="flex items-center space-x-2 mt-2 px-3 py-1.5 text-xs text-gray-500 hover:text-indigo-600 hover:bg-gray-50 rounded transition-colors"
           >
             <ArrowLeftRight className="w-3.5 h-3.5" />
-            <span>서버 변경</span>
+            <span>{t("sidebar.switchServer")}</span>
           </Link>
         )}
       </div>
 
       {/* 설정 메뉴 */}
       <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-        설정
+        {t("settings.sectionTitle")}
       </h2>
       <nav className="space-y-1">
         {menuItems.map((item) => {
@@ -111,7 +113,7 @@ export default function SettingsSidebar({
           className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
         >
           <BarChart3 className="w-5 h-5" />
-          <span>대시보드로 이동</span>
+          <span>{t("sidebar.toDashboard")}</span>
         </Link>
       </div>
     </div>

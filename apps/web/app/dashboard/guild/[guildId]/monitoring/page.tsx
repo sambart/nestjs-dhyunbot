@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -37,6 +38,7 @@ function getPeriodConfig(period: Period) {
 }
 
 export default function MonitoringPage() {
+  const t = useTranslations("dashboard");
   const params = useParams();
   const guildId = params.guildId as string;
 
@@ -77,12 +79,12 @@ export default function MonitoringPage() {
       }
     } catch {
       if (mountedRef.current) {
-        setError("메트릭 데이터를 불러오는데 실패했습니다.");
+        setError(t("monitoring.loadFailed"));
       }
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [guildId, period]);
+  }, [guildId, period, t]);
 
   // Unmount tracking
   useEffect(() => {
@@ -94,13 +96,13 @@ export default function MonitoringPage() {
 
   // Initial load
   useEffect(() => {
-    loadStatus();
-    loadMetrics();
+    void loadStatus();
+    void loadMetrics();
   }, [loadStatus, loadMetrics]);
 
   // Status polling
   useEffect(() => {
-    intervalRef.current = setInterval(loadStatus, 10_000);
+    intervalRef.current = setInterval(() => { void loadStatus(); }, 10_000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -108,29 +110,26 @@ export default function MonitoringPage() {
 
   const hourlyData = computeHourlyAverage(metricsData);
 
-  const periods: { key: Period; label: string }[] = [
-    { key: "24h", label: "24시간" },
-    { key: "7d", label: "7일" },
-    { key: "30d", label: "30일" },
-  ];
+  const periodKeys: Period[] = ["24h", "7d", "30d"];
 
   return (
     <div className="space-y-6 p-4 md:p-6">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">모니터링</h1>
+        <h1 className="text-2xl font-bold">{t("monitoring.title")}</h1>
         <div className="flex gap-1 rounded-lg bg-muted p-1">
-          {periods.map((p) => (
+          {periodKeys.map((key) => (
             <button
-              key={p.key}
-              onClick={() => setPeriod(p.key)}
+              key={key}
+              type="button"
+              onClick={() => setPeriod(key)}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                period === p.key
+                period === key
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {p.label}
+              {t(`monitoring.period.${key}`)}
             </button>
           ))}
         </div>
@@ -149,12 +148,12 @@ export default function MonitoringPage() {
       {/* 차트 영역 */}
       {loading ? (
         <div className="flex h-[400px] items-center justify-center">
-          <div className="text-muted-foreground">데이터 로딩 중...</div>
+          <div className="text-muted-foreground">{t("common.loading")}</div>
         </div>
       ) : metricsData.length === 0 && !error ? (
         <div className="flex h-[400px] items-center justify-center">
           <div className="text-muted-foreground">
-            해당 기간의 메트릭 데이터가 없습니다.
+            {t("monitoring.noMetrics")}
           </div>
         </div>
       ) : metricsData.length > 0 ? (

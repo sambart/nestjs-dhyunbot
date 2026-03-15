@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import type {
@@ -32,7 +33,7 @@ const CoPresenceGraph = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-[500px] items-center justify-center rounded-lg border border-gray-200 bg-gray-50">
-        <div className="text-muted-foreground">그래프 로딩 중...</div>
+        <div className="text-muted-foreground">...</div>
       </div>
     ),
   },
@@ -40,13 +41,10 @@ const CoPresenceGraph = dynamic(
 
 type Days = 7 | 30 | 90;
 
-const DAY_OPTIONS: { value: Days; label: string }[] = [
-  { value: 7, label: "7일" },
-  { value: 30, label: "30일" },
-  { value: 90, label: "90일" },
-];
+const DAY_OPTIONS: Days[] = [7, 30, 90];
 
 export default function CoPresencePage() {
+  const t = useTranslations("dashboard");
   const params = useParams();
   // Next.js 동적 라우트 파라미터는 string임이 보장되나 타입이 string | string[]로 추론됨
   const guildId = params.guildId as string;
@@ -87,7 +85,7 @@ export default function CoPresencePage() {
       } catch (err) {
         if (!cancelled) {
           setError(
-            err instanceof Error ? err.message : '데이터를 불러오는데 실패했습니다.',
+            err instanceof Error ? err.message : t("common.loadFailed"),
           );
         }
       } finally {
@@ -134,20 +132,20 @@ export default function CoPresencePage() {
     <div className="space-y-6 p-6">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">관계 분석</h1>
+        <h1 className="text-2xl font-bold">{t("coPresence.title")}</h1>
         <div className="flex gap-1 rounded-lg bg-muted p-1">
           {DAY_OPTIONS.map((opt) => (
             <button
-              key={opt.value}
+              key={opt}
               type="button"
-              onClick={() => setDays(opt.value)}
+              onClick={() => setDays(opt)}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                days === opt.value
+                days === opt
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {opt.label}
+              {opt}{t("coPresence.dayUnit")}
             </button>
           ))}
         </div>
@@ -162,7 +160,7 @@ export default function CoPresencePage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="text-muted-foreground">데이터 로딩 중...</div>
+          <div className="text-muted-foreground">{t("common.loading")}</div>
         </div>
       ) : (
         <>

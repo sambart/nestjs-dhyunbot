@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Cell, Pie, PieChart } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,23 +13,25 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartConfig = {
-  micOn: {
-    label: "마이크 ON",
-    color: "var(--chart-2)",
-  },
-  micOff: {
-    label: "마이크 OFF",
-    color: "var(--chart-3)",
-  },
-} satisfies ChartConfig;
-
 interface Props {
   micOnSec: number;
   micOffSec: number;
 }
 
 export default function UserMicPieChart({ micOnSec, micOffSec }: Props) {
+  const t = useTranslations("dashboard");
+
+  const chartConfig = {
+    micOn: {
+      label: t("voice.userDetail.micPieChart.micOn"),
+      color: "var(--chart-2)",
+    },
+    micOff: {
+      label: t("voice.userDetail.micPieChart.micOff"),
+      color: "var(--chart-3)",
+    },
+  } satisfies ChartConfig;
+
   const chartData = [
     { name: "micOn", value: Math.round(micOnSec / 60) },
     { name: "micOff", value: Math.round(micOffSec / 60) },
@@ -39,7 +42,7 @@ export default function UserMicPieChart({ micOnSec, micOffSec }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>마이크 ON/OFF 분포</CardTitle>
+        <CardTitle>{t("voice.userDetail.micPieChart.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">

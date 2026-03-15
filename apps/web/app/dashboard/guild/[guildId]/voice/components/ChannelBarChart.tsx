@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
@@ -23,21 +24,6 @@ import {
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
 
-const chartConfig = {
-  durationMin: {
-    label: "체류(분)",
-    color: "var(--chart-1)",
-  },
-  micOnMin: {
-    label: "마이크 ON(분)",
-    color: "var(--chart-2)",
-  },
-  micOffMin: {
-    label: "마이크 OFF(분)",
-    color: "var(--chart-3)",
-  },
-} satisfies ChartConfig;
-
 interface Props {
   data: VoiceChannelStat[];
   records: VoiceDailyRecord[];
@@ -51,6 +37,23 @@ const TAB_ACTIVE = "bg-background text-foreground shadow-sm";
 const TAB_INACTIVE = "text-muted-foreground hover:text-foreground";
 
 export default function ChannelBarChart({ data, records }: Props) {
+  const t = useTranslations("dashboard");
+
+  const chartConfig = {
+    durationMin: {
+      label: t("voice.channelChart.durationMin"),
+      color: "var(--chart-1)",
+    },
+    micOnMin: {
+      label: t("voice.channelChart.micOnMin"),
+      color: "var(--chart-2)",
+    },
+    micOffMin: {
+      label: t("voice.channelChart.micOffMin"),
+      color: "var(--chart-3)",
+    },
+  } satisfies ChartConfig;
+
   const [tab, setTab] = useState<TabValue>("channel");
 
   const channelChartData = data.slice(0, 10).map((d) => ({
@@ -75,7 +78,7 @@ export default function ChannelBarChart({ data, records }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>음성 활동 (Top 10)</CardTitle>
+        <CardTitle>{t("voice.channelChart.title")}</CardTitle>
         <CardAction>
           <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-[3px]">
             <button
@@ -83,14 +86,14 @@ export default function ChannelBarChart({ data, records }: Props) {
               className={cn(TAB_BASE, tab === "channel" ? TAB_ACTIVE : TAB_INACTIVE)}
               onClick={() => setTab("channel")}
             >
-              채널별
+              {t("voice.channelChart.tabChannel")}
             </button>
             <button
               type="button"
               className={cn(TAB_BASE, tab === "category" ? TAB_ACTIVE : TAB_INACTIVE)}
               onClick={() => setTab("category")}
             >
-              카테고리별
+              {t("voice.channelChart.tabCategory")}
             </button>
           </div>
         </CardAction>

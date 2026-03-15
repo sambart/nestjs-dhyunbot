@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
 import type { DiscordRole } from '../../../../lib/discord-api';
@@ -15,6 +16,7 @@ import MocoRankingTab from './components/MocoRankingTab';
 type TabKey = 'mission' | 'moco';
 
 export default function NewbieDashboardPage() {
+  const t = useTranslations('dashboard');
   const params = useParams();
   // Next.js 동적 라우트 세그먼트는 단일 값임이 라우트 정의에 의해 보장된다
   const guildId = params.guildId as string;
@@ -78,7 +80,7 @@ export default function NewbieDashboardPage() {
   if (isConfigLoading) {
     return (
       <div className="flex items-center justify-center p-6 py-20">
-        <div className="text-gray-400">설정 로딩 중...</div>
+        <div className="text-gray-400">{t('common.loadingConfig')}</div>
       </div>
     );
   }
@@ -87,14 +89,14 @@ export default function NewbieDashboardPage() {
   if (config && !config.missionEnabled && !config.mocoEnabled) {
     return (
       <div className="p-6">
-        <h1 className="mb-6 text-2xl font-bold">신입 관리</h1>
+        <h1 className="mb-6 text-2xl font-bold">{t('newbie.title')}</h1>
         <div className="flex flex-col items-center gap-4 rounded-xl border border-gray-200 py-20 text-center">
-          <p className="text-gray-500">미션 관리 및 모코코 사냥 기능이 모두 비활성화 상태입니다.</p>
+          <p className="text-gray-500">{t('newbie.bothDisabled')}</p>
           <Link
             href={settingsUrl}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
-            설정에서 기능 활성화하기
+            {t('newbie.goToSettings')}
           </Link>
         </div>
       </div>
@@ -106,7 +108,7 @@ export default function NewbieDashboardPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-bold">신입 관리</h1>
+      <h1 className="text-2xl font-bold">{t('newbie.title')}</h1>
 
       {/* 탭 헤더 */}
       <div className="flex items-center gap-1 border-b border-gray-200">
@@ -120,10 +122,10 @@ export default function NewbieDashboardPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          미션 관리
+          {t('newbie.missionTab')}
           {!isMissionEnabled && (
             <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
-              비활성
+              {t('newbie.inactive')}
             </span>
           )}
         </button>
@@ -136,10 +138,10 @@ export default function NewbieDashboardPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          모코코 순위
+          {t('newbie.mocoTab')}
           {!isMocoEnabled && (
             <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
-              비활성
+              {t('newbie.inactive')}
             </span>
           )}
         </button>
@@ -150,18 +152,18 @@ export default function NewbieDashboardPage() {
         <div className="space-y-4">
           {/* missionEnabled=false & 데이터 있음 → 경고 배너 + 읽기 전용 */}
           {!isMissionEnabled && hasMissionData && (
-            <DisabledBanner featureName="미션 관리" settingsUrl={settingsUrl} />
+            <DisabledBanner featureName={t('newbie.missionTab')} settingsUrl={settingsUrl} />
           )}
 
           {/* missionEnabled=false & 데이터 없음 → 빈 상태 안내 */}
           {!isMissionEnabled && hasMissionData === false && (
             <div className="flex flex-col items-center gap-4 rounded-xl border border-gray-200 py-16 text-center">
-              <p className="text-gray-500">미션 관리 기능이 비활성화 상태입니다.</p>
+              <p className="text-gray-500">{t('newbie.missionDisabled')}</p>
               <Link
                 href={settingsUrl}
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
               >
-                설정에서 기능 활성화하기
+                {t('newbie.goToSettings')}
               </Link>
             </div>
           )}

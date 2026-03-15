@@ -3,6 +3,7 @@
 import { Activity, ArrowLeftRight, GitFork, HelpCircle, LayoutDashboard, Mic, Settings, Sprout, UserX } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import type { Guild } from "./Header";
 import { useSidebar } from "./SidebarContext";
@@ -17,6 +18,7 @@ export default function DashboardSidebar({
   guilds,
   selectedGuildId,
 }: DashboardSidebarProps) {
+  const t = useTranslations("common");
   const pathname = usePathname();
   const { close } = useSidebar();
 
@@ -30,32 +32,32 @@ export default function DashboardSidebar({
   const menuItems = [
     {
       href: `/dashboard/guild/${selectedGuildId}/overview`,
-      label: "서버 개요",
+      label: t("sidebar.overview"),
       icon: LayoutDashboard,
     },
     {
       href: `/dashboard/guild/${selectedGuildId}/voice`,
-      label: "음성 활동",
+      label: t("sidebar.voice"),
       icon: Mic,
     },
     {
       href: `/dashboard/guild/${selectedGuildId}/newbie`,
-      label: "신입 관리",
+      label: t("sidebar.newbie"),
       icon: Sprout,
     },
     {
       href: `/dashboard/guild/${selectedGuildId}/inactive-member`,
-      label: "비활동 회원",
+      label: t("sidebar.inactiveMember"),
       icon: UserX,
     },
     {
       href: `/dashboard/guild/${selectedGuildId}/co-presence`,
-      label: "관계 분석",
+      label: t("sidebar.coPresence"),
       icon: GitFork,
     },
     {
       href: `/dashboard/guild/${selectedGuildId}/monitoring`,
-      label: "모니터링",
+      label: t("sidebar.monitoring"),
       icon: Activity,
     },
   ];
@@ -65,7 +67,7 @@ export default function DashboardSidebar({
       {/* 선택된 길드 표시 */}
       <div className="mb-6">
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-          서버
+          {t("sidebar.server")}
         </h2>
         <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
           {selectedGuild && guildIconUrl(selectedGuild) ? (
@@ -94,14 +96,14 @@ export default function DashboardSidebar({
             className="flex items-center space-x-2 mt-2 px-3 py-1.5 text-xs text-gray-500 hover:text-indigo-600 hover:bg-gray-50 rounded transition-colors"
           >
             <ArrowLeftRight className="w-3.5 h-3.5" />
-            <span>서버 변경</span>
+            <span>{t("sidebar.switchServer")}</span>
           </Link>
         )}
       </div>
 
       {/* 대시보드 메뉴 */}
       <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-        대시보드
+        {t("sidebar.dashboard")}
       </h2>
       <nav className="space-y-1">
         {menuItems.map((item) => {
@@ -134,7 +136,7 @@ export default function DashboardSidebar({
           className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
         >
           <Settings className="w-5 h-5" />
-          <span>설정으로 이동</span>
+          <span>{t("sidebar.settings")}</span>
         </Link>
         <div className="mt-1 pt-2 border-t border-gray-100">
           <Link
@@ -147,7 +149,7 @@ export default function DashboardSidebar({
             }`}
           >
             <HelpCircle className="w-5 h-5" />
-            <span>도움말</span>
+            <span>{t("sidebar.help")}</span>
           </Link>
         </div>
       </div>

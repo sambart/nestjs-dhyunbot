@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { fetchOverview, type OverviewData } from "@/app/lib/overview-api";
@@ -11,6 +12,7 @@ import OverviewSummaryCards from "./components/OverviewSummaryCards";
 import WeeklyVoiceChart from "./components/WeeklyVoiceChart";
 
 export default function OverviewPage() {
+  const t = useTranslations("dashboard");
   const params = useParams();
   // Next.js 동적 라우트 세그먼트는 단일 값임이 라우트 정의에 의해 보장된다
   const guildId = params.guildId as string;
@@ -35,7 +37,7 @@ export default function OverviewPage() {
           setError(
             err instanceof Error
               ? err.message
-              : '데이터를 불러오는데 실패했습니다.',
+              : t("common.loadFailed"),
           );
         }
       } finally {
@@ -52,12 +54,12 @@ export default function OverviewPage() {
   return (
     <div className="space-y-6 p-4 md:p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">서버 개요</h1>
+        <h1 className="text-2xl font-bold">{t("overview.title")}</h1>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="text-muted-foreground">데이터 로딩 중...</div>
+          <div className="text-muted-foreground">{t("common.loading")}</div>
         </div>
       ) : error ? (
         <div className="flex items-center justify-center py-20">

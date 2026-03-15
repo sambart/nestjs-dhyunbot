@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
@@ -25,6 +26,7 @@ import StatsCards from "./components/StatsCards";
 const LIMIT = 20;
 
 export default function InactiveMemberPage() {
+  const t = useTranslations("dashboard");
   const params = useParams();
   const guildId = params.guildId as string;
   const mountedRef = useRef(true);
@@ -96,7 +98,7 @@ export default function InactiveMemberPage() {
       }
     } catch (err) {
       if (mountedRef.current) {
-        setError(err instanceof Error ? err.message : '데이터를 불러오는데 실패했습니다.');
+        setError(err instanceof Error ? err.message : t("common.loadFailed"));
       }
     } finally {
       if (mountedRef.current) setLoading(false);
@@ -144,13 +146,13 @@ export default function InactiveMemberPage() {
     setClassifyResult(null);
     try {
       const result = await classifyInactiveMembers(guildId);
-      setClassifyResult(`${result.classifiedCount}명 분류 완료`);
+      setClassifyResult(t("inactive.classifyDone", { count: result.classifiedCount }));
       setTimeout(() => setClassifyResult(null), 3_000);
       void loadStats();
       void loadItems();
     } catch (err) {
       setClassifyResult(
-        err instanceof Error ? err.message : '분류 실행에 실패했습니다.',
+        err instanceof Error ? err.message : t("common.loadFailed"),
       );
     } finally {
       setIsClassifying(false);
@@ -177,7 +179,7 @@ export default function InactiveMemberPage() {
         void loadItems();
       } catch (err) {
         setActionError(
-          err instanceof Error ? err.message : '조치 실행에 실패했습니다.',
+          err instanceof Error ? err.message : t("common.loadFailed"),
         );
       } finally {
         setIsActing(false);
@@ -212,7 +214,7 @@ export default function InactiveMemberPage() {
   return (
     <div className="space-y-6 p-4 md:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl md:text-2xl font-bold">비활동 회원 관리</h1>
+        <h1 className="text-xl md:text-2xl font-bold">{t("inactive.title")}</h1>
         <div className="flex items-center gap-3">
           {classifyResult && (
             <span className="text-sm text-green-600">{classifyResult}</span>
@@ -223,7 +225,7 @@ export default function InactiveMemberPage() {
             onClick={handleClassify}
             className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isClassifying ? '분류 중...' : '지금 분류 실행'}
+            {isClassifying ? t("inactive.classifying") : t("inactive.classify")}
           </button>
         </div>
       </div>
@@ -236,7 +238,7 @@ export default function InactiveMemberPage() {
 
       {loading && !stats ? (
         <div className="flex items-center justify-center py-20">
-          <div className="text-muted-foreground">데이터 로딩 중...</div>
+          <div className="text-muted-foreground">{t("common.loading")}</div>
         </div>
       ) : (
         <>
@@ -262,17 +264,17 @@ export default function InactiveMemberPage() {
               onChange={(e) => handleGradeFilterChange(e.target.value)}
               className="w-full sm:w-[160px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="all">등급 전체</option>
-              <option value="FULLY_INACTIVE">완전 비활동</option>
-              <option value="LOW_ACTIVE">저활동</option>
-              <option value="DECLINING">활동 감소</option>
+              <option value="all">{t("inactive.grade.all")}</option>
+              <option value="FULLY_INACTIVE">{t("inactive.grade.fullyInactive")}</option>
+              <option value="LOW_ACTIVE">{t("inactive.grade.lowActive")}</option>
+              <option value="DECLINING">{t("inactive.grade.declining")}</option>
             </select>
 
             <input
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="닉네임 검색..."
+              placeholder={t("inactive.filter.search")}
               className="w-full sm:w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
 
@@ -281,8 +283,8 @@ export default function InactiveMemberPage() {
               onChange={(e) => handleSortByChange(e.target.value)}
               className="w-full sm:w-[160px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="lastVoiceDate">마지막 접속일</option>
-              <option value="totalMinutes">접속 시간</option>
+              <option value="lastVoiceDate">{t("inactive.filter.sortBy.lastVoiceDate")}</option>
+              <option value="totalMinutes">{t("inactive.filter.sortBy.totalMinutes")}</option>
             </select>
 
             <select
@@ -290,8 +292,8 @@ export default function InactiveMemberPage() {
               onChange={(e) => handleSortOrderChange(e.target.value)}
               className="w-full sm:w-[120px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="ASC">오름차순</option>
-              <option value="DESC">내림차순</option>
+              <option value="ASC">{t("inactive.filter.sortOrder.ASC")}</option>
+              <option value="DESC">{t("inactive.filter.sortOrder.DESC")}</option>
             </select>
           </div>
 
@@ -307,7 +309,7 @@ export default function InactiveMemberPage() {
           {/* 테이블 */}
           {loading ? (
             <div className="flex items-center justify-center py-10">
-              <div className="text-muted-foreground">목록 로딩 중...</div>
+              <div className="text-muted-foreground">{t("common.loadingList")}</div>
             </div>
           ) : (
             <InactiveMemberTable
@@ -321,7 +323,7 @@ export default function InactiveMemberPage() {
           {/* 페이지네이션 */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
-              {page} / {totalPages} 페이지 (총 {total}명)
+              {t("common.pagination", { page, totalPages, total })}
             </span>
             <div className="flex gap-2">
               <button
@@ -330,7 +332,7 @@ export default function InactiveMemberPage() {
                 onClick={() => setPage((p) => p - 1)}
                 className="px-3 py-1.5 rounded-lg border border-input text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                이전
+                {t("common.prev")}
               </button>
               <button
                 type="button"
@@ -338,7 +340,7 @@ export default function InactiveMemberPage() {
                 onClick={() => setPage((p) => p + 1)}
                 className="px-3 py-1.5 rounded-lg border border-input text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                다음
+                {t("common.next")}
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 import type { MemberSearchResult } from "@/app/lib/user-detail-api";
@@ -13,6 +14,7 @@ interface Props {
 const DEBOUNCE_MS = 300;
 
 export default function UserSearchDropdown({ guildId, onSelect }: Props) {
+  const t = useTranslations("dashboard");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<MemberSearchResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -74,7 +76,7 @@ export default function UserSearchDropdown({ guildId, onSelect }: Props) {
         type="text"
         value={query}
         onChange={(e) => handleQueryChange(e.target.value)}
-        placeholder="유저 검색..."
+        placeholder={t("voice.userSearch.placeholder")}
         className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
       />
       {isOpen && results.length > 0 && (

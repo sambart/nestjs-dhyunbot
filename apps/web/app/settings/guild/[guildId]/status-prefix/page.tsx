@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2, RefreshCw, Server, Tag } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
 import GuildEmojiPicker from '../../../../components/GuildEmojiPicker';
@@ -17,19 +18,21 @@ import {
 } from '../../../../lib/status-prefix-api';
 import { useSettings } from '../../../SettingsContext';
 
-const validateButtons = (buttons: StatusPrefixButton[]): string[] => {
+type TFn = ReturnType<typeof useTranslations<'settings'>>;
+
+const validateButtons = (buttons: StatusPrefixButton[], t: TFn): string[] => {
   const sorted = [...buttons].sort((a, b) => a.sortOrder - b.sortOrder);
   const seenPrefixes = new Set<string>();
 
   for (let i = 0; i < sorted.length; i++) {
     const btn = sorted[i];
-    if (!btn.label.trim()) return [`버튼 #${i + 1}의 라벨을 입력해주세요.`];
+    if (!btn.label.trim()) return [t('statusPrefix.validationButtonLabel', { index: i + 1 })];
     if (btn.type === 'PREFIX' && !btn.prefix?.trim()) {
-      return [`버튼 #${i + 1}의 접두사 텍스트를 입력해주세요.`];
+      return [t('statusPrefix.validationButtonPrefix', { index: i + 1 })];
     }
     if (btn.type === 'PREFIX' && btn.prefix) {
       const trimmed = btn.prefix.trim();
-      if (seenPrefixes.has(trimmed)) return [`접두사 "${trimmed}"이(가) 중복됩니다.`];
+      if (seenPrefixes.has(trimmed)) return [t('statusPrefix.validationDuplicatePrefix', { prefix: trimmed })];
       seenPrefixes.add(trimmed);
     }
   }
@@ -48,6 +51,7 @@ const DEFAULT_CONFIG: StatusPrefixConfig = {
 
 export default function StatusPrefixSettingsPage() {
   const { selectedGuildId } = useSettings();
+  const t = useTranslations('settings');
 
   const [config, setConfig] = useState<StatusPrefixConfig>(DEFAULT_CONFIG);
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
@@ -176,10 +180,10 @@ export default function StatusPrefixSettingsPage() {
     // 유효성 검사
     const errors: string[] = [];
     if (config.enabled && !config.channelId) {
-      errors.push('안내 채널을 선택해주세요.');
+      errors.push(t('statusPrefix.validationChannel'));
     }
     if (config.enabled) {
-      errors.push(...validateButtons(config.buttons));
+      errors.push(...validateButtons(config.buttons, t));
     }
     if (errors.length > 0) {
       setSaveError(errors.join(' '));
@@ -201,7 +205,7 @@ export default function StatusPrefixSettingsPage() {
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setSaveError(
-        err instanceof Error ? err.message : '저장에 실패했습니다.',
+        err instanceof Error ? err.message : t('common.saveError'),
       );
     } finally {
       setIsSaving(false);
@@ -214,13 +218,13 @@ export default function StatusPrefixSettingsPage() {
     return (
       <div className="max-w-3xl">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">
-          게임방 상태 설정
+          {t('statusPrefix.title')}
         </h1>
         <section className="bg-white rounded-xl border border-gray-200 p-8">
           <div className="flex flex-col items-center text-center py-8">
             <Server className="w-12 h-12 text-gray-300 mb-4" />
             <p className="text-sm text-gray-500">
-              사이드바에서 서버를 선택하세요.
+              {t('common.selectServer')}
             </p>
           </div>
         </section>
@@ -232,7 +236,7 @@ export default function StatusPrefixSettingsPage() {
     return (
       <div className="max-w-3xl">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">
-          게임방 상태 설정
+          {t('statusPrefix.title')}
         </h1>
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
@@ -252,31 +256,31 @@ export default function StatusPrefixSettingsPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <Tag className="w-6 h-6 text-indigo-600" />
-          <h1 className="text-2xl font-bold text-gray-900">게임방 상태 설정</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('statusPrefix.title')}</h1>
         </div>
         <button
           type="button"
           onClick={refreshChannels}
           disabled={isRefreshing}
-          title="채널 목록 새로고침"
+          title={t('common.refreshChannels')}
           className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>채널 새로고침</span>
+          <span>{t('common.refreshChannels')}</span>
         </button>
       </div>
 
       {/* 섹션 1: 기본 설정 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-base font-semibold text-gray-900 mb-4">기본 설정</h2>
+        <h2 className="text-base font-semibold text-gray-900 mb-4">{t('statusPrefix.basicSettings')}</h2>
         <div className="space-y-6">
 
           {/* 기능 활성화 토글 */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-900">기능 활성화</p>
+              <p className="text-sm font-medium text-gray-900">{t('statusPrefix.enableFeature')}</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                활성화 시 저장 즉시 지정 채널에 Embed + 버튼 메시지가 전송/갱신됩니다.
+                {t('statusPrefix.enableFeatureDesc')}
               </p>
             </div>
             <button
@@ -304,7 +308,7 @@ export default function StatusPrefixSettingsPage() {
               htmlFor="sp-channel"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              안내 채널
+              {t('statusPrefix.guideChannel')}
             </label>
             <select
               id="sp-channel"
@@ -318,7 +322,7 @@ export default function StatusPrefixSettingsPage() {
               disabled={!config.enabled}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
             >
-              <option value="">채널을 선택하세요</option>
+              <option value="">{t('common.channelSelect')}</option>
               {channels.map((ch) => (
                 <option key={ch.id} value={ch.id}>
                   # {ch.name}
@@ -327,11 +331,11 @@ export default function StatusPrefixSettingsPage() {
             </select>
             {channels.length === 0 && (
               <p className="text-xs text-gray-400 mt-1">
-                채널 목록을 불러올 수 없습니다. 백엔드 연동 후 사용 가능합니다.
+                {t('statusPrefix.noChannels')}
               </p>
             )}
             <p className="text-xs text-gray-400 mt-1">
-              Embed + 버튼 메시지를 표시할 텍스트 채널
+              {t('statusPrefix.guideChannelDesc')}
             </p>
           </div>
 
@@ -341,7 +345,7 @@ export default function StatusPrefixSettingsPage() {
               htmlFor="sp-template"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              접두사 형식 템플릿
+              {t('statusPrefix.prefixTemplate')}
             </label>
             <input
               id="sp-template"
@@ -358,25 +362,24 @@ export default function StatusPrefixSettingsPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
             />
             <p className="text-xs text-gray-400 mt-1">
-              닉네임 변환에 사용될 템플릿. 예:{' '}
-              <code className="bg-gray-100 px-1 rounded">[관전] 동현</code>
+              {t('statusPrefix.prefixTemplateDesc')}
             </p>
           </div>
 
           {/* 템플릿 변수 안내 */}
           <div className="bg-indigo-50 rounded-lg p-4">
             <p className="text-xs font-semibold text-indigo-700 mb-2">
-              사용 가능한 템플릿 변수
+              {t('statusPrefix.templateVarsTitle')}
             </p>
             <dl className="space-y-1.5">
               {[
                 {
                   variable: '{prefix}',
-                  description: '버튼에 설정된 접두사 텍스트',
+                  description: t('statusPrefix.varPrefix'),
                 },
                 {
                   variable: '{nickname}',
-                  description: '원래 닉네임 (접두사 적용 전)',
+                  description: t('statusPrefix.varNickname'),
                 },
               ].map((item) => (
                 <div key={item.variable} className="flex items-center space-x-2">
@@ -397,7 +400,7 @@ export default function StatusPrefixSettingsPage() {
       {/* 섹션 2: Embed 설정 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
         <h2 className="text-base font-semibold text-gray-900 mb-4">
-          Embed 설정
+          {t('statusPrefix.embedSettings')}
         </h2>
         <div className="space-y-6">
 
@@ -407,7 +410,7 @@ export default function StatusPrefixSettingsPage() {
               htmlFor="sp-embed-title"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Embed 제목
+              {t('common.embedTitle')}
             </label>
             <input
               id="sp-embed-title"
@@ -431,7 +434,7 @@ export default function StatusPrefixSettingsPage() {
               htmlFor="sp-embed-desc"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Embed 설명
+              {t('common.embedDescription')}
             </label>
             <textarea
               ref={embedDescRef}
@@ -460,7 +463,7 @@ export default function StatusPrefixSettingsPage() {
           {/* Embed 색상 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Embed 색상
+              {t('common.embedColor')}
             </label>
             <div className="flex items-center space-x-3">
               <input
@@ -473,7 +476,7 @@ export default function StatusPrefixSettingsPage() {
                   }))
                 }
                 disabled={!config.enabled}
-                aria-label="Embed 색상 피커"
+                aria-label={t('common.embedColorPicker')}
                 className="h-9 w-16 border border-gray-300 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed p-1"
               />
               <input
@@ -488,7 +491,7 @@ export default function StatusPrefixSettingsPage() {
                 disabled={!config.enabled}
                 maxLength={7}
                 placeholder="#5865F2"
-                aria-label="Embed 색상 HEX 코드"
+                aria-label={t('common.embedColorHex')}
                 className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
               />
             </div>
@@ -496,7 +499,7 @@ export default function StatusPrefixSettingsPage() {
 
           {/* Embed 미리보기 */}
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">미리보기</p>
+            <p className="text-sm font-medium text-gray-700 mb-2">{t('common.preview')}</p>
             <div className="bg-[#2B2D31] rounded-lg p-4">
               <div
                 className="bg-[#313338] rounded-md overflow-hidden"
@@ -506,10 +509,10 @@ export default function StatusPrefixSettingsPage() {
               >
                 <div className="p-4">
                   <p className="text-white font-semibold text-sm mb-1 break-words">
-                    {config.embedTitle || '(제목 없음)'}
+                    {config.embedTitle || t('common.noTitle')}
                   </p>
                   <p className="text-gray-300 text-xs whitespace-pre-wrap break-words">
-                    {config.embedDescription || '(설명 없음)'}
+                    {config.embedDescription || t('common.noDescription')}
                   </p>
                   {sortedButtons.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-3">
@@ -519,7 +522,7 @@ export default function StatusPrefixSettingsPage() {
                           className="px-3 py-1 bg-indigo-500 text-white text-xs rounded font-medium"
                         >
                           {btn.emoji ? `${btn.emoji} ` : ''}
-                          {btn.label || '(라벨 없음)'}
+                          {btn.label || t('common.noLabel')}
                         </span>
                       ))}
                     </div>
@@ -536,9 +539,9 @@ export default function StatusPrefixSettingsPage() {
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">버튼 목록</h2>
+            <h2 className="text-base font-semibold text-gray-900">{t('statusPrefix.buttonList')}</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Discord에 최대 25개까지 등록할 수 있습니다.
+              {t('statusPrefix.buttonListDesc')}
             </p>
           </div>
           <button
@@ -547,13 +550,13 @@ export default function StatusPrefixSettingsPage() {
             disabled={!config.enabled || config.buttons.length >= 25}
             className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            + 버튼 추가
+            {t('statusPrefix.addButton')}
           </button>
         </div>
 
         {sortedButtons.length === 0 ? (
           <div className="text-center py-8 text-gray-400 text-sm">
-            등록된 버튼이 없습니다. 버튼을 추가하세요.
+            {t('statusPrefix.noButtons')}
           </div>
         ) : (
           <div className="space-y-3">
@@ -569,7 +572,7 @@ export default function StatusPrefixSettingsPage() {
                       type="button"
                       onClick={() => moveButton(btn.id, 'up')}
                       disabled={idx === 0}
-                      aria-label="위로 이동"
+                      aria-label={t('statusPrefix.moveUp')}
                       className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       ▲
@@ -578,7 +581,7 @@ export default function StatusPrefixSettingsPage() {
                       type="button"
                       onClick={() => moveButton(btn.id, 'down')}
                       disabled={idx === arr.length - 1}
-                      aria-label="아래로 이동"
+                      aria-label={t('statusPrefix.moveDown')}
                       className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       ▼
@@ -590,16 +593,16 @@ export default function StatusPrefixSettingsPage() {
                           : 'bg-orange-100 text-orange-700'
                       }`}
                     >
-                      {btn.type === 'PREFIX' ? '접두사' : '원래대로'}
+                      {btn.type === 'PREFIX' ? t('statusPrefix.typePrefixLabel') : t('statusPrefix.typeResetLabel')}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => removeButton(btn.id)}
-                    aria-label="버튼 삭제"
+                    aria-label={t('statusPrefix.deleteButton')}
                     className="text-xs text-red-500 hover:text-red-700 transition-colors"
                   >
-                    삭제
+                    {t('statusPrefix.deleteButton')}
                   </button>
                 </div>
 
@@ -609,7 +612,7 @@ export default function StatusPrefixSettingsPage() {
                   {/* 버튼 타입 선택 */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      타입
+                      {t('statusPrefix.buttonType')}
                     </label>
                     <select
                       value={btn.type}
@@ -622,15 +625,15 @@ export default function StatusPrefixSettingsPage() {
                       }
                       className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
-                      <option value="PREFIX">PREFIX (접두사 적용)</option>
-                      <option value="RESET">RESET (원래대로)</option>
+                      <option value="PREFIX">{t('statusPrefix.typePrefixOption')}</option>
+                      <option value="RESET">{t('statusPrefix.typeResetOption')}</option>
                     </select>
                   </div>
 
                   {/* 버튼 라벨 */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      라벨 <span className="text-red-500">*</span>
+                      {t('statusPrefix.buttonLabelRequired')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -646,7 +649,7 @@ export default function StatusPrefixSettingsPage() {
                   {/* 이모지 */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      이모지 (선택)
+                      {t('statusPrefix.buttonEmoji')}
                     </label>
                     <div className="flex items-center gap-1.5">
                       <input
@@ -671,7 +674,7 @@ export default function StatusPrefixSettingsPage() {
                   {/* 접두사 텍스트 — PREFIX 타입일 때만 활성화 */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      접두사 텍스트
+                      {btn.type === 'PREFIX' ? t('statusPrefix.buttonPrefixRequired') : t('statusPrefix.buttonPrefixText')}
                       {btn.type === 'PREFIX' && (
                         <span className="text-red-500"> *</span>
                       )}
@@ -690,7 +693,7 @@ export default function StatusPrefixSettingsPage() {
                     />
                     {btn.type === 'RESET' && (
                       <p className="text-xs text-gray-400 mt-1">
-                        RESET 타입은 접두사가 없습니다.
+                        {t('statusPrefix.buttonResetNote')}
                       </p>
                     )}
                   </div>
@@ -707,7 +710,7 @@ export default function StatusPrefixSettingsPage() {
         <div className="flex-1">
           {saveSuccess && (
             <p className="text-sm text-green-600 font-medium">
-              설정이 저장되었습니다.
+              {t('statusPrefix.saveSuccess')}
             </p>
           )}
           {saveError && (
@@ -720,7 +723,7 @@ export default function StatusPrefixSettingsPage() {
           disabled={isSaving || !selectedGuildId}
           className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
         >
-          {isSaving ? '저장 중...' : '저장'}
+          {isSaving ? t('common.saving') : t('common.save')}
         </button>
       </div>
     </div>
