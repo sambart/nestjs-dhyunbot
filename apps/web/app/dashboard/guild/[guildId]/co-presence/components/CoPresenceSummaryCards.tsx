@@ -3,8 +3,8 @@
 import { BarChart3, Clock, Link2, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { CoPresenceSummary } from "@/app/lib/co-presence-api";
-import { formatMinutes } from "@/app/lib/co-presence-api";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface CoPresenceSummaryCardsProps {
@@ -15,6 +15,7 @@ export default function CoPresenceSummaryCards({
   summary,
 }: CoPresenceSummaryCardsProps) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
 
   const cards = [
     {
@@ -29,7 +30,7 @@ export default function CoPresenceSummaryCards({
     },
     {
       label: t("coPresence.summary.totalTime"),
-      value: formatMinutes(summary.totalCoPresenceMinutes),
+      value: formatMinutesI18n(summary.totalCoPresenceMinutes, tc),
       icon: Clock,
     },
     {

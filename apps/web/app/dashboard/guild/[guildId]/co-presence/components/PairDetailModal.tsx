@@ -11,8 +11,9 @@ import {
   YAxis,
 } from "recharts";
 
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { PairDetail } from "@/app/lib/co-presence-api";
-import { fetchPairDetail, formatMinutes, formatShortDate } from "@/app/lib/co-presence-api";
+import { fetchPairDetail, formatShortDate } from "@/app/lib/co-presence-api";
 import {
   type ChartConfig,
   ChartContainer,
@@ -44,6 +45,7 @@ export default function PairDetailModal({
   onClose,
 }: PairDetailModalProps) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const [detail, setDetail] = useState<PairDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -129,7 +131,7 @@ export default function PairDetailModal({
           </h2>
           {detail && (
             <p className="mt-1 text-sm text-muted-foreground">
-              {t("coPresence.pairDetail.period", { days, time: formatMinutes(detail.totalMinutes) })}
+              {t("coPresence.pairDetail.period", { days, time: formatMinutesI18n(detail.totalMinutes, tc) })}
             </p>
           )}
         </div>
@@ -167,7 +169,7 @@ export default function PairDetailModal({
                   content={
                     <ChartTooltipContent
                       formatter={(value) => [
-                        formatMinutes(value as number),
+                        formatMinutesI18n(value as number, tc),
                         t("coPresence.pairDetail.tooltipLabel"),
                       ]}
                     />

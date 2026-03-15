@@ -2,8 +2,8 @@
 
 import { useTranslations } from "next-intl";
 
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { IsolatedMember } from "@/app/lib/co-presence-api";
-import { formatMinutes } from "@/app/lib/co-presence-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface IsolatedMemberListProps {
@@ -14,6 +14,7 @@ export default function IsolatedMemberList({
   members,
 }: IsolatedMemberListProps) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
 
   return (
     <Card>
@@ -51,7 +52,7 @@ export default function IsolatedMemberList({
                   <tr key={member.userId} className="hover:bg-muted/50">
                     <td className="py-3 font-medium">{member.userName}</td>
                     <td className="py-3 text-right text-muted-foreground">
-                      {formatMinutes(member.totalVoiceMinutes)}
+                      {formatMinutesI18n(member.totalVoiceMinutes, tc)}
                     </td>
                     <td className="py-3 text-right text-muted-foreground">
                       {member.lastVoiceDate}

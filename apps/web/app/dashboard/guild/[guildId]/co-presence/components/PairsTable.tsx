@@ -4,8 +4,9 @@ import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { PairItem, PairsResponse } from "@/app/lib/co-presence-api";
-import { fetchPairs, formatMinutes, formatShortDate } from "@/app/lib/co-presence-api";
+import { fetchPairs, formatShortDate } from "@/app/lib/co-presence-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import PairDetailModal from "./PairDetailModal";
@@ -39,6 +40,7 @@ function SortIcon({ column, currentSortBy, currentSortOrder }: SortIconProps) {
 
 export default function PairsTable({ guildId, days }: PairsTableProps) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [page, setPage] = useState(1);
@@ -238,7 +240,7 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
                           {item.userB.userName}
                         </td>
                         <td className="py-3 text-right text-muted-foreground">
-                          {formatMinutes(item.totalMinutes)}
+                          {formatMinutesI18n(item.totalMinutes, tc)}
                         </td>
                         <td className="py-3 text-right text-muted-foreground">
                           {item.sessionCount}

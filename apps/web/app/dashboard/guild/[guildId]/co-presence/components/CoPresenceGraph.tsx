@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CoPresenceGraphData } from "@/app/lib/co-presence-api";
-import { formatMinutes } from "@/app/lib/co-presence-api";
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
@@ -252,6 +252,7 @@ export default function CoPresenceGraph({
   onMinMinutesChange,
 }: CoPresenceGraphProps) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [positions, setPositions] = useState<NodePosition[]>([]);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
@@ -418,7 +419,7 @@ export default function CoPresenceGraph({
         ctx.font = "bold " + LABEL_FONT;
         const nameWidth = ctx.measureText(pos.label).width;
         ctx.font = TOOLTIP_FONT;
-        const line1 = t("coPresence.graph.tooltip.activity", { value: formatMinutes(stat?.totalMinutes ?? 0) });
+        const line1 = t("coPresence.graph.tooltip.activity", { value: formatMinutesI18n(stat?.totalMinutes ?? 0, tc) });
         const line2 = t("coPresence.graph.tooltip.connections", { count: stat?.connectionCount ?? 0 });
         const line1Width = ctx.measureText(line1).width;
         const line2Width = ctx.measureText(line2).width;
@@ -465,7 +466,7 @@ export default function CoPresenceGraph({
       nodeSize: t("coPresence.graph.legend.nodeSize"),
       edgeWidth: t("coPresence.graph.legend.edgeWidth"),
     });
-  }, [positions, data.edges, hoveredNode, selectedNode, scale, offset, nodeStats, t]);
+  }, [positions, data.edges, hoveredNode, selectedNode, scale, offset, nodeStats, t, tc]);
 
   useEffect(() => {
     if (animationRef.current) cancelAnimationFrame(animationRef.current);

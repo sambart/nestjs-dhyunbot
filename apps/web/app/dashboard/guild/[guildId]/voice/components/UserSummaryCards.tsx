@@ -3,7 +3,7 @@
 import { Clock, Mic, MicOff, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { formatDuration } from "@/app/lib/voice-dashboard-api";
+import { formatDurationSecI18n } from "@/app/lib/format-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
@@ -20,25 +20,26 @@ export default function UserSummaryCards({
   totalAloneSec,
 }: Props) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const cards = [
     {
       title: t("voice.summary.totalDuration"),
-      value: formatDuration(totalDurationSec),
+      value: formatDurationSecI18n(totalDurationSec, tc),
       icon: Clock,
     },
     {
       title: t("voice.summary.micOn"),
-      value: formatDuration(totalMicOnSec),
+      value: formatDurationSecI18n(totalMicOnSec, tc),
       icon: Mic,
     },
     {
       title: t("voice.summary.micOff"),
-      value: formatDuration(totalMicOffSec),
+      value: formatDurationSecI18n(totalMicOffSec, tc),
       icon: MicOff,
     },
     {
       title: t("voice.summary.alone"),
-      value: formatDuration(totalAloneSec),
+      value: formatDurationSecI18n(totalAloneSec, tc),
       icon: UserX,
     },
   ];

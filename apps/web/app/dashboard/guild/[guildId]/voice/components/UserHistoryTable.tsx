@@ -2,8 +2,8 @@
 
 import { useTranslations } from "next-intl";
 
+import { formatDurationSecI18n } from "@/app/lib/format-utils";
 import type { VoiceHistoryPage } from "@/app/lib/user-detail-api";
-import { formatDuration } from "@/app/lib/voice-dashboard-api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ export default function UserHistoryTable({
   onPageChange,
 }: Props) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const totalPages = data ? Math.ceil(data.total / data.limit) : 1;
 
   return (
@@ -72,7 +73,7 @@ export default function UserHistoryTable({
                     <span>
                       {item.durationSec === null
                         ? "-"
-                        : formatDuration(item.durationSec)}
+                        : formatDurationSecI18n(item.durationSec, tc)}
                     </span>
                   </div>
                 ))

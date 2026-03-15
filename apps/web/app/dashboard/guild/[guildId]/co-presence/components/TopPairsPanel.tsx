@@ -4,8 +4,8 @@ import { ArrowLeftRight } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { PairUser, TopPair } from "@/app/lib/co-presence-api";
-import { formatMinutes } from "@/app/lib/co-presence-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface TopPairsPanelProps {
@@ -39,6 +39,7 @@ function UserAvatar({ user }: UserAvatarProps) {
 
 export default function TopPairsPanel({ topPairs }: TopPairsPanelProps) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
 
   return (
     <Card className="h-full">
@@ -71,7 +72,7 @@ export default function TopPairsPanel({ topPairs }: TopPairsPanelProps) {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {formatMinutes(pair.totalMinutes)} · {t("coPresence.topPairs.sessionLabel", { count: pair.sessionCount })}
+                  {formatMinutesI18n(pair.totalMinutes, tc)} · {t("coPresence.topPairs.sessionLabel", { count: pair.sessionCount })}
                 </p>
               </li>
             ))}

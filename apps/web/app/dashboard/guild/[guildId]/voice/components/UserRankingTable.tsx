@@ -2,8 +2,8 @@
 
 import { useTranslations } from "next-intl";
 
+import { formatDurationSecI18n } from "@/app/lib/format-utils";
 import type { VoiceUserStat } from "@/app/lib/voice-dashboard-api";
-import { formatDuration } from "@/app/lib/voice-dashboard-api";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -29,6 +29,7 @@ export default function UserRankingTable({
   onUserSelect,
 }: Props) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const top20 = data.slice(0, 20);
 
   return (
@@ -84,10 +85,10 @@ export default function UserRankingTable({
                   )}
                   <span className="truncate">{displayName}</span>
                 </span>
-                <span>{formatDuration(user.totalDurationSec)}</span>
-                <span>{formatDuration(user.micOnSec)}</span>
+                <span>{formatDurationSecI18n(user.totalDurationSec, tc)}</span>
+                <span>{formatDurationSecI18n(user.micOnSec, tc)}</span>
                 <span className="text-muted-foreground">
-                  {formatDuration(user.aloneSec)}
+                  {formatDurationSecI18n(user.aloneSec, tc)}
                 </span>
               </div>
             );

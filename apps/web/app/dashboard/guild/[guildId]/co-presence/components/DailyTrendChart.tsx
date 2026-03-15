@@ -9,8 +9,9 @@ import {
   YAxis,
 } from "recharts";
 
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import type { DailyTrendPoint } from "@/app/lib/co-presence-api";
-import { formatMinutes, formatShortDate } from "@/app/lib/co-presence-api";
+import { formatShortDate } from "@/app/lib/co-presence-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   type ChartConfig,
@@ -25,6 +26,7 @@ interface DailyTrendChartProps {
 
 export default function DailyTrendChart({ data }: DailyTrendChartProps) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
 
   const chartConfig = {
     totalMinutes: {
@@ -76,7 +78,7 @@ export default function DailyTrendChart({ data }: DailyTrendChartProps) {
               content={
                 <ChartTooltipContent
                   formatter={(value) => [
-                    formatMinutes(value as number),
+                    formatMinutesI18n(value as number, tc),
                     t("coPresence.dailyTrend.tooltipLabel"),
                   ]}
                 />

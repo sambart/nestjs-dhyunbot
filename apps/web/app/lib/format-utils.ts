@@ -42,15 +42,17 @@ export function formatUptimeI18n(ms: number, t: TFunc): string {
   return parts.join(' ');
 }
 
+const GRADE_KEY_MAP: Record<string, string> = {
+  FULLY_INACTIVE: 'fullyInactive',
+  LOW_ACTIVE: 'lowActive',
+  DECLINING: 'declining',
+};
+
 /** 비활동 등급 enum → 로컬라이징된 레이블 */
 export function gradeLabelI18n(
   grade: 'FULLY_INACTIVE' | 'LOW_ACTIVE' | 'DECLINING',
   t: TFunc,
 ): string {
-  const map: Record<string, string> = {
-    FULLY_INACTIVE: t('fullyInactive'),
-    LOW_ACTIVE: t('lowActive'),
-    DECLINING: t('declining'),
-  };
-  return map[grade] ?? grade;
+  const key = GRADE_KEY_MAP[grade] ?? grade;
+  return t(key);
 }

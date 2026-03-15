@@ -3,10 +3,8 @@
 import { Clock, Headphones, PieChart, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import {
-  formatDurationSec,
-  type OverviewData,
-} from "@/app/lib/overview-api";
+import { formatDurationSecI18n } from "@/app/lib/format-utils";
+import type { OverviewData } from "@/app/lib/overview-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
@@ -15,6 +13,7 @@ interface Props {
 
 export default function OverviewSummaryCards({ data }: Props) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const inactiveRate = 100 - data.activeRate;
 
   const cards = [
@@ -25,7 +24,7 @@ export default function OverviewSummaryCards({ data }: Props) {
     },
     {
       title: t("overview.todayVoice"),
-      value: formatDurationSec(data.todayVoiceTotalSec),
+      value: formatDurationSecI18n(data.todayVoiceTotalSec, tc),
       icon: Clock,
     },
     {

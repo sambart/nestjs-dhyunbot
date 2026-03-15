@@ -2,12 +2,9 @@
 
 import { useTranslations } from "next-intl";
 
+import { formatMinutesI18n, gradeLabelI18n } from "@/app/lib/format-utils";
 import type { InactiveMemberItem } from "@/app/lib/inactive-member-api";
-import {
-  formatMinutes,
-  gradeBadgeClass,
-  gradeLabel,
-} from "@/app/lib/inactive-member-api";
+import { gradeBadgeClass } from "@/app/lib/inactive-member-api";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface Props {
@@ -33,6 +30,7 @@ export default function InactiveMemberTable({
   onToggleAll,
 }: Props) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const isAllSelected =
     items.length > 0 && items.every((item) => selectedIds.has(item.userId));
 
@@ -99,14 +97,14 @@ export default function InactiveMemberTable({
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${gradeBadgeClass(item.grade)}`}
                       >
-                        {gradeLabel(item.grade)}
+                        {gradeLabelI18n(item.grade, (key) => t(`inactive.grade.${key}`))}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {item.lastVoiceDate ?? t("inactive.table.noVoiceDate")}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {formatMinutes(item.totalMinutes)}
+                      {formatMinutesI18n(item.totalMinutes, tc)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {formatIsoToDate(item.gradeChangedAt)}

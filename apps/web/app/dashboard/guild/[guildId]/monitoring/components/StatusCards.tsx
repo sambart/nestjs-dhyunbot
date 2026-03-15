@@ -4,7 +4,7 @@ import { Activity, Clock, Cpu, Server, Users, Wifi } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { BotStatus } from "@/app/lib/monitoring-api";
-import { formatUptime } from "@/app/lib/monitoring-api";
+import { formatUptimeI18n } from "@/app/lib/format-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
 
 export default function StatusCards({ status }: Props) {
   const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
 
   const memPercent =
     status.memoryUsage.heapTotalMb > 0
@@ -40,7 +41,7 @@ export default function StatusCards({ status }: Props) {
     },
     {
       title: t("monitoring.status.uptime"),
-      value: formatUptime(status.uptimeMs),
+      value: formatUptimeI18n(status.uptimeMs, tc),
       icon: Clock,
     },
     {
