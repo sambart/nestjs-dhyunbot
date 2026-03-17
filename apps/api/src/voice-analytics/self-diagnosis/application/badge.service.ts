@@ -84,7 +84,7 @@ export class BadgeService {
       .orderBy('"totalSec"', 'DESC')
       .getRawMany<ActivityStats>();
 
-    // 2. HHI 산출: 사용자별 peer 시간 일괄 조회
+    // 2. HHI 산출: 사용자별 peer 시간 일괄 조회 (단방향 저장: userId < peerId)
     const pairRows = await this.pairDailyRepo
       .createQueryBuilder('pd')
       .select('pd.userId', 'userId')
@@ -97,12 +97,20 @@ export class BadgeService {
       .addGroupBy('pd.peerId')
       .getRawMany<PeerStats>();
 
-    // userId별 peer 목록 맵 구성
+    // 단방향 레코드를 양방향 peer 맵으로 전개
     const peerMap = new Map<string, Array<{ peerId: string; minutes: number }>>();
     for (const row of pairRows) {
-      const list = peerMap.get(row.userId) ?? [];
-      list.push({ peerId: row.peerId, minutes: Number(row.totalMinutes) });
-      peerMap.set(row.userId, list);
+      const minutes = Number(row.totalMinutes);
+
+      // userId → peerId 방향
+      const listA = peerMap.get(row.userId) ?? [];
+      listA.push({ peerId: row.peerId, minutes });
+      peerMap.set(row.userId, listA);
+
+      // peerId → userId 방향 (역방향 복원)
+      const listB = peerMap.get(row.peerId) ?? [];
+      listB.push({ peerId: row.userId, minutes });
+      peerMap.set(row.peerId, listB);
     }
 
     // 3. 모코코 순위 산출

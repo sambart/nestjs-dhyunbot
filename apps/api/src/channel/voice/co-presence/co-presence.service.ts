@@ -7,10 +7,14 @@ import {
   CoPresenceSessionEndedEvent,
   CoPresenceTickSnapshot,
 } from './co-presence.events';
-import { CoPresenceDbRepository, UpsertPairDailyRow } from './co-presence-db.repository';
+import {
+  CoPresenceDbRepository,
+  type SaveSessionDto,
+  type UpsertPairDailyRow,
+} from './co-presence-db.repository';
 
 /** 주기적 세션 회전 임계값 (분). 이 값 이상 누적되면 세션을 종료 후 재시작하여 DB에 중간 데이터를 저장한다. */
-const FLUSH_THRESHOLD_MINUTES = 5;
+const FLUSH_THRESHOLD_MINUTES = 15;
 
 interface ActiveCoPresenceSession {
   guildId: string;
@@ -74,31 +78,37 @@ export class CoPresenceService {
       }
     }
 
-    // 처리된 길드 중 스냅샷에서 사라진 사용자의 세션 종료
+    // 종료 대상 세션 수집 (DB 쓰기는 배치로 후처리)
+    const sessionsToEnd: ActiveCoPresenceSession[] = [];
     const allProcessedGuildIds = new Set(processedGuildIds);
-    const keysToEnd: string[] = [];
 
+    // 처리된 길드 중 스냅샷에서 사라진 사용자
     for (const [key, session] of this.activeSessions) {
-      // 처리된 길드인데 이 사용자가 현재 스냅샷에 없으면 종료
       if (allProcessedGuildIds.has(session.guildId) && !currentUsers.has(key)) {
-        keysToEnd.push(key);
-      }
-    }
-
-    for (const key of keysToEnd) {
-      const session = this.activeSessions.get(key);
-      if (session) {
-        await this.endSession(session);
+        sessionsToEnd.push(session);
         this.activeSessions.delete(key);
       }
     }
 
-    // 주기적 세션 회전: 임계값 이상 누적된 활성 세션을 종료 후 즉시 재시작
+    // 주기적 세션 회전: 임계값 이상 누적된 활성 세션
     for (const [key, session] of this.activeSessions) {
       if (session.accumulatedMinutes >= FLUSH_THRESHOLD_MINUTES && currentUsers.has(key)) {
-        await this.endSession(session);
+        sessionsToEnd.push(session);
         const current = currentUsers.get(key)!;
         this.startSession(key, current.channelId, current.peerIds);
+      }
+    }
+
+    // 길드별 배치 DB 저장
+    if (sessionsToEnd.length > 0) {
+      const byGuild = new Map<string, ActiveCoPresenceSession[]>();
+      for (const session of sessionsToEnd) {
+        const list = byGuild.get(session.guildId) ?? [];
+        list.push(session);
+        byGuild.set(session.guildId, list);
+      }
+      for (const [, guildSessions] of byGuild) {
+        await this.endSessionsBatch(guildSessions);
       }
     }
   }
@@ -107,20 +117,17 @@ export class CoPresenceService {
    * 특정 길드의 모든 활성 세션을 강제 종료한다.
    */
   async endAllGuildSessions(guildId: string): Promise<void> {
-    const keysToEnd: string[] = [];
+    const sessions: ActiveCoPresenceSession[] = [];
 
     for (const [key, session] of this.activeSessions) {
       if (session.guildId === guildId) {
-        keysToEnd.push(key);
+        sessions.push(session);
+        this.activeSessions.delete(key);
       }
     }
 
-    for (const key of keysToEnd) {
-      const session = this.activeSessions.get(key);
-      if (session) {
-        await this.endSession(session);
-        this.activeSessions.delete(key);
-      }
+    if (sessions.length > 0) {
+      await this.endSessionsBatch(sessions);
     }
   }
 
@@ -128,9 +135,20 @@ export class CoPresenceService {
    * 모든 활성 세션을 강제 종료한다. (봇 종료 시)
    */
   async endAllSessions(): Promise<void> {
-    for (const [key, session] of this.activeSessions) {
-      await this.endSession(session);
-      this.activeSessions.delete(key);
+    const sessions = [...this.activeSessions.values()];
+    this.activeSessions.clear();
+
+    if (sessions.length === 0) return;
+
+    // 길드별로 배치 처리
+    const byGuild = new Map<string, ActiveCoPresenceSession[]>();
+    for (const session of sessions) {
+      const list = byGuild.get(session.guildId) ?? [];
+      list.push(session);
+      byGuild.set(session.guildId, list);
+    }
+    for (const [, guildSessions] of byGuild) {
+      await this.endSessionsBatch(guildSessions);
     }
   }
 
@@ -159,6 +177,86 @@ export class CoPresenceService {
     for (const peerId of peerIds) {
       session.peersSeen.add(peerId);
       session.peerMinutes.set(peerId, (session.peerMinutes.get(peerId) ?? 0) + 1);
+    }
+  }
+
+  private async endSessionsBatch(sessions: ActiveCoPresenceSession[]): Promise<void> {
+    const sessionInserts: SaveSessionDto[] = [];
+    const dailyRows: {
+      guildId: string;
+      userId: string;
+      date: string;
+      minutes: number;
+      sessionCount: number;
+    }[] = [];
+    const pairRows: UpsertPairDailyRow[] = [];
+    const events: CoPresenceSessionEndedEvent[] = [];
+
+    for (const session of sessions) {
+      const endedAt = new Date();
+      const date = this.toDateString(endedAt);
+      const peerIds = [...session.peersSeen];
+      const peerMinutesRecord: Record<string, number> = {};
+      for (const [peerId, minutes] of session.peerMinutes) {
+        peerMinutesRecord[peerId] = minutes;
+      }
+
+      sessionInserts.push({
+        guildId: session.guildId,
+        userId: session.userId,
+        channelId: session.channelId,
+        startedAt: session.startedAt,
+        endedAt,
+        durationMin: session.accumulatedMinutes,
+        peerIds,
+        peerMinutes: peerMinutesRecord,
+      });
+
+      dailyRows.push({
+        guildId: session.guildId,
+        userId: session.userId,
+        date,
+        minutes: session.accumulatedMinutes,
+        sessionCount: 1,
+      });
+
+      for (const [peerId, minutes] of session.peerMinutes) {
+        const [smallId, bigId] =
+          session.userId < peerId ? [session.userId, peerId] : [peerId, session.userId];
+        pairRows.push({
+          guildId: session.guildId,
+          userId: smallId,
+          peerId: bigId,
+          date,
+          minutes,
+          sessionCount: 1,
+        });
+      }
+
+      events.push({
+        guildId: session.guildId,
+        channelId: session.channelId,
+        userId: session.userId,
+        startedAt: session.startedAt,
+        endedAt,
+        durationMin: session.accumulatedMinutes,
+        peerIds,
+        peerMinutes: peerMinutesRecord,
+      });
+    }
+
+    try {
+      await Promise.all([
+        this.dbRepo.saveSessionBatch(sessionInserts),
+        this.dbRepo.upsertDailyBatch(dailyRows),
+        this.dbRepo.upsertPairDailyBatch(pairRows),
+      ]);
+
+      for (const event of events) {
+        await this.eventEmitter.emitAsync(CO_PRESENCE_SESSION_ENDED, event);
+      }
+    } catch (err) {
+      this.logger.error('[CO-PRESENCE] Batch endSessions failed', getErrorStack(err));
     }
   }
 
@@ -194,11 +292,11 @@ export class CoPresenceService {
       // DB 저장: 일별 집계
       await this.dbRepo.upsertDaily(guildId, userId, date, accumulatedMinutes, 1);
 
-      // DB 저장: 쌍 일별 집계 (양방향 배치 upsert)
+      // DB 저장: 쌍 일별 집계 (단방향 — userId < peerId)
       const pairRows: UpsertPairDailyRow[] = [];
       for (const [peerId, minutes] of peerMinutes) {
-        pairRows.push({ guildId, userId, peerId, date, minutes, sessionCount: 1 });
-        pairRows.push({ guildId, userId: peerId, peerId: userId, date, minutes, sessionCount: 1 });
+        const [smallId, bigId] = userId < peerId ? [userId, peerId] : [peerId, userId];
+        pairRows.push({ guildId, userId: smallId, peerId: bigId, date, minutes, sessionCount: 1 });
       }
       await this.dbRepo.upsertPairDailyBatch(pairRows);
 

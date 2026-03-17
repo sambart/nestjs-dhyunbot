@@ -237,20 +237,40 @@ export class SelfDiagnosisService {
     hhiScore: number;
     topPeers: PeerInfo[];
   }> {
-    const peerRows = await this.pairDailyRepo
-      .createQueryBuilder('pd')
-      .select('pd.peerId', 'peerId')
-      .addSelect('SUM(pd.minutes)', 'totalMinutes')
-      .where('pd.guildId = :guildId', { guildId })
-      .andWhere('pd.userId = :userId', { userId })
-      .andWhere('pd.date >= :startDate', { startDate })
-      .andWhere('pd.date <= :endDate', { endDate })
-      .groupBy('pd.peerId')
-      .getRawMany<RawPeer>();
+    // 단방향 저장(userId < peerId)이므로 양쪽 방향 모두 조회하여 합산
+    const [asUserRows, asPeerRows] = await Promise.all([
+      this.pairDailyRepo
+        .createQueryBuilder('pd')
+        .select('pd.peerId', 'peerId')
+        .addSelect('SUM(pd.minutes)', 'totalMinutes')
+        .where('pd.guildId = :guildId', { guildId })
+        .andWhere('pd.userId = :userId', { userId })
+        .andWhere('pd.date >= :startDate', { startDate })
+        .andWhere('pd.date <= :endDate', { endDate })
+        .groupBy('pd.peerId')
+        .getRawMany<RawPeer>(),
+      this.pairDailyRepo
+        .createQueryBuilder('pd')
+        .select('pd.userId', 'peerId')
+        .addSelect('SUM(pd.minutes)', 'totalMinutes')
+        .where('pd.guildId = :guildId', { guildId })
+        .andWhere('pd.peerId = :userId', { userId })
+        .andWhere('pd.date >= :startDate', { startDate })
+        .andWhere('pd.date <= :endDate', { endDate })
+        .groupBy('pd.userId')
+        .getRawMany<RawPeer>(),
+    ]);
 
-    const peerTimes = peerRows.map((r) => ({
-      peerId: r.peerId,
-      minutes: Number(r.totalMinutes),
+    // 양쪽 결과를 peerId 기준으로 합산
+    const peerMinutesMap = new Map<string, number>();
+    for (const row of [...asUserRows, ...asPeerRows]) {
+      const existing = peerMinutesMap.get(row.peerId) ?? 0;
+      peerMinutesMap.set(row.peerId, existing + Number(row.totalMinutes));
+    }
+
+    const peerTimes = [...peerMinutesMap.entries()].map(([peerId, minutes]) => ({
+      peerId,
+      minutes,
     }));
 
     const hhiScore = calculateHhi(peerTimes);
