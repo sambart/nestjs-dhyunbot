@@ -3,31 +3,17 @@ import { Cron } from '@nestjs/schedule';
 
 import { getErrorStack } from '../../common/util/error.util';
 import { BotMetricRepository } from '../infrastructure/bot-metric.repository';
-import { MonitoringService } from './monitoring.service';
 
+/**
+ * 모니터링 스케줄러.
+ * 메트릭 수집은 Bot 프로세스로 이관됨 (BotMonitoringScheduler).
+ * API에서는 오래된 메트릭 정리만 담당한다.
+ */
 @Injectable()
 export class MonitoringScheduler {
   private readonly logger = new Logger(MonitoringScheduler.name);
 
-  constructor(
-    private readonly monitoringService: MonitoringService,
-    private readonly metricRepo: BotMetricRepository,
-  ) {}
-
-  /**
-   * F-MONITORING-002: 1분 간격 메트릭 수집
-   */
-  @Cron('*/1 * * * *')
-  async collectMetrics(): Promise<void> {
-    try {
-      const metrics = this.monitoringService.collectAllGuildMetrics();
-      if (metrics.length === 0) return;
-
-      await this.metricRepo.saveBatch(metrics);
-    } catch (error) {
-      this.logger.error('[MONITORING] Failed to collect metrics', getErrorStack(error));
-    }
-  }
+  constructor(private readonly metricRepo: BotMetricRepository) {}
 
   /**
    * F-MONITORING-004: 30일 초과 메트릭 삭제 (매일 03:00)

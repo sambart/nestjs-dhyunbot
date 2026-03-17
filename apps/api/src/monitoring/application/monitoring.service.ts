@@ -24,9 +24,8 @@ export interface MetricsResponse {
   data: AggregatedMetric[];
 }
 
-// TODO(claude 2026-03-17): Bot API 엔드포인트 GET /bot-api/discord/status 에서
-// ws.status, ws.ping, uptime, guilds.cache 등 Gateway 정보를 받아오도록 전환 필요.
-// 현재는 API 프로세스 자체 메모리만 반환하며 Gateway 상태는 DB 메트릭 기반.
+/** Bot이 push한 상태를 저장하는 Redis 키 */
+const BOT_STATUS_CACHE_KEY = 'monitoring:bot-status';
 
 @Injectable()
 export class MonitoringService {
@@ -45,6 +44,18 @@ export class MonitoringService {
     );
     if (cached) return cached;
 
+    // Bot이 push한 상태를 Redis에서 조회
+    const botStatus = await this.redis.get<BotStatusResponse>(BOT_STATUS_CACHE_KEY);
+    if (botStatus) {
+      await this.redis.set(
+        `${MonitoringService.STATUS_CACHE_KEY}:${guildId}`,
+        botStatus,
+        MonitoringService.STATUS_CACHE_TTL,
+      );
+      return botStatus;
+    }
+
+    // Bot 상태가 없으면 API 프로세스 기준 fallback
     const status = this.collectStatus();
 
     await this.redis.set(
@@ -147,15 +158,14 @@ export class MonitoringService {
   }
 
   /**
-   * API 프로세스 기준 상태 수집.
-   * Gateway 연결이 없으므로 ws.status, ping 등은 Bot API 엔드포인트로 전환 필요.
+   * API 프로세스 기준 상태 수집 (Bot 상태가 없을 때 fallback).
    */
-  collectStatus(): BotStatusResponse {
+  private collectStatus(): BotStatusResponse {
     try {
       const mem = process.memoryUsage();
 
       return {
-        online: true, // API 프로세스가 살아있으면 true
+        online: true,
         uptimeMs: process.uptime() * 1000,
         startedAt: null,
         pingMs: 0,
@@ -178,20 +188,5 @@ export class MonitoringService {
         voiceUserCount: 0,
       };
     }
-  }
-
-  // TODO(claude 2026-03-17): collectAllGuildMetrics는 Bot에서 수행해야 함.
-  // Bot API 엔드포인트로 이동 필요.
-  collectAllGuildMetrics(): Array<{
-    guildId: string;
-    status: BotStatus;
-    pingMs: number;
-    heapUsedMb: number;
-    heapTotalMb: number;
-    voiceUserCount: number;
-    guildCount: number;
-  }> {
-    // Gateway 없이는 길드 목록을 알 수 없으므로 빈 배열 반환
-    return [];
   }
 }

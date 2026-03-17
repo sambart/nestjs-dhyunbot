@@ -8,6 +8,7 @@ import { BotCommandModule } from './command/bot-command.module';
 import { DiscordConfig } from './config/discord.config';
 import { BotEventModule } from './event/bot-event.module';
 import { MusicModule } from './music/music.module';
+import { BotSchedulerModule } from './scheduler/bot-scheduler.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { MusicModule } from './music/music.module';
     BotEventModule,
     BotCommandModule,
     MusicModule,
+    BotSchedulerModule,
   ],
 })
 export class AppModule {}

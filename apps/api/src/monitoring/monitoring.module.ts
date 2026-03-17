@@ -17,5 +17,6 @@ import { MonitoringController } from './presentation/monitoring.controller';
   ],
   controllers: [MonitoringController],
   providers: [BotMetricRepository, MonitoringService, MonitoringScheduler],
+  exports: [BotMetricRepository, MonitoringService],
 })
 export class MonitoringModule {}

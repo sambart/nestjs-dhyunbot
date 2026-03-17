@@ -250,6 +250,39 @@ export interface MeProfileResponse {
   days: number;
 }
 
+// ── Co-Presence ──
+
+export interface CoPresenceSnapshot {
+  guildId: string;
+  channelId: string;
+  userIds: string[];
+}
+
+// ── Monitoring ──
+
+export interface BotGuildMetric {
+  guildId: string;
+  status: 'ONLINE' | 'OFFLINE';
+  pingMs: number;
+  heapUsedMb: number;
+  heapTotalMb: number;
+  voiceUserCount: number;
+  guildCount: number;
+}
+
+export interface BotStatusPayload {
+  online: boolean;
+  uptimeMs: number;
+  startedAt: string | null;
+  pingMs: number;
+  guildCount: number;
+  memoryUsage: {
+    heapUsedMb: number;
+    heapTotalMb: number;
+  };
+  voiceUserCount: number;
+}
+
 // ── Common ──
 
 export interface BotApiResponse<T = unknown> {

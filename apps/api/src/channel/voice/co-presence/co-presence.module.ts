@@ -31,6 +31,6 @@ import { VoiceCoPresenceSessionOrm } from './infrastructure/voice-co-presence-se
     CoPresenceCleanupScheduler,
     CoPresenceAnalyticsService,
   ],
-  exports: [CoPresenceScheduler],
+  exports: [CoPresenceScheduler, CoPresenceService],
 })
 export class CoPresenceModule {}

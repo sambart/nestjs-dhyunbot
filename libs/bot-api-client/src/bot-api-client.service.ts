@@ -7,6 +7,9 @@ import type {
   AutoChannelButtonResult,
   AutoChannelSubOptionDto,
   BotApiResponse,
+  BotGuildMetric,
+  BotStatusPayload,
+  CoPresenceSnapshot,
   CommunityHealthResponse,
   KickMemberDto,
   LeaderboardResponse,
@@ -141,6 +144,26 @@ export class BotApiClientService {
 
   async runSelfDiagnosis(guildId: string, userId: string): Promise<SelfDiagnosisResponse> {
     return this.post(`/bot-api/voice-analytics/self-diagnosis?guildId=${guildId}&userId=${userId}`, {});
+  }
+
+  // ── Co-Presence ──
+
+  async pushCoPresenceSnapshots(snapshots: CoPresenceSnapshot[]): Promise<void> {
+    await this.post('/bot-api/co-presence/snapshots', { snapshots });
+  }
+
+  async pushCoPresenceFlush(): Promise<void> {
+    await this.post('/bot-api/co-presence/flush', {});
+  }
+
+  // ── Monitoring ──
+
+  async pushBotMetrics(metrics: BotGuildMetric[]): Promise<void> {
+    await this.post('/bot-api/monitoring/metrics', { metrics });
+  }
+
+  async pushBotStatus(status: BotStatusPayload): Promise<void> {
+    await this.post('/bot-api/monitoring/status', status);
   }
 
   // ── Me ──
