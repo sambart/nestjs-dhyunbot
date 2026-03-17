@@ -9,6 +9,8 @@ import type {
   MemberJoinDto,
   MessageCreatedDto,
   MissionRefreshDto,
+  NewbieConfigDto,
+  RoleAssignedDto,
   RoleModifyDto,
   VoiceStateUpdateDto,
 } from './types';
@@ -45,6 +47,21 @@ export class BotApiClientService {
 
   async getMyHuntingData(guildId: string, userId: string): Promise<BotApiResponse<string>> {
     return this.get(`/bot-api/newbie/moco-my?guildId=${guildId}&userId=${userId}`);
+  }
+
+  async getNewbieConfig(guildId: string): Promise<NewbieConfigDto | null> {
+    try {
+      const response = await this.get<BotApiResponse<NewbieConfigDto>>(
+        `/bot-api/newbie/config?guildId=${guildId}`,
+      );
+      return response.data ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async notifyRoleAssigned(dto: RoleAssignedDto): Promise<void> {
+    await this.post('/bot-api/newbie/role-assigned', dto);
   }
 
   // ── Sticky Message ──
