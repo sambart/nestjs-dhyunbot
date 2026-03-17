@@ -1,6 +1,7 @@
 import { Body, Controller, HttpCode, HttpStatus, Logger, Post, UseGuards } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
+import { VoiceDailyFlushService } from '../../channel/voice/application/voice-daily-flush-service';
 import { BotApiAuthGuard } from '../bot-api-auth.guard';
 
 /**
@@ -12,7 +13,10 @@ import { BotApiAuthGuard } from '../bot-api-auth.guard';
 export class BotVoiceController {
   private readonly logger = new Logger(BotVoiceController.name);
 
-  constructor(private readonly eventEmitter: EventEmitter2) {}
+  constructor(
+    private readonly eventEmitter: EventEmitter2,
+    private readonly flushService: VoiceDailyFlushService,
+  ) {}
 
   @Post('state-update')
   @HttpCode(HttpStatus.OK)
@@ -25,5 +29,12 @@ export class BotVoiceController {
     await this.eventEmitter.emitAsync('bot-api.voice.state-update', dto);
 
     return { ok: true };
+  }
+
+  @Post('flush')
+  @HttpCode(HttpStatus.OK)
+  async handleVoiceFlush(): Promise<{ ok: boolean; flushed: number; skipped: number }> {
+    const result = await this.flushService.safeFlushAll();
+    return { ok: true, flushed: result.flushed, skipped: result.skipped };
   }
 }

@@ -1,11 +1,13 @@
 import { BotApiClientModule } from '@dhyunbot/bot-api-client';
 import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
+import { BotCommandModule } from './command/bot-command.module';
 import { DiscordConfig } from './config/discord.config';
 import { BotEventModule } from './event/bot-event.module';
+import { MusicModule } from './music/music.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { BotEventModule } from './event/bot-event.module';
       apiKey: process.env.BOT_API_KEY ?? '',
     }),
     BotEventModule,
+    BotCommandModule,
+    MusicModule,
   ],
 })
 export class AppModule {}

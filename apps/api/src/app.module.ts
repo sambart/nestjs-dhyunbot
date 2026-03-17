@@ -24,13 +24,11 @@ import { TypeORMConfig } from './config/typeorm.config';
 import { HealthModule } from './health/health.module';
 import { InactiveMemberModule } from './inactive-member/inactive-member.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
-import { MusicModule } from './music/music.module';
 import { NewbieModule } from './newbie/newbie.module';
 import { OverviewModule } from './overview/overview.module';
 import { RedisModule } from './redis/redis.module';
 import { StatusPrefixModule } from './status-prefix/status-prefix.module';
 import { StickyMessageModule } from './sticky-message/sticky-message.module';
-import { VersionModule } from './version/version.module';
 import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
 
 @Module({
@@ -63,13 +61,11 @@ import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
     StatusPrefixModule,
     StickyMessageModule,
     MonitoringModule,
-    MusicModule,
     RedisModule,
     HealthModule,
     CommonModule,
     VoiceAnalyticsModule,
     AuthModule,
-    VersionModule,
     OverviewModule,
     BotApiModule,
   ],

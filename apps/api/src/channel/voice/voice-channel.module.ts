@@ -17,7 +17,6 @@ import { VoiceDailyService } from './application/voice-daily.service';
 import { VoiceDailyFlushService } from './application/voice-daily-flush-service';
 import { VoiceDataRetentionScheduler } from './application/voice-data-retention.scheduler';
 import { VoiceExcludedChannelService } from './application/voice-excluded-channel.service';
-import { VoiceFlushCommand } from './application/voice-flush.command';
 import { VoiceHistoryService } from './application/voice-history.service';
 import { VoiceRecoveryService } from './application/voice-recovery.service';
 import { VoiceSessionService } from './application/voice-session.service';
@@ -72,7 +71,6 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
     VoiceRedisRepository,
     VoiceDailyRepository,
     VoiceDailyFlushService,
-    VoiceFlushCommand,
     VoiceRecoveryService,
     VoiceStatsQueryService,
     MeProfileService,

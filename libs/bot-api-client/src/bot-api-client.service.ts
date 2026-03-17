@@ -38,6 +38,10 @@ export class BotApiClientService {
     await this.post('/bot-api/voice/state-update', dto);
   }
 
+  async voiceFlush(): Promise<{ flushed: number; skipped: number }> {
+    return this.post('/bot-api/voice/flush', {});
+  }
+
   // ── Newbie ──
 
   async sendMemberJoin(dto: MemberJoinDto): Promise<void> {
