@@ -21,7 +21,6 @@ import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 import { BaseConfig } from './config/base.config';
 import { DiscordConfig } from './config/discord.config';
 import { TypeORMConfig } from './config/typeorm.config';
-import { DiscordEventsModule } from './event/discord-events.module';
 import { HealthModule } from './health/health.module';
 import { InactiveMemberModule } from './inactive-member/inactive-member.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
@@ -65,7 +64,6 @@ import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
     StickyMessageModule,
     MonitoringModule,
     MusicModule,
-    DiscordEventsModule,
     RedisModule,
     HealthModule,
     CommonModule,

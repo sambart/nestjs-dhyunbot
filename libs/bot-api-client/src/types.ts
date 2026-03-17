@@ -54,6 +54,15 @@ export interface KickMemberDto {
   reason?: string;
 }
 
+// ── Sticky Message ──
+
+export interface MessageCreatedDto {
+  guildId: string;
+  channelId: string;
+  authorId: string;
+  isBot: boolean;
+}
+
 // ── Common ──
 
 export interface BotApiResponse<T = unknown> {

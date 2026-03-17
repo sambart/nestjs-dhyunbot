@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 
 import { NewbieModule } from '../newbie/newbie.module';
+import { StickyMessageModule } from '../sticky-message/sticky-message.module';
 import { BotApiAuthGuard } from './bot-api-auth.guard';
 import { BotNewbieController } from './newbie/bot-newbie.controller';
+import { BotStickyMessageController } from './sticky-message/bot-sticky-message.controller';
 import { BotVoiceController } from './voice/bot-voice.controller';
 
 /**
@@ -10,8 +12,8 @@ import { BotVoiceController } from './voice/bot-voice.controller';
  * Bot 프로세스에서 HTTP로 호출하는 엔드포인트를 제공한다.
  */
 @Module({
-  imports: [NewbieModule],
-  controllers: [BotVoiceController, BotNewbieController],
+  imports: [NewbieModule, StickyMessageModule],
+  controllers: [BotVoiceController, BotNewbieController, BotStickyMessageController],
   providers: [BotApiAuthGuard],
   exports: [BotApiAuthGuard],
 })

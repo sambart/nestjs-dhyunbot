@@ -1,0 +1,95 @@
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  OnApplicationShutdown,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+
+import { StickyMessageRefreshService } from '../../sticky-message/application/sticky-message-refresh.service';
+import { StickyMessageConfigRepository } from '../../sticky-message/infrastructure/sticky-message-config.repository';
+import { StickyMessageRedisRepository } from '../../sticky-message/infrastructure/sticky-message-redis.repository';
+import { BotApiAuthGuard } from '../bot-api-auth.guard';
+
+class MessageCreatedDto {
+  guildId: string;
+  channelId: string;
+  authorId: string;
+  isBot: boolean;
+}
+
+/**
+ * Bot -> API 고정메세지 이벤트 수신 엔드포인트.
+ * Bot의 messageCreate 이벤트를 HTTP로 수신하여 디바운스 후 고정메세지를 갱신한다.
+ */
+@Controller('bot-api/sticky-message')
+@UseGuards(BotApiAuthGuard)
+export class BotStickyMessageController implements OnApplicationShutdown {
+  private readonly logger = new Logger(BotStickyMessageController.name);
+  private readonly timers = new Map<string, NodeJS.Timeout>();
+
+  constructor(
+    private readonly redisRepo: StickyMessageRedisRepository,
+    private readonly configRepo: StickyMessageConfigRepository,
+    private readonly refreshService: StickyMessageRefreshService,
+  ) {}
+
+  onApplicationShutdown(): void {
+    for (const timer of this.timers.values()) {
+      clearTimeout(timer);
+    }
+    this.timers.clear();
+  }
+
+  @Post('message-created')
+  @HttpCode(HttpStatus.OK)
+  async handleMessageCreated(@Body() dto: MessageCreatedDto): Promise<{ ok: boolean }> {
+    this.logger.debug(
+      `[BOT-API] sticky-message/message-created: guild=${dto.guildId} channel=${dto.channelId} author=${dto.authorId}`,
+    );
+
+    // 봇 자신의 메시지이고 해당 채널에서 고정메세지 재전송 진행 중이면 무시 (무한루프 방지)
+    if (dto.isBot && this.refreshService.isRefreshing(dto.channelId)) {
+      return { ok: true };
+    }
+
+    const { guildId, channelId } = dto;
+
+    // 설정 조회 (Redis 캐시 우선)
+    let configs = await this.redisRepo.getConfig(guildId);
+    if (!configs) {
+      configs = await this.configRepo.findByGuildId(guildId);
+      await this.redisRepo.setConfig(guildId, configs);
+    }
+
+    // 해당 채널에 활성화된 고정메세지 설정이 없으면 무시
+    const hasConfig = configs.some((c) => c.channelId === channelId && c.enabled);
+    if (!hasConfig) {
+      return { ok: true };
+    }
+
+    // 디바운스: 기존 타이머가 있으면 취소하고 새로 설정
+    const existing = this.timers.get(channelId);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(() => {
+      this.timers.delete(channelId);
+      this.refreshService.refresh(guildId, channelId).catch((err: Error) => {
+        this.logger.error(
+          `[messageCreated] refresh failed: guild=${guildId} channel=${channelId}`,
+          err.stack,
+        );
+      });
+    }, 1000);
+    this.timers.set(channelId, timer);
+
+    this.redisRepo.setDebounce(channelId).catch((err: Error) => {
+      this.logger.warn(`[messageCreated] setDebounce failed: channel=${channelId}`, err.stack);
+    });
+
+    return { ok: true };
+  }
+}

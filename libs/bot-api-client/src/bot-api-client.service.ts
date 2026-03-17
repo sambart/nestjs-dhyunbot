@@ -7,6 +7,7 @@ import type {
   KickMemberDto,
   MemberDisplayNameResponse,
   MemberJoinDto,
+  MessageCreatedDto,
   MissionRefreshDto,
   RoleModifyDto,
   VoiceStateUpdateDto,
@@ -44,6 +45,12 @@ export class BotApiClientService {
 
   async getMyHuntingData(guildId: string, userId: string): Promise<BotApiResponse<string>> {
     return this.get(`/bot-api/newbie/moco-my?guildId=${guildId}&userId=${userId}`);
+  }
+
+  // ── Sticky Message ──
+
+  async sendMessageCreated(dto: MessageCreatedDto): Promise<void> {
+    await this.post('/bot-api/sticky-message/message-created', dto);
   }
 
   // ── Guild ──

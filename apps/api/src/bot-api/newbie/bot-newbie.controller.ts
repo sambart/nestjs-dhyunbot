@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Logger, Post, Query, UseGuards } from '@nestjs/common';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { MissionService } from '../../newbie/application/mission/mission.service';
 import { MocoService } from '../../newbie/application/moco/moco.service';
 import { BotApiAuthGuard } from '../bot-api-auth.guard';
@@ -27,6 +28,29 @@ export class BotNewbieController {
     private readonly missionService: MissionService,
     private readonly mocoService: MocoService,
   ) {}
+
+  /**
+   * 신규 멤버 가입 시 미션 생성 (GuildMember 불필요한 부분만 처리).
+   * welcomeService, roleService는 GuildMember가 필요하므로 Bot에서 직접 처리한다.
+   */
+  @Post('member-join')
+  @HttpCode(HttpStatus.OK)
+  async handleMemberJoin(@Body() dto: MemberJoinDto): Promise<{ ok: boolean }> {
+    this.logger.debug(
+      `[BOT-API] newbie/member-join: guild=${dto.guildId} member=${dto.memberId} name=${dto.displayName}`,
+    );
+
+    try {
+      await this.missionService.createMissionFromBot(dto.guildId, dto.memberId, dto.displayName);
+    } catch (err) {
+      this.logger.error(
+        `[member-join] mission creation failed: guild=${dto.guildId} member=${dto.memberId}`,
+        getErrorStack(err),
+      );
+    }
+
+    return { ok: true };
+  }
 
   @Post('mission-refresh')
   @HttpCode(HttpStatus.OK)

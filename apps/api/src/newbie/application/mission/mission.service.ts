@@ -84,6 +84,50 @@ export class MissionService {
   }
 
   /**
+   * Bot → API HTTP 호출용 미션 생성.
+   * GuildMember 객체 없이 guildId, memberId, displayName만으로 미션을 생성한다.
+   */
+  async createMissionFromBot(
+    guildId: string,
+    memberId: string,
+    displayName: string,
+  ): Promise<void> {
+    const config = await this.configRepo.findByGuildId(guildId);
+    if (!config?.missionEnabled) return;
+    if (!config.missionDurationDays || !config.missionTargetPlaytimeHours) {
+      this.logger.warn(`[MISSION] Mission config incomplete: guild=${guildId}`);
+      return;
+    }
+
+    const hasMission = await this.missionRepo.hasMission(guildId, memberId);
+    if (hasMission) {
+      this.logger.log(`[MISSION] Skipped duplicate: guild=${guildId} member=${memberId}`);
+      return;
+    }
+
+    const today = this.toDateString(new Date());
+    const endDate = this.toDateString(
+      new Date(Date.now() + config.missionDurationDays * 24 * 60 * 60 * 1000),
+    );
+    const targetPlaytimeSec = config.missionTargetPlaytimeHours * 3600;
+
+    await this.missionRepo.create(guildId, memberId, today, endDate, targetPlaytimeSec, displayName);
+
+    await this.newbieRedis.deleteMissionActive(guildId);
+
+    this.logger.log(`[MISSION] Created (bot-api): guild=${guildId} member=${memberId} end=${endDate}`);
+
+    if (config.missionNotifyChannelId) {
+      await this.refreshMissionEmbed(guildId, config).catch((err) => {
+        this.logger.error(
+          `[MISSION] Failed to refresh embed after create: guild=${guildId}`,
+          getErrorStack(err),
+        );
+      });
+    }
+  }
+
+  /**
    * 미션 목록에 memberName, currentPlaytimeSec을 추가하여 반환.
    */
   async enrichMissions(

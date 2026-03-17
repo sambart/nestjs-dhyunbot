@@ -1,6 +1,10 @@
 import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 
+import { BotChannelStateHandler } from './channel/bot-channel-state.handler';
+import { BotNewbieInteractionHandler } from './newbie/bot-newbie-interaction.handler';
+import { BotNewbieMemberAddHandler } from './newbie/bot-newbie-member-add.handler';
+import { BotStickyMessageHandler } from './sticky-message/bot-sticky-message.handler';
 import { BotVoiceStateDispatcher } from './voice/bot-voice-state.dispatcher';
 
 /**
@@ -9,6 +13,12 @@ import { BotVoiceStateDispatcher } from './voice/bot-voice-state.dispatcher';
  */
 @Module({
   imports: [DiscordModule.forFeature()],
-  providers: [BotVoiceStateDispatcher],
+  providers: [
+    BotVoiceStateDispatcher,
+    BotNewbieMemberAddHandler,
+    BotNewbieInteractionHandler,
+    BotStickyMessageHandler,
+    BotChannelStateHandler,
+  ],
 })
 export class BotEventModule {}
