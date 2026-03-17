@@ -301,7 +301,7 @@
     "deselect": "Deselect {name}",
     "dmTemplate": "DM Template",
     "dmEmbedBody": "Embed Body",
-    "dmEmbedBodyDesc": "Available variables: {nickName}, {serverName}, {periodDays}, {totalMinutes}",
+    "dmEmbedBodyDesc": "Available variables: '{'nickName'}', '{'serverName'}', '{'periodDays'}', '{'totalMinutes'}'",
     "previewNickName": "Hong Gildong",
     "previewServerName": "Test Server"
   }

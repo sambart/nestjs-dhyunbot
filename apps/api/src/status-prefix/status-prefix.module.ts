@@ -13,10 +13,7 @@ import { StatusPrefixRedisRepository } from './infrastructure/status-prefix-redi
 import { StatusPrefixController } from './presentation/status-prefix.controller';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([StatusPrefixConfigOrm, StatusPrefixButtonOrm]),
-    AuthModule,
-  ],
+  imports: [TypeOrmModule.forFeature([StatusPrefixConfigOrm, StatusPrefixButtonOrm]), AuthModule],
   controllers: [StatusPrefixController],
   providers: [
     StatusPrefixConfigRepository,
@@ -29,7 +26,8 @@ import { StatusPrefixController } from './presentation/status-prefix.controller'
   exports: [
     StatusPrefixConfigService,
     StatusPrefixRedisRepository,
-    StatusPrefixResetService, // VoiceLeaveHandler에서 주입받기 위해 export
+    StatusPrefixResetService,
+    StatusPrefixApplyService,
   ],
 })
 export class StatusPrefixModule {}

@@ -301,7 +301,7 @@
     "deselect": "{name} 제외 해제",
     "dmTemplate": "DM 템플릿",
     "dmEmbedBody": "Embed 본문",
-    "dmEmbedBodyDesc": "사용 가능한 변수: {nickName}, {serverName}, {periodDays}, {totalMinutes}",
+    "dmEmbedBodyDesc": "사용 가능한 변수: '{'nickName'}', '{'serverName'}', '{'periodDays'}', '{'totalMinutes'}'",
     "previewNickName": "홍길동",
     "previewServerName": "테스트 서버"
   }
