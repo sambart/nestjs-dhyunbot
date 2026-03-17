@@ -1,4 +1,3 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -25,7 +24,6 @@ import { SelfDiagnosisController } from './self-diagnosis/presentation/self-diag
 
 @Module({
   imports: [
-    DiscordModule.forFeature(),
     ConfigModule,
     TypeOrmModule.forFeature([
       VoiceDailyOrm,

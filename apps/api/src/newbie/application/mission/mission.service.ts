@@ -445,20 +445,22 @@ export class MissionService {
     const hasMission = new Set(memberIds);
 
     let created = 0;
-    for (const [, member] of members) {
-      if (member.user.bot) continue;
-      if (!member.joinedAt || member.joinedAt.getTime() < cutoff) continue;
-      if (hasMission.has(member.id)) continue;
+    for (const member of members) {
+      if (member.user?.bot) continue;
+      const joinedAt = member.joined_at ? new Date(member.joined_at) : null;
+      if (!joinedAt || joinedAt.getTime() < cutoff) continue;
+      const memberId = member.user!.id;
+      if (hasMission.has(memberId)) continue;
 
-      const joinDate = this.toDateString(member.joinedAt);
+      const joinDate = this.toDateString(joinedAt);
       const endDate = this.toDateString(
-        new Date(member.joinedAt.getTime() + config.missionDurationDays * 86_400_000),
+        new Date(joinedAt.getTime() + config.missionDurationDays * 86_400_000),
       );
       const targetPlaytimeSec = config.missionTargetPlaytimeHours * 3600;
 
-      await this.missionRepo.create(guildId, member.id, joinDate, endDate, targetPlaytimeSec);
+      await this.missionRepo.create(guildId, memberId, joinDate, endDate, targetPlaytimeSec);
       this.logger.log(
-        `[MISSION] Auto-registered missing member: guild=${guildId} member=${member.id} joined=${joinDate}`,
+        `[MISSION] Auto-registered missing member: guild=${guildId} member=${memberId} joined=${joinDate}`,
       );
       created++;
     }

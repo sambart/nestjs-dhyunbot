@@ -38,11 +38,17 @@ export class InactiveMemberActionService {
       throw new DomainException('길드를 찾을 수 없습니다.', 'GUILD_NOT_FOUND');
     }
 
+    const guildName = guild.name;
     let successCount = 0;
     let failCount = 0;
 
     if (actionType === InactiveMemberActionType.ACTION_DM) {
-      ({ successCount, failCount } = await this.executeDmAction(guild, config, targetUserIds));
+      ({ successCount, failCount } = await this.executeDmAction(
+        guildId,
+        guildName,
+        config,
+        targetUserIds,
+      ));
     } else if (actionType === InactiveMemberActionType.ACTION_ROLE_ADD) {
       if (!config.inactiveRoleId) {
         throw new DomainException(
@@ -51,7 +57,7 @@ export class InactiveMemberActionService {
         );
       }
       ({ successCount, failCount } = await this.executeRoleAction(
-        guild,
+        guildId,
         targetUserIds,
         config.inactiveRoleId,
         'add',
@@ -64,13 +70,13 @@ export class InactiveMemberActionService {
         );
       }
       ({ successCount, failCount } = await this.executeRoleAction(
-        guild,
+        guildId,
         targetUserIds,
         config.removeRoleId,
         'remove',
       ));
     } else if (actionType === InactiveMemberActionType.ACTION_KICK) {
-      ({ successCount, failCount } = await this.executeKickAction(guild, targetUserIds));
+      ({ successCount, failCount } = await this.executeKickAction(guildId, targetUserIds));
     }
 
     const log = await this.repo.saveActionLog({
@@ -117,9 +123,8 @@ export class InactiveMemberActionService {
     }
   }
 
-  // guild 타입을 any로 받되 adapter를 통해 호출
   private async executeKickAction(
-    guild: Parameters<InactiveMemberDiscordAdapter['kickMember']>[0],
+    guildId: string,
     targetUserIds: string[],
   ): Promise<{ successCount: number; failCount: number }> {
     let successCount = 0;
@@ -127,9 +132,9 @@ export class InactiveMemberActionService {
 
     for (const userId of targetUserIds) {
       const success = await this.discordAdapter.kickMember(
-        guild,
+        guildId,
         userId,
-        '비활동 회원 관리 — 강제퇴장',
+        '비활동 회원 관리 -- 강제퇴장',
       );
       if (success) successCount++;
       else failCount++;
@@ -139,7 +144,8 @@ export class InactiveMemberActionService {
   }
 
   private async executeDmAction(
-    guild: Parameters<InactiveMemberDiscordAdapter['sendDm']>[0],
+    guildId: string,
+    guildName: string,
     config: InactiveMemberConfigOrm,
     targetUserIds: string[],
   ): Promise<{ successCount: number; failCount: number }> {
@@ -147,14 +153,14 @@ export class InactiveMemberActionService {
     let failCount = 0;
 
     for (const userId of targetUserIds) {
-      const displayName = await this.discordAdapter.fetchMemberDisplayName(guild, userId);
+      const displayName = await this.discordAdapter.fetchMemberDisplayName(guildId, userId);
       if (!displayName) {
         failCount++;
         continue;
       }
 
-      const embed = this.buildDmEmbed(config, displayName, guild.name);
-      const success = await this.discordAdapter.sendDm(guild, userId, embed);
+      const embed = this.buildDmEmbed(config, displayName, guildName);
+      const success = await this.discordAdapter.sendDm(guildId, userId, embed);
       if (success) successCount++;
       else failCount++;
     }
@@ -163,7 +169,7 @@ export class InactiveMemberActionService {
   }
 
   private async executeRoleAction(
-    guild: Parameters<InactiveMemberDiscordAdapter['modifyRole']>[0],
+    guildId: string,
     targetUserIds: string[],
     roleId: string,
     action: 'add' | 'remove',
@@ -172,7 +178,7 @@ export class InactiveMemberActionService {
     let failCount = 0;
 
     for (const userId of targetUserIds) {
-      const success = await this.discordAdapter.modifyRole(guild, userId, roleId, action);
+      const success = await this.discordAdapter.modifyRole(guildId, userId, roleId, action);
       if (success) successCount++;
       else failCount++;
     }

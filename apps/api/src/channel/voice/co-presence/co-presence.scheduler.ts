@@ -1,7 +1,5 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Client, VoiceBasedChannel } from 'discord.js';
 
 import { getErrorStack } from '../../../common/util/error.util';
 import { VoiceExcludedChannelService } from '../application/voice-excluded-channel.service';
@@ -11,6 +9,10 @@ import {
   CoPresenceTickSnapshot,
 } from './co-presence.events';
 import { CoPresenceService } from './co-presence.service';
+
+// TODO(claude 2026-03-17): 음성 채널 멤버 스냅샷은 Bot API 엔드포인트
+// GET /bot-api/discord/voice-states 에서 받아오도록 전환 필요.
+// 현재는 Gateway 캐시가 없으므로 tick이 빈 스냅샷을 생성한다.
 
 /** 폴링 주기 (밀리초) */
 const INTERVAL_MS = 60_000;
@@ -25,7 +27,6 @@ export class CoPresenceScheduler implements OnApplicationBootstrap, OnApplicatio
     private readonly coPresenceService: CoPresenceService,
     private readonly excludedChannelService: VoiceExcludedChannelService,
     private readonly eventEmitter: EventEmitter2,
-    @InjectDiscordClient() private readonly discord: Client,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -56,21 +57,10 @@ export class CoPresenceScheduler implements OnApplicationBootstrap, OnApplicatio
   private async tick(): Promise<void> {
     if (this.isShuttingDown) return;
 
+    // TODO(claude 2026-03-17): Bot API 엔드포인트에서 음성 상태를 가져와
+    // 스냅샷을 구성해야 함. 현재는 빈 스냅샷으로 reconcile만 수행.
     const allSnapshots: CoPresenceTickSnapshot[] = [];
     const processedGuildIds: string[] = [];
-
-    for (const [guildId, guild] of this.discord.guilds.cache) {
-      try {
-        processedGuildIds.push(guildId);
-        const snapshots = await this.processGuild(guildId, guild);
-        allSnapshots.push(...snapshots);
-      } catch (err) {
-        this.logger.error(
-          `[CO-PRESENCE SCHEDULER] Failed to process guild=${guildId}`,
-          getErrorStack(err),
-        );
-      }
-    }
 
     // 세션 조정 (처리된 모든 길드 ID 전달)
     await this.coPresenceService.reconcile(allSnapshots, processedGuildIds);
@@ -80,45 +70,5 @@ export class CoPresenceScheduler implements OnApplicationBootstrap, OnApplicatio
       const tickEvent: CoPresenceTickEvent = { snapshots: allSnapshots };
       this.eventEmitter.emit(CO_PRESENCE_TICK, tickEvent);
     }
-  }
-
-  private async processGuild(
-    guildId: string,
-    guild: { channels: { cache: Map<string, unknown> } },
-  ): Promise<CoPresenceTickSnapshot[]> {
-    const snapshots: CoPresenceTickSnapshot[] = [];
-
-    for (const [, channel] of guild.channels.cache) {
-      if (typeof (channel as Record<string, unknown>).isVoiceBased !== 'function') continue;
-      if (!(channel as VoiceBasedChannel).isVoiceBased()) continue;
-
-      const voiceChannel = channel as VoiceBasedChannel;
-      const members = [...voiceChannel.members.values()];
-
-      // 봇 제외
-      const humanMembers = members.filter((m) => !m.user.bot);
-
-      this.logger.debug(
-        `[CO-PRESENCE TICK] guild=${guildId} channel=${voiceChannel.id} members=${members.length} humans=${humanMembers.length}`,
-      );
-
-      if (humanMembers.length < 2) continue;
-
-      // 제외 채널 확인
-      const isExcluded = await this.excludedChannelService.isExcludedChannel(
-        guildId,
-        voiceChannel.id,
-        voiceChannel.parentId ?? null,
-      );
-      if (isExcluded) continue;
-
-      snapshots.push({
-        guildId,
-        channelId: voiceChannel.id,
-        userIds: humanMembers.map((m) => m.id),
-      });
-    }
-
-    return snapshots;
   }
 }

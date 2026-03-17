@@ -1,8 +1,7 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
-import { Client, Guild } from 'discord.js';
 
 import { getErrorMessage } from '../common/util/error.util';
+import { DiscordRestService } from '../discord-rest/discord-rest.service';
 
 interface CacheEntry<T> {
   value: T;
@@ -10,30 +9,25 @@ interface CacheEntry<T> {
 }
 
 /**
- * Discord API와 통신하는 Gateway 클래스
- * Discord 관련 모든 API 호출은 이 클래스를 통해 수행
+ * Discord REST API와 통신하는 Gateway 클래스.
+ * Discord 관련 이름/채널명 조회는 이 클래스를 통해 수행.
+ * REST API 호출 결과를 내부 캐시에 보관하여 반복 조회 부하를 줄인다.
  */
 @Injectable()
 export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(DiscordGateway.name);
 
-  /** Guild 객체는 크기가 크므로 캐시 한도를 낮게 설정 */
-  private static readonly GUILD_CACHE_MAX = 50;
   private static readonly STRING_CACHE_MAX = 500;
   /** 캐시 TTL (ms): 5분 */
   private static readonly CACHE_TTL_MS = 5 * 60 * 1000;
   /** 만료 엔트리 정리 주기 (ms): 10분 */
   private static readonly CACHE_CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
 
-  private guildCache = new Map<string, CacheEntry<Guild>>();
   private userCache = new Map<string, CacheEntry<string>>();
   private channelCache = new Map<string, CacheEntry<string>>();
   private cleanupInterval: NodeJS.Timeout | null = null;
 
-  constructor(
-    @InjectDiscordClient()
-    private readonly client: Client,
-  ) {}
+  constructor(private readonly discordRest: DiscordRestService) {}
 
   onApplicationBootstrap(): void {
     this.cleanupInterval = setInterval(
@@ -54,7 +48,7 @@ export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShut
   private evictExpired(): void {
     const now = Date.now();
     let evicted = 0;
-    for (const cache of [this.guildCache, this.userCache, this.channelCache]) {
+    for (const cache of [this.userCache, this.channelCache]) {
       for (const [key, entry] of cache) {
         if (entry.expiresAt <= now) {
           cache.delete(key);
@@ -109,17 +103,10 @@ export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShut
   }
 
   /**
-   * Guild 가져오기 (캐시 사용)
-   */
-  async getGuild(guildId: string): Promise<Guild | null> {
-    return this.client.guilds.cache.get(guildId) ?? null;
-  }
-
-  /**
    * Guild 이름 가져오기
    */
   async getGuildName(guildId: string): Promise<string> {
-    const guild = await this.getGuild(guildId);
+    const guild = await this.discordRest.fetchGuild(guildId);
     return guild ? guild.name : `Guild-${guildId.slice(0, 6)}`;
   }
 
@@ -132,15 +119,10 @@ export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShut
       const cached = this.touchCache(this.userCache, cacheKey);
       if (cached) return cached;
 
-      // Guild 가져오기
-      const guild = await this.getGuild(guildId);
-      if (!guild) {
-        return `User-${userId.slice(0, 6)}`;
-      }
-
-      // Member 가져오기
-      const member = await guild.members.fetch(userId).catch(() => null);
-      const username = member ? member.user.displayName : `User-${userId.slice(0, 6)}`;
+      const member = await this.discordRest.fetchGuildMember(guildId, userId);
+      const username = member
+        ? this.discordRest.getMemberDisplayName(member)
+        : `User-${userId.slice(0, 6)}`;
 
       this.evictIfNeeded(this.userCache, DiscordGateway.STRING_CACHE_MAX);
       this.putCache(this.userCache, cacheKey, username);
@@ -161,13 +143,11 @@ export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShut
       const cached = this.touchCache(this.channelCache, cacheKey);
       if (cached) return cached;
 
-      const guild = await this.getGuild(guildId);
-      if (!guild) {
-        return `Channel-${channelId.slice(0, 6)}`;
-      }
-
-      const channel = await guild.channels.fetch(channelId).catch(() => null);
-      const channelName = channel ? channel.name : `Channel-${channelId.slice(0, 6)}`;
+      const channel = await this.discordRest.fetchChannel(channelId);
+      const channelName =
+        channel && 'name' in channel && channel.name
+          ? channel.name
+          : `Channel-${channelId.slice(0, 6)}`;
 
       this.evictIfNeeded(this.channelCache, DiscordGateway.STRING_CACHE_MAX);
       this.putCache(this.channelCache, cacheKey, channelName);
@@ -183,85 +163,24 @@ export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShut
    */
   async getUserNames(guildId: string, userIds: string[]): Promise<Map<string, string>> {
     const result = new Map<string, string>();
-    const guild = await this.getGuild(guildId);
 
-    if (!guild) {
-      userIds.forEach((userId) => {
-        result.set(userId, `User-${userId.slice(0, 6)}`);
-      });
-      return result;
-    }
-
-    const now = Date.now();
-    const uncachedUserIds = userIds.filter((userId) => {
-      const entry = this.userCache.get(`${guildId}:${userId}`);
-      return !entry || entry.expiresAt <= now;
-    });
-
-    if (uncachedUserIds.length > 0) {
-      try {
-        // 일괄 조회
-        await guild.members.fetch({ user: uncachedUserIds });
-      } catch (error) {
-        this.logger.warn('Failed to fetch members in bulk:', getErrorMessage(error));
-      }
-    }
-
-    // 결과 생성
     for (const userId of userIds) {
-      const cacheKey = `${guildId}:${userId}`;
-
-      const cachedName = this.touchCache(this.userCache, cacheKey);
-      if (cachedName) {
-        result.set(userId, cachedName);
-      } else {
-        const member = guild.members.cache.get(userId);
-        const username = member ? member.user.displayName : `User-${userId.slice(0, 6)}`;
-        this.evictIfNeeded(this.userCache, DiscordGateway.STRING_CACHE_MAX);
-        this.putCache(this.userCache, cacheKey, username);
-        result.set(userId, username);
-      }
+      const username = await this.getUserName(guildId, userId);
+      result.set(userId, username);
     }
 
     return result;
   }
 
   /**
-   * 여러 채널명을 일괄 조회 (성능 최적화)
+   * 여러 채널명을 일괄 조회
    */
   async getChannelNames(guildId: string, channelIds: string[]): Promise<Map<string, string>> {
     const result = new Map<string, string>();
-    const guild = await this.getGuild(guildId);
-
-    if (!guild) {
-      channelIds.forEach((channelId) => {
-        if (channelId === 'GLOBAL') {
-          result.set(channelId, '전체');
-        } else {
-          result.set(channelId, `Channel-${channelId.slice(0, 6)}`);
-        }
-      });
-      return result;
-    }
 
     for (const channelId of channelIds) {
-      if (channelId === 'GLOBAL') {
-        result.set(channelId, '전체');
-        continue;
-      }
-
-      const cacheKey = `${guildId}:${channelId}`;
-
-      const cachedChName = this.touchCache(this.channelCache, cacheKey);
-      if (cachedChName) {
-        result.set(channelId, cachedChName);
-      } else {
-        const channel = guild.channels.cache.get(channelId);
-        const channelName = channel ? channel.name : `Channel-${channelId.slice(0, 6)}`;
-        this.evictIfNeeded(this.channelCache, DiscordGateway.STRING_CACHE_MAX);
-        this.putCache(this.channelCache, cacheKey, channelName);
-        result.set(channelId, channelName);
-      }
+      const channelName = await this.getChannelName(guildId, channelId);
+      result.set(channelId, channelName);
     }
 
     return result;
@@ -271,7 +190,6 @@ export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShut
    * 캐시 클리어 (필요한 경우)
    */
   clearCache() {
-    this.guildCache.clear();
     this.userCache.clear();
     this.channelCache.clear();
     this.logger.log('Discord gateway cache cleared');
@@ -281,8 +199,6 @@ export class DiscordGateway implements OnApplicationBootstrap, OnApplicationShut
    * 특정 길드의 캐시만 클리어
    */
   clearGuildCache(guildId: string) {
-    this.guildCache.delete(guildId);
-
     // 해당 길드의 유저/채널 캐시 제거
     for (const key of this.userCache.keys()) {
       if (key.startsWith(`${guildId}:`)) {

@@ -1,15 +1,12 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable } from '@nestjs/common';
-import { Client } from 'discord.js';
 
+import { DiscordRestService } from '../../discord-rest/discord-rest.service';
 import type { MocoMemberResolver } from '../application/moco/moco-member-resolver.port';
 
-/** Discord 캐시를 통한 MocoMemberResolver 구현체. */
+/** Discord REST API를 통한 MocoMemberResolver 구현체. */
 @Injectable()
 export class MocoMemberDiscordAdapter implements MocoMemberResolver {
-  constructor(
-    @InjectDiscordClient() private readonly discord: Client,
-  ) {}
+  constructor(private readonly discordRest: DiscordRestService) {}
 
   async getNewbieIds(
     guildId: string,
@@ -17,17 +14,19 @@ export class MocoMemberDiscordAdapter implements MocoMemberResolver {
     userIds: string[],
     cutoffMs: number,
   ): Promise<string[]> {
-    const guild = this.discord.guilds.cache.get(guildId);
-    if (!guild) return [];
+    const newbieIds: string[] = [];
 
-    const channel = guild.channels.cache.get(channelId);
-    if (!channel?.isVoiceBased()) return [];
+    for (const userId of userIds) {
+      const member = await this.discordRest.fetchGuildMember(guildId, userId);
+      if (!member || member.user?.bot) continue;
 
-    const members = [...channel.members.values()].filter((m) => userIds.includes(m.id));
+      const joinedAt = member.joined_at ? new Date(member.joined_at).getTime() : null;
+      if (joinedAt && joinedAt >= cutoffMs) {
+        newbieIds.push(userId);
+      }
+    }
 
-    return members
-      .filter((m) => !m.user.bot && m.joinedAt && m.joinedAt.getTime() >= cutoffMs)
-      .map((m) => m.id);
+    return newbieIds;
   }
 
   async isValidHunter(
@@ -36,13 +35,11 @@ export class MocoMemberDiscordAdapter implements MocoMemberResolver {
     cutoffMs: number,
     allowNewbie: boolean,
   ): Promise<boolean> {
-    const guild = this.discord.guilds.cache.get(guildId);
-    if (!guild) return false;
+    const member = await this.discordRest.fetchGuildMember(guildId, hunterId);
+    if (!member || member.user?.bot) return false;
 
-    const member = guild.members.cache.get(hunterId);
-    if (!member || member.user.bot) return false;
-
-    const isNewbie = member.joinedAt && member.joinedAt.getTime() >= cutoffMs;
+    const joinedAt = member.joined_at ? new Date(member.joined_at).getTime() : null;
+    const isNewbie = joinedAt && joinedAt >= cutoffMs;
     if (isNewbie && !allowNewbie) return false;
 
     return true;
@@ -53,17 +50,18 @@ export class MocoMemberDiscordAdapter implements MocoMemberResolver {
     peerIds: string[],
     cutoffMs: number,
   ): Promise<string[]> {
-    const guild = this.discord.guilds.cache.get(guildId);
-    if (!guild) return [];
-
     const newbies: string[] = [];
+
     for (const peerId of peerIds) {
-      const member = guild.members.cache.get(peerId);
-      if (!member || member.user.bot) continue;
-      if (member.joinedAt && member.joinedAt.getTime() >= cutoffMs) {
+      const member = await this.discordRest.fetchGuildMember(guildId, peerId);
+      if (!member || member.user?.bot) continue;
+
+      const joinedAt = member.joined_at ? new Date(member.joined_at).getTime() : null;
+      if (joinedAt && joinedAt >= cutoffMs) {
         newbies.push(peerId);
       }
     }
+
     return newbies;
   }
 }

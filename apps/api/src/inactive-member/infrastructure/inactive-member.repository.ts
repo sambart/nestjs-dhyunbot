@@ -43,6 +43,12 @@ export class InactiveMemberRepository {
     return this.configRepo.findOne({ where: { guildId } });
   }
 
+  /** 설정이 존재하는 모든 길드 ID 목록 반환. */
+  async findAllConfiguredGuildIds(): Promise<string[]> {
+    const configs = await this.configRepo.find({ select: ['guildId'] });
+    return configs.map((c) => c.guildId);
+  }
+
   async createDefaultConfig(guildId: string): Promise<InactiveMemberConfigOrm> {
     const config = this.configRepo.create({ guildId });
     return this.configRepo.save(config);

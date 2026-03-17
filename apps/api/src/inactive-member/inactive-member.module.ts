@@ -1,4 +1,3 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -18,7 +17,6 @@ import { InactiveMemberController } from './presentation/inactive-member.control
 
 @Module({
   imports: [
-    DiscordModule.forFeature(),
     TypeOrmModule.forFeature([
       InactiveMemberConfigOrm,
       InactiveMemberRecordOrm,

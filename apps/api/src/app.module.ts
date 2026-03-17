@@ -1,4 +1,3 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -19,8 +18,8 @@ import { CommonModule } from './common/common.module';
 import { GuildMembershipGuard } from './common/guards/guild-membership.guard';
 import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 import { BaseConfig } from './config/base.config';
-import { DiscordConfig } from './config/discord.config';
 import { TypeORMConfig } from './config/typeorm.config';
+import { DiscordRestModule } from './discord-rest/discord-rest.module';
 import { HealthModule } from './health/health.module';
 import { InactiveMemberModule } from './inactive-member/inactive-member.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
@@ -51,7 +50,7 @@ import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
-    DiscordModule.forRootAsync(DiscordConfig),
+    DiscordRestModule,
     TypeOrmModule.forRootAsync(TypeORMConfig),
     ChannelModule,
     VoiceChannelModule,

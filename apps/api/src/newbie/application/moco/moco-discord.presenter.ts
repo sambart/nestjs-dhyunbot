@@ -1,15 +1,13 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  Client,
   EmbedBuilder,
-  TextChannel,
 } from 'discord.js';
 
 import { getErrorStack } from '../../../common/util/error.util';
+import { DiscordRestService } from '../../../discord-rest/discord-rest.service';
 import { NewbieConfigOrmEntity as NewbieConfig } from '../../infrastructure/newbie-config.orm-entity';
 import { NewbieConfigRepository } from '../../infrastructure/newbie-config.repository';
 import { NEWBIE_CUSTOM_ID } from '../../infrastructure/newbie-custom-id.constants';
@@ -33,7 +31,7 @@ export class MocoDiscordPresenter {
   constructor(
     private readonly configRepo: NewbieConfigRepository,
     private readonly mocoTmplRepo: NewbieMocoTemplateRepository,
-    @InjectDiscordClient() private readonly discord: Client,
+    private readonly discordRest: DiscordRestService,
   ) {}
 
   /**
@@ -46,11 +44,11 @@ export class MocoDiscordPresenter {
   ): Promise<Record<string, string>> {
     const names: Record<string, string> = {};
     try {
-      const guild = this.discord.guilds.cache.get(guildId);
-      if (!guild) throw new Error(`Guild ${guildId} not found in cache`);
       for (const userId of userIds) {
-        const member = await guild.members.fetch(userId).catch(() => null);
-        names[userId] = member?.displayName ?? userId;
+        const member = await this.discordRest.fetchGuildMember(guildId, userId);
+        names[userId] = member
+          ? this.discordRest.getMemberDisplayName(member)
+          : userId;
       }
     } catch (err) {
       this.logger.warn(
@@ -94,15 +92,7 @@ export class MocoDiscordPresenter {
    */
   async deleteEmbed(channelId: string, messageId: string): Promise<void> {
     try {
-      const channel = (await this.discord.channels
-        .fetch(channelId)
-        .catch(() => null)) as TextChannel | null;
-      if (channel) {
-        const message = await channel.messages.fetch(messageId).catch(() => null);
-        if (message) {
-          await message.delete();
-        }
-      }
+      await this.discordRest.deleteMessage(channelId, messageId);
     } catch (err) {
       this.logger.warn(
         `[MOCO] Failed to delete old embed: channel=${channelId} message=${messageId}`,
@@ -124,19 +114,17 @@ export class MocoDiscordPresenter {
       return;
     }
 
-    const channel = (await this.discord.channels
-      .fetch(config.mocoRankChannelId)
-      .catch(() => null)) as TextChannel | null;
+    const channelId = config.mocoRankChannelId;
 
-    if (!channel) {
-      this.logger.warn(`[MOCO] Channel not found: ${config.mocoRankChannelId}`);
-      return;
-    }
+    // REST API로 전송할 payload로 변환 (EmbedBuilder -> JSON)
+    const restPayload = {
+      embeds: payload.embeds.map((e) => e.toJSON()),
+      components: payload.components.map((c) => c.toJSON()),
+    };
 
     if (config.mocoRankMessageId) {
       try {
-        const message = await channel.messages.fetch(config.mocoRankMessageId);
-        await message.edit(payload);
+        await this.discordRest.editMessage(channelId, config.mocoRankMessageId, restPayload);
         return;
       } catch {
         this.logger.warn(
@@ -147,7 +135,7 @@ export class MocoDiscordPresenter {
     }
 
     try {
-      const sent = await channel.send(payload);
+      const sent = await this.discordRest.sendMessage(channelId, restPayload);
       await this.configRepo.updateMocoRankMessageId(guildId, sent.id);
     } catch (err) {
       this.logger.error(`[MOCO] Failed to send rank embed: guild=${guildId}`, getErrorStack(err));

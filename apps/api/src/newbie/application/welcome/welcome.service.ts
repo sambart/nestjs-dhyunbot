@@ -1,34 +1,35 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Client, EmbedBuilder, GuildMember } from 'discord.js';
+import { EmbedBuilder } from 'discord.js';
 
+import { DiscordRestService } from '../../../discord-rest/discord-rest.service';
 import { NewbieConfigOrmEntity as NewbieConfig } from '../../infrastructure/newbie-config.orm-entity';
+
+/** 환영 메시지에 필요한 멤버 데이터 */
+export interface WelcomeMemberData {
+  id: string;
+  displayName: string;
+  guildId: string;
+  memberCount: number;
+  serverName: string;
+}
 
 @Injectable()
 export class WelcomeService {
   private readonly logger = new Logger(WelcomeService.name);
 
-  constructor(@InjectDiscordClient() private readonly client: Client) {}
+  constructor(private readonly discordRest: DiscordRestService) {}
 
-  async sendWelcomeMessage(member: GuildMember, config: NewbieConfig): Promise<void> {
+  async sendWelcomeMessage(memberData: WelcomeMemberData, config: NewbieConfig): Promise<void> {
     if (!config.welcomeChannelId) {
-      this.logger.debug(`[WELCOME] welcomeChannelId not set: guild=${member.guild.id}`);
-      return;
-    }
-
-    const channel = await this.client.channels.fetch(config.welcomeChannelId).catch(() => null);
-    if (!channel?.isTextBased()) {
-      this.logger.warn(
-        `[WELCOME] Channel not found or not text-based: channelId=${config.welcomeChannelId} guild=${member.guild.id}`,
-      );
+      this.logger.debug(`[WELCOME] welcomeChannelId not set: guild=${memberData.guildId}`);
       return;
     }
 
     const vars: Record<string, string> = {
-      username: member.displayName,
-      mention: `<@${member.id}>`,
-      memberCount: String(member.guild.memberCount),
-      serverName: member.guild.name,
+      username: memberData.displayName,
+      mention: `<@${memberData.id}>`,
+      memberCount: String(memberData.memberCount),
+      serverName: memberData.serverName,
     };
 
     const embed = new EmbedBuilder();
@@ -50,10 +51,13 @@ export class WelcomeService {
       ? this.applyTemplate(config.welcomeContent, vars)
       : undefined;
 
-    await channel.send({ content, embeds: [embed] });
+    await this.discordRest.sendMessage(config.welcomeChannelId, {
+      content,
+      embeds: [embed.toJSON()],
+    });
 
     this.logger.log(
-      `[WELCOME] Sent welcome message: guild=${member.guild.id} member=${member.id} channel=${config.welcomeChannelId}`,
+      `[WELCOME] Sent welcome message: guild=${memberData.guildId} member=${memberData.id} channel=${config.welcomeChannelId}`,
     );
   }
 

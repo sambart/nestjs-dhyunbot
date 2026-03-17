@@ -1,4 +1,3 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -41,7 +40,6 @@ import { NewbieController } from './presentation/newbie.controller';
 
 @Module({
   imports: [
-    DiscordModule.forFeature(),
     TypeOrmModule.forFeature([
       NewbieConfigOrmEntity,
       NewbieMissionTemplateOrmEntity,

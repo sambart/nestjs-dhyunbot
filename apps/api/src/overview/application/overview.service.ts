@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { VoiceDailyOrm } from '../../channel/voice/infrastructure/voice-daily.orm-entity';
+import { DiscordRestService } from '../../discord-rest/discord-rest.service';
 import { DiscordGateway } from '../../gateway/discord.gateway';
 import { InactiveMemberRecordOrm } from '../../inactive-member/infrastructure/inactive-member-record.orm-entity';
 import { BotMetricOrm } from '../../monitoring/infrastructure/bot-metric.orm-entity';
@@ -17,6 +18,7 @@ const WEEKLY_VOICE_DAYS = 7;
 export class OverviewService {
   constructor(
     private readonly discordGateway: DiscordGateway,
+    private readonly discordRest: DiscordRestService,
     private readonly newbieConfigRepo: NewbieConfigRepository,
     private readonly newbieMissionRepo: NewbieMissionRepository,
     @InjectRepository(VoiceDailyOrm)
@@ -56,8 +58,8 @@ export class OverviewService {
   }
 
   private async getTotalMemberCount(guildId: string): Promise<number> {
-    const guild = await this.discordGateway.getGuild(guildId);
-    return guild?.memberCount ?? 0;
+    const guild = await this.discordRest.fetchGuild(guildId);
+    return guild?.approximate_member_count ?? 0;
   }
 
   private async getTodayVoiceTotalSec(guildId: string): Promise<number> {

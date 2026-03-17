@@ -121,17 +121,19 @@ export class StickyMessageRefreshService {
           !trackedIds.has(msg.id),
       );
 
-      for (const [, msg] of orphaned) {
-        await msg.delete().catch((err: Error) => {
+      for (const msg of orphaned) {
+        try {
+          await this.discordAdapter.deleteMessage(channelId, msg.id);
+        } catch (err) {
           this.logger.warn(
-            `[STICKY_MESSAGE] Failed to delete orphaned message ${msg.id}: ${err.message}`,
+            `[STICKY_MESSAGE] Failed to delete orphaned message ${msg.id}: ${getErrorMessage(err)}`,
           );
-        });
+        }
       }
 
-      if (orphaned.size > 0) {
+      if (orphaned.length > 0) {
         this.logger.log(
-          `[STICKY_MESSAGE] Cleaned up ${orphaned.size} orphaned message(s) in channel=${channelId}`,
+          `[STICKY_MESSAGE] Cleaned up ${orphaned.length} orphaned message(s) in channel=${channelId}`,
         );
       }
     } catch (err) {

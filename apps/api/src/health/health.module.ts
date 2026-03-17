@@ -1,4 +1,3 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { TerminusModule } from '@nestjs/terminus';
 
@@ -8,7 +7,7 @@ import { DiscordHealthIndicator } from './indicators/discord.health';
 import { RedisHealthIndicator } from './indicators/redis.health';
 
 @Module({
-  imports: [TerminusModule, RedisModule, DiscordModule.forFeature()],
+  imports: [TerminusModule, RedisModule],
   controllers: [HealthController],
   providers: [RedisHealthIndicator, DiscordHealthIndicator],
 })

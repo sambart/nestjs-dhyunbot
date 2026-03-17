@@ -1,14 +1,13 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  Client,
   EmbedBuilder,
 } from 'discord.js';
 
 import { getErrorStack } from '../../../common/util/error.util';
+import { DiscordRestService } from '../../../discord-rest/discord-rest.service';
 import { NewbieConfigOrmEntity as NewbieConfig } from '../../infrastructure/newbie-config.orm-entity';
 import { NewbieConfigRepository } from '../../infrastructure/newbie-config.repository';
 import { NewbieMissionOrmEntity as NewbieMission } from '../../infrastructure/newbie-mission.orm-entity';
@@ -30,8 +29,7 @@ export class MissionDiscordPresenter {
   constructor(
     private readonly configRepo: NewbieConfigRepository,
     private readonly missionTmplRepo: NewbieMissionTemplateRepository,
-    @InjectDiscordClient()
-    private readonly discord: Client,
+    private readonly discordRest: DiscordRestService,
   ) {}
 
   /**
@@ -58,30 +56,30 @@ export class MissionDiscordPresenter {
     );
     const row = this.buildRefreshButton(guildId);
 
-    const channel = await this.discord.channels
-      .fetch(config.missionNotifyChannelId)
-      .catch(() => null);
-
-    if (!channel?.isTextBased()) {
-      this.logger.warn(
-        `[MISSION] Notify channel not found or not text-based: guild=${guildId} channel=${config.missionNotifyChannelId}`,
-      );
-      return;
-    }
+    const channelId = config.missionNotifyChannelId;
+    const restPayload = {
+      embeds: [embed.toJSON()],
+      components: [row.toJSON()],
+    };
 
     if (config.missionNotifyMessageId) {
-      const message = await channel.messages
-        .fetch(config.missionNotifyMessageId)
-        .catch(() => null);
-
-      if (message) {
-        await message.edit({ embeds: [embed], components: [row] });
+      try {
+        await this.discordRest.editMessage(channelId, config.missionNotifyMessageId, restPayload);
         return;
+      } catch {
+        // 수정 실패 시 신규 전송
       }
     }
 
-    const sent = await channel.send({ embeds: [embed], components: [row] });
-    await this.configRepo.updateMissionNotifyMessageId(guildId, sent.id);
+    try {
+      const sent = await this.discordRest.sendMessage(channelId, restPayload);
+      await this.configRepo.updateMissionNotifyMessageId(guildId, sent.id);
+    } catch (err) {
+      this.logger.warn(
+        `[MISSION] Failed to send mission embed: guild=${guildId}`,
+        getErrorStack(err),
+      );
+    }
   }
 
   /**
@@ -89,13 +87,7 @@ export class MissionDiscordPresenter {
    */
   async deleteEmbed(channelId: string, messageId: string): Promise<void> {
     try {
-      const channel = await this.discord.channels.fetch(channelId).catch(() => null);
-      if (channel?.isTextBased()) {
-        const message = await channel.messages.fetch(messageId).catch(() => null);
-        if (message) {
-          await message.delete();
-        }
-      }
+      await this.discordRest.deleteMessage(channelId, messageId);
     } catch (err) {
       this.logger.warn(
         `[MISSION] Failed to delete old embed: channel=${channelId} message=${messageId}`,
@@ -105,15 +97,15 @@ export class MissionDiscordPresenter {
   }
 
   /**
-   * Discord API로 멤버 표시 이름 조회.
+   * Discord REST API로 멤버 표시 이름 조회.
    * 조회 실패 시 `User-{memberId 앞 6자리}` 반환.
    */
   async fetchMemberDisplayName(guildId: string, memberId: string): Promise<string> {
     try {
-      const guild = this.discord.guilds.cache.get(guildId);
-      if (!guild) return `User-${memberId.slice(0, 6)}`;
-      const member = await guild.members.fetch(memberId).catch(() => null);
-      return member?.displayName ?? `User-${memberId.slice(0, 6)}`;
+      const member = await this.discordRest.fetchGuildMember(guildId, memberId);
+      return member
+        ? this.discordRest.getMemberDisplayName(member)
+        : `User-${memberId.slice(0, 6)}`;
     } catch {
       return `User-${memberId.slice(0, 6)}`;
     }
@@ -191,7 +183,7 @@ export class MissionDiscordPresenter {
       for (const line of itemLines) {
         const candidate = parts.join('\n\n') + '\n\n' + line;
         if (candidate.length > MAX_DESCRIPTION_LENGTH) {
-          parts.push('…외 추가 멤버 생략');
+          parts.push('...외 추가 멤버 생략');
           break;
         }
         parts.push(line);

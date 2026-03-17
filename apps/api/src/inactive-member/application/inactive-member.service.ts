@@ -1,6 +1,6 @@
 import { getKSTDateString } from '@dhyunbot/shared';
 import { Injectable, Logger } from '@nestjs/common';
-import { type GuildMember } from 'discord.js';
+import type { APIGuildMember } from 'discord.js';
 
 import { VoiceDailyFlushService } from '../../channel/voice/application/voice-daily-flush-service';
 import { InactiveMemberRecord } from '../domain/inactive-member-record.entity';
@@ -61,8 +61,8 @@ export class InactiveMemberService {
     }
 
     const targetMembers = members.filter(
-      (m: GuildMember) =>
-        !m.user.bot && !config.excludedRoleIds.some((roleId) => m.roles.cache.has(roleId)),
+      (m: APIGuildMember) =>
+        !m.user?.bot && !config.excludedRoleIds.some((roleId) => m.roles.includes(roleId)),
     );
 
     const [currentMap, prevMap, lastVoiceDateMap] = await Promise.all([
@@ -74,8 +74,8 @@ export class InactiveMemberService {
     const domainRecords: InactiveMemberRecord[] = [];
     const upsertData: UpsertRecordData[] = [];
 
-    for (const [, member] of targetMembers) {
-      const userId = member.user.id;
+    for (const member of targetMembers) {
+      const userId = member.user!.id;
       const totalSec = currentMap.get(userId) ?? 0;
       const totalMinutes = Math.floor(totalSec / SEC_PER_MIN);
       const prevTotalSec = prevMap.get(userId) ?? 0;

@@ -1,30 +1,22 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import type { Channel, GuildMember, Message } from 'discord.js';
-import { Client, TextChannel } from 'discord.js';
+import type { APIChannel, APIGuildMember, APIMessage } from 'discord.js';
 
 import { getErrorStack } from '../../common/util/error.util';
+import { DiscordRestService } from '../../discord-rest/discord-rest.service';
 
-/** Discord API를 통한 상태 접두사 관련 조작 전담. */
+/** Discord REST API를 통한 상태 접두사 관련 조작 전담. */
 @Injectable()
 export class StatusPrefixDiscordAdapter {
   private readonly logger = new Logger(StatusPrefixDiscordAdapter.name);
 
-  constructor(
-    @InjectDiscordClient() private readonly client: Client,
-  ) {}
+  constructor(private readonly discordRest: DiscordRestService) {}
 
   // ── Reset Service 용 ──
 
-  /** 길드 캐시에서 멤버를 API로 페치한다. */
-  async fetchMember(guildId: string, memberId: string): Promise<GuildMember | null> {
+  /** 길드에서 멤버를 REST API로 페치한다. */
+  async fetchMember(guildId: string, memberId: string): Promise<APIGuildMember | null> {
     try {
-      const guild = this.client.guilds.cache.get(guildId);
-      if (!guild) {
-        this.logger.warn(`[STATUS_PREFIX] Guild ${guildId} not found in cache`);
-        return null;
-      }
-      return await guild.members.fetch(memberId);
+      return await this.discordRest.fetchGuildMember(guildId, memberId);
     } catch (err) {
       this.logger.warn(
         `[STATUS_PREFIX] Failed to fetch member guild=${guildId} member=${memberId}`,
@@ -35,13 +27,13 @@ export class StatusPrefixDiscordAdapter {
   }
 
   /** 멤버의 닉네임을 변경한다. */
-  async setNickname(member: GuildMember, nickname: string): Promise<boolean> {
+  async setNickname(guildId: string, memberId: string, nickname: string): Promise<boolean> {
     try {
-      await member.setNickname(nickname);
+      await this.discordRest.setMemberNickname(guildId, memberId, nickname);
       return true;
     } catch (err) {
       this.logger.warn(
-        `[STATUS_PREFIX] setNickname failed: member=${member.id}`,
+        `[STATUS_PREFIX] setNickname failed: member=${memberId}`,
         getErrorStack(err),
       );
       return false;
@@ -50,10 +42,10 @@ export class StatusPrefixDiscordAdapter {
 
   // ── Config Service 용 ──
 
-  /** 채널을 API로 페치한다. */
-  async fetchChannel(channelId: string): Promise<Channel | null> {
+  /** 채널을 REST API로 페치한다. */
+  async fetchChannel(channelId: string): Promise<APIChannel | null> {
     try {
-      return await this.client.channels.fetch(channelId);
+      return await this.discordRest.fetchChannel(channelId);
     } catch (err) {
       this.logger.warn(
         `[STATUS_PREFIX] Failed to fetch channel=${channelId}`,
@@ -65,21 +57,20 @@ export class StatusPrefixDiscordAdapter {
 
   /** 텍스트 채널에 메시지를 전송한다. */
   async sendMessage(
-    channel: TextChannel,
-    payload: Parameters<TextChannel['send']>[0],
-  ): Promise<Message> {
-    return channel.send(payload);
+    channelId: string,
+    payload: Record<string, unknown>,
+  ): Promise<APIMessage> {
+    return this.discordRest.sendMessage(channelId, payload);
   }
 
   /** 기존 메시지를 수정한다. 실패 시 null 반환. */
   async editMessage(
-    channel: TextChannel,
+    channelId: string,
     messageId: string,
-    payload: Parameters<Message['edit']>[0],
-  ): Promise<Message | null> {
+    payload: Record<string, unknown>,
+  ): Promise<APIMessage | null> {
     try {
-      const message = await channel.messages.fetch(messageId);
-      return await message.edit(payload);
+      return await this.discordRest.editMessage(channelId, messageId, payload);
     } catch (err) {
       this.logger.warn(
         `[STATUS_PREFIX] Failed to edit message ${messageId}`,

@@ -1,41 +1,36 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ChannelType, Client } from 'discord.js';
+import { ChannelType } from 'discord.js';
 
 import { JwtAuthGuard } from '../auth/infrastructure/jwt-auth.guard';
+import { DiscordRestService } from '../discord-rest/discord-rest.service';
 
 @Controller('api/guilds/:guildId')
 @UseGuards(JwtAuthGuard)
 export class GuildInfoController {
-  constructor(@InjectDiscordClient() private readonly client: Client) {}
+  constructor(private readonly discordRest: DiscordRestService) {}
 
   @Get('channels')
-  async getChannels(@Param('guildId') guildId: string, @Query('refresh') refresh?: string) {
-    const guild = this.client.guilds.cache.get(guildId);
-    if (!guild) return [];
-
-    const channels = refresh === 'true' ? await guild.channels.fetch() : guild.channels.cache;
+  async getChannels(@Param('guildId') guildId: string, @Query('refresh') _refresh?: string) {
+    // REST API는 항상 최신 데이터를 반환하므로 refresh 파라미터는 무시
+    const channels = await this.discordRest.fetchGuildChannels(guildId);
 
     return channels
-      .filter((ch) => ch !== null)
+      .filter((ch) => 'type' in ch && ch.type !== undefined)
       .map((ch) => ({
-        id: ch!.id,
-        name: ch!.name,
-        type: ch!.type,
+        id: ch.id,
+        name: 'name' in ch ? ch.name : undefined,
+        type: 'type' in ch ? ch.type : undefined,
       }))
       .filter((ch) =>
         [ChannelType.GuildText, ChannelType.GuildVoice, ChannelType.GuildCategory].includes(
-          ch.type,
+          ch.type as ChannelType,
         ),
       );
   }
 
   @Get('roles')
-  async getRoles(@Param('guildId') guildId: string, @Query('refresh') refresh?: string) {
-    const guild = this.client.guilds.cache.get(guildId);
-    if (!guild) return [];
-
-    const roles = refresh === 'true' ? await guild.roles.fetch() : guild.roles.cache;
+  async getRoles(@Param('guildId') guildId: string, @Query('refresh') _refresh?: string) {
+    const roles = await this.discordRest.fetchGuildRoles(guildId);
 
     return roles
       .filter((role) => !role.managed && role.name !== '@everyone')
@@ -48,11 +43,8 @@ export class GuildInfoController {
   }
 
   @Get('emojis')
-  async getEmojis(@Param('guildId') guildId: string, @Query('refresh') refresh?: string) {
-    const guild = this.client.guilds.cache.get(guildId);
-    if (!guild) return [];
-
-    const emojis = refresh === 'true' ? await guild.emojis.fetch() : guild.emojis.cache;
+  async getEmojis(@Param('guildId') guildId: string, @Query('refresh') _refresh?: string) {
+    const emojis = await this.discordRest.fetchGuildEmojis(guildId);
 
     return emojis
       .filter((emoji) => emoji.available !== false)
@@ -66,10 +58,10 @@ export class GuildInfoController {
   @Get('commands')
   async getCommands() {
     try {
-      const commands = await this.client.application?.commands.fetch();
-      if (!commands) return [];
+      const commands = await this.discordRest.fetchApplicationCommands();
+      if (!commands || commands.length === 0) return [];
 
-      return commands.map((cmd) => ({
+      return (commands as Array<Record<string, unknown>>).map((cmd) => ({
         id: cmd.id,
         name: cmd.name,
         description: cmd.description,

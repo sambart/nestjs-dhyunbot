@@ -155,7 +155,7 @@ export class StatusPrefixResetService {
       ? this.configService.stripPrefixFromNickname(originalNickname, config)
       : originalNickname;
 
-    // 5. Discord GuildMember fetch (인터랙션 컨텍스트 없이 어댑터 사용)
+    // 5. Discord REST API로 멤버 확인 (인터랙션 컨텍스트 없이 어댑터 사용)
     const member = await this.discordAdapter.fetchMember(guildId, memberId);
     if (!member) {
       // 멤버 fetch 실패 시 Redis 키는 유지 (비정상 종료 대비)
@@ -163,7 +163,7 @@ export class StatusPrefixResetService {
     }
 
     // 6. 닉네임 복원
-    const isNicknameSet = await this.discordAdapter.setNickname(member, cleanNickname);
+    const isNicknameSet = await this.discordAdapter.setNickname(guildId, memberId, cleanNickname);
     if (!isNicknameSet) {
       this.logger.warn(
         `[STATUS_PREFIX] restoreOnLeave setNickname failed: guild=${guildId} member=${memberId}`,

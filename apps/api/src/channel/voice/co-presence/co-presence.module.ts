@@ -1,4 +1,3 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -16,7 +15,6 @@ import { VoiceCoPresenceSessionOrm } from './infrastructure/voice-co-presence-se
 
 @Module({
   imports: [
-    DiscordModule.forFeature(),
     TypeOrmModule.forFeature([
       VoiceCoPresenceSessionOrm,
       VoiceCoPresenceDailyOrm,

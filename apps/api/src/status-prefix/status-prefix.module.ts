@@ -1,4 +1,3 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -15,7 +14,6 @@ import { StatusPrefixController } from './presentation/status-prefix.controller'
 
 @Module({
   imports: [
-    DiscordModule.forFeature(),
     TypeOrmModule.forFeature([StatusPrefixConfigOrm, StatusPrefixButtonOrm]),
     AuthModule,
   ],

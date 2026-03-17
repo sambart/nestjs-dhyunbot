@@ -1,17 +1,14 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Client } from 'discord.js';
 
 import { getErrorStack } from '../../../common/util/error.util';
+import { DiscordRestService } from '../../../discord-rest/discord-rest.service';
 
-/** Discord API를 통한 역할 부여/제거 전담. */
+/** Discord REST API를 통한 역할 부여/제거 전담. */
 @Injectable()
 export class NewbieRoleDiscordAdapter {
   private readonly logger = new Logger(NewbieRoleDiscordAdapter.name);
 
-  constructor(
-    @InjectDiscordClient() private readonly client: Client,
-  ) {}
+  constructor(private readonly discordRest: DiscordRestService) {}
 
   /**
    * 멤버에게 역할을 제거한다.
@@ -19,10 +16,7 @@ export class NewbieRoleDiscordAdapter {
    */
   async tryRemoveRole(guildId: string, memberId: string, roleId: string): Promise<void> {
     try {
-      const guild = this.client.guilds.cache.get(guildId);
-      if (!guild) throw new Error(`Guild ${guildId} not found in cache`);
-      const member = await guild.members.fetch(memberId);
-      await member.roles.remove(roleId);
+      await this.discordRest.removeMemberRole(guildId, memberId, roleId);
       this.logger.log(`[NEWBIE ROLE] Role removed: guild=${guildId} member=${memberId}`);
     } catch (error) {
       this.logger.warn(

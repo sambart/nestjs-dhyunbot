@@ -3,7 +3,7 @@ import { Cron } from '@nestjs/schedule';
 
 import { getErrorStack } from '../../common/util/error.util';
 import { InactiveMemberGrade } from '../domain/inactive-member.types';
-import { InactiveMemberDiscordAdapter } from '../infrastructure/inactive-member-discord.adapter';
+import { InactiveMemberRepository } from '../infrastructure/inactive-member.repository';
 import { InactiveMemberService } from './inactive-member.service';
 import { InactiveMemberActionService } from './inactive-member-action.service';
 
@@ -14,7 +14,7 @@ export class InactiveMemberScheduler {
   constructor(
     private readonly inactiveMemberService: InactiveMemberService,
     private readonly actionService: InactiveMemberActionService,
-    private readonly discordAdapter: InactiveMemberDiscordAdapter,
+    private readonly repo: InactiveMemberRepository,
   ) {}
 
   @Cron('0 0 * * *', {
@@ -31,7 +31,8 @@ export class InactiveMemberScheduler {
   }
 
   private async processAllGuilds(): Promise<void> {
-    const guildIds = this.discordAdapter.getCachedGuildIds();
+    // Gateway 캐시 대신 DB에서 설정된 길드 목록 조회
+    const guildIds = await this.repo.findAllConfiguredGuildIds();
 
     for (const guildId of guildIds) {
       try {

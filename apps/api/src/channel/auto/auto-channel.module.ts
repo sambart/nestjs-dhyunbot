@@ -1,9 +1,7 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from '../../auth/auth.module';
-import { AutoChannelInteractionHandler } from '../../event/auto-channel/auto-channel-interaction.handler';
 import { DiscordVoiceGateway } from '../voice/infrastructure/discord-voice.gateway';
 import { VoiceChannelModule } from '../voice/voice-channel.module';
 import { AutoChannelService } from './application/auto-channel.service';
@@ -18,7 +16,6 @@ import { AutoChannelSubOptionOrm } from './infrastructure/auto-channel-sub-optio
 
 @Module({
   imports: [
-    DiscordModule.forFeature(),
     TypeOrmModule.forFeature([AutoChannelConfigOrm, AutoChannelButtonOrm, AutoChannelSubOptionOrm]),
     AuthModule,
     VoiceChannelModule,
@@ -30,7 +27,6 @@ import { AutoChannelSubOptionOrm } from './infrastructure/auto-channel-sub-optio
     AutoChannelDiscordGateway,
     AutoChannelBootstrapService,
     AutoChannelService,
-    AutoChannelInteractionHandler,
     DiscordVoiceGateway,
   ],
   exports: [

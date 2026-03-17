@@ -1,4 +1,3 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -13,7 +12,6 @@ import { StickyMessageController } from './presentation/sticky-message.controlle
 
 @Module({
   imports: [
-    DiscordModule.forFeature(),
     TypeOrmModule.forFeature([StickyMessageConfigOrm]),
     AuthModule,
   ],

@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { TextChannel } from 'discord.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 
 import { DomainException } from '../../common/domain-exception';
@@ -140,14 +139,12 @@ export class StatusPrefixConfigService {
    * 반환값: 전송된 메시지 ID
    */
   private async buildAndSendMessage(config: StatusPrefixConfigOrm): Promise<string> {
-    const fetched = await this.discordAdapter.fetchChannel(config.channelId!);
+    const channelId = config.channelId!;
+    const fetched = await this.discordAdapter.fetchChannel(channelId);
 
-    if (!fetched?.isTextBased() || !('send' in fetched)) {
-      throw new Error(`Channel ${config.channelId} is not a text-based channel`);
+    if (!fetched) {
+      throw new Error(`Channel ${channelId} is not found`);
     }
-
-    // TextChannel로 안전하게 캐스팅 (isTextBased + send 존재 확인 완료)
-    const channel = fetched as TextChannel;
 
     const embed = new EmbedBuilder();
     if (config.embedTitle) embed.setTitle(config.embedTitle);
@@ -160,10 +157,10 @@ export class StatusPrefixConfigService {
     const sortedButtons = [...config.buttons].sort((a, b) => a.sortOrder - b.sortOrder);
     const components = this.buildActionRows(sortedButtons);
 
-    const payload = { embeds: [embed], components };
+    const payload = { embeds: [embed.toJSON()], components: components.map((r) => r.toJSON()) };
 
     if (config.messageId) {
-      const edited = await this.discordAdapter.editMessage(channel, config.messageId, payload);
+      const edited = await this.discordAdapter.editMessage(channelId, config.messageId, payload);
       if (edited) return config.messageId;
 
       this.logger.warn(
@@ -172,7 +169,7 @@ export class StatusPrefixConfigService {
       // 메시지 삭제됨 등의 이유로 수정 실패 → 신규 전송으로 폴백
     }
 
-    const message = await this.discordAdapter.sendMessage(channel, payload);
+    const message = await this.discordAdapter.sendMessage(channelId, payload);
     return message.id;
   }
 

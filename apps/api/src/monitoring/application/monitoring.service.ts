@@ -1,6 +1,4 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Client, Status } from 'discord.js';
 
 import { getErrorStack } from '../../common/util/error.util';
 import { RedisService } from '../../redis/redis.service';
@@ -26,6 +24,10 @@ export interface MetricsResponse {
   data: AggregatedMetric[];
 }
 
+// TODO(claude 2026-03-17): Bot API 엔드포인트 GET /bot-api/discord/status 에서
+// ws.status, ws.ping, uptime, guilds.cache 등 Gateway 정보를 받아오도록 전환 필요.
+// 현재는 API 프로세스 자체 메모리만 반환하며 Gateway 상태는 DB 메트릭 기반.
+
 @Injectable()
 export class MonitoringService {
   private readonly logger = new Logger(MonitoringService.name);
@@ -33,8 +35,6 @@ export class MonitoringService {
   private static readonly STATUS_CACHE_TTL = 10; // seconds
 
   constructor(
-    @InjectDiscordClient()
-    private readonly client: Client,
     private readonly redis: RedisService,
     private readonly metricRepo: BotMetricRepository,
   ) {}
@@ -45,7 +45,7 @@ export class MonitoringService {
     );
     if (cached) return cached;
 
-    const status = this.collectStatus(guildId);
+    const status = this.collectStatus();
 
     await this.redis.set(
       `${MonitoringService.STATUS_CACHE_KEY}:${guildId}`,
@@ -146,30 +146,25 @@ export class MonitoringService {
     return Math.floor(epoch / stepMs) * stepMs;
   }
 
-  collectStatus(guildId: string): BotStatusResponse {
+  /**
+   * API 프로세스 기준 상태 수집.
+   * Gateway 연결이 없으므로 ws.status, ping 등은 Bot API 엔드포인트로 전환 필요.
+   */
+  collectStatus(): BotStatusResponse {
     try {
-      const isOnline = this.client.ws.status === Status.Ready;
       const mem = process.memoryUsage();
-      const guild = this.client.guilds.cache.get(guildId);
-
-      let voiceUserCount = 0;
-      if (guild) {
-        voiceUserCount = guild.voiceStates.cache.filter(
-          (vs) => vs.channelId && vs.member?.user?.bot !== true,
-        ).size;
-      }
 
       return {
-        online: isOnline,
-        uptimeMs: this.client.uptime ?? 0,
-        startedAt: this.client.readyAt?.toISOString() ?? null,
-        pingMs: this.client.ws.ping,
-        guildCount: this.client.guilds.cache.size,
+        online: true, // API 프로세스가 살아있으면 true
+        uptimeMs: process.uptime() * 1000,
+        startedAt: null,
+        pingMs: 0,
+        guildCount: 0,
         memoryUsage: {
           heapUsedMb: parseFloat((mem.heapUsed / 1024 / 1024).toFixed(1)),
           heapTotalMb: parseFloat((mem.heapTotal / 1024 / 1024).toFixed(1)),
         },
-        voiceUserCount,
+        voiceUserCount: 0,
       };
     } catch (error) {
       this.logger.error('[MONITORING] Failed to collect status', getErrorStack(error));
@@ -185,6 +180,8 @@ export class MonitoringService {
     }
   }
 
+  // TODO(claude 2026-03-17): collectAllGuildMetrics는 Bot에서 수행해야 함.
+  // Bot API 엔드포인트로 이동 필요.
   collectAllGuildMetrics(): Array<{
     guildId: string;
     status: BotStatus;
@@ -194,28 +191,7 @@ export class MonitoringService {
     voiceUserCount: number;
     guildCount: number;
   }> {
-    const isOnline = this.client.ws.status === Status.Ready;
-    const mem = process.memoryUsage();
-    const guildCount = this.client.guilds.cache.size;
-    const heapUsedMb = parseFloat((mem.heapUsed / 1024 / 1024).toFixed(1));
-    const heapTotalMb = parseFloat((mem.heapTotal / 1024 / 1024).toFixed(1));
-    const pingMs = this.client.ws.ping;
-    const status = isOnline ? BotStatus.ONLINE : BotStatus.OFFLINE;
-
-    return this.client.guilds.cache.map((guild) => {
-      const voiceUserCount = guild.voiceStates.cache.filter(
-        (vs) => vs.channelId && vs.member?.user?.bot !== true,
-      ).size;
-
-      return {
-        guildId: guild.id,
-        status,
-        pingMs,
-        heapUsedMb,
-        heapTotalMb,
-        voiceUserCount,
-        guildCount,
-      };
-    });
+    // Gateway 없이는 길드 목록을 알 수 없으므로 빈 배열 반환
+    return [];
   }
 }

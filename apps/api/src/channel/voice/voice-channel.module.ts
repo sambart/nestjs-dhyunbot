@@ -1,4 +1,3 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -38,7 +37,6 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
 
 @Module({
   imports: [
-    DiscordModule.forFeature(),
     TypeOrmModule.forFeature([
       VoiceChannelHistoryOrm,
       VoiceDailyOrm,
