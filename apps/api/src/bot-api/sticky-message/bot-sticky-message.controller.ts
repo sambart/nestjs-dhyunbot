@@ -1,14 +1,18 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Logger,
   OnApplicationShutdown,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 
+import { StickyMessageConfigService } from '../../sticky-message/application/sticky-message-config.service';
 import { StickyMessageRefreshService } from '../../sticky-message/application/sticky-message-refresh.service';
 import { StickyMessageConfigRepository } from '../../sticky-message/infrastructure/sticky-message-config.repository';
 import { StickyMessageRedisRepository } from '../../sticky-message/infrastructure/sticky-message-redis.repository';
@@ -35,6 +39,7 @@ export class BotStickyMessageController implements OnApplicationShutdown {
     private readonly redisRepo: StickyMessageRedisRepository,
     private readonly configRepo: StickyMessageConfigRepository,
     private readonly refreshService: StickyMessageRefreshService,
+    private readonly configService: StickyMessageConfigService,
   ) {}
 
   onApplicationShutdown(): void {
@@ -91,5 +96,41 @@ export class BotStickyMessageController implements OnApplicationShutdown {
     });
 
     return { ok: true };
+  }
+
+  /** 서버의 고정메세지 설정 목록 조회 (Bot 슬래시 커맨드 /고정메세지목록 용) */
+  @Get('configs')
+  async getConfigs(
+    @Query('guildId') guildId: string,
+  ): Promise<{
+    ok: boolean;
+    data: Array<{
+      channelId: string;
+      embedTitle: string | null;
+      enabled: boolean;
+    }>;
+  }> {
+    const configs = await this.configService.getConfigs(guildId);
+
+    return {
+      ok: true,
+      data: configs.map((c) => ({
+        channelId: c.channelId,
+        embedTitle: c.embedTitle,
+        enabled: c.enabled,
+      })),
+    };
+  }
+
+  /** 채널 내 고정메세지 전체 삭제 (Bot 슬래시 커맨드 /고정메세지삭제 용) */
+  @Delete('by-channel')
+  @HttpCode(HttpStatus.OK)
+  async deleteByChannel(
+    @Query('guildId') guildId: string,
+    @Query('channelId') channelId: string,
+  ): Promise<{ ok: boolean; deletedCount: number }> {
+    const { deletedCount } = await this.configService.deleteByChannel(guildId, channelId);
+
+    return { ok: true, deletedCount };
   }
 }

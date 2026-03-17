@@ -5,9 +5,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { StickyMessageConfigService } from './application/sticky-message-config.service';
 import { StickyMessageRefreshService } from './application/sticky-message-refresh.service';
-import { StickyMessageDeleteCommand } from './command/sticky-message-delete.command';
-import { StickyMessageListCommand } from './command/sticky-message-list.command';
-import { StickyMessageRegisterCommand } from './command/sticky-message-register.command';
 import { StickyMessageConfigOrm } from './infrastructure/sticky-message-config.orm-entity';
 import { StickyMessageConfigRepository } from './infrastructure/sticky-message-config.repository';
 import { StickyMessageDiscordAdapter } from './infrastructure/sticky-message-discord.adapter';
@@ -27,9 +24,6 @@ import { StickyMessageController } from './presentation/sticky-message.controlle
     StickyMessageRedisRepository,
     StickyMessageConfigService,
     StickyMessageRefreshService,
-    StickyMessageRegisterCommand,
-    StickyMessageListCommand,
-    StickyMessageDeleteCommand,
   ],
   exports: [
     StickyMessageConfigService,

@@ -7,18 +7,25 @@ import type {
   AutoChannelButtonResult,
   AutoChannelSubOptionDto,
   BotApiResponse,
+  CommunityHealthResponse,
   KickMemberDto,
+  LeaderboardResponse,
+  MeProfileResponse,
   MemberDisplayNameResponse,
   MemberJoinDto,
   MessageCreatedDto,
   MissionRefreshDto,
+  MyVoiceStatsResponse,
   NewbieConfigDto,
   RoleAssignedDto,
   RoleModifyDto,
+  SelfDiagnosisResponse,
   StatusPrefixApplyDto,
   StatusPrefixApplyResult,
   StatusPrefixResetDto,
   StatusPrefixResetResult,
+  StickyMessageConfigItem,
+  VoiceAnalyzeResponse,
   VoiceStateUpdateDto,
 } from './types';
 
@@ -101,6 +108,53 @@ export class BotApiClientService {
     await this.post('/bot-api/sticky-message/message-created', dto);
   }
 
+  async getStickyMessageConfigs(
+    guildId: string,
+  ): Promise<BotApiResponse<StickyMessageConfigItem[]>> {
+    return this.get(`/bot-api/sticky-message/configs?guildId=${guildId}`);
+  }
+
+  async deleteStickyMessageByChannel(
+    guildId: string,
+    channelId: string,
+  ): Promise<{ ok: boolean; deletedCount: number }> {
+    return this.delete(`/bot-api/sticky-message/by-channel?guildId=${guildId}&channelId=${channelId}`);
+  }
+
+  // ── Voice Analytics ──
+
+  async getMyVoiceStats(guildId: string, userId: string, days: number): Promise<MyVoiceStatsResponse> {
+    return this.get(`/bot-api/voice-analytics/my-stats?guildId=${guildId}&userId=${userId}&days=${days}`);
+  }
+
+  async getVoiceLeaderboard(guildId: string, days: number): Promise<LeaderboardResponse> {
+    return this.get(`/bot-api/voice-analytics/leaderboard?guildId=${guildId}&days=${days}`);
+  }
+
+  async analyzeVoiceActivity(guildId: string, days: number): Promise<VoiceAnalyzeResponse> {
+    return this.post(`/bot-api/voice-analytics/analyze?guildId=${guildId}&days=${days}`, {});
+  }
+
+  async getCommunityHealth(guildId: string, days: number): Promise<CommunityHealthResponse> {
+    return this.post(`/bot-api/voice-analytics/community-health?guildId=${guildId}&days=${days}`, {});
+  }
+
+  async runSelfDiagnosis(guildId: string, userId: string): Promise<SelfDiagnosisResponse> {
+    return this.post(`/bot-api/voice-analytics/self-diagnosis?guildId=${guildId}&userId=${userId}`, {});
+  }
+
+  // ── Me ──
+
+  async getMeProfile(
+    guildId: string,
+    userId: string,
+    displayName: string,
+    avatarUrl: string,
+  ): Promise<MeProfileResponse> {
+    const params = new URLSearchParams({ guildId, userId, displayName, avatarUrl });
+    return this.post(`/bot-api/me/profile?${params.toString()}`, {});
+  }
+
   // ── Guild ──
 
   async getMemberDisplayName(
@@ -146,6 +200,16 @@ export class BotApiClientService {
       return response.data;
     } catch (err) {
       this.logger.error(`[BOT-API] GET ${path} failed`, err);
+      throw err;
+    }
+  }
+
+  private async delete<T>(path: string): Promise<T> {
+    try {
+      const response = await firstValueFrom(this.http.delete<T>(path));
+      return response.data;
+    } catch (err) {
+      this.logger.error(`[BOT-API] DELETE ${path} failed`, err);
       throw err;
     }
   }

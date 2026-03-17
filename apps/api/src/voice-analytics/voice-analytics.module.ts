@@ -13,10 +13,6 @@ import { VoiceAiAnalysisService } from './application/voice-ai-analysis.service'
 import { VoiceAnalyticsService } from './application/voice-analytics.service';
 import { VoiceNameEnricherService } from './application/voice-name-enricher.service';
 import { LlmModule } from './infrastructure/llm/llm.module';
-import { CommunityHealthCommand } from './presentation/commands/community-health.command';
-import { MyVoiceStatsCommand } from './presentation/commands/my-voice-stats.command';
-import { VoiceLeaderboardCommand } from './presentation/commands/voice-leaderboard.command';
-import { VoiceStatsCommand } from './presentation/commands/voice-stats.command';
 import { VoiceAnalyticsController } from './presentation/voice-analytics.controller';
 import { BadgeScheduler } from './self-diagnosis/application/badge.scheduler';
 import { BadgeService } from './self-diagnosis/application/badge.service';
@@ -25,7 +21,6 @@ import { SelfDiagnosisService } from './self-diagnosis/application/self-diagnosi
 import { VoiceHealthBadgeOrmEntity } from './self-diagnosis/infrastructure/voice-health-badge.orm-entity';
 import { VoiceHealthConfigOrmEntity } from './self-diagnosis/infrastructure/voice-health-config.orm-entity';
 import { VoiceHealthConfigRepository } from './self-diagnosis/infrastructure/voice-health-config.repository';
-import { SelfDiagnosisCommand } from './self-diagnosis/presentation/self-diagnosis.command';
 import { SelfDiagnosisController } from './self-diagnosis/presentation/self-diagnosis.controller';
 
 @Module({
@@ -49,17 +44,19 @@ import { SelfDiagnosisController } from './self-diagnosis/presentation/self-diag
     VoiceAnalyticsService,
     VoiceNameEnricherService,
     VoiceRedisRepository,
-    VoiceStatsCommand,
-    MyVoiceStatsCommand,
-    CommunityHealthCommand,
-    VoiceLeaderboardCommand,
     VoiceHealthConfigRepository,
     SelfDiagnosisService,
-    SelfDiagnosisCommand,
     BadgeService,
     BadgeScheduler,
     BadgeQueryService,
   ],
-  exports: [VoiceAiAnalysisService, VoiceAnalyticsService, VoiceRedisRepository, BadgeQueryService],
+  exports: [
+    VoiceAiAnalysisService,
+    VoiceAnalyticsService,
+    VoiceRedisRepository,
+    BadgeQueryService,
+    SelfDiagnosisService,
+    VoiceHealthConfigRepository,
+  ],
 })
 export class VoiceAnalyticsModule {}

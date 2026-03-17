@@ -6,7 +6,6 @@ import { MemberModule } from '../../member/member.module';
 import { VoiceAnalyticsModule } from '../../voice-analytics/voice-analytics.module';
 import { ChannelModule } from '../channel.module';
 import { DataDeletionService } from './application/data-deletion.service';
-import { MeCommand } from './application/me.command';
 import { MeProfileService } from './application/me-profile.service';
 import { MemberSearchService } from './application/member-search.service';
 import { ProfileCardRenderer } from './application/profile-card-renderer';
@@ -75,7 +74,6 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
     VoiceStatsQueryService,
     MeProfileService,
     ProfileCardRenderer,
-    MeCommand,
     VoiceExcludedChannelRepository,
     VoiceExcludedChannelService,
     VoiceDailyService,
@@ -92,6 +90,8 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
     DiscordVoiceGateway,
     TypeOrmModule,
     VoiceExcludedChannelService,
+    MeProfileService,
+    ProfileCardRenderer,
   ],
 })
 export class VoiceChannelModule {}

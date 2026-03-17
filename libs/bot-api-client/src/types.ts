@@ -139,6 +139,117 @@ export interface MessageCreatedDto {
   isBot: boolean;
 }
 
+export interface StickyMessageConfigItem {
+  channelId: string;
+  embedTitle: string | null;
+  enabled: boolean;
+}
+
+// ── Voice Analytics ──
+
+export interface MyVoiceStatsResponse {
+  ok: boolean;
+  data: {
+    userId: string;
+    username: string;
+    totalVoiceTime: number;
+    totalMicOnTime: number;
+    totalMicOffTime: number;
+    aloneTime: number;
+    activeChannels: Array<{ channelId: string; channelName: string; duration: number }>;
+    activeDays: number;
+    avgDailyVoiceTime: number;
+    micUsageRate: number;
+    userRank: number;
+    totalUsers: number;
+  } | null;
+  days: number;
+}
+
+export interface LeaderboardResponse {
+  ok: boolean;
+  data: {
+    userActivities: Array<{
+      userId: string;
+      username: string;
+      totalVoiceTime: number;
+      micUsageRate: number;
+    }>;
+  } | null;
+  days: number;
+}
+
+export interface VoiceAnalyzeResponse {
+  ok: boolean;
+  data: {
+    analysisText: string;
+    totalStats: {
+      totalUsers: number;
+      totalVoiceTime: number;
+      totalMicOnTime: number;
+      avgDailyActiveUsers: number;
+    };
+  } | null;
+  days: number;
+}
+
+export interface CommunityHealthResponse {
+  ok: boolean;
+  data: { healthText: string } | null;
+  days: number;
+}
+
+export interface SelfDiagnosisResponse {
+  ok: boolean;
+  data: {
+    result: SelfDiagnosisResultData;
+    analysisDays: number;
+    isCooldownEnabled: boolean;
+    cooldownHours: number;
+  } | null;
+  reason?: 'not_enabled' | 'cooldown' | 'quota_exhausted';
+  remainingSeconds?: number;
+}
+
+export interface SelfDiagnosisResultData {
+  totalMinutes: number;
+  activeDays: number;
+  totalDays: number;
+  activeDaysRatio: number;
+  avgDailyMinutes: number;
+  activityRank: number;
+  activityTotalUsers: number;
+  activityTopPercent: number;
+  peerCount: number;
+  hhiScore: number;
+  topPeers: Array<{ userId: string; userName: string; minutes: number; ratio: number }>;
+  hasMocoActivity: boolean;
+  mocoScore: number;
+  mocoRank: number;
+  mocoTotalUsers: number;
+  mocoTopPercent: number;
+  mocoHelpedNewbies: number;
+  micUsageRate: number;
+  aloneRatio: number;
+  verdicts: Array<{ category: string; isPassed: boolean; criterion: string; actual: string }>;
+  badges: string[];
+  badgeGuides: Array<{
+    code: string;
+    name: string;
+    icon: string;
+    isEarned: boolean;
+    criterion: string;
+    current: string;
+  }>;
+  llmSummary?: string;
+}
+
+export interface MeProfileResponse {
+  ok: boolean;
+  data: { imageBase64: string } | null;
+  days: number;
+}
+
 // ── Common ──
 
 export interface BotApiResponse<T = unknown> {
