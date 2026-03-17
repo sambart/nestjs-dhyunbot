@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 
+import { VoiceGameService } from '../application/voice-game.service';
 import { CoPresenceService } from './co-presence.service';
 
 /**
@@ -11,10 +12,14 @@ import { CoPresenceService } from './co-presence.service';
 export class CoPresenceScheduler implements OnApplicationShutdown {
   private readonly logger = new Logger(CoPresenceScheduler.name);
 
-  constructor(private readonly coPresenceService: CoPresenceService) {}
+  constructor(
+    private readonly coPresenceService: CoPresenceService,
+    private readonly voiceGameService: VoiceGameService,
+  ) {}
 
   async onApplicationShutdown(): Promise<void> {
     await this.coPresenceService.endAllSessions();
+    await this.voiceGameService.endAllSessions();
     this.logger.log('[CO-PRESENCE SCHEDULER] Stopped (all sessions ended)');
   }
 

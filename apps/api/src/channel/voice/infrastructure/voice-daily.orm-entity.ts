@@ -41,6 +41,15 @@ export class VoiceDailyOrm {
   @Column({ default: 0 })
   aloneSec: number;
 
+  @Column({ default: 0 })
+  streamingSec: number;
+
+  @Column({ default: 0 })
+  videoOnSec: number;
+
+  @Column({ default: 0 })
+  deafSec: number;
+
   @Column({ type: 'timestamptz', nullable: true })
   recordedAt: Date | null;
 }

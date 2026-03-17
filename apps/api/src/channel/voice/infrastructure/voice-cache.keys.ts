@@ -10,6 +10,15 @@ export const VoiceKeys = {
   aloneDuration: (guild: string, user: string, date: string) =>
     `voice:duration:alone:${guild}:${user}:${date}`,
 
+  streamingDuration: (guild: string, user: string, date: string) =>
+    `voice:duration:streaming:${guild}:${user}:${date}`,
+
+  videoDuration: (guild: string, user: string, date: string) =>
+    `voice:duration:video:${guild}:${user}:${date}`,
+
+  deafDuration: (guild: string, user: string, date: string) =>
+    `voice:duration:deaf:${guild}:${user}:${date}`,
+
   channelName: (guild: string, channel: string) => `voice:channel:name:${guild}:${channel}`,
 
   categoryInfo: (guild: string, channel: string) => `voice:channel:category:${guild}:${channel}`,

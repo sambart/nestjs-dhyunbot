@@ -12,6 +12,7 @@ export const DiscordConfig = {
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildPresences,
       ],
     },
     registerCommandOptions: [

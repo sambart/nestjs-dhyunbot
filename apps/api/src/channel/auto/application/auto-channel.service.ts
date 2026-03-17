@@ -294,6 +294,9 @@ export class AutoChannelService {
       alone,
       memberCount,
       member.displayAvatarURL({ size: 128 }),
+      voiceState.streaming ?? false,
+      voiceState.selfVideo,
+      voiceState.selfDeaf,
     );
 
     await this.voiceChannelService.onUserJoined(voiceStateDto);

@@ -104,6 +104,69 @@ export class VoiceDailyRepository {
     );
   }
 
+  async accumulateStreamingDuration(
+    guildId: string,
+    userId: string,
+    date: string,
+    streamingSec: number,
+  ): Promise<void> {
+    const recordedAt = this.dateToRecordedAt(date);
+    await this.repo.query(
+      `
+      INSERT INTO voice_daily AS vd
+          ("guildId","userId","date","channelId","streamingSec","recordedAt")
+      VALUES ($1,$2,$3,'GLOBAL',$4,$5)
+      ON CONFLICT ("guildId","userId","date","channelId")
+      DO UPDATE SET
+          "streamingSec" = vd."streamingSec" + EXCLUDED."streamingSec",
+          "recordedAt"   = COALESCE(EXCLUDED."recordedAt", vd."recordedAt")
+      `,
+      [guildId, userId, date, streamingSec, recordedAt],
+    );
+  }
+
+  async accumulateVideoDuration(
+    guildId: string,
+    userId: string,
+    date: string,
+    videoOnSec: number,
+  ): Promise<void> {
+    const recordedAt = this.dateToRecordedAt(date);
+    await this.repo.query(
+      `
+      INSERT INTO voice_daily AS vd
+          ("guildId","userId","date","channelId","videoOnSec","recordedAt")
+      VALUES ($1,$2,$3,'GLOBAL',$4,$5)
+      ON CONFLICT ("guildId","userId","date","channelId")
+      DO UPDATE SET
+          "videoOnSec" = vd."videoOnSec" + EXCLUDED."videoOnSec",
+          "recordedAt" = COALESCE(EXCLUDED."recordedAt", vd."recordedAt")
+      `,
+      [guildId, userId, date, videoOnSec, recordedAt],
+    );
+  }
+
+  async accumulateDeafDuration(
+    guildId: string,
+    userId: string,
+    date: string,
+    deafSec: number,
+  ): Promise<void> {
+    const recordedAt = this.dateToRecordedAt(date);
+    await this.repo.query(
+      `
+      INSERT INTO voice_daily AS vd
+          ("guildId","userId","date","channelId","deafSec","recordedAt")
+      VALUES ($1,$2,$3,'GLOBAL',$4,$5)
+      ON CONFLICT ("guildId","userId","date","channelId")
+      DO UPDATE SET
+          "deafSec"    = vd."deafSec" + EXCLUDED."deafSec",
+          "recordedAt" = COALESCE(EXCLUDED."recordedAt", vd."recordedAt")
+      `,
+      [guildId, userId, date, deafSec, recordedAt],
+    );
+  }
+
   async findByGuildIdAndDateRange(
     guildId: string,
     from: string,

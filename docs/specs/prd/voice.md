@@ -188,6 +188,220 @@ Discord Voice Event
 - **배경**: `VoiceChannelHistoryService.logLeave()`의 쿼리에 `leftAt IS NULL` 조건이 없어, 이미 종료된 레코드를 다시 업데이트하거나 고아 레코드가 존재할 때 엉뚱한 레코드가 갱신될 수 있다.
 - **동작**: `logLeave()` 쿼리에 `.andWhere('log.leftAt IS NULL')` 조건을 추가하여, 아직 종료되지 않은 레코드만 대상으로 한다.
 
+---
+
+## 음성 채널 추가 데이터 수집 (Voice Extended Data Collection)
+
+> 변경이력: [prd-changelog.md](../../archive/prd-changelog.md)
+
+### 배경 및 목적
+
+현재 `voiceStateUpdate` 이벤트에서 `channelId`, `selfMute`(마이크), `alone`(혼자 여부)만 추적 중이다. 같은 이벤트와 기존 스케줄러 인프라를 활용하여 화면 공유·카메라·스피커 음소거·게임 활동 데이터를 추가 수집함으로써, 음성 활동 독려와 멤버 관리 품질을 높인다.
+
+수집 대상은 두 Phase로 나뉜다:
+- **Phase 1**: `voiceStateUpdate` 이벤트에서 인텐트 변경 없이 즉시 수집 가능한 VoiceState 필드 추가
+- **Phase 2**: `GuildPresences` 인텐트를 추가하여 음성 참여 중인 유저의 게임 활동 수집
+
+---
+
+### Phase 1 — VoiceState 추가 수집
+
+#### F-VOICE-025: 화면 공유 시간 추적 (streaming)
+
+- **배경**: `VoiceState.streaming`은 `voiceStateUpdate` 이벤트에서 이미 수신 가능한 필드이나 현재 미활용 중이다. 화면 공유 활동량 측정 및 콘텐츠 기여자 식별에 활용한다.
+- **트리거**: `voiceStateUpdate` 이벤트에서 `streaming` 상태 변경 감지
+- **동작**:
+  1. `VoiceStateDispatcher`에서 `streaming` 상태 변경을 감지하여 `StreamingToggleHandler`에 위임
+  2. Redis 세션에 스트리밍 ON/OFF 전환 시각을 기록
+  3. 상태 전환 시 직전 구간의 누적 시간을 계산하여 Redis에 임시 저장
+  4. 퇴장(`F-VOICE-002`) 또는 Daily Flush(`F-VOICE-005`) 시점에 `streamingSec`을 `voice_daily` 테이블에 반영
+- **수집 필드**: `VoiceState.streaming` (boolean)
+- **저장 컬럼**: `voice_daily.streamingSec` (int, 기본값 0) — 화면 공유 시간(초)
+- **기존 패턴 참조**: `MicToggleHandler` / `micOnSec` / `micOffSec` 처리 방식과 동일
+
+#### F-VOICE-026: 카메라 ON/OFF 시간 추적 (selfVideo)
+
+- **배경**: `VoiceState.selfVideo`는 유저가 카메라를 켜고 있는 상태를 나타낸다. 캠 참여율과 적극적 참여도 지표로 활용한다.
+- **트리거**: `voiceStateUpdate` 이벤트에서 `selfVideo` 상태 변경 감지
+- **동작**:
+  1. `VoiceStateDispatcher`에서 `selfVideo` 상태 변경을 감지하여 `VideoToggleHandler`에 위임
+  2. Redis 세션에 카메라 ON/OFF 전환 시각을 기록
+  3. 상태 전환 시 직전 구간의 누적 시간을 계산하여 Redis에 임시 저장
+  4. 퇴장(`F-VOICE-002`) 또는 Daily Flush(`F-VOICE-005`) 시점에 `videoOnSec`을 `voice_daily` 테이블에 반영
+- **수집 필드**: `VoiceState.selfVideo` (boolean)
+- **저장 컬럼**: `voice_daily.videoOnSec` (int, 기본값 0) — 카메라 ON 시간(초)
+- **기존 패턴 참조**: `MicToggleHandler` / `micOnSec` / `micOffSec` 처리 방식과 동일
+
+#### F-VOICE-027: 스피커 음소거 시간 추적 (selfDeaf)
+
+- **배경**: `VoiceState.selfDeaf`는 유저 스스로 스피커를 음소거한 상태다. deaf 상태로 장시간 체류하는 경우를 잠수 탐지 지표로 활용한다.
+- **트리거**: `voiceStateUpdate` 이벤트에서 `selfDeaf` 상태 변경 감지
+- **동작**:
+  1. `VoiceStateDispatcher`에서 `selfDeaf` 상태 변경을 감지하여 `DeafToggleHandler`에 위임
+  2. Redis 세션에 deaf ON/OFF 전환 시각을 기록
+  3. 상태 전환 시 직전 구간의 누적 시간을 계산하여 Redis에 임시 저장
+  4. 퇴장(`F-VOICE-002`) 또는 Daily Flush(`F-VOICE-005`) 시점에 `deafSec`을 `voice_daily` 테이블에 반영
+- **수집 필드**: `VoiceState.selfDeaf` (boolean)
+- **저장 컬럼**: `voice_daily.deafSec` (int, 기본값 0) — 스피커 음소거 시간(초)
+- **기존 패턴 참조**: `MicToggleHandler` / `micOnSec` / `micOffSec` 처리 방식과 동일
+
+#### Phase 1 데이터 모델 변경
+
+**VoiceDailyEntity (voice_daily) — 추가 컬럼**:
+
+| 컬럼 | 타입 | 기본값 | 설명 |
+|------|------|--------|------|
+| `streamingSec` | int | 0 | 화면 공유 시간(초). GLOBAL 및 개별 채널 레코드 모두에 기록 |
+| `videoOnSec` | int | 0 | 카메라 ON 시간(초). GLOBAL 및 개별 채널 레코드 모두에 기록 |
+| `deafSec` | int | 0 | 스피커 음소거 시간(초). GLOBAL 및 개별 채널 레코드 모두에 기록 |
+
+**기존 데이터 처리**:
+- 이 기능 적용 이전에 생성된 `voice_daily` 레코드의 세 컬럼은 기본값 0으로 유지한다.
+- 마이그레이션: `ALTER TABLE voice_daily ADD COLUMN "streamingSec" int NOT NULL DEFAULT 0, ADD COLUMN "videoOnSec" int NOT NULL DEFAULT 0, ADD COLUMN "deafSec" int NOT NULL DEFAULT 0;`
+
+**아키텍처 변경 (Phase 1)**:
+
+```
+[VoiceStateDispatcher]
+    │
+    ├──► [StreamingToggleHandler]  → Redis streaming 상태 시간 누적 (F-VOICE-025)
+    ├──► [VideoToggleHandler]      → Redis selfVideo 상태 시간 누적 (F-VOICE-026)
+    └──► [DeafToggleHandler]       → Redis selfDeaf 상태 시간 누적 (F-VOICE-027)
+```
+
+**인프라 요구사항 (Phase 1)**:
+- Discord Developer Portal 변경: 불필요 (기존 인텐트로 수집 가능)
+- `discord.config.ts` 변경: 불필요
+
+---
+
+### Phase 2 — 게임 활동 수집
+
+#### F-VOICE-028: 음성 입장 시 게임 상태 수집
+
+- **배경**: 음성 채널에 입장한 시점에 유저가 플레이 중인 게임을 파악하여 게임 세션의 시작을 기록한다. `presenceUpdate` 이벤트를 리스닝하지 않고, 기존 음성 이벤트 시점에 `member.presence`를 읽는 pull 방식을 사용한다.
+- **트리거**: `voiceStateUpdate` → JOIN 이벤트 (`F-VOICE-001`)
+- **동작**:
+  1. `VoiceJoinHandler`에서 `member.presence.activities`를 조회
+  2. `ActivityType.Playing` 타입의 활동에서 `gameName`과 `applicationId`를 추출
+  3. 게임 활동이 감지되면 Redis에 게임 세션 시작 상태 저장 (`guildId:userId:gameSession`)
+     - `gameName`, `applicationId`(nullable), `startedAt`
+  4. 게임 활동이 없으면 게임 세션 없음 상태로 유지
+- **수집 필드**: `GuildMember.presence.activities` — `ActivityType.Playing` 필터
+- **제약**:
+  - `GuildPresences` 인텐트가 활성화되어 있어야 `member.presence`가 채워진다
+  - 인텐트 없이 접근하면 `member.presence`가 null이므로 null-safe 처리 필수
+
+#### F-VOICE-029: CoPresenceScheduler 틱에서 게임 상태 갱신
+
+- **배경**: 음성 입장 후 게임을 시작하거나 전환하는 경우를 60초 틱 단위로 감지한다.
+- **트리거**: `CoPresenceScheduler` 60초 틱 (기존 `F-COPRESENCE-001` 순회 시점)
+- **동작**:
+  1. 음성 채널 순회 중 각 멤버의 `member.presence.activities` 조회
+  2. 현재 Redis에 저장된 게임 세션 상태와 비교:
+     - **새 게임 시작**: Redis에 게임 세션 없음 → 현재 게임 감지 → 새 세션 생성
+     - **게임 전환**: 현재 게임이 Redis 세션과 다름 → 이전 세션 종료 처리 후 새 세션 시작
+     - **게임 종료**: 현재 게임 없음 + Redis에 세션 있음 → 세션 종료 처리
+     - **게임 계속**: 현재 게임 = Redis 세션 → 상태 유지 (별도 조작 없음)
+  3. 세션 종료 처리 시 `F-VOICE-031` 플로우 수행
+
+#### F-VOICE-030: 음성 퇴장 시 게임 세션 종료
+
+- **트리거**: `voiceStateUpdate` → LEAVE 이벤트 (`F-VOICE-002`)
+- **동작**:
+  1. `VoiceLeaveHandler`에서 해당 유저의 Redis 게임 세션 조회
+  2. 진행 중인 게임 세션이 있으면 세션 종료 처리 (`F-VOICE-031`)
+  3. Redis 게임 세션 키 삭제
+
+#### F-VOICE-031: 게임 세션 종료 처리 및 저장
+
+- **트리거**: `F-VOICE-029` 또는 `F-VOICE-030` 에서 세션 종료 감지 시
+- **동작**:
+  1. Redis에서 게임 세션 정보(`gameName`, `applicationId`, `startedAt`) 조회
+  2. 플레이 시간 계산: `durationMin = Math.floor((now - startedAt) / 60000)`
+  3. `durationMin >= 1`인 경우에만 DB 저장 (1분 미만 무시)
+  4. `voice_game_activity` 테이블에 세션 단위 레코드 INSERT
+  5. `voice_game_daily` 테이블에 일별 집계 upsert (`totalMinutes` 누적, `sessionCount` 증가)
+  6. Redis 게임 세션 키 삭제
+
+#### Phase 2 데이터 모델
+
+**voice_game_activity (게임 세션 단위 이력)**:
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|------|------|----------|------|
+| `id` | int | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | varchar | NOT NULL | 디스코드 서버 ID |
+| `userId` | varchar | NOT NULL | 유저 디스코드 ID |
+| `channelId` | varchar | NOT NULL | 게임 활동 중이던 음성 채널 ID |
+| `gameName` | varchar | NOT NULL | 게임명 (Discord Activity 명칭) |
+| `applicationId` | varchar | nullable | Discord Application ID (게임 고유 식별자). 커스텀 상태 등은 null |
+| `startedAt` | timestamp | NOT NULL | 게임 세션 시작 시각 |
+| `endedAt` | timestamp | NOT NULL | 게임 세션 종료 시각 |
+| `durationMin` | int | NOT NULL | 플레이 시간(분) |
+| `createdAt` | timestamp | NOT NULL, DEFAULT now() | 레코드 생성일 |
+
+**인덱스**:
+- `(guildId, userId, startedAt)` — 유저별 기간 조회
+- `(guildId, gameName, startedAt)` — 게임별 기간 조회
+- `(guildId, startedAt)` — 서버 전체 기간 조회
+
+**voice_game_daily (게임 일별 집계)**:
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|------|------|----------|------|
+| `guildId` | varchar | PK | 디스코드 서버 ID |
+| `userId` | varchar | PK | 유저 디스코드 ID |
+| `gameName` | varchar | PK | 게임명 |
+| `date` | varchar(8) | PK | 날짜 (YYYYMMDD) |
+| `totalMinutes` | int | NOT NULL, DEFAULT 0 | 해당 날짜 총 플레이 시간(분) |
+| `sessionCount` | int | NOT NULL, DEFAULT 0 | 해당 날짜 세션 수 |
+
+**인덱스**:
+- PK: `(guildId, userId, gameName, date)`
+- `(guildId, userId, date)` — 유저의 날짜별 게임 활동 조회
+- `(guildId, gameName, date)` — 서버 내 게임별 날짜 집계
+
+**Phase 2 Redis 키 구조**:
+
+| 키 패턴 | TTL | 자료구조 | 설명 |
+|---------|-----|----------|------|
+| `voice:game:session:{guildId}:{userId}` | 24시간 | String (JSON) | 유저별 현재 게임 세션 (`{ gameName, applicationId, startedAt, channelId }`) |
+
+**아키텍처 변경 (Phase 2)**:
+
+```
+[VoiceJoinHandler]
+    └──► [VoiceGameService.onUserJoined()]   → presence 읽기 → Redis 게임 세션 시작 (F-VOICE-028)
+
+[CoPresenceScheduler] (60초 틱)
+    └──► [VoiceGameService.onTick()]         → presence 읽기 → 게임 세션 갱신/종료 (F-VOICE-029)
+
+[VoiceLeaveHandler]
+    └──► [VoiceGameService.onUserLeft()]     → Redis 게임 세션 종료 (F-VOICE-030)
+
+[VoiceGameService.endSession()]             → DB 저장 (F-VOICE-031)
+    ├──► voice_game_activity INSERT
+    └──► voice_game_daily UPSERT
+```
+
+**인프라 요구사항 (Phase 2)**:
+- Discord Developer Portal: SERVER MEMBERS INTENT는 이미 활성화 필요. 추가로 **PRESENCE INTENT** 토글 ON 필요
+- `discord.config.ts`: `GatewayIntentBits.GuildPresences` 인텐트 추가
+
+**제약 및 주의사항**:
+- `presenceUpdate` 이벤트를 리스닝하지 않으므로, 음성 채널 체류 중 게임을 시작한 경우 최대 60초(틱 주기)까지 감지 지연이 발생한다.
+- `GuildPresences` 인텐트는 대규모 서버(750명 이상)에서 Privileged Intent 심사 대상이다.
+- `member.presence`가 null이거나 `activities`가 빈 배열인 경우를 게임 없음으로 처리한다.
+- 게임 세션 최소 저장 단위는 1분이다 (1분 미만 세션은 `voice_game_activity` 미기록).
+
+#### Phase 2 데이터 보존 정책
+
+| 테이블 | 보존 기간 | 삭제 방식 |
+|--------|-----------|-----------|
+| `voice_game_activity` | **90일** | 기존 데이터 보존 스케줄러에 삭제 대상 추가 (매일 04:00 KST) |
+| `voice_game_daily` | **영구** | 삭제 안 함 |
+
 ## Redis 키 구조
 - 세션 키: 유저별 현재 음성 세션 정보 (입장 시간, 채널 ID 등)
 - 캐시 키: 유저명/채널명 캐시 (7일 TTL)

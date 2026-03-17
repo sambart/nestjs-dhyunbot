@@ -22,7 +22,12 @@ export class VoiceSessionService {
     const today = getKSTDateString();
 
     await this.voiceRedisRepository.setChannelName(guildId, cmd.channelId, cmd.channelName);
-    await this.voiceRedisRepository.setCategoryInfo(guildId, cmd.channelId, cmd.parentCategoryId, cmd.categoryName);
+    await this.voiceRedisRepository.setCategoryInfo(
+      guildId,
+      cmd.channelId,
+      cmd.parentCategoryId,
+      cmd.categoryName,
+    );
     await this.voiceRedisRepository.setUserName(guildId, cmd.userId, cmd.userName);
 
     let session = await this.voiceRedisRepository.getSession(guildId, userId);
@@ -35,6 +40,9 @@ export class VoiceSessionService {
         mic: cmd.micOn,
         alone: cmd.alone,
         date: today,
+        streaming: cmd.streaming,
+        videoOn: cmd.videoOn,
+        selfDeaf: cmd.selfDeaf,
       });
       return;
     }
@@ -58,6 +66,9 @@ export class VoiceSessionService {
     session.channelId = cmd.channelId ?? session.channelId;
     session.mic = cmd.micOn;
     session.alone = cmd.alone;
+    session.streaming = cmd.streaming;
+    session.videoOn = cmd.videoOn;
+    session.selfDeaf = cmd.selfDeaf;
     session.lastUpdatedAt = now;
 
     await this.voiceRedisRepository.setSession(guildId, userId, session);
@@ -68,7 +79,12 @@ export class VoiceSessionService {
     const now = Date.now();
 
     await this.voiceRedisRepository.setChannelName(guildId, newCmd.channelId, newCmd.channelName);
-    await this.voiceRedisRepository.setCategoryInfo(guildId, newCmd.channelId, newCmd.parentCategoryId, newCmd.categoryName);
+    await this.voiceRedisRepository.setCategoryInfo(
+      guildId,
+      newCmd.channelId,
+      newCmd.parentCategoryId,
+      newCmd.categoryName,
+    );
     await this.voiceRedisRepository.setUserName(guildId, newCmd.userId, newCmd.userName);
 
     const session = await this.voiceRedisRepository.getSession(guildId, userId);
@@ -80,6 +96,9 @@ export class VoiceSessionService {
         mic: newCmd.micOn,
         alone: newCmd.alone,
         date: getKSTDateString(),
+        streaming: newCmd.streaming,
+        videoOn: newCmd.videoOn,
+        selfDeaf: newCmd.selfDeaf,
       });
       return;
     }
@@ -104,6 +123,9 @@ export class VoiceSessionService {
       lastUpdatedAt: now,
       mic: newCmd.micOn,
       alone: newCmd.alone,
+      streaming: newCmd.streaming,
+      videoOn: newCmd.videoOn,
+      selfDeaf: newCmd.selfDeaf,
     };
 
     await this.voiceRedisRepository.setSession(guildId, userId, newSession);

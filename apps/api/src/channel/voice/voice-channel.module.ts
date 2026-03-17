@@ -15,6 +15,7 @@ import { VoiceDailyService } from './application/voice-daily.service';
 import { VoiceDailyFlushService } from './application/voice-daily-flush-service';
 import { VoiceDataRetentionScheduler } from './application/voice-data-retention.scheduler';
 import { VoiceExcludedChannelService } from './application/voice-excluded-channel.service';
+import { VoiceGameService } from './application/voice-game.service';
 import { VoiceHistoryService } from './application/voice-history.service';
 import { VoiceRecoveryService } from './application/voice-recovery.service';
 import { VoiceSessionService } from './application/voice-session.service';
@@ -28,6 +29,10 @@ import { VoiceDailyOrm } from './infrastructure/voice-daily.orm-entity';
 import { VoiceDailyRepository } from './infrastructure/voice-daily.repository';
 import { VoiceExcludedChannelOrm } from './infrastructure/voice-excluded-channel.orm-entity';
 import { VoiceExcludedChannelRepository } from './infrastructure/voice-excluded-channel.repository';
+import { VoiceGameActivityOrm } from './infrastructure/voice-game-activity.orm-entity';
+import { VoiceGameDailyOrm } from './infrastructure/voice-game-daily.orm-entity';
+import { VoiceGameDbRepository } from './infrastructure/voice-game-db.repository';
+import { VoiceGameRedisRepository } from './infrastructure/voice-game-redis.repository';
 import { VoiceRedisRepository } from './infrastructure/voice-redis.repository';
 import { DataDeletionController } from './presentation/data-deletion.controller';
 import { MemberSearchController } from './presentation/member-search.controller';
@@ -42,6 +47,8 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
       VoiceDailyOrm,
       VoiceExcludedChannelOrm,
       VoiceCoPresencePairDailyOrm,
+      VoiceGameActivityOrm,
+      VoiceGameDailyOrm,
     ]),
     MemberModule,
     ChannelModule,
@@ -79,6 +86,9 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
     VoiceHistoryService,
     VoiceDataRetentionScheduler,
     DataDeletionService,
+    VoiceGameService,
+    VoiceGameRedisRepository,
+    VoiceGameDbRepository,
   ],
   exports: [
     VoiceChannelService,
@@ -90,6 +100,7 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
     VoiceExcludedChannelService,
     MeProfileService,
     ProfileCardRenderer,
+    VoiceGameService,
   ],
 })
 export class VoiceChannelModule {}
