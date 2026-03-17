@@ -65,8 +65,8 @@ export class VoiceStateDispatcher {
         }
         // 경우 A: 둘 다 제외 — MOVE/JOIN/LEAVE 모두 발행 안 함
 
-        this.emitAloneChanged(oldState);
-        this.emitAloneChanged(newState);
+        await this.emitAloneChanged(oldState);
+        await this.emitAloneChanged(newState);
 
         // 이동 후 이전 채널이 비어있으면 자동방 삭제 이벤트 발행 (fire-and-forget)
         if (oldState.channel?.members.size === 0) {
@@ -89,7 +89,7 @@ export class VoiceStateDispatcher {
           await this.eventEmitter.emitAsync(VOICE_EVENTS.JOIN, new VoiceJoinEvent(dto));
         }
 
-        this.emitAloneChanged(newState);
+        await this.emitAloneChanged(newState);
       }
 
       if (isLeave) {
@@ -104,7 +104,7 @@ export class VoiceStateDispatcher {
           await this.eventEmitter.emitAsync(VOICE_EVENTS.LEAVE, new VoiceLeaveEvent(dto));
         }
 
-        this.emitAloneChanged(oldState);
+        await this.emitAloneChanged(oldState);
 
         // 퇴장 후 채널이 비어있으면 자동방 삭제 이벤트 발행 (fire-and-forget)
         if (oldState.channel?.members.size === 0) {
@@ -116,8 +116,16 @@ export class VoiceStateDispatcher {
       }
 
       if (isMuteChanged && !isJoin && !isLeave && !isMove) {
-        const dto = VoiceStateDto.fromVoiceState(newState);
-        await this.eventEmitter.emitAsync(VOICE_EVENTS.MIC_TOGGLE, new VoiceMicToggleEvent(dto));
+        const excluded = await this.isExcluded(
+          newState.guild.id,
+          newState.channelId,
+          newState.channel?.parentId ?? null,
+        );
+
+        if (!excluded) {
+          const dto = VoiceStateDto.fromVoiceState(newState);
+          await this.eventEmitter.emitAsync(VOICE_EVENTS.MIC_TOGGLE, new VoiceMicToggleEvent(dto));
+        }
       }
     } catch (error) {
       this.logger.error(
@@ -138,8 +146,15 @@ export class VoiceStateDispatcher {
   }
 
   /** 이벤트 발생 후 해당 채널에 남은 유저들의 alone 상태 변경 이벤트 발행 */
-  private emitAloneChanged(state: VoiceState): void {
+  private async emitAloneChanged(state: VoiceState): Promise<void> {
     if (!state.channel || !state.guild) return;
+
+    const excluded = await this.isExcluded(
+      state.guild.id,
+      state.channelId,
+      state.channel.parentId ?? null,
+    );
+    if (excluded) return;
 
     const humanMembers = state.channel.members.filter((m) => !m.user.bot);
     const memberIds = [...humanMembers.keys()];
