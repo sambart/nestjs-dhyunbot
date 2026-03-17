@@ -1,8 +1,8 @@
 import { BotApiClientService } from '@dhyunbot/bot-api-client';
-import type { CoPresenceSnapshot } from '@dhyunbot/bot-api-client';
+import type { CoPresenceMemberActivity, CoPresenceSnapshot } from '@dhyunbot/bot-api-client';
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
-import { ChannelType, Client } from 'discord.js';
+import { ActivityType, ChannelType, Client } from 'discord.js';
 
 /** 폴링 주기 (밀리초) */
 const INTERVAL_MS = 60_000;
@@ -73,10 +73,23 @@ export class BotCoPresenceScheduler implements OnApplicationBootstrap, OnApplica
         const nonBotMembers = channel.members.filter((m) => !m.user.bot);
         if (nonBotMembers.size === 0) continue;
 
+        // Phase 2: 멤버별 게임 활동 수집
+        const memberActivities: CoPresenceMemberActivity[] = nonBotMembers.map((m) => {
+          const playing = m.presence?.activities?.find(
+            (a) => a.type === ActivityType.Playing,
+          );
+          return {
+            userId: m.id,
+            gameName: playing?.name ?? null,
+            applicationId: playing?.applicationId ?? null,
+          };
+        });
+
         snapshots.push({
           guildId: guild.id,
           channelId: channel.id,
           userIds: nonBotMembers.map((m) => m.id),
+          memberActivities,
         });
       }
     }

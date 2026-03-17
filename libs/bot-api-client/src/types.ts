@@ -7,7 +7,14 @@ export interface VoiceStateUpdateDto {
   userId: string;
   channelId: string | null;
   oldChannelId: string | null;
-  eventType: 'join' | 'leave' | 'move' | 'mic_toggle';
+  eventType:
+    | 'join'
+    | 'leave'
+    | 'move'
+    | 'mic_toggle'
+    | 'streaming_toggle'
+    | 'video_toggle'
+    | 'deaf_toggle';
 
   // 기존 VoiceStateDto 대응 필드
   userName: string;
@@ -25,6 +32,15 @@ export interface VoiceStateUpdateDto {
   oldChannelMemberCount: number;
   channelMemberIds: string[];
   oldChannelMemberIds: string[];
+
+  // Phase 1: VoiceState 추가 수집
+  streaming?: boolean;
+  selfVideo?: boolean;
+  selfDeaf?: boolean;
+
+  // Phase 2: 게임 활동 (optional — 게임 중이 아닐 수 있음)
+  gameName?: string | null;
+  gameApplicationId?: string | null;
 }
 
 // ── Newbie ──
@@ -256,6 +272,14 @@ export interface CoPresenceSnapshot {
   guildId: string;
   channelId: string;
   userIds: string[];
+  /** Phase 2: 멤버별 게임 활동 정보 (optional, 하위 호환) */
+  memberActivities?: CoPresenceMemberActivity[];
+}
+
+export interface CoPresenceMemberActivity {
+  userId: string;
+  gameName: string | null;
+  applicationId: string | null;
 }
 
 // ── Monitoring ──

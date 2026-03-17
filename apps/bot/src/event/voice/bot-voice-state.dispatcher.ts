@@ -1,7 +1,7 @@
 import { BotApiClientService, type VoiceStateUpdateDto } from '@dhyunbot/bot-api-client';
 import { On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import type { VoiceState } from 'discord.js';
+import { ActivityType, type GuildMember, type VoiceState } from 'discord.js';
 
 /**
  * Discord voiceStateUpdate 이벤트를 수신하여 API로 전달한다.
@@ -31,6 +31,12 @@ export class BotVoiceStateDispatcher {
         eventType = 'move';
       } else if (oldState.selfMute !== newState.selfMute) {
         eventType = 'mic_toggle';
+      } else if ((oldState.streaming ?? false) !== (newState.streaming ?? false)) {
+        eventType = 'streaming_toggle';
+      } else if (oldState.selfVideo !== newState.selfVideo) {
+        eventType = 'video_toggle';
+      } else if (oldState.selfDeaf !== newState.selfDeaf) {
+        eventType = 'deaf_toggle';
       } else {
         return;
       }
@@ -43,6 +49,9 @@ export class BotVoiceStateDispatcher {
       const oldChannelHumanMembers = oldState.channel
         ? [...oldState.channel.members.values()].filter((m) => !m.user.bot)
         : [];
+
+      // 게임 활동 추출
+      const gameActivity = this.extractPlayingActivity(newState.member ?? null);
 
       await this.apiClient.sendVoiceStateUpdate({
         guildId,
@@ -65,6 +74,15 @@ export class BotVoiceStateDispatcher {
         oldChannelMemberCount: oldChannelHumanMembers.length,
         channelMemberIds: channelHumanMembers.map((m) => m.id),
         oldChannelMemberIds: oldChannelHumanMembers.map((m) => m.id),
+
+        // Phase 1
+        streaming: newState.streaming ?? false,
+        selfVideo: newState.selfVideo,
+        selfDeaf: newState.selfDeaf,
+
+        // Phase 2
+        gameName: gameActivity?.gameName ?? null,
+        gameApplicationId: gameActivity?.applicationId ?? null,
       });
     } catch (err) {
       this.logger.error(
@@ -72,5 +90,22 @@ export class BotVoiceStateDispatcher {
         err instanceof Error ? err.stack : err,
       );
     }
+  }
+
+  /** member.presence.activities에서 ActivityType.Playing 추출 */
+  private extractPlayingActivity(
+    member: GuildMember | null,
+  ): { gameName: string; applicationId: string | null } | null {
+    if (!member) return null;
+    const activities = member.presence?.activities;
+    if (!activities) return null;
+
+    const playing = activities.find((a) => a.type === ActivityType.Playing);
+    if (!playing) return null;
+
+    return {
+      gameName: playing.name,
+      applicationId: playing.applicationId ?? null,
+    };
   }
 }

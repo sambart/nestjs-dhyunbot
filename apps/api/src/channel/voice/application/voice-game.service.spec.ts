@@ -1,36 +1,7 @@
-import { ActivityType, type GuildMember } from 'discord.js';
-
 import { type VoiceGameDbRepository } from '../infrastructure/voice-game-db.repository';
 import { type VoiceGameRedisRepository } from '../infrastructure/voice-game-redis.repository';
 import { type VoiceGameSession } from '../infrastructure/voice-game-session';
-import { VoiceGameService } from './voice-game.service';
-
-/** GuildMember mock 생성 헬퍼 */
-function makeMember(options: {
-  id?: string;
-  gameName?: string | null;
-  applicationId?: string | null;
-}): GuildMember {
-  const { id = 'user-1', gameName = null, applicationId = null } = options;
-
-  const activities =
-    gameName !== null
-      ? [
-          {
-            type: ActivityType.Playing,
-            name: gameName,
-            applicationId,
-          },
-        ]
-      : [];
-
-  return {
-    id,
-    presence: {
-      activities,
-    },
-  } as unknown as GuildMember;
-}
+import { type MemberGameActivity, VoiceGameService } from './voice-game.service';
 
 /** VoiceGameSession 생성 헬퍼 */
 function makeSession(overrides: Partial<VoiceGameSession> = {}): VoiceGameSession {
@@ -68,9 +39,9 @@ describe('VoiceGameService', () => {
 
   describe('onUserJoined', () => {
     it('입장 시 게임 중이면 Redis에 세션을 저장한다', async () => {
-      const member = makeMember({ id: 'user-1', gameName: 'Minecraft', applicationId: 'app-1' });
+      const activity = { gameName: 'Minecraft', applicationId: 'app-1' };
 
-      await service.onUserJoined('guild-1', 'user-1', 'ch-1', member);
+      await service.onUserJoined('guild-1', 'user-1', 'ch-1', activity);
 
       expect(redisRepo.setGameSession).toHaveBeenCalledWith(
         'guild-1',
@@ -84,18 +55,10 @@ describe('VoiceGameService', () => {
       );
     });
 
-    it('입장 시 게임 중이지 않으면 Redis에 세션을 저장하지 않는다', async () => {
-      const member = makeMember({ gameName: null });
-
-      await service.onUserJoined('guild-1', 'user-1', 'ch-1', member);
-
-      expect(redisRepo.setGameSession).not.toHaveBeenCalled();
-    });
-
     it('applicationId가 null인 게임도 세션을 저장한다', async () => {
-      const member = makeMember({ gameName: 'IndieGame', applicationId: null });
+      const activity = { gameName: 'IndieGame', applicationId: null };
 
-      await service.onUserJoined('guild-1', 'user-1', 'ch-1', member);
+      await service.onUserJoined('guild-1', 'user-1', 'ch-1', activity);
 
       expect(redisRepo.setGameSession).toHaveBeenCalledWith(
         'guild-1',
@@ -109,19 +72,11 @@ describe('VoiceGameService', () => {
 
     it('오류가 발생해도 예외를 throw하지 않는다', async () => {
       redisRepo.setGameSession.mockRejectedValue(new Error('Redis 오류'));
-      const member = makeMember({ gameName: 'SomeGame' });
+      const activity = { gameName: 'SomeGame', applicationId: null };
 
       await expect(
-        service.onUserJoined('guild-1', 'user-1', 'ch-1', member),
+        service.onUserJoined('guild-1', 'user-1', 'ch-1', activity),
       ).resolves.not.toThrow();
-    });
-
-    it('presence가 null인 멤버는 세션을 생성하지 않는다', async () => {
-      const member = { id: 'user-1', presence: null } as unknown as GuildMember;
-
-      await service.onUserJoined('guild-1', 'user-1', 'ch-1', member);
-
-      expect(redisRepo.setGameSession).not.toHaveBeenCalled();
     });
   });
 
@@ -236,9 +191,13 @@ describe('VoiceGameService', () => {
   describe('reconcileForChannel', () => {
     it('케이스 1: 게임 없음 + 세션 없음 → 스킵', async () => {
       redisRepo.getGameSession.mockResolvedValue(null);
-      const member = makeMember({ gameName: null });
+      const memberActivity: MemberGameActivity = {
+        userId: 'user-1',
+        gameName: null,
+        applicationId: null,
+      };
 
-      await service.reconcileForChannel('guild-1', 'ch-1', [member]);
+      await service.reconcileForChannel('guild-1', 'ch-1', [memberActivity]);
 
       expect(redisRepo.setGameSession).not.toHaveBeenCalled();
       expect(dbRepo.saveActivity).not.toHaveBeenCalled();
@@ -246,9 +205,13 @@ describe('VoiceGameService', () => {
 
     it('케이스 2: 게임 있음 + 세션 없음 → 새 세션 시작', async () => {
       redisRepo.getGameSession.mockResolvedValue(null);
-      const member = makeMember({ id: 'user-1', gameName: 'Valorant', applicationId: 'app-v' });
+      const memberActivity: MemberGameActivity = {
+        userId: 'user-1',
+        gameName: 'Valorant',
+        applicationId: 'app-v',
+      };
 
-      await service.reconcileForChannel('guild-1', 'ch-1', [member]);
+      await service.reconcileForChannel('guild-1', 'ch-1', [memberActivity]);
 
       expect(redisRepo.setGameSession).toHaveBeenCalledWith(
         'guild-1',
@@ -264,9 +227,13 @@ describe('VoiceGameService', () => {
     it('케이스 3: 게임 없음 + 세션 있음 → 세션 종료 (endSession 호출)', async () => {
       const session = makeSession({ startedAt: Date.now() - 10 * 60 * 1000 });
       redisRepo.getGameSession.mockResolvedValue(session);
-      const member = makeMember({ gameName: null });
+      const memberActivity: MemberGameActivity = {
+        userId: 'user-1',
+        gameName: null,
+        applicationId: null,
+      };
 
-      await service.reconcileForChannel('guild-1', 'ch-1', [member]);
+      await service.reconcileForChannel('guild-1', 'ch-1', [memberActivity]);
 
       expect(dbRepo.saveActivity).toHaveBeenCalled();
       expect(redisRepo.deleteGameSession).toHaveBeenCalled();
@@ -275,9 +242,13 @@ describe('VoiceGameService', () => {
     it('케이스 4-같은게임: 게임 있음 + 세션 있음 + 같은 게임 → 스킵', async () => {
       const session = makeSession({ gameName: 'PUBG', applicationId: 'app-pubg' });
       redisRepo.getGameSession.mockResolvedValue(session);
-      const member = makeMember({ gameName: 'PUBG', applicationId: 'app-pubg' });
+      const memberActivity: MemberGameActivity = {
+        userId: 'user-1',
+        gameName: 'PUBG',
+        applicationId: 'app-pubg',
+      };
 
-      await service.reconcileForChannel('guild-1', 'ch-1', [member]);
+      await service.reconcileForChannel('guild-1', 'ch-1', [memberActivity]);
 
       expect(redisRepo.setGameSession).not.toHaveBeenCalled();
       expect(dbRepo.saveActivity).not.toHaveBeenCalled();
@@ -290,9 +261,13 @@ describe('VoiceGameService', () => {
         startedAt: Date.now() - 10 * 60 * 1000,
       });
       redisRepo.getGameSession.mockResolvedValue(oldSession);
-      const member = makeMember({ id: 'user-1', gameName: 'Overwatch', applicationId: 'app-ow' });
+      const memberActivity: MemberGameActivity = {
+        userId: 'user-1',
+        gameName: 'Overwatch',
+        applicationId: 'app-ow',
+      };
 
-      await service.reconcileForChannel('guild-1', 'ch-1', [member]);
+      await service.reconcileForChannel('guild-1', 'ch-1', [memberActivity]);
 
       // 이전 세션 종료 확인
       expect(dbRepo.saveActivity).toHaveBeenCalledWith(
@@ -308,10 +283,12 @@ describe('VoiceGameService', () => {
 
     it('여러 멤버에 대해 각각 독립적으로 처리한다', async () => {
       redisRepo.getGameSession.mockResolvedValue(null);
-      const member1 = makeMember({ id: 'user-1', gameName: 'Game1' });
-      const member2 = makeMember({ id: 'user-2', gameName: 'Game2' });
+      const activities: MemberGameActivity[] = [
+        { userId: 'user-1', gameName: 'Game1', applicationId: null },
+        { userId: 'user-2', gameName: 'Game2', applicationId: null },
+      ];
 
-      await service.reconcileForChannel('guild-1', 'ch-1', [member1, member2]);
+      await service.reconcileForChannel('guild-1', 'ch-1', activities);
 
       expect(redisRepo.setGameSession).toHaveBeenCalledTimes(2);
     });
@@ -321,11 +298,13 @@ describe('VoiceGameService', () => {
         .mockRejectedValueOnce(new Error('Redis 오류'))
         .mockResolvedValueOnce(null);
 
-      const member1 = makeMember({ id: 'user-1', gameName: 'Game1' });
-      const member2 = makeMember({ id: 'user-2', gameName: 'Game2' });
+      const activities: MemberGameActivity[] = [
+        { userId: 'user-1', gameName: 'Game1', applicationId: null },
+        { userId: 'user-2', gameName: 'Game2', applicationId: null },
+      ];
 
       await expect(
-        service.reconcileForChannel('guild-1', 'ch-1', [member1, member2]),
+        service.reconcileForChannel('guild-1', 'ch-1', activities),
       ).resolves.not.toThrow();
 
       // 두 번째 멤버는 정상 처리됨
@@ -342,9 +321,13 @@ describe('VoiceGameService', () => {
       const session = makeSession({ gameName: 'Game A', applicationId: 'app-1' });
       redisRepo.getGameSession.mockResolvedValue(session);
       // 게임명은 다르지만 applicationId가 같음
-      const member = makeMember({ gameName: 'Game A (Renamed)', applicationId: 'app-1' });
+      const memberActivity: MemberGameActivity = {
+        userId: 'user-1',
+        gameName: 'Game A (Renamed)',
+        applicationId: 'app-1',
+      };
 
-      await service.reconcileForChannel('guild-1', 'ch-1', [member]);
+      await service.reconcileForChannel('guild-1', 'ch-1', [memberActivity]);
 
       // 같은 게임으로 판정 → 세션 저장 없음
       expect(redisRepo.setGameSession).not.toHaveBeenCalled();
@@ -353,9 +336,13 @@ describe('VoiceGameService', () => {
     it('applicationId가 둘 다 있지만 다르면 다른 게임으로 판정한다', async () => {
       const session = makeSession({ gameName: 'Game A', applicationId: 'app-1' });
       redisRepo.getGameSession.mockResolvedValue(session);
-      const member = makeMember({ id: 'user-1', gameName: 'Game B', applicationId: 'app-2' });
+      const memberActivity: MemberGameActivity = {
+        userId: 'user-1',
+        gameName: 'Game B',
+        applicationId: 'app-2',
+      };
 
-      await service.reconcileForChannel('guild-1', 'ch-1', [member]);
+      await service.reconcileForChannel('guild-1', 'ch-1', [memberActivity]);
 
       // 다른 게임으로 판정 → 세션 전환
       expect(redisRepo.setGameSession).toHaveBeenCalledWith(
@@ -369,9 +356,13 @@ describe('VoiceGameService', () => {
       const session = makeSession({ gameName: 'IndiGame', applicationId: 'app-1' });
       redisRepo.getGameSession.mockResolvedValue(session);
       // 현재 활동에는 applicationId가 null
-      const member = makeMember({ gameName: 'IndiGame', applicationId: null });
+      const memberActivity: MemberGameActivity = {
+        userId: 'user-1',
+        gameName: 'IndiGame',
+        applicationId: null,
+      };
 
-      await service.reconcileForChannel('guild-1', 'ch-1', [member]);
+      await service.reconcileForChannel('guild-1', 'ch-1', [memberActivity]);
 
       // gameName이 같으므로 같은 게임 → 세션 저장 없음
       expect(redisRepo.setGameSession).not.toHaveBeenCalled();
@@ -380,9 +371,13 @@ describe('VoiceGameService', () => {
     it('세션 applicationId가 null이면 gameName으로 비교한다 (다른 게임)', async () => {
       const session = makeSession({ gameName: 'Game X', applicationId: null });
       redisRepo.getGameSession.mockResolvedValue(session);
-      const member = makeMember({ id: 'user-1', gameName: 'Game Y', applicationId: null });
+      const memberActivity: MemberGameActivity = {
+        userId: 'user-1',
+        gameName: 'Game Y',
+        applicationId: null,
+      };
 
-      await service.reconcileForChannel('guild-1', 'ch-1', [member]);
+      await service.reconcileForChannel('guild-1', 'ch-1', [memberActivity]);
 
       // gameName이 다르므로 다른 게임 → 세션 전환
       expect(redisRepo.setGameSession).toHaveBeenCalledWith(
@@ -428,49 +423,6 @@ describe('VoiceGameService', () => {
       redisRepo.scanAllSessionKeys.mockRejectedValue(new Error('Redis 오류'));
 
       await expect(service.endAllSessions()).resolves.not.toThrow();
-    });
-  });
-
-  describe('extractPlayingActivity (간접 테스트)', () => {
-    it('presence가 undefined인 멤버는 게임 없음으로 처리한다', async () => {
-      redisRepo.getGameSession.mockResolvedValue(null);
-      const member = { id: 'user-1', presence: undefined } as unknown as GuildMember;
-
-      await service.onUserJoined('guild-1', 'user-1', 'ch-1', member);
-
-      expect(redisRepo.setGameSession).not.toHaveBeenCalled();
-    });
-
-    it('activities가 빈 배열이면 게임 없음으로 처리한다', async () => {
-      redisRepo.getGameSession.mockResolvedValue(null);
-      const member = {
-        id: 'user-1',
-        presence: { activities: [] },
-      } as unknown as GuildMember;
-
-      await service.onUserJoined('guild-1', 'user-1', 'ch-1', member);
-
-      expect(redisRepo.setGameSession).not.toHaveBeenCalled();
-    });
-
-    it('ActivityType.Playing이 아닌 활동은 게임으로 감지하지 않는다', async () => {
-      redisRepo.getGameSession.mockResolvedValue(null);
-      const member = {
-        id: 'user-1',
-        presence: {
-          activities: [
-            {
-              type: ActivityType.Streaming, // Playing이 아님
-              name: 'YouTube',
-              applicationId: null,
-            },
-          ],
-        },
-      } as unknown as GuildMember;
-
-      await service.onUserJoined('guild-1', 'user-1', 'ch-1', member);
-
-      expect(redisRepo.setGameSession).not.toHaveBeenCalled();
     });
   });
 });

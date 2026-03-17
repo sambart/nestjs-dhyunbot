@@ -67,8 +67,11 @@
       "eslint --fix --config apps/web/eslint.config.mjs",
       "prettier --write"
     ],
-    "libs/*/src/**/*.ts": [
+    "libs/shared/src/**/*.ts": [
       "eslint --fix --config libs/shared/eslint.config.mjs",
+      "prettier --write"
+    ],
+    "libs/bot-api-client/src/**/*.ts": [
       "prettier --write"
     ]
   }

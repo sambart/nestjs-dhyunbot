@@ -2,6 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Logger, Post, UseGuards } from 
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { VoiceExcludedChannelService } from '../../channel/voice/application/voice-excluded-channel.service';
+import { VoiceGameService } from '../../channel/voice/application/voice-game.service';
 import {
   CO_PRESENCE_TICK,
   CoPresenceTickEvent,
@@ -23,6 +24,7 @@ export class BotCoPresenceController {
     private readonly coPresenceService: CoPresenceService,
     private readonly excludedChannelService: VoiceExcludedChannelService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly voiceGameService: VoiceGameService,
   ) {}
 
   @Post('snapshots')
@@ -45,6 +47,17 @@ export class BotCoPresenceController {
 
     // 처리된 길드 ID 수집 (스냅샷 유무 무관, 모든 길드 대상)
     const processedGuildIds = [...new Set(body.snapshots.map((s) => s.guildId))];
+
+    // Phase 2: 게임 세션 갱신 (제외 채널 필터링 후)
+    for (const snapshot of filtered) {
+      if (snapshot.memberActivities && snapshot.memberActivities.length > 0) {
+        await this.voiceGameService.reconcileForChannel(
+          snapshot.guildId,
+          snapshot.channelId,
+          snapshot.memberActivities,
+        );
+      }
+    }
 
     // 기존 CoPresenceService로 세션 조정
     await this.coPresenceService.reconcile(filtered, processedGuildIds);

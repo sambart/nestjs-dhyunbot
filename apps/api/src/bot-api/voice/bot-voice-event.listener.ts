@@ -4,6 +4,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { AutoChannelService } from '../../channel/auto/application/auto-channel.service';
 import { VoiceChannelService } from '../../channel/voice/application/voice-channel.service';
 import { VoiceExcludedChannelService } from '../../channel/voice/application/voice-excluded-channel.service';
+import { VoiceGameService } from '../../channel/voice/application/voice-game.service';
 import { VoiceSessionService } from '../../channel/voice/application/voice-session.service';
 import { VoiceStateDto } from '../../channel/voice/infrastructure/voice-state.dto';
 import { getErrorStack } from '../../common/util/error.util';
@@ -23,6 +24,7 @@ export class BotVoiceEventListener {
     private readonly excludedChannelService: VoiceExcludedChannelService,
     private readonly statusPrefixResetService: StatusPrefixResetService,
     private readonly autoChannelService: AutoChannelService,
+    private readonly voiceGameService: VoiceGameService,
   ) {}
 
   @OnEvent('bot-api.voice.state-update')
@@ -40,6 +42,15 @@ export class BotVoiceEventListener {
           break;
         case 'mic_toggle':
           await this.handleMicToggle(dto);
+          break;
+        case 'streaming_toggle':
+          await this.handleStreamingToggle(dto);
+          break;
+        case 'video_toggle':
+          await this.handleVideoToggle(dto);
+          break;
+        case 'deaf_toggle':
+          await this.handleDeafToggle(dto);
           break;
       }
     } catch (err) {
@@ -63,6 +74,16 @@ export class BotVoiceEventListener {
     const state = this.buildStateDto(dto, false);
     await this.voiceChannelService.onUserJoined(state);
 
+    // Phase 2: 게임 세션 시작 (fire-and-forget)
+    if (dto.gameName) {
+      this.voiceGameService
+        .onUserJoined(dto.guildId, dto.userId, dto.channelId!, {
+          gameName: dto.gameName,
+          applicationId: dto.gameApplicationId ?? null,
+        })
+        .catch((err) => this.logger.error('[VOICE GAME] onUserJoined failed', getErrorStack(err)));
+    }
+
     // alone 상태 갱신
     this.emitAloneChanged(dto.guildId, dto.channelMemberIds);
   }
@@ -79,6 +100,11 @@ export class BotVoiceEventListener {
 
     const state = this.buildStateDto(dto, true);
     await this.voiceChannelService.onUserLeave(state);
+
+    // Phase 2: 게임 세션 종료 (fire-and-forget)
+    this.voiceGameService
+      .onUserLeft(dto.guildId, dto.userId)
+      .catch((err) => this.logger.error('[VOICE GAME] onUserLeft failed', getErrorStack(err)));
 
     // Status Prefix 닉네임 자동 복원 (fire-and-forget)
     this.statusPrefixResetService
@@ -164,6 +190,48 @@ export class BotVoiceEventListener {
     await this.voiceChannelService.onUserMicToggle(state);
   }
 
+  private async handleStreamingToggle(dto: VoiceStateUpdateEventDto): Promise<void> {
+    if (!dto.channelId) return;
+
+    const isExcluded = await this.excludedChannelService.isExcludedChannel(
+      dto.guildId,
+      dto.channelId,
+      dto.parentCategoryId,
+    );
+    if (isExcluded) return;
+
+    const state = this.buildStateDto(dto, false);
+    await this.voiceChannelService.onUserStreamingToggle(state);
+  }
+
+  private async handleVideoToggle(dto: VoiceStateUpdateEventDto): Promise<void> {
+    if (!dto.channelId) return;
+
+    const isExcluded = await this.excludedChannelService.isExcludedChannel(
+      dto.guildId,
+      dto.channelId,
+      dto.parentCategoryId,
+    );
+    if (isExcluded) return;
+
+    const state = this.buildStateDto(dto, false);
+    await this.voiceChannelService.onUserVideoToggle(state);
+  }
+
+  private async handleDeafToggle(dto: VoiceStateUpdateEventDto): Promise<void> {
+    if (!dto.channelId) return;
+
+    const isExcluded = await this.excludedChannelService.isExcludedChannel(
+      dto.guildId,
+      dto.channelId,
+      dto.parentCategoryId,
+    );
+    if (isExcluded) return;
+
+    const state = this.buildStateDto(dto, false);
+    await this.voiceChannelService.onUserDeafToggle(state);
+  }
+
   /** 채널 멤버 2명 이하일 때 alone 상태 갱신 */
   private emitAloneChanged(guildId: string, memberIds: string[]): void {
     if (memberIds.length > 2) return;
@@ -190,6 +258,9 @@ export class BotVoiceEventListener {
       (useOld ? dto.oldChannelMemberCount : dto.channelMemberCount) === 1,
       useOld ? dto.oldChannelMemberCount : dto.channelMemberCount,
       dto.avatarUrl,
+      dto.streaming ?? false,
+      dto.selfVideo ?? false,
+      dto.selfDeaf ?? false,
     );
   }
 }
@@ -200,7 +271,14 @@ interface VoiceStateUpdateEventDto {
   userId: string;
   channelId: string | null;
   oldChannelId: string | null;
-  eventType: 'join' | 'leave' | 'move' | 'mic_toggle';
+  eventType:
+    | 'join'
+    | 'leave'
+    | 'move'
+    | 'mic_toggle'
+    | 'streaming_toggle'
+    | 'video_toggle'
+    | 'deaf_toggle';
   userName: string;
   channelName: string | null;
   oldChannelName: string | null;
@@ -214,4 +292,13 @@ interface VoiceStateUpdateEventDto {
   oldChannelMemberCount: number;
   channelMemberIds: string[];
   oldChannelMemberIds: string[];
+
+  // Phase 1
+  streaming?: boolean;
+  selfVideo?: boolean;
+  selfDeaf?: boolean;
+
+  // Phase 2
+  gameName?: string | null;
+  gameApplicationId?: string | null;
 }

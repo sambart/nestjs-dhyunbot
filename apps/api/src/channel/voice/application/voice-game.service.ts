@@ -1,11 +1,17 @@
 import { getKSTDateString } from '@dhyunbot/shared';
 import { Injectable, Logger } from '@nestjs/common';
-import { ActivityType, type GuildMember } from 'discord.js';
 
 import { getErrorStack } from '../../../common/util/error.util';
 import { VoiceGameDbRepository } from '../infrastructure/voice-game-db.repository';
 import { VoiceGameRedisRepository } from '../infrastructure/voice-game-redis.repository';
 import { type VoiceGameSession } from '../infrastructure/voice-game-session';
+
+/** Bot에서 직렬화하여 전달하는 멤버별 게임 활동 DTO */
+export interface MemberGameActivity {
+  userId: string;
+  gameName: string | null;
+  applicationId: string | null;
+}
 
 @Injectable()
 export class VoiceGameService {
@@ -18,18 +24,15 @@ export class VoiceGameService {
 
   /**
    * 음성 입장 시 게임 세션 시작 (F-VOICE-028).
-   * 입장 시점에 이미 게임 중이면 즉시 Redis에 세션 저장.
+   * Bot에서 추출한 게임 활동 정보를 받아 Redis에 세션 저장.
    */
   async onUserJoined(
     guildId: string,
     userId: string,
     channelId: string,
-    member: GuildMember,
+    activity: { gameName: string; applicationId: string | null },
   ): Promise<void> {
     try {
-      const activity = this.extractPlayingActivity(member);
-      if (!activity) return;
-
       const session: VoiceGameSession = {
         gameName: activity.gameName,
         applicationId: activity.applicationId,
@@ -47,20 +50,19 @@ export class VoiceGameService {
   }
 
   /**
-   * CoPresenceScheduler 틱에서 호출. 음성 채널 멤버들의 게임 상태를 갱신한다 (F-VOICE-029).
-   * 제외 채널 필터링 이후, humanMembers.length < 2 체크 이전에 호출되어야 함.
+   * CoPresence 틱에서 호출. Bot에서 전달된 멤버별 게임 상태로 세션을 갱신한다 (F-VOICE-029).
    */
   async reconcileForChannel(
     guildId: string,
     channelId: string,
-    members: GuildMember[],
+    memberActivities: MemberGameActivity[],
   ): Promise<void> {
-    for (const member of members) {
+    for (const activity of memberActivities) {
       try {
-        await this.reconcileMember(guildId, channelId, member);
+        await this.reconcileMember(guildId, channelId, activity);
       } catch (error) {
         this.logger.error(
-          `[VOICE GAME] reconcileForChannel 오류 guild=${guildId} channel=${channelId} user=${member.id}`,
+          `[VOICE GAME] reconcileForChannel 오류 guild=${guildId} channel=${channelId} user=${activity.userId}`,
           getErrorStack(error),
         );
       }
@@ -152,71 +154,49 @@ export class VoiceGameService {
   }
 
   /**
-   * member.presence.activities에서 ActivityType.Playing 타입 활동을 추출한다.
-   */
-  private extractPlayingActivity(
-    member: GuildMember,
-  ): { gameName: string; applicationId: string | null } | null {
-    const activities = member.presence?.activities;
-    if (!activities) return null;
-
-    const playingActivity = activities.find((a) => a.type === ActivityType.Playing);
-    if (!playingActivity) return null;
-
-    return {
-      gameName: playingActivity.name,
-      applicationId: playingActivity.applicationId ?? null,
-    };
-  }
-
-  /**
    * 단일 멤버에 대해 게임 상태를 확인하고 세션을 갱신한다.
    */
   private async reconcileMember(
     guildId: string,
     channelId: string,
-    member: GuildMember,
+    memberActivity: MemberGameActivity,
   ): Promise<void> {
-    const currentActivity = this.extractPlayingActivity(member);
-    const currentSession = await this.redisRepo.getGameSession(guildId, member.id);
+    const currentActivity = memberActivity.gameName
+      ? { gameName: memberActivity.gameName, applicationId: memberActivity.applicationId }
+      : null;
+    const currentSession = await this.redisRepo.getGameSession(guildId, memberActivity.userId);
 
     const hasCurrentGame = currentActivity !== null;
     const hasActiveSession = currentSession !== null;
 
     if (!hasCurrentGame && !hasActiveSession) {
-      // 게임 없음 + 세션 없음: 스킵
       return;
     }
 
     if (hasCurrentGame && !hasActiveSession) {
-      // 게임 있음 + 세션 없음: 새 게임 시작
       const newSession: VoiceGameSession = {
         gameName: currentActivity.gameName,
         applicationId: currentActivity.applicationId,
         startedAt: Date.now(),
         channelId,
       };
-      await this.redisRepo.setGameSession(guildId, member.id, newSession);
+      await this.redisRepo.setGameSession(guildId, memberActivity.userId, newSession);
       return;
     }
 
     if (!hasCurrentGame && hasActiveSession) {
-      // 게임 없음 + 세션 있음: 게임 종료
-      await this.endSession(guildId, member.id, currentSession);
+      await this.endSession(guildId, memberActivity.userId, currentSession);
       return;
     }
 
-    // 게임 있음 + 세션 있음: 같은 게임인지 다른 게임인지 판정
     if (hasCurrentGame && hasActiveSession) {
       const isSameGame = this.isSameGame(currentActivity, currentSession);
 
       if (isSameGame) {
-        // 같은 게임 계속: 스킵
         return;
       }
 
-      // 다른 게임으로 전환: 이전 세션 종료 후 새 세션 시작
-      await this.endSession(guildId, member.id, currentSession);
+      await this.endSession(guildId, memberActivity.userId, currentSession);
 
       const newSession: VoiceGameSession = {
         gameName: currentActivity.gameName,
@@ -224,7 +204,7 @@ export class VoiceGameService {
         startedAt: Date.now(),
         channelId,
       };
-      await this.redisRepo.setGameSession(guildId, member.id, newSession);
+      await this.redisRepo.setGameSession(guildId, memberActivity.userId, newSession);
     }
   }
 
