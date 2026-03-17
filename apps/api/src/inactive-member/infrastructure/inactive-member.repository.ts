@@ -84,11 +84,34 @@ export class InactiveMemberRepository {
   async batchUpsertRecords(records: UpsertRecordData[]): Promise<void> {
     if (records.length === 0) return;
 
-    for (const record of records) {
+    const COLS = 7;
+    const CHUNK_SIZE = Math.floor(65535 / COLS);
+
+    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
+      const chunk = records.slice(i, i + CHUNK_SIZE);
+      const params: (string | number | null | Date)[] = [];
+      const valueClauses: string[] = [];
+
+      for (let j = 0; j < chunk.length; j++) {
+        const o = j * COLS;
+        valueClauses.push(
+          `($${o + 1},$${o + 2},$${o + 3},$${o + 4}::int,$${o + 5}::int,$${o + 6},$${o + 7}::timestamp,NOW(),NOW())`,
+        );
+        params.push(
+          chunk[j].guildId,
+          chunk[j].userId,
+          chunk[j].grade,
+          chunk[j].totalMinutes,
+          chunk[j].prevTotalMinutes,
+          chunk[j].lastVoiceDate,
+          chunk[j].classifiedAt,
+        );
+      }
+
       await this.recordRepo.query(
         `INSERT INTO inactive_member_record
-          ("guildId","userId","grade","totalMinutes","prevTotalMinutes","lastVoiceDate","gradeChangedAt","classifiedAt","createdAt","updatedAt")
-        VALUES ($1,$2,$3,$4,$5,$6,NOW(),$7,NOW(),NOW())
+          ("guildId","userId","grade","totalMinutes","prevTotalMinutes","lastVoiceDate","classifiedAt","createdAt","updatedAt")
+        VALUES ${valueClauses.join(', ')}
         ON CONFLICT ("guildId","userId")
         DO UPDATE SET
           "grade" = EXCLUDED."grade",
@@ -102,15 +125,7 @@ export class InactiveMemberRepository {
           END,
           "classifiedAt" = EXCLUDED."classifiedAt",
           "updatedAt" = NOW()`,
-        [
-          record.guildId,
-          record.userId,
-          record.grade,
-          record.totalMinutes,
-          record.prevTotalMinutes,
-          record.lastVoiceDate,
-          record.classifiedAt,
-        ],
+        params,
       );
     }
   }

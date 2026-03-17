@@ -16,6 +16,8 @@ export interface ActionResult {
   logId: number;
 }
 
+const CONCURRENCY = 5;
+
 @Injectable()
 export class InactiveMemberActionService {
   private readonly logger = new Logger(InactiveMemberActionService.name);
@@ -130,14 +132,22 @@ export class InactiveMemberActionService {
     let successCount = 0;
     let failCount = 0;
 
-    for (const userId of targetUserIds) {
-      const success = await this.discordAdapter.kickMember(
-        guildId,
-        userId,
-        '비활동 회원 관리 -- 강제퇴장',
+    for (let i = 0; i < targetUserIds.length; i += CONCURRENCY) {
+      const batch = targetUserIds.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(async (userId) => {
+          const isSuccess = await this.discordAdapter.kickMember(
+            guildId,
+            userId,
+            '비활동 회원 관리 — 강제퇴장',
+          );
+          if (!isSuccess) throw new Error('kick failed');
+        }),
       );
-      if (success) successCount++;
-      else failCount++;
+      for (const r of results) {
+        if (r.status === 'fulfilled') successCount++;
+        else failCount++;
+      }
     }
 
     return { successCount, failCount };
@@ -152,17 +162,23 @@ export class InactiveMemberActionService {
     let successCount = 0;
     let failCount = 0;
 
-    for (const userId of targetUserIds) {
-      const displayName = await this.discordAdapter.fetchMemberDisplayName(guildId, userId);
-      if (!displayName) {
-        failCount++;
-        continue;
-      }
+    // displayName 일괄 조회
+    const displayNames = await this.discordAdapter.fetchMemberDisplayNames(guildId, targetUserIds);
 
-      const embed = this.buildDmEmbed(config, displayName, guildName);
-      const success = await this.discordAdapter.sendDm(guildId, userId, embed);
-      if (success) successCount++;
-      else failCount++;
+    for (let i = 0; i < targetUserIds.length; i += CONCURRENCY) {
+      const batch = targetUserIds.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(async (userId) => {
+          const displayName = displayNames[userId] ?? userId;
+          const embed = this.buildDmEmbed(config, displayName, guildName);
+          const isSuccess = await this.discordAdapter.sendDm(guildId, userId, embed);
+          if (!isSuccess) throw new Error('dm failed');
+        }),
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled') successCount++;
+        else failCount++;
+      }
     }
 
     return { successCount, failCount };
@@ -177,10 +193,18 @@ export class InactiveMemberActionService {
     let successCount = 0;
     let failCount = 0;
 
-    for (const userId of targetUserIds) {
-      const success = await this.discordAdapter.modifyRole(guildId, userId, roleId, action);
-      if (success) successCount++;
-      else failCount++;
+    for (let i = 0; i < targetUserIds.length; i += CONCURRENCY) {
+      const batch = targetUserIds.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(async (userId) => {
+          const isSuccess = await this.discordAdapter.modifyRole(guildId, userId, roleId, action);
+          if (!isSuccess) throw new Error('role action failed');
+        }),
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled') successCount++;
+        else failCount++;
+      }
     }
 
     return { successCount, failCount };
