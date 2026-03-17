@@ -11,7 +11,6 @@ import { StatusPrefixConfigOrm } from './infrastructure/status-prefix-config.orm
 import { StatusPrefixConfigRepository } from './infrastructure/status-prefix-config.repository';
 import { StatusPrefixDiscordAdapter } from './infrastructure/status-prefix-discord.adapter';
 import { StatusPrefixRedisRepository } from './infrastructure/status-prefix-redis.repository';
-import { StatusPrefixInteractionHandler } from './interaction/status-prefix-interaction.handler';
 import { StatusPrefixController } from './presentation/status-prefix.controller';
 
 @Module({
@@ -28,7 +27,6 @@ import { StatusPrefixController } from './presentation/status-prefix.controller'
     StatusPrefixConfigService,
     StatusPrefixApplyService,
     StatusPrefixResetService,
-    StatusPrefixInteractionHandler,
   ],
   exports: [
     StatusPrefixConfigService,
