@@ -83,6 +83,34 @@ export class StatusPrefixResetService {
   }
 
   /**
+   * Bot에서 호출하는 닉네임 복원 (ButtonInteraction 불필요).
+   * 닉네임 변경은 Bot에서 수행하므로 원래 닉네임만 반환한다.
+   */
+  async resetFromBot(guildId: string, memberId: string): Promise<StatusPrefixResetResult> {
+    const originalNickname = await this.redis.getOriginalNickname(guildId, memberId);
+    if (!originalNickname) {
+      return { success: false, message: '변경된 닉네임이 없습니다.' };
+    }
+
+    const config = await this.configService.getConfig(guildId);
+    const cleanNickname = config
+      ? this.configService.stripPrefixFromNickname(originalNickname, config)
+      : originalNickname;
+
+    await this.redis.deleteOriginalNickname(guildId, memberId);
+
+    this.logger.log(
+      `[STATUS_PREFIX] ResetFromBot: guild=${guildId} member=${memberId} restored="${cleanNickname}"`,
+    );
+
+    return {
+      success: true,
+      originalNickname: cleanNickname,
+      message: '닉네임이 원래대로 복원되었습니다.',
+    };
+  }
+
+  /**
    * F-STATUS-PREFIX-005: 음성 채널 퇴장 시 닉네임 자동 복원.
    * VoiceLeaveHandler에서 fire-and-forget으로 호출된다.
    * 오류 시 로그 기록 후 조용히 실패한다.
@@ -150,4 +178,10 @@ export class StatusPrefixResetService {
       `[STATUS_PREFIX] restoreOnLeave: guild=${guildId} member=${memberId} restored="${cleanNickname}"`,
     );
   }
+}
+
+export interface StatusPrefixResetResult {
+  success: boolean;
+  originalNickname?: string;
+  message: string;
 }

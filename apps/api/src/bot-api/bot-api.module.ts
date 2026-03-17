@@ -7,6 +7,7 @@ import { StatusPrefixModule } from '../status-prefix/status-prefix.module';
 import { StickyMessageModule } from '../sticky-message/sticky-message.module';
 import { BotApiAuthGuard } from './bot-api-auth.guard';
 import { BotNewbieController } from './newbie/bot-newbie.controller';
+import { BotStatusPrefixController } from './status-prefix/bot-status-prefix.controller';
 import { BotStickyMessageController } from './sticky-message/bot-sticky-message.controller';
 import { BotVoiceController } from './voice/bot-voice.controller';
 import { BotVoiceEventListener } from './voice/bot-voice-event.listener';
@@ -23,7 +24,7 @@ import { BotVoiceEventListener } from './voice/bot-voice-event.listener';
     NewbieModule,
     StickyMessageModule,
   ],
-  controllers: [BotVoiceController, BotNewbieController, BotStickyMessageController],
+  controllers: [BotVoiceController, BotNewbieController, BotStatusPrefixController, BotStickyMessageController],
   providers: [BotApiAuthGuard, BotVoiceEventListener],
   exports: [BotApiAuthGuard],
 })

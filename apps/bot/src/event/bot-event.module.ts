@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { BotChannelStateHandler } from './channel/bot-channel-state.handler';
 import { BotNewbieInteractionHandler } from './newbie/bot-newbie-interaction.handler';
 import { BotNewbieMemberAddHandler } from './newbie/bot-newbie-member-add.handler';
+import { BotStatusPrefixInteractionHandler } from './status-prefix/bot-status-prefix-interaction.handler';
 import { BotStickyMessageHandler } from './sticky-message/bot-sticky-message.handler';
 import { BotVoiceStateDispatcher } from './voice/bot-voice-state.dispatcher';
 
@@ -17,6 +18,7 @@ import { BotVoiceStateDispatcher } from './voice/bot-voice-state.dispatcher';
     BotVoiceStateDispatcher,
     BotNewbieMemberAddHandler,
     BotNewbieInteractionHandler,
+    BotStatusPrefixInteractionHandler,
     BotStickyMessageHandler,
     BotChannelStateHandler,
   ],

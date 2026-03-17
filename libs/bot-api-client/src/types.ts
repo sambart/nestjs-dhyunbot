@@ -83,6 +83,53 @@ export interface KickMemberDto {
   reason?: string;
 }
 
+// ── Status Prefix ──
+
+export interface StatusPrefixApplyDto {
+  guildId: string;
+  memberId: string;
+  buttonId: number;
+  currentDisplayName: string;
+}
+
+export interface StatusPrefixResetDto {
+  guildId: string;
+  memberId: string;
+}
+
+export interface StatusPrefixApplyResult {
+  success: boolean;
+  newNickname?: string;
+  message: string;
+}
+
+export interface StatusPrefixResetResult {
+  success: boolean;
+  originalNickname?: string;
+  message: string;
+}
+
+// ── Auto Channel ──
+
+export interface AutoChannelButtonClickDto {
+  guildId: string;
+  userId: string;
+  buttonId: number;
+}
+
+export interface AutoChannelSubOptionDto {
+  guildId: string;
+  userId: string;
+  subOptionId: number;
+}
+
+export interface AutoChannelButtonResult {
+  action: 'created' | 'waiting' | 'error' | 'show_sub_options';
+  channelId?: string;
+  channelName?: string;
+  message: string;
+}
+
 // ── Sticky Message ──
 
 export interface MessageCreatedDto {

@@ -3,6 +3,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 
 import type {
+  AutoChannelButtonClickDto,
+  AutoChannelButtonResult,
+  AutoChannelSubOptionDto,
   BotApiResponse,
   KickMemberDto,
   MemberDisplayNameResponse,
@@ -12,6 +15,10 @@ import type {
   NewbieConfigDto,
   RoleAssignedDto,
   RoleModifyDto,
+  StatusPrefixApplyDto,
+  StatusPrefixApplyResult,
+  StatusPrefixResetDto,
+  StatusPrefixResetResult,
   VoiceStateUpdateDto,
 } from './types';
 
@@ -62,6 +69,26 @@ export class BotApiClientService {
 
   async notifyRoleAssigned(dto: RoleAssignedDto): Promise<void> {
     await this.post('/bot-api/newbie/role-assigned', dto);
+  }
+
+  // ── Status Prefix ──
+
+  async applyStatusPrefix(dto: StatusPrefixApplyDto): Promise<StatusPrefixApplyResult> {
+    return this.post('/bot-api/status-prefix/apply', dto);
+  }
+
+  async resetStatusPrefix(dto: StatusPrefixResetDto): Promise<StatusPrefixResetResult> {
+    return this.post('/bot-api/status-prefix/reset', dto);
+  }
+
+  // ── Auto Channel ──
+
+  async autoChannelButtonClick(dto: AutoChannelButtonClickDto): Promise<AutoChannelButtonResult> {
+    return this.post('/bot-api/auto-channel/button-click', dto);
+  }
+
+  async autoChannelSubOption(dto: AutoChannelSubOptionDto): Promise<AutoChannelButtonResult> {
+    return this.post('/bot-api/auto-channel/sub-option', dto);
   }
 
   // ── Sticky Message ──
