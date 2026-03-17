@@ -20,6 +20,25 @@ services:
       - redis
     restart: unless-stopped
 
+  bot:
+    container_name: nest-bot
+    image: nest-dhyunbot-bot
+    build:
+      context: .
+      dockerfile: apps/bot/Dockerfile
+    env_file:
+      - .env
+    environment:
+      - API_BASE_URL=http://api:3000
+    volumes:
+      - .:/workspace
+      - root_node_modules:/workspace/node_modules
+      - shared_node_modules:/workspace/libs/shared/node_modules
+    working_dir: /workspace/apps/bot
+    depends_on:
+      - api
+    restart: unless-stopped
+
   web:
     container_name: next-web
     image: nest-dhyunbot-web
