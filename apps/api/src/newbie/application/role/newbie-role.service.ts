@@ -1,7 +1,6 @@
 import { getKSTDateString } from '@dhyunbot/shared';
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Client, GuildMember } from 'discord.js';
+import { GuildMember } from 'discord.js';
 
 import { NewbieConfigOrmEntity as NewbieConfig } from '../../infrastructure/newbie-config.orm-entity';
 import { NewbiePeriodRepository } from '../../infrastructure/newbie-period.repository';
@@ -12,15 +11,14 @@ export class NewbieRoleService {
   private readonly logger = new Logger(NewbieRoleService.name);
 
   constructor(
-    @InjectDiscordClient() private readonly client: Client,
     private readonly periodRepository: NewbiePeriodRepository,
     private readonly redisRepository: NewbieRedisRepository,
   ) {}
 
   /**
-   * guildMemberAdd 이벤트 수신 시 NewbieGateway에서 호출된다.
-   * config는 Gateway에서 이미 조회하여 전달한다.
-   * roleEnabled 조건은 Gateway에서 사전 확인됨.
+   * guildMemberAdd 이벤트 수신 시 NewbieMemberAddHandler에서 호출된다.
+   * config는 Handler에서 이미 조회하여 전달한다.
+   * roleEnabled 조건은 Handler에서 사전 확인됨.
    */
   async assignRole(member: GuildMember, config: NewbieConfig): Promise<void> {
     if (!config.newbieRoleId) {
@@ -32,7 +30,7 @@ export class NewbieRoleService {
     const memberId = member.id;
     const roleId = config.newbieRoleId;
 
-    // 1. Discord API — 역할 부여
+    // 1. Discord API — 역할 부여 (GuildMember 객체를 통해 직접 호출)
     await member.roles.add(roleId);
     this.logger.log(`[NEWBIE ROLE] Assigned role ${roleId} to ${memberId} in guild ${guildId}`);
 
@@ -43,8 +41,6 @@ export class NewbieRoleService {
     await this.periodRepository.create(guildId, memberId, startDate, expiresDate);
 
     // 3. Redis 신입기간 활성 멤버 Set 갱신 (SADD)
-    //    캐시가 없는 경우 SADD는 새 Set을 만들지 않는다.
-    //    캐시가 있는 경우에만 memberId를 추가해 정합성을 유지한다.
     await this.redisRepository.addPeriodActiveMember(guildId, memberId);
 
     this.logger.log(

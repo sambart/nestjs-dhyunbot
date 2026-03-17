@@ -1,10 +1,9 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { Client } from 'discord.js';
 
 import { getErrorStack } from '../../common/util/error.util';
 import { InactiveMemberGrade } from '../domain/inactive-member.types';
+import { InactiveMemberDiscordAdapter } from '../infrastructure/inactive-member-discord.adapter';
 import { InactiveMemberService } from './inactive-member.service';
 import { InactiveMemberActionService } from './inactive-member-action.service';
 
@@ -15,7 +14,7 @@ export class InactiveMemberScheduler {
   constructor(
     private readonly inactiveMemberService: InactiveMemberService,
     private readonly actionService: InactiveMemberActionService,
-    @InjectDiscordClient() private readonly discord: Client,
+    private readonly discordAdapter: InactiveMemberDiscordAdapter,
   ) {}
 
   @Cron('0 0 * * *', {
@@ -32,7 +31,7 @@ export class InactiveMemberScheduler {
   }
 
   private async processAllGuilds(): Promise<void> {
-    const guildIds = this.discord.guilds.cache.map((g) => g.id);
+    const guildIds = this.discordAdapter.getCachedGuildIds();
 
     for (const guildId of guildIds) {
       try {

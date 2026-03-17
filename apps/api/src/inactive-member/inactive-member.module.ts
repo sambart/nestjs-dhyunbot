@@ -11,6 +11,7 @@ import { InactiveMemberActionService } from './application/inactive-member-actio
 import { InactiveMemberRepository } from './infrastructure/inactive-member.repository';
 import { InactiveMemberActionLogOrm } from './infrastructure/inactive-member-action-log.orm-entity';
 import { InactiveMemberConfigOrm } from './infrastructure/inactive-member-config.orm-entity';
+import { InactiveMemberDiscordAdapter } from './infrastructure/inactive-member-discord.adapter';
 import { InactiveMemberQueryRepository } from './infrastructure/inactive-member-query.repository';
 import { InactiveMemberRecordOrm } from './infrastructure/inactive-member-record.orm-entity';
 import { InactiveMemberController } from './presentation/inactive-member.controller';
@@ -29,6 +30,7 @@ import { InactiveMemberController } from './presentation/inactive-member.control
   ],
   controllers: [InactiveMemberController],
   providers: [
+    InactiveMemberDiscordAdapter,
     InactiveMemberRepository,
     InactiveMemberQueryRepository,
     InactiveMemberService,

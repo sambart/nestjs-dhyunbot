@@ -11,6 +11,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { BotApiModule } from './bot-api/bot-api.module';
 import { AutoChannelModule } from './channel/auto/auto-channel.module';
 import { ChannelModule } from './channel/channel.module';
 import { VoiceChannelModule } from './channel/voice/voice-channel.module';
@@ -72,6 +73,7 @@ import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
     AuthModule,
     VersionModule,
     OverviewModule,
+    BotApiModule,
   ],
   controllers: [AppController],
   providers: [

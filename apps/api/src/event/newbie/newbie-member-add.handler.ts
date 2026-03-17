@@ -3,15 +3,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { GuildMember } from 'discord.js';
 
 import { getErrorStack } from '../../common/util/error.util';
-import { MissionService } from '../application/mission/mission.service';
-import { NewbieRoleService } from '../application/role/newbie-role.service';
-import { WelcomeService } from '../application/welcome/welcome.service';
-import { NewbieConfigRepository } from '../infrastructure/newbie-config.repository';
-import { NewbieRedisRepository } from '../infrastructure/newbie-redis.repository';
+import { MissionService } from '../../newbie/application/mission/mission.service';
+import { NewbieRoleService } from '../../newbie/application/role/newbie-role.service';
+import { WelcomeService } from '../../newbie/application/welcome/welcome.service';
+import { NewbieConfigRepository } from '../../newbie/infrastructure/newbie-config.repository';
+import { NewbieRedisRepository } from '../../newbie/infrastructure/newbie-redis.repository';
 
 @Injectable()
-export class NewbieGateway {
-  private readonly logger = new Logger(NewbieGateway.name);
+export class NewbieMemberAddHandler {
+  private readonly logger = new Logger(NewbieMemberAddHandler.name);
 
   constructor(
     private readonly configRepo: NewbieConfigRepository,

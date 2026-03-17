@@ -10,16 +10,22 @@ import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
 import { RedisModule } from '../redis/redis.module';
 import { MissionScheduler } from './application/mission/mission.scheduler';
 import { MissionService } from './application/mission/mission.service';
+import { MissionDiscordPresenter } from './application/mission/mission-discord.presenter';
+import { MissionDiscordActionService } from './application/mission/mission-discord-action.service';
 import { MocoService } from './application/moco/moco.service';
 import { MocoBootstrapService } from './application/moco/moco-bootstrap.service';
+import { MocoDiscordPresenter } from './application/moco/moco-discord.presenter';
 import { MocoEventHandler } from './application/moco/moco-event.handler';
+import { MOCO_MEMBER_RESOLVER } from './application/moco/moco-member-resolver.port';
 import { MocoResetScheduler } from './application/moco/moco-reset.scheduler';
 import { NewbieRoleScheduler } from './application/role/newbie-role.scheduler';
 import { NewbieRoleService } from './application/role/newbie-role.service';
+import { NewbieRoleDiscordAdapter } from './application/role/newbie-role-discord.adapter';
 import { WelcomeService } from './application/welcome/welcome.service';
 import { MocoDbRepository } from './infrastructure/moco-db.repository';
 import { MocoHuntingDailyOrmEntity } from './infrastructure/moco-hunting-daily.orm-entity';
 import { MocoHuntingSessionOrmEntity } from './infrastructure/moco-hunting-session.orm-entity';
+import { MocoMemberDiscordAdapter } from './infrastructure/moco-member-discord.adapter';
 import { NewbieConfigOrmEntity } from './infrastructure/newbie-config.orm-entity';
 import { NewbieConfigRepository } from './infrastructure/newbie-config.repository';
 import { NewbieMissionOrmEntity } from './infrastructure/newbie-mission.orm-entity';
@@ -32,7 +38,6 @@ import { NewbiePeriodOrmEntity } from './infrastructure/newbie-period.orm-entity
 import { NewbiePeriodRepository } from './infrastructure/newbie-period.repository';
 import { NewbieRedisRepository } from './infrastructure/newbie-redis.repository';
 import { NewbieController } from './presentation/newbie.controller';
-import { NewbieGateway } from './presentation/newbie.gateway';
 
 @Module({
   imports: [
@@ -63,19 +68,22 @@ import { NewbieGateway } from './presentation/newbie.gateway';
     NewbieMocoTemplateRepository,
     NewbiePeriodRepository,
     NewbieRedisRepository,
-    // 핵심 (Unit A)
-    NewbieGateway,
     // Unit B
     WelcomeService,
     // Unit C
+    MissionDiscordPresenter,
+    MissionDiscordActionService,
     MissionService,
     MissionScheduler,
     // Unit D
+    MocoDiscordPresenter,
     MocoService,
     MocoBootstrapService,
+    { provide: MOCO_MEMBER_RESOLVER, useClass: MocoMemberDiscordAdapter },
     MocoEventHandler,
     MocoResetScheduler,
     // Unit E
+    NewbieRoleDiscordAdapter,
     NewbieRoleService,
     NewbieRoleScheduler,
   ],

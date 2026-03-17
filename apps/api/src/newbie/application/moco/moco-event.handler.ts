@@ -1,7 +1,5 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { Client } from 'discord.js';
 
 import {
   CO_PRESENCE_SESSION_ENDED,
@@ -14,6 +12,8 @@ import { MocoDbRepository } from '../../infrastructure/moco-db.repository';
 import { NewbieConfigOrmEntity as NewbieConfig } from '../../infrastructure/newbie-config.orm-entity';
 import { NewbieConfigRepository } from '../../infrastructure/newbie-config.repository';
 import { NewbieRedisRepository } from '../../infrastructure/newbie-redis.repository';
+import type { MocoMemberResolver } from './moco-member-resolver.port';
+import { MOCO_MEMBER_RESOLVER } from './moco-member-resolver.port';
 
 /** 마지막 유효 세션 시작 시각 (플레이횟수 시간 간격 병합용). key: `${guildId}:${hunterId}` */
 const lastSessionStartedAt = new Map<string, number>();
@@ -26,7 +26,8 @@ export class MocoEventHandler {
     private readonly configRepo: NewbieConfigRepository,
     private readonly mocoDbRepo: MocoDbRepository,
     private readonly newbieRedis: NewbieRedisRepository,
-    @InjectDiscordClient() private readonly discord: Client,
+    @Inject(MOCO_MEMBER_RESOLVER)
+    private readonly memberResolver: MocoMemberResolver,
   ) {}
 
   // ── tick 이벤트: 실시간 Redis 누적 ──
@@ -50,26 +51,19 @@ export class MocoEventHandler {
     const config = await this.configRepo.findByGuildId(guildId);
     if (!config?.mocoEnabled) return;
 
-    const guild = this.discord.guilds.cache.get(guildId);
-    if (!guild) return;
-
     const newbieDays = config.mocoNewbieDays ?? 30;
     const cutoff = Date.now() - newbieDays * 86_400_000;
 
-    // 채널에서 모코코(신입) 식별
-    const channel = guild.channels.cache.get(channelId);
-    if (!channel?.isVoiceBased()) return;
-
-    const members = [...channel.members.values()].filter((m) => userIds.includes(m.id));
-
-    const confirmedNewbies = members
-      .filter((m) => !m.user.bot && m.joinedAt && m.joinedAt.getTime() >= cutoff)
-      .map((m) => m.id);
+    const confirmedNewbies = await this.memberResolver.getNewbieIds(
+      guildId,
+      channelId,
+      userIds,
+      cutoff,
+    );
     if (confirmedNewbies.length === 0) return;
 
     const newbieSet = new Set(confirmedNewbies);
 
-    // 사냥꾼 식별
     const hunters = config.mocoAllowNewbieHunter
       ? userIds
       : userIds.filter((id) => !newbieSet.has(id));
@@ -78,7 +72,6 @@ export class MocoEventHandler {
       const relevantNewbies = confirmedNewbies.filter((id) => id !== hunterId);
       if (relevantNewbies.length === 0) continue;
 
-      // Redis에 1분 실시간 누적
       for (const newbieId of relevantNewbies) {
         await this.newbieRedis.incrMocoMinutes(guildId, hunterId, newbieId, 1);
       }
@@ -104,9 +97,6 @@ export class MocoEventHandler {
     const config = await this.configRepo.findByGuildId(event.guildId);
     if (!config?.mocoEnabled) return;
 
-    const guild = this.discord.guilds.cache.get(event.guildId);
-    if (!guild) return;
-
     const {
       guildId,
       userId: hunterId,
@@ -120,22 +110,21 @@ export class MocoEventHandler {
     const cutoff = Date.now() - newbieDays * 86_400_000;
 
     // 사냥꾼 자격 확인
-    const hunterMember = guild.members.cache.get(hunterId);
-    if (!hunterMember || hunterMember.user.bot) return;
-
-    const isHunterNewbie = hunterMember.joinedAt && hunterMember.joinedAt.getTime() >= cutoff;
-    if (isHunterNewbie && !config.mocoAllowNewbieHunter) return;
+    const isValidHunter = await this.memberResolver.isValidHunter(
+      guildId,
+      hunterId,
+      cutoff,
+      config.mocoAllowNewbieHunter ?? false,
+    );
+    if (!isValidHunter) return;
 
     // peerIds 중 모코코(신입) 필터링
-    const confirmedNewbies: string[] = [];
-    for (const peerId of peerIds) {
-      if (peerId === hunterId) continue;
-      const member = guild.members.cache.get(peerId);
-      if (!member || member.user.bot) continue;
-      if (member.joinedAt && member.joinedAt.getTime() >= cutoff) {
-        confirmedNewbies.push(peerId);
-      }
-    }
+    const peersExcludingHunter = peerIds.filter((id) => id !== hunterId);
+    const confirmedNewbies = await this.memberResolver.getNewbiePeerIds(
+      guildId,
+      peersExcludingHunter,
+      cutoff,
+    );
     if (confirmedNewbies.length === 0) return;
 
     const minMinutes = config.mocoMinCoPresenceMin ?? 10;
@@ -153,7 +142,6 @@ export class MocoEventHandler {
         isValid: true,
       });
 
-      // 플레이횟수 카운팅
       const countsAsPlay = this.shouldCountAsPlay(
         guildId,
         hunterId,
@@ -169,7 +157,6 @@ export class MocoEventHandler {
         }
       }
 
-      // 일별 집계 upsert
       const scoreWeights = {
         perSession: config.mocoScorePerSession ?? 10,
         perMinute: config.mocoScorePerMinute ?? 1,
@@ -188,11 +175,9 @@ export class MocoEventHandler {
         scoreWeights,
       );
 
-      // 점수 재계산 및 Redis 랭크 갱신
       await this.recalculateScore(guildId, hunterId, config);
     } else {
       // ── 무효 세션 — Redis 롤백 ──
-      // tick 이벤트에서 누적한 분을 롤백
       await this.newbieRedis.incrMocoChannelMinutes(guildId, hunterId, -durationMin);
 
       for (const newbieId of confirmedNewbies) {
@@ -202,7 +187,6 @@ export class MocoEventHandler {
         }
       }
 
-      // 무효 세션도 기록 (isValid=false)
       await this.mocoDbRepo.saveSession({
         guildId,
         hunterId,

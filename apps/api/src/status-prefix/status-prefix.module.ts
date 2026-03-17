@@ -9,6 +9,7 @@ import { StatusPrefixResetService } from './application/status-prefix-reset.serv
 import { StatusPrefixButtonOrm } from './infrastructure/status-prefix-button.orm-entity';
 import { StatusPrefixConfigOrm } from './infrastructure/status-prefix-config.orm-entity';
 import { StatusPrefixConfigRepository } from './infrastructure/status-prefix-config.repository';
+import { StatusPrefixDiscordAdapter } from './infrastructure/status-prefix-discord.adapter';
 import { StatusPrefixRedisRepository } from './infrastructure/status-prefix-redis.repository';
 import { StatusPrefixInteractionHandler } from './interaction/status-prefix-interaction.handler';
 import { StatusPrefixController } from './presentation/status-prefix.controller';
@@ -22,6 +23,7 @@ import { StatusPrefixController } from './presentation/status-prefix.controller'
   controllers: [StatusPrefixController],
   providers: [
     StatusPrefixConfigRepository,
+    StatusPrefixDiscordAdapter,
     StatusPrefixRedisRepository,
     StatusPrefixConfigService,
     StatusPrefixApplyService,

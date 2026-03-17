@@ -1,6 +1,6 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, EmbedBuilder } from 'discord.js';
+import type { TextChannel } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 
 import { DomainException } from '../../common/domain-exception';
 import { getErrorStack } from '../../common/util/error.util';
@@ -8,6 +8,7 @@ import { StatusPrefixButtonType } from '../domain/status-prefix.types';
 import { StatusPrefixButtonOrm } from '../infrastructure/status-prefix-button.orm-entity';
 import { StatusPrefixConfigOrm } from '../infrastructure/status-prefix-config.orm-entity';
 import { StatusPrefixConfigRepository } from '../infrastructure/status-prefix-config.repository';
+import { StatusPrefixDiscordAdapter } from '../infrastructure/status-prefix-discord.adapter';
 import { StatusPrefixRedisRepository } from '../infrastructure/status-prefix-redis.repository';
 import { StatusPrefixConfigSaveDto } from '../presentation/status-prefix-config-save.dto';
 
@@ -21,7 +22,7 @@ export class StatusPrefixConfigService {
   constructor(
     private readonly configRepo: StatusPrefixConfigRepository,
     private readonly redisRepo: StatusPrefixRedisRepository,
-    @InjectDiscordClient() private readonly client: Client,
+    private readonly discordAdapter: StatusPrefixDiscordAdapter,
   ) {}
 
   /**
@@ -139,11 +140,14 @@ export class StatusPrefixConfigService {
    * 반환값: 전송된 메시지 ID
    */
   private async buildAndSendMessage(config: StatusPrefixConfigOrm): Promise<string> {
-    const channel = await this.client.channels.fetch(config.channelId!);
+    const fetched = await this.discordAdapter.fetchChannel(config.channelId!);
 
-    if (!channel?.isTextBased() || !('send' in channel)) {
+    if (!fetched?.isTextBased() || !('send' in fetched)) {
       throw new Error(`Channel ${config.channelId} is not a text-based channel`);
     }
+
+    // TextChannel로 안전하게 캐스팅 (isTextBased + send 존재 확인 완료)
+    const channel = fetched as TextChannel;
 
     const embed = new EmbedBuilder();
     if (config.embedTitle) embed.setTitle(config.embedTitle);
@@ -156,20 +160,19 @@ export class StatusPrefixConfigService {
     const sortedButtons = [...config.buttons].sort((a, b) => a.sortOrder - b.sortOrder);
     const components = this.buildActionRows(sortedButtons);
 
+    const payload = { embeds: [embed], components };
+
     if (config.messageId) {
-      try {
-        const message = await channel.messages.fetch(config.messageId);
-        await message.edit({ embeds: [embed], components });
-        return config.messageId;
-      } catch {
-        this.logger.warn(
-          `[STATUS_PREFIX] Failed to edit message ${config.messageId}, sending new one`,
-        );
-        // 메시지 삭제됨 등의 이유로 수정 실패 → 신규 전송으로 폴백
-      }
+      const edited = await this.discordAdapter.editMessage(channel, config.messageId, payload);
+      if (edited) return config.messageId;
+
+      this.logger.warn(
+        `[STATUS_PREFIX] Failed to edit message ${config.messageId}, sending new one`,
+      );
+      // 메시지 삭제됨 등의 이유로 수정 실패 → 신규 전송으로 폴백
     }
 
-    const message = await channel.send({ embeds: [embed], components });
+    const message = await this.discordAdapter.sendMessage(channel, payload);
     return message.id;
   }
 

@@ -1,11 +1,11 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Client, EmbedBuilder } from 'discord.js';
+import { EmbedBuilder } from 'discord.js';
 
-import { getErrorMessage, getErrorStack } from '../../common/util/error.util';
+import { getErrorStack } from '../../common/util/error.util';
 import { StickyMessageSaveDto } from '../dto/sticky-message-save.dto';
 import { StickyMessageConfigOrm } from '../infrastructure/sticky-message-config.orm-entity';
 import { StickyMessageConfigRepository } from '../infrastructure/sticky-message-config.repository';
+import { StickyMessageDiscordAdapter } from '../infrastructure/sticky-message-discord.adapter';
 import { StickyMessageRedisRepository } from '../infrastructure/sticky-message-redis.repository';
 import { STICKY_FOOTER_MARKER } from '../sticky-message.constants';
 
@@ -16,7 +16,7 @@ export class StickyMessageConfigService {
   constructor(
     private readonly configRepo: StickyMessageConfigRepository,
     private readonly redisRepo: StickyMessageRedisRepository,
-    @InjectDiscordClient() private readonly client: Client,
+    private readonly discordAdapter: StickyMessageDiscordAdapter,
   ) {}
 
   /**
@@ -123,33 +123,17 @@ export class StickyMessageConfigService {
       embedColor: string | null;
     },
   ): Promise<string> {
-    const channel = await this.client.channels.fetch(channelId);
-
-    if (!channel?.isTextBased() || channel.isDMBased()) {
-      throw new Error(`Channel ${channelId} is not a guild text-based channel`);
-    }
-
     const embed = new EmbedBuilder();
     if (config.embedTitle) embed.setTitle(config.embedTitle);
     if (config.embedDescription) embed.setDescription(config.embedDescription);
     if (config.embedColor) embed.setColor(config.embedColor as `#${string}`);
     embed.setFooter({ text: STICKY_FOOTER_MARKER });
 
-    const message = await channel.send({ embeds: [embed] });
-    return message.id;
+    return this.discordAdapter.sendMessage(channelId, { embeds: [embed.toJSON()] });
   }
 
   /** Discord 메시지 삭제 시도. 실패 시 warn 로그 후 무시. */
   private async tryDeleteMessage(channelId: string, messageId: string): Promise<void> {
-    try {
-      const channel = await this.client.channels.fetch(channelId);
-      if (!channel?.isTextBased() || channel.isDMBased()) return;
-      const message = await channel.messages.fetch(messageId);
-      await message.delete();
-    } catch (err) {
-      this.logger.warn(
-        `[STICKY_MESSAGE] Failed to delete message ${messageId} in channel ${channelId}: ${getErrorMessage(err)}`,
-      );
-    }
+    await this.discordAdapter.deleteMessage(channelId, messageId);
   }
 }

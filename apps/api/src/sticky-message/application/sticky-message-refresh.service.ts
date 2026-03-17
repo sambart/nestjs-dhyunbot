@@ -1,9 +1,9 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Client, EmbedBuilder, TextChannel } from 'discord.js';
+import { EmbedBuilder } from 'discord.js';
 
 import { getErrorMessage, getErrorStack } from '../../common/util/error.util';
 import { StickyMessageConfigRepository } from '../infrastructure/sticky-message-config.repository';
+import { StickyMessageDiscordAdapter } from '../infrastructure/sticky-message-discord.adapter';
 import { STICKY_FOOTER_MARKER } from '../sticky-message.constants';
 
 @Injectable()
@@ -24,7 +24,7 @@ export class StickyMessageRefreshService {
 
   constructor(
     private readonly configRepo: StickyMessageConfigRepository,
-    @InjectDiscordClient() private readonly client: Client,
+    private readonly discordAdapter: StickyMessageDiscordAdapter,
   ) {}
 
   /**
@@ -91,20 +91,13 @@ export class StickyMessageRefreshService {
       embedColor: string | null;
     },
   ): Promise<string> {
-    const channel = await this.client.channels.fetch(channelId);
-
-    if (!channel?.isTextBased()) {
-      throw new Error(`Channel ${channelId} is not a text-based channel`);
-    }
-
     const embed = new EmbedBuilder();
     if (config.embedTitle) embed.setTitle(config.embedTitle);
     if (config.embedDescription) embed.setDescription(config.embedDescription);
     if (config.embedColor) embed.setColor(config.embedColor as `#${string}`);
     embed.setFooter({ text: STICKY_FOOTER_MARKER });
 
-    const message = await (channel as TextChannel).send({ embeds: [embed] });
-    return message.id;
+    return this.discordAdapter.sendMessage(channelId, { embeds: [embed.toJSON()] });
   }
 
   /**
@@ -114,12 +107,10 @@ export class StickyMessageRefreshService {
    */
   private async cleanupOrphanedMessages(channelId: string, trackedIds: Set<string>): Promise<void> {
     try {
-      const channel = await this.client.channels.fetch(channelId);
-      if (!channel?.isTextBased()) return;
+      const messages = await this.discordAdapter.fetchMessages(channelId, 30);
+      if (!messages) return;
 
-      const textChannel = channel as TextChannel;
-      const messages = await textChannel.messages.fetch({ limit: 30 });
-      const botId = this.client.user?.id;
+      const botId = this.discordAdapter.getBotUserId();
       if (!botId) return;
 
       const orphaned = messages.filter(
@@ -152,15 +143,6 @@ export class StickyMessageRefreshService {
 
   /** Discord 메시지 삭제 시도. 실패 시 warn 로그 후 무시. */
   private async tryDeleteMessage(channelId: string, messageId: string): Promise<void> {
-    try {
-      const channel = await this.client.channels.fetch(channelId);
-      if (!channel?.isTextBased()) return;
-      const message = await (channel as TextChannel).messages.fetch(messageId);
-      await message.delete();
-    } catch (err) {
-      this.logger.warn(
-        `[STICKY_MESSAGE] Failed to delete message ${messageId} in channel ${channelId}: ${getErrorMessage(err)}`,
-      );
-    }
+    await this.discordAdapter.deleteMessage(channelId, messageId);
   }
 }

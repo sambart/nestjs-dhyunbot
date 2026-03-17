@@ -10,6 +10,7 @@ import { StickyMessageListCommand } from './command/sticky-message-list.command'
 import { StickyMessageRegisterCommand } from './command/sticky-message-register.command';
 import { StickyMessageConfigOrm } from './infrastructure/sticky-message-config.orm-entity';
 import { StickyMessageConfigRepository } from './infrastructure/sticky-message-config.repository';
+import { StickyMessageDiscordAdapter } from './infrastructure/sticky-message-discord.adapter';
 import { StickyMessageRedisRepository } from './infrastructure/sticky-message-redis.repository';
 import { StickyMessageController } from './presentation/sticky-message.controller';
 
@@ -21,6 +22,7 @@ import { StickyMessageController } from './presentation/sticky-message.controlle
   ],
   controllers: [StickyMessageController],
   providers: [
+    StickyMessageDiscordAdapter,
     StickyMessageConfigRepository,
     StickyMessageRedisRepository,
     StickyMessageConfigService,
