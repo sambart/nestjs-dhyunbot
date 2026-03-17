@@ -1,0 +1,182 @@
+import { MockRedisService } from '../../../test-utils/mock-redis.service';
+import { type VoiceDailyRepository } from '../infrastructure/voice-daily.repository';
+import { type VoiceRedisRepository } from '../infrastructure/voice-redis.repository';
+import { VoiceDailyFlushService } from './voice-daily-flush-service';
+
+describe('VoiceDailyFlushService.flushDate', () => {
+  let service: VoiceDailyFlushService;
+  let redis: MockRedisService;
+  let voiceDailyRepository: jest.Mocked<VoiceDailyRepository>;
+  let voiceRedisRepository: jest.Mocked<VoiceRedisRepository>;
+
+  const guild = 'guild-1';
+  const user = 'user-1';
+  const date = '20260316';
+
+  beforeEach(() => {
+    redis = new MockRedisService();
+
+    voiceDailyRepository = {
+      accumulateChannelDuration: jest.fn().mockResolvedValue(undefined),
+      accumulateMicDuration: jest.fn().mockResolvedValue(undefined),
+      accumulateAloneDuration: jest.fn().mockResolvedValue(undefined),
+      accumulateStreamingDuration: jest.fn().mockResolvedValue(undefined),
+      accumulateVideoDuration: jest.fn().mockResolvedValue(undefined),
+      accumulateDeafDuration: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<VoiceDailyRepository>;
+
+    voiceRedisRepository = {
+      getUserName: jest.fn().mockResolvedValue('Alice'),
+      getChannelName: jest.fn().mockResolvedValue('General'),
+      getCategoryInfo: jest.fn().mockResolvedValue(null),
+      getSession: jest.fn().mockResolvedValue(null),
+      setSession: jest.fn().mockResolvedValue(undefined),
+      accumulateDuration: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<VoiceRedisRepository>;
+
+    service = new VoiceDailyFlushService(
+      redis as never,
+      voiceDailyRepository,
+      voiceRedisRepository,
+    );
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    redis.clear();
+  });
+
+  describe('streaming flush', () => {
+    it('streamingDuration 키에 값이 있으면 accumulateStreamingDuration을 호출한다', async () => {
+      const streamingKey = `voice:duration:streaming:${guild}:${user}:${date}`;
+      await redis.set(streamingKey, 300); // 300초
+
+      await service.flushDate(guild, user, date);
+
+      expect(voiceDailyRepository.accumulateStreamingDuration).toHaveBeenCalledWith(
+        guild,
+        user,
+        date,
+        300,
+      );
+    });
+
+    it('streaming flush 후 Redis 키를 삭제한다', async () => {
+      const streamingKey = `voice:duration:streaming:${guild}:${user}:${date}`;
+      await redis.set(streamingKey, 300);
+
+      await service.flushDate(guild, user, date);
+
+      const remaining = await redis.get(streamingKey);
+      expect(remaining).toBeNull();
+    });
+
+    it('streamingDuration 키가 0이면 accumulateStreamingDuration을 호출하지 않는다', async () => {
+      const streamingKey = `voice:duration:streaming:${guild}:${user}:${date}`;
+      await redis.set(streamingKey, 0);
+
+      await service.flushDate(guild, user, date);
+
+      expect(voiceDailyRepository.accumulateStreamingDuration).not.toHaveBeenCalled();
+    });
+
+    it('streamingDuration 키가 없으면 accumulateStreamingDuration을 호출하지 않는다', async () => {
+      await service.flushDate(guild, user, date);
+
+      expect(voiceDailyRepository.accumulateStreamingDuration).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('video flush', () => {
+    it('videoDuration 키에 값이 있으면 accumulateVideoDuration을 호출한다', async () => {
+      const videoKey = `voice:duration:video:${guild}:${user}:${date}`;
+      await redis.set(videoKey, 120);
+
+      await service.flushDate(guild, user, date);
+
+      expect(voiceDailyRepository.accumulateVideoDuration).toHaveBeenCalledWith(
+        guild,
+        user,
+        date,
+        120,
+      );
+    });
+
+    it('video flush 후 Redis 키를 삭제한다', async () => {
+      const videoKey = `voice:duration:video:${guild}:${user}:${date}`;
+      await redis.set(videoKey, 120);
+
+      await service.flushDate(guild, user, date);
+
+      const remaining = await redis.get(videoKey);
+      expect(remaining).toBeNull();
+    });
+
+    it('videoDuration 키가 없으면 accumulateVideoDuration을 호출하지 않는다', async () => {
+      await service.flushDate(guild, user, date);
+
+      expect(voiceDailyRepository.accumulateVideoDuration).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deaf flush', () => {
+    it('deafDuration 키에 값이 있으면 accumulateDeafDuration을 호출한다', async () => {
+      const deafKey = `voice:duration:deaf:${guild}:${user}:${date}`;
+      await redis.set(deafKey, 600);
+
+      await service.flushDate(guild, user, date);
+
+      expect(voiceDailyRepository.accumulateDeafDuration).toHaveBeenCalledWith(
+        guild,
+        user,
+        date,
+        600,
+      );
+    });
+
+    it('deaf flush 후 Redis 키를 삭제한다', async () => {
+      const deafKey = `voice:duration:deaf:${guild}:${user}:${date}`;
+      await redis.set(deafKey, 600);
+
+      await service.flushDate(guild, user, date);
+
+      const remaining = await redis.get(deafKey);
+      expect(remaining).toBeNull();
+    });
+
+    it('deafDuration 키가 없으면 accumulateDeafDuration을 호출하지 않는다', async () => {
+      await service.flushDate(guild, user, date);
+
+      expect(voiceDailyRepository.accumulateDeafDuration).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('streaming/video/deaf 모두 동시에 flush', () => {
+    it('세 가지 키 모두에 값이 있으면 각각의 accumulate를 호출한다', async () => {
+      await redis.set(`voice:duration:streaming:${guild}:${user}:${date}`, 300);
+      await redis.set(`voice:duration:video:${guild}:${user}:${date}`, 120);
+      await redis.set(`voice:duration:deaf:${guild}:${user}:${date}`, 600);
+
+      await service.flushDate(guild, user, date);
+
+      expect(voiceDailyRepository.accumulateStreamingDuration).toHaveBeenCalledWith(
+        guild,
+        user,
+        date,
+        300,
+      );
+      expect(voiceDailyRepository.accumulateVideoDuration).toHaveBeenCalledWith(
+        guild,
+        user,
+        date,
+        120,
+      );
+      expect(voiceDailyRepository.accumulateDeafDuration).toHaveBeenCalledWith(
+        guild,
+        user,
+        date,
+        600,
+      );
+    });
+  });
+});
