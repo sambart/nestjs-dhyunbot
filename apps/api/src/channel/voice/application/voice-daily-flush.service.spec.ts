@@ -1,3 +1,5 @@
+import { type Mocked } from 'vitest';
+
 import { MockRedisService } from '../../../test-utils/mock-redis.service';
 import { type VoiceDailyRepository } from '../infrastructure/voice-daily.repository';
 import { type VoiceRedisRepository } from '../infrastructure/voice-redis.repository';
@@ -6,8 +8,8 @@ import { VoiceDailyFlushService } from './voice-daily-flush-service';
 describe('VoiceDailyFlushService.flushDate', () => {
   let service: VoiceDailyFlushService;
   let redis: MockRedisService;
-  let voiceDailyRepository: jest.Mocked<VoiceDailyRepository>;
-  let voiceRedisRepository: jest.Mocked<VoiceRedisRepository>;
+  let voiceDailyRepository: Mocked<VoiceDailyRepository>;
+  let voiceRedisRepository: Mocked<VoiceRedisRepository>;
 
   const guild = 'guild-1';
   const user = 'user-1';
@@ -17,29 +19,29 @@ describe('VoiceDailyFlushService.flushDate', () => {
     redis = new MockRedisService();
 
     voiceDailyRepository = {
-      accumulateChannelDuration: jest.fn().mockResolvedValue(undefined),
-      accumulateMicDuration: jest.fn().mockResolvedValue(undefined),
-      accumulateAloneDuration: jest.fn().mockResolvedValue(undefined),
-      accumulateStreamingDuration: jest.fn().mockResolvedValue(undefined),
-      accumulateVideoDuration: jest.fn().mockResolvedValue(undefined),
-      accumulateDeafDuration: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<VoiceDailyRepository>;
+      accumulateChannelDuration: vi.fn().mockResolvedValue(undefined),
+      accumulateMicDuration: vi.fn().mockResolvedValue(undefined),
+      accumulateAloneDuration: vi.fn().mockResolvedValue(undefined),
+      accumulateStreamingDuration: vi.fn().mockResolvedValue(undefined),
+      accumulateVideoDuration: vi.fn().mockResolvedValue(undefined),
+      accumulateDeafDuration: vi.fn().mockResolvedValue(undefined),
+    } as unknown as Mocked<VoiceDailyRepository>;
 
     voiceRedisRepository = {
-      getUserName: jest.fn().mockResolvedValue('Alice'),
-      getChannelName: jest.fn().mockResolvedValue('General'),
-      getCategoryInfo: jest.fn().mockResolvedValue(null),
-      getSession: jest.fn().mockResolvedValue(null),
-      setSession: jest.fn().mockResolvedValue(undefined),
-      accumulateDuration: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<VoiceRedisRepository>;
+      getUserName: vi.fn().mockResolvedValue('Alice'),
+      getChannelName: vi.fn().mockResolvedValue('General'),
+      getCategoryInfo: vi.fn().mockResolvedValue(null),
+      getSession: vi.fn().mockResolvedValue(null),
+      setSession: vi.fn().mockResolvedValue(undefined),
+      accumulateDuration: vi.fn().mockResolvedValue(undefined),
+    } as unknown as Mocked<VoiceRedisRepository>;
 
     service = new VoiceDailyFlushService(
       redis as never,
       voiceDailyRepository,
       voiceRedisRepository,
     );
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {

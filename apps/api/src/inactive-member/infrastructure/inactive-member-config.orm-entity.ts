@@ -34,22 +34,22 @@ export class InactiveMemberConfigOrm {
   @Column({ default: false })
   autoDm: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   inactiveRoleId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   removeRoleId: string | null;
 
   @Column({ type: 'json', default: '[]' })
   excludedRoleIds: string[];
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   dmEmbedTitle: string | null;
 
   @Column({ type: 'text', nullable: true })
   dmEmbedBody: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   dmEmbedColor: string | null;
 
   @CreateDateColumn()

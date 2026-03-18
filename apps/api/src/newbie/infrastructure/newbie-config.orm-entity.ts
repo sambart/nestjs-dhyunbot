@@ -20,19 +20,19 @@ export class NewbieConfigOrmEntity {
   @Column({ default: false })
   welcomeEnabled: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   welcomeChannelId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   welcomeEmbedTitle: string | null;
 
   @Column({ type: 'text', nullable: true })
   welcomeEmbedDescription: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   welcomeEmbedColor: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   welcomeEmbedThumbnailUrl: string | null;
 
   @Column({ type: 'text', nullable: true })
@@ -42,10 +42,10 @@ export class NewbieConfigOrmEntity {
   @Column({ default: false })
   missionEnabled: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   missionDurationDays: number | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   missionTargetPlaytimeHours: number | null;
 
   @Column({ type: 'int', nullable: true })
@@ -54,22 +54,22 @@ export class NewbieConfigOrmEntity {
   @Column({ type: 'int', nullable: true })
   playCountIntervalMin: number | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   missionNotifyChannelId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   missionNotifyMessageId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   missionEmbedTitle: string | null;
 
   @Column({ type: 'text', nullable: true })
   missionEmbedDescription: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   missionEmbedColor: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   missionEmbedThumbnailUrl: string | null;
 
   // 모코코 사냥 설정
@@ -82,25 +82,25 @@ export class NewbieConfigOrmEntity {
   @Column({ default: false })
   mocoAllowNewbieHunter: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   mocoRankChannelId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   mocoRankMessageId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   mocoAutoRefreshMinutes: number | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   mocoEmbedTitle: string | null;
 
   @Column({ type: 'text', nullable: true })
   mocoEmbedDescription: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   mocoEmbedColor: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   mocoEmbedThumbnailUrl: string | null;
 
   @Column({ type: 'int', nullable: true })
@@ -134,10 +134,10 @@ export class NewbieConfigOrmEntity {
   @Column({ default: false })
   roleEnabled: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   roleDurationDays: number | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   newbieRoleId: string | null;
 
   @CreateDateColumn()

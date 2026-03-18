@@ -20,13 +20,13 @@ export class AutoChannelButtonOrm {
   @Column()
   label: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   emoji: string | null;
 
   @Column()
   targetCategoryId: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   channelNameTemplate: string | null;
 
   @Column({ default: 0 })

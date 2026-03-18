@@ -1,3 +1,5 @@
+import { type Mock } from 'vitest';
+
 import { type VoiceStateDto } from '../infrastructure/voice-state.dto';
 import { VoiceChannelService } from './voice-channel.service';
 
@@ -22,11 +24,11 @@ function makeDto(): VoiceStateDto {
 
 describe('VoiceChannelService — toggle 메서드', () => {
   let service: VoiceChannelService;
-  let mockSessionService: { startOrUpdateSession: jest.Mock };
+  let mockSessionService: { startOrUpdateSession: Mock };
 
   beforeEach(() => {
     mockSessionService = {
-      startOrUpdateSession: jest.fn().mockResolvedValue(undefined),
+      startOrUpdateSession: vi.fn().mockResolvedValue(undefined),
     };
 
     service = new VoiceChannelService(
@@ -36,7 +38,7 @@ describe('VoiceChannelService — toggle 메서드', () => {
       {} as never,
       {} as never,
     );
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('onUserStreamingToggle', () => {

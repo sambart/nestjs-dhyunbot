@@ -22,19 +22,19 @@ export class StatusPrefixConfigOrm {
   @Column({ default: false })
   enabled: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   channelId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   messageId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   embedTitle: string | null;
 
   @Column({ type: 'text', nullable: true })
   embedDescription: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   embedColor: string | null;
 
   @Column({ default: '[{prefix}] {nickname}' })

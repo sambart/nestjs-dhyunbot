@@ -106,27 +106,27 @@ describe('InactiveMemberService', () => {
   let service: InactiveMemberService;
 
   const mockRepo = {
-    findConfigByGuildId: jest.fn(),
-    createDefaultConfig: jest.fn(),
-    batchUpsertRecords: jest.fn(),
+    findConfigByGuildId: vi.fn(),
+    createDefaultConfig: vi.fn(),
+    batchUpsertRecords: vi.fn(),
   };
 
   const mockQueryRepo = {
-    sumVoiceDurationByUser: jest.fn(),
-    findLastVoiceDateByUser: jest.fn(),
-    countByGrade: jest.fn(),
-    findReturnedCount: jest.fn(),
-    findTrend: jest.fn(),
+    sumVoiceDurationByUser: vi.fn(),
+    findLastVoiceDateByUser: vi.fn(),
+    countByGrade: vi.fn(),
+    findReturnedCount: vi.fn(),
+    findTrend: vi.fn(),
   };
 
-  const mockFlushService = { safeFlushAll: jest.fn() };
-  const mockDiscordClient = { guilds: { cache: { get: jest.fn() } } };
+  const mockFlushService = { safeFlushAll: vi.fn() };
+  const mockDiscordClient = { guilds: { cache: { get: vi.fn() } } };
 
   beforeEach(() => {
     service = new (InactiveMemberService as unknown as new (
       ...args: unknown[]
     ) => InactiveMemberService)(mockRepo, mockQueryRepo, mockFlushService, mockDiscordClient);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   // private 메서드 접근

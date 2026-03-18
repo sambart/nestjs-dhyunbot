@@ -20,7 +20,7 @@ export class MemberOrmEntity {
   @Column({ name: 'nickName' })
   nickname: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   avatarUrl: string | null;
 
   @OneToMany(() => VoiceChannelHistoryOrm, (history) => history.member)

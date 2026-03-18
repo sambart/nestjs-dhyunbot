@@ -28,10 +28,10 @@ export class StatusPrefixButtonOrm {
   @Column()
   label: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   emoji: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   prefix: string | null;
 
   @Column({ type: 'enum', enum: StatusPrefixButtonType })

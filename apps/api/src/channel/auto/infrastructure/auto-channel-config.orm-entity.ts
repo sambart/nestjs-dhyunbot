@@ -27,22 +27,22 @@ export class AutoChannelConfigOrm {
   @Column()
   triggerChannelId: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   guideChannelId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   waitingRoomTemplate: string | null;
 
   @Column({ type: 'text' })
   guideMessage: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   embedTitle: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   embedColor: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   guideMessageId: string | null;
 
   @OneToMany(() => AutoChannelButtonOrm, (button) => button.config, {

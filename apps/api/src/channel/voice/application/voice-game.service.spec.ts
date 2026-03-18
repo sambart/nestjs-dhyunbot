@@ -1,3 +1,5 @@
+import { type Mock, type Mocked } from 'vitest';
+
 import { type VoiceGameDbRepository } from '../infrastructure/voice-game-db.repository';
 import { type VoiceGameRedisRepository } from '../infrastructure/voice-game-redis.repository';
 import { type VoiceGameSession } from '../infrastructure/voice-game-session';
@@ -16,25 +18,25 @@ function makeSession(overrides: Partial<VoiceGameSession> = {}): VoiceGameSessio
 
 describe('VoiceGameService', () => {
   let service: VoiceGameService;
-  let redisRepo: jest.Mocked<VoiceGameRedisRepository>;
-  let dbRepo: jest.Mocked<VoiceGameDbRepository>;
+  let redisRepo: Mocked<VoiceGameRedisRepository>;
+  let dbRepo: Mocked<VoiceGameDbRepository>;
 
   beforeEach(() => {
     redisRepo = {
-      getGameSession: jest.fn(),
-      setGameSession: jest.fn().mockResolvedValue(undefined),
-      deleteGameSession: jest.fn().mockResolvedValue(undefined),
-      scanAllSessionKeys: jest.fn().mockResolvedValue([]),
-    } as unknown as jest.Mocked<VoiceGameRedisRepository>;
+      getGameSession: vi.fn(),
+      setGameSession: vi.fn().mockResolvedValue(undefined),
+      deleteGameSession: vi.fn().mockResolvedValue(undefined),
+      scanAllSessionKeys: vi.fn().mockResolvedValue([]),
+    } as unknown as Mocked<VoiceGameRedisRepository>;
 
     dbRepo = {
-      saveActivity: jest.fn().mockResolvedValue(undefined),
-      upsertDaily: jest.fn().mockResolvedValue(undefined),
-      deleteExpiredActivities: jest.fn().mockResolvedValue(0),
-    } as unknown as jest.Mocked<VoiceGameDbRepository>;
+      saveActivity: vi.fn().mockResolvedValue(undefined),
+      upsertDaily: vi.fn().mockResolvedValue(undefined),
+      deleteExpiredActivities: vi.fn().mockResolvedValue(0),
+    } as unknown as Mocked<VoiceGameDbRepository>;
 
     service = new VoiceGameService(redisRepo, dbRepo);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('onUserJoined', () => {
@@ -177,7 +179,7 @@ describe('VoiceGameService', () => {
 
       await service.endSession('guild-1', 'user-1', session);
 
-      const [, , , date] = (dbRepo.upsertDaily as jest.Mock).mock.calls[0] as [
+      const [, , , date] = (dbRepo.upsertDaily as Mock).mock.calls[0] as [
         string,
         string,
         string,

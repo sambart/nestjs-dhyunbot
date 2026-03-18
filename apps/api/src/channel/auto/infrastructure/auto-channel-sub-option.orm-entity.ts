@@ -19,7 +19,7 @@ export class AutoChannelSubOptionOrm {
   @Column()
   label: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   emoji: string | null;
 
   @Column()

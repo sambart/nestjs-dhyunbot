@@ -1,3 +1,5 @@
+import { type Mock } from 'vitest';
+
 import { type VoiceSession } from '../infrastructure/voice-session.keys';
 import { type VoiceStateDto } from '../infrastructure/voice-state.dto';
 import { VoiceSessionService } from './voice-session.service';
@@ -52,30 +54,30 @@ function makeSession(overrides: Partial<VoiceSession> = {}): VoiceSession {
 describe('VoiceSessionService.startOrUpdateSession', () => {
   let service: VoiceSessionService;
   let voiceRedisRepository: {
-    setChannelName: jest.Mock;
-    setCategoryInfo: jest.Mock;
-    setUserName: jest.Mock;
-    getSession: jest.Mock;
-    setSession: jest.Mock;
-    accumulateDuration: jest.Mock;
+    setChannelName: Mock;
+    setCategoryInfo: Mock;
+    setUserName: Mock;
+    getSession: Mock;
+    setSession: Mock;
+    accumulateDuration: Mock;
   };
-  let voiceDailyFlushService: { flushDate: jest.Mock };
+  let voiceDailyFlushService: { flushDate: Mock };
 
   // KST 오늘 날짜를 mock하기 위해 실제 getKSTDateString을 사용하는 대신
   // 테스트에서는 session.date가 today와 같다고 가정한다
 
   beforeEach(() => {
     voiceRedisRepository = {
-      setChannelName: jest.fn().mockResolvedValue(undefined),
-      setCategoryInfo: jest.fn().mockResolvedValue(undefined),
-      setUserName: jest.fn().mockResolvedValue(undefined),
-      getSession: jest.fn(),
-      setSession: jest.fn().mockResolvedValue(undefined),
-      accumulateDuration: jest.fn().mockResolvedValue(undefined),
+      setChannelName: vi.fn().mockResolvedValue(undefined),
+      setCategoryInfo: vi.fn().mockResolvedValue(undefined),
+      setUserName: vi.fn().mockResolvedValue(undefined),
+      getSession: vi.fn(),
+      setSession: vi.fn().mockResolvedValue(undefined),
+      accumulateDuration: vi.fn().mockResolvedValue(undefined),
     };
 
     voiceDailyFlushService = {
-      flushDate: jest.fn().mockResolvedValue(undefined),
+      flushDate: vi.fn().mockResolvedValue(undefined),
     };
 
     // RedisService mock (직접 사용하지 않지만 DI 필요)
@@ -87,7 +89,7 @@ describe('VoiceSessionService.startOrUpdateSession', () => {
       redisMock as never,
     );
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('세션이 없을 때 (신규 세션 생성)', () => {

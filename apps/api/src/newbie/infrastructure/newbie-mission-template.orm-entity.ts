@@ -18,7 +18,7 @@ export class NewbieMissionTemplateOrmEntity {
   @Column()
   guildId: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   titleTemplate: string | null;
 
   @Column({ type: 'text', nullable: true })
@@ -27,7 +27,7 @@ export class NewbieMissionTemplateOrmEntity {
   @Column({ type: 'text', nullable: true })
   itemTemplate: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   footerTemplate: string | null;
 
   @Column({ type: 'json', nullable: true })

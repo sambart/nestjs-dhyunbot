@@ -17,7 +17,7 @@ export class InactiveMemberActionLogOrm {
   @Column({ type: 'json' })
   targetUserIds: string[];
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   executorUserId: string | null;
 
   @Column({ type: 'int', default: 0 })

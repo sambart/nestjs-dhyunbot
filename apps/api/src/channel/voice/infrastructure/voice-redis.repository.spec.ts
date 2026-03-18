@@ -29,13 +29,13 @@ describe('VoiceRedisRepository.accumulateDuration', () => {
     redis = new MockRedisService();
     // MockRedisService의 pipeline은 실제 카운터를 올리지 않으므로,
     // pipeline 메서드를 실제 동작하도록 오버라이드한다
-    redis.pipeline = jest
+    redis.pipeline = vi
       .fn()
       .mockImplementation(
         async (build: (pipe: Record<string, (key: string, val: number) => void>) => void) => {
           const pipe = {
-            incrby: jest.fn((key: string, val: number) => void redis.incrBy(key, val)),
-            set: jest.fn(),
+            incrby: vi.fn((key: string, val: number) => void redis.incrBy(key, val)),
+            set: vi.fn(),
           };
           build(pipe as never);
           return [];
@@ -174,7 +174,7 @@ describe('VoiceRedisRepository.accumulateDuration', () => {
       date: '20260316',
     });
 
-    const mockPipeline = jest.fn().mockResolvedValue([]);
+    const mockPipeline = vi.fn().mockResolvedValue([]);
     redis.pipeline = mockPipeline;
 
     await repo.accumulateDuration(guild, user, session, now);

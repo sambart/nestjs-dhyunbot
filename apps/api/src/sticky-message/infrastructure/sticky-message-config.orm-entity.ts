@@ -20,16 +20,16 @@ export class StickyMessageConfigOrm {
   @Column()
   channelId: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   embedTitle: string | null;
 
   @Column({ type: 'text', nullable: true })
   embedDescription: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   embedColor: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   messageId: string | null;
 
   @Column({ default: true })
