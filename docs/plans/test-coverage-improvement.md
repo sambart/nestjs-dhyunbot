@@ -352,25 +352,251 @@ Phase 5 (서비스 통합 테스트)
 
 ---
 
-## 5. 제외 대상
+## 5. Phase 1~5 완료 현황 (2026-03-18 완료)
 
-아래는 현 단계에서 테스트 작성을 보류한다:
+| Phase | 내용 | 파일 수 | 상태 |
+|-------|------|--------|------|
+| 1 | Easy 단위 테스트 | 5개 | **완료** |
+| 2 | Medium 단위 테스트 | 4개 | **완료** |
+| 3 | Hard 단위 테스트 | 6개 | **완료** |
+| 4 | Repository 통합 테스트 | 7개 | **완료** |
+| 5 | 서비스 통합 테스트 | 2개 | **완료** |
+
+**결과**: 단위 28파일 262개 케이스, 통합 24파일 — 0% 도메인 11개 → 2개
+
+---
+
+## 6. 잔여 미테스트 파일 계획 (Phase 6~9)
+
+### Phase 6: 핵심 비즈니스 서비스 (높은 우선순위)
+
+#### 6-1. StatusPrefixConfigService — `status-prefix-config.service.spec.ts`
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `StatusPrefixConfigService` |
+| 의존성 | `StatusPrefixConfigRepository`, `StatusPrefixRedisRepository`, `StatusPrefixDiscordAdapter` (모킹) |
+| 테스트 유형 | 단위 테스트 |
+| 테스트 케이스 | |
+| | - `stripPrefixFromNickname`: 정규식 접두사 제거 (중첩, 빈 문자열, 특수문자) |
+| | - `getConfig`: Redis 캐시 히트/미스 |
+| | - `saveConfig`: DB 저장 → 캐시 갱신 → Discord 메시지 전송/수정 |
+| | - `saveConfig`: 접두사 중복 검증 (DomainException) |
+| | - `buildActionRows`: 5개 버튼/행 제한 |
+| | - 메시지 편집 실패 시 신규 전송 폴백 |
+| 난이도 | Medium |
+
+#### 6-2. StickyMessageRefreshService — `sticky-message-refresh.service.spec.ts`
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `StickyMessageRefreshService` |
+| 의존성 | `StickyMessageConfigRepository`, `StickyMessageDiscordAdapter` (모킹) |
+| 테스트 유형 | 단위 테스트 |
+| 테스트 케이스 | |
+| | - `isRefreshing`: 잠금 활성/만료/미설정 상태 |
+| | - `refresh`: 이미 진행 중이면 스킵 |
+| | - `refresh`: stale lock (30초 초과) 강제 해제 |
+| | - `refresh`: 설정 없으면 즉시 반환 |
+| | - 고아 메시지 정리 (footer 마커 필터링) |
+| | - 메시지 삭제 → 신규 Embed 전송 → messageId 갱신 |
+| 난이도 | Medium |
+
+#### 6-3. MissionService — `mission.service.spec.ts`
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `MissionService` |
+| 의존성 | 8개 (Repository, Service, Presenter 모킹) |
+| 테스트 유형 | 단위 테스트 |
+| 테스트 케이스 | |
+| | - `createMission/createMissionFromBot`: 미션 생성 |
+| | - `completeMission`: 미션 성공 + 역할 부여 |
+| | - `failMission`: 미션 실패 + 강제퇴장/DM 옵션 |
+| | - `getPlaytimeSec`: GLOBAL 제외 채널 시간 합산 |
+| | - `getPlayCount`: 최소 지속시간·간격 필터링 |
+| | - `enrichMissions`: 멤버명 + 플레이타임 보강 |
+| | - `hideMission/unhideMission`: 상태 토글 |
+| | - `registerMissingMembers`: 가입일 기준 자동 등록 |
+| 난이도 | Hard |
+
+#### 6-4. VoiceAnalyticsService — `voice-analytics.service.spec.ts`
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `VoiceAnalyticsService` |
+| 의존성 | `Repository<VoiceDailyOrm>`, `DiscordGateway`, `VoiceNameEnricherService` (모킹) |
+| 테스트 유형 | 단위 테스트 |
+| 테스트 케이스 | |
+| | - `collectVoiceActivityData`: 전체 통계 집계 |
+| | - GLOBAL vs 채널별 데이터 분리 |
+| | - 사용자별/채널별/일별 aggregation |
+| | - 데이터 없을 때 빈 응답 (createEmptyResponse) |
+| 난이도 | Hard |
+
+---
+
+### Phase 7: 복합 도메인 서비스 (보통 우선순위)
+
+#### 7-1. CoPresenceService — `co-presence.service.spec.ts`
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `CoPresenceService` |
+| 의존성 | `CoPresenceDbRepository`, `EventEmitter2` (모킹) |
+| 테스트 유형 | 단위 테스트 |
+| 테스트 케이스 | |
+| | - `reconcile`: 신규 세션 시작/계속/종료 |
+| | - 채널 이동 시 기존 세션 종료 + 신규 시작 |
+| | - Peer 누적 시간 계산 |
+| | - 15분 임계값 도달 시 flush (세션 유지) |
+| | - `endAllGuildSessions/endAllSessions`: 일괄 종료 |
+| 난이도 | Very Hard |
+
+#### 7-2. CoPresenceAnalyticsService — `co-presence-analytics.service.spec.ts`
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `CoPresenceAnalyticsService` |
+| 의존성 | 3개 TypeORM Repository (모킹) |
+| 테스트 유형 | 단위 테스트 |
+| 테스트 케이스 | |
+| | - `getSummary`: 활성 인원, 쌍 수, 총 시간 |
+| | - `getGraph`: 상위 50 노드 + 엣지 구성 |
+| | - `getTopPairs`: 상위 쌍 목록 (양방향 복원) |
+| | - `getIsolated`: 음성 활동 있지만 쌍 없는 멤버 |
+| | - `getDailyTrend`: 빈 날짜 0 채우기 |
+| | - HHI 점수 계산 검증 |
+| 난이도 | Hard |
+
+#### 7-3. AutoChannelService — `auto-channel.service.spec.ts`
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `AutoChannelService` |
+| 의존성 | `AutoChannelConfigRepository`, `AutoChannelRedisRepository`, `DiscordVoiceGateway`, `AutoChannelDiscordGateway`, `VoiceChannelService` (모킹) |
+| 테스트 유형 | 단위 테스트 |
+| 테스트 케이스 | |
+| | - `handleChannelEmpty`: 확정방 삭제 |
+| | - `handleButtonClick`: 1단계 → 하위 선택지 ephemeral / 직접 생성 |
+| | - `handleSubOptionClick`: 2단계 → 확정방 생성 |
+| | - 채널명 템플릿 치환 ({username}, {name}, {n}) |
+| | - 카테고리별 채널명 중복 해소 ({n} numbering) |
+| 난이도 | Hard |
+
+#### 7-4. VoiceChannelHistoryService — `voice-channel-history.service.spec.ts`
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `VoiceChannelHistoryService` |
+| 의존성 | `Repository<VoiceChannelHistoryOrm>`, `DataSource` (모킹) |
+| 테스트 유형 | 통합 테스트 |
+| 테스트 케이스 | |
+| | - `logJoin`: 입장 레코드 생성 |
+| | - `logLeave`: 최신 미종료 레코드 leftAt 설정 |
+| | - `closeOrphanRecords`: leftAt IS NULL 일괄 종료 |
+| 난이도 | Easy-Medium |
+
+#### 7-5. MissionDiscordActionService — `mission-discord-action.service.spec.ts`
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `MissionDiscordActionService` |
+| 의존성 | `DiscordRestService` (모킹) |
+| 테스트 유형 | 단위 테스트 |
+| 테스트 케이스 | |
+| | - `grantRole`: 성공/실패 |
+| | - `sendDmAndKick`: DM 전송 → 강퇴, DM 실패 무시 |
+| | - `checkMemberExists`: 404 vs 일시 오류 구분 |
+| | - `fetchMemberDisplayName`: nick → global_name → username 폴백 |
+| 난이도 | Easy-Medium |
+
+#### 7-6. 기타 보통 우선순위
+
+| 서비스 | 테스트 유형 | 난이도 | 핵심 케이스 |
+|--------|-----------|--------|-----------|
+| `VoiceDailyService` | 단위 | Easy | DTO 변환 |
+| `AutoChannelBootstrapService` | 단위 | Easy | 부팅 로그 |
+| `MocoBootstrapService` | 통합 | Medium | Redis 캐시 복구 |
+| `SelfDiagnosisService` | 단위+통합 | Very Hard | 5가지 수집, HHI, 정책 판정, LLM |
+| `BadgeService` | 통합 | Hard | 5개 뱃지 자격 판정, 배치 upsert |
+| `BadgeQueryService` | 단위 | Easy | 뱃지 코드 조회 |
+
+---
+
+### Phase 8: 낮은 우선순위 서비스
+
+| 서비스 | 테스트 유형 | 난이도 | 핵심 케이스 |
+|--------|-----------|--------|-----------|
+| `DataDeletionService` | 통합 | Easy | 3개 테이블 병렬 삭제 |
+| `MeProfileService` | 통합 | Medium | 순위, 15일 차트, 피크 요일 |
+| `MemberSearchService` | 단위 | Easy | ILIKE 검색, 20명 상한 |
+| `VoiceTempChannelService` | 단위 | Easy | 정책 기반 생성/삭제 |
+| `BotI18nService` | 단위 | Easy | 키 조회, 매개변수 보간, locale 폴백 |
+| `LocaleResolverService` | 통합 | Easy | 우선순위 체인, Redis 캐시 |
+| `OverviewService` | 통합 | Medium | 6가지 병렬 수집, 주간 추이 |
+
+---
+
+### Phase 9: 잔여 Repository 통합 테스트
+
+| Repository | 핵심 케이스 | 난이도 |
+|-----------|-----------|--------|
+| `NewbieMissionTemplateRepository` | findByGuildId, upsert | Easy |
+| `NewbieMocoTemplateRepository` | findByGuildId, upsert | Easy |
+| `MocoDbRepository` | saveSession, upsertDaily (ON CONFLICT), JSON unnest | Medium |
+| `VoiceHealthConfigRepository` | 캐시 우선 조회, upsert 후 캐시 갱신 | Easy |
+
+---
+
+## 7. 제외 대상
 
 | 대상 | 사유 |
 |------|------|
 | Bot-API Controller (11개) | HTTP 엔드포인트 단순 위임 — 서비스 테스트로 충분 |
 | Discord Gateway | Discord.js 이벤트 핸들러 — E2E 영역 |
 | Health Controller | 프레임워크 제공 기능 |
-| Overview Service/Controller | 단순 집계 API |
 | Voice-Analytics Controller | 서비스 테스트로 커버 |
 | VoiceNameEnricherService | Discord API 래핑 — 모킹 가치 낮음 |
+| Presentation Layer (Controllers) | 서비스 테스트로 비즈니스 로직 커버 |
 
 ---
 
-## 6. 기대 효과
+## 8. 전체 작업 순서 요약
 
-| 지표 | 현재 | Phase 1 후 | Phase 3 완료 후 | 전체 완료 후 |
-|------|------|-----------|---------------|------------|
-| 테스트 파일 수 | 26개 | 31개 | 43개 | 57개 |
-| 테스트 대상 서비스 | 5개 | 10개 | 21개 | 21개+ |
-| 0% 커버리지 도메인 | 11개 | 8개 | 2개 | 0개 |
+```
+Phase 1~5 (완료 ✓)
+ ├─ 단위 테스트 15개 (262 케이스)
+ ├─ Repository 통합 테스트 7개
+ └─ 서비스 통합 테스트 2개
+
+Phase 6 (핵심 비즈니스 — 높은 우선순위)
+ ├─ 6-1. StatusPrefixConfigService (단위, Medium)
+ ├─ 6-2. StickyMessageRefreshService (단위, Medium)
+ ├─ 6-3. MissionService (단위, Hard)
+ └─ 6-4. VoiceAnalyticsService (단위, Hard)
+
+Phase 7 (복합 도메인 — 보통 우선순위)
+ ├─ 7-1. CoPresenceService (단위, Very Hard)
+ ├─ 7-2. CoPresenceAnalyticsService (단위, Hard)
+ ├─ 7-3. AutoChannelService (단위, Hard)
+ ├─ 7-4. VoiceChannelHistoryService (통합, Easy-Medium)
+ ├─ 7-5. MissionDiscordActionService (단위, Easy-Medium)
+ └─ 7-6. VoiceDailyService, Bootstrap, SelfDiagnosis, Badge 등
+
+Phase 8 (낮은 우선순위)
+ └─ DataDeletion, MeProfile, MemberSearch, I18n 등 8개
+
+Phase 9 (잔여 Repository)
+ └─ MissionTemplate, MocoTemplate, MocoDb, HealthConfig 4개
+```
+
+---
+
+## 9. 기대 효과
+
+| 지표 | Phase 5 완료 (현재) | Phase 6 후 | Phase 7 후 | 전체 완료 후 |
+|------|-------------------|-----------|-----------|------------|
+| 테스트 파일 수 | 51개 | 55개 | 67개 | 79개 |
+| 테스트 대상 커버 | 36/72 (50%) | 40/72 (56%) | 52/72 (72%) | 66/72 (92%) |
+| 0% 커버리지 도메인 | 2개 | 0개 | 0개 | 0개 |
