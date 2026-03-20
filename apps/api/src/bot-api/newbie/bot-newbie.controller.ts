@@ -120,7 +120,7 @@ export class BotNewbieController {
     try {
       const config = await this.configRepo.findByGuildId(dto.guildId);
       if (config?.roleDurationDays) {
-        const { getKSTDateString } = await import('@dhyunbot/shared');
+        const { getKSTDateString } = await import('@onyu/shared');
         const startDate = getKSTDateString();
         const expiresDate = this.calcExpiresDate(startDate, config.roleDurationDays);
         await this.periodRepo.create(dto.guildId, dto.memberId, startDate, expiresDate);

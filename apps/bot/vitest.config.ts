@@ -6,8 +6,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   resolve: {
     alias: {
-      '@dhyunbot/shared': path.resolve(__dirname, '../../libs/shared/src'),
-      '@dhyunbot/bot-api-client': path.resolve(__dirname, '../../libs/bot-api-client/src'),
+      '@onyu/shared': path.resolve(__dirname, '../../libs/shared/src'),
+      '@onyu/bot-api-client': path.resolve(__dirname, '../../libs/bot-api-client/src'),
       'src/': path.resolve(__dirname, 'src') + '/',
     },
   },

@@ -39,12 +39,26 @@ export class DiscordRestService implements OnModuleInit {
 
     this.rest = new REST({ version: '10' }).setToken(token);
 
-    // 봇 유저 정보 조회
-    const me = (await this.rest.get(Routes.user())) as APIUser;
-    this.botUserId = me.id;
-    this.applicationId = me.id;
-
-    this.logger.log(`DiscordRestService initialized (botUserId=${this.botUserId})`);
+    // 봇 유저 정보 조회 (최대 3회 재시도)
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const me = (await this.rest.get(Routes.user())) as APIUser;
+        this.botUserId = me.id;
+        this.applicationId = me.id;
+        this.logger.log(`DiscordRestService initialized (botUserId=${this.botUserId})`);
+        return;
+      } catch (error) {
+        this.logger.warn(
+          `Discord API 연결 실패 (${attempt}/${maxRetries})`,
+          error instanceof Error ? error.message : error,
+        );
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 3000 * attempt));
+      }
+    }
   }
 
   getBotUserId(): string {

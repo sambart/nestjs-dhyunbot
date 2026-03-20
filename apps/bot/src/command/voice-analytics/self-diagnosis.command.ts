@@ -1,7 +1,7 @@
-import type { SelfDiagnosisResultData } from '@dhyunbot/bot-api-client';
-import { BotApiClientService } from '@dhyunbot/bot-api-client';
 import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
+import type { SelfDiagnosisResultData } from '@onyu/bot-api-client';
+import { BotApiClientService } from '@onyu/bot-api-client';
 import { CommandInteraction, EmbedBuilder } from 'discord.js';
 
 const EMBED_COLOR = 0x5b8def;
