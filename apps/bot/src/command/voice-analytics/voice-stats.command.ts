@@ -1,5 +1,5 @@
-import { BotApiClientService } from '@dhyunbot/bot-api-client';
-import { splitByLines, truncate } from '@dhyunbot/shared';
+import { BotApiClientService } from '@onyu/bot-api-client';
+import { splitByLines, truncate } from '@onyu/shared';
 import { SlashCommandPipe } from '@discord-nestjs/common';
 import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';

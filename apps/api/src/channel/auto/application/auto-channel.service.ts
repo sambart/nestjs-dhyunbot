@@ -1,9 +1,9 @@
+import { Injectable, Logger } from '@nestjs/common';
 import type {
   AutoChannelButtonClickDto,
   AutoChannelButtonResult,
   AutoChannelSubOptionDto,
-} from '@dhyunbot/bot-api-client';
-import { Injectable, Logger } from '@nestjs/common';
+} from '@onyu/bot-api-client';
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -348,7 +348,7 @@ export class AutoChannelService {
    *
    * {n}이 없는 경우 (기존 방식):
    *   중복 시 " 2", " 3", ... 순번 부여.
-   *   예: "DHyun의 오버워치" → "DHyun의 오버워치 2"
+   *   예: "Onyu의 오버워치" → "Onyu의 오버워치 2"
    */
   private async resolveChannelName(
     guildId: string,

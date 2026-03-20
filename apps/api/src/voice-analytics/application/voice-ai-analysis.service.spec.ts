@@ -1,4 +1,4 @@
-import { type VoiceActivityData } from '@dhyunbot/shared';
+import { type VoiceActivityData } from '@onyu/shared';
 import { type Mock } from 'vitest';
 
 import { type LlmProvider } from '../infrastructure/llm/llm-provider.interface';

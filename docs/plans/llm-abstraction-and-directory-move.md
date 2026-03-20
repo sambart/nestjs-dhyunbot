@@ -228,7 +228,7 @@ export class LlmModule {}
 ```typescript
 import type { LlmProvider } from './llm/llm-provider.interface';
 
-import { VoiceActivityData, VoiceAnalysisResult } from '@dhyunbot/shared';
+import { VoiceActivityData, VoiceAnalysisResult } from '@onyu/shared';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { LLM_PROVIDER } from './llm/llm-provider.interface';

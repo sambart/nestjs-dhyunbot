@@ -1,5 +1,5 @@
-import type { AutoChannelButtonResult } from '@dhyunbot/bot-api-client';
-import { BotApiClientService } from '@dhyunbot/bot-api-client';
+import type { AutoChannelButtonResult } from '@onyu/bot-api-client';
+import { BotApiClientService } from '@onyu/bot-api-client';
 import { InjectDiscordClient, On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import {

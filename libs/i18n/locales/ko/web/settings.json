@@ -64,7 +64,7 @@
     "channelNameTemplate": "채널명 템플릿 (선택)",
     "channelNameTemplateDesc": "'{'username'}' — 유저 닉네임, '{'n'}' — 자동 증가 번호 (예: 오버워치 #'{'n'}' → 오버워치 #1, #2, ...). 비우면 기본값: {default}",
     "subOptions": "하위 선택지 ({count}개)",
-    "subOptionsDesc": "채널명 템플릿에서 '{'name'}'은 버튼의 기본 채널명으로 치환됩니다. 예: 일반 '{'name'}' → 일반 DHyun의 오버워치",
+    "subOptionsDesc": "채널명 템플릿에서 '{'name'}'은 버튼의 기본 채널명으로 치환됩니다. 예: 일반 '{'name'}' → 일반 Onyu의 오버워치",
     "subLabelHeader": "라벨",
     "subEmojiHeader": "이모지",
     "subChannelNameHeader": "채널명 템플릿",

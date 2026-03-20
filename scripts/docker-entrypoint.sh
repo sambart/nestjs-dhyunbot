@@ -30,7 +30,7 @@ fi
 
 # Always build shared libraries (fast, ensures latest source)
 echo "[entrypoint] Building shared library..."
-pnpm --filter @dhyunbot/shared build 2>&1 || true
+pnpm --filter @onyu/shared build 2>&1 || true
 # Build bot-api-client if it has a build script and dist doesn't exist
 if [ -f "/workspace/libs/bot-api-client/package.json" ] && [ ! -d "/workspace/libs/bot-api-client/dist" ]; then
   echo "[entrypoint] Building bot-api-client library..."

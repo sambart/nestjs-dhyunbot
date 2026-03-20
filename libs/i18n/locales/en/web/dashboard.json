@@ -396,7 +396,7 @@
   },
   "gettingStarted": {
     "title": "Getting Started",
-    "subtitle": "Follow these steps to set up DHyunBot for the first time.",
+    "subtitle": "Follow these steps to set up Onyu for the first time.",
     "stepOf": "Step {current} of {total}",
     "prev": "Previous",
     "next": "Next",
@@ -461,7 +461,7 @@
     },
     "complete": {
       "title": "Setup Complete!",
-      "description": "DHyunBot is ready to track activity on your server.",
+      "description": "Onyu is ready to track activity on your server.",
       "featuresTitle": "Quick Links",
       "features": {
         "overview": {
@@ -485,7 +485,7 @@
   },
   "help": {
     "title": "Help",
-    "subtitle": "Frequently asked questions about DHyunBot features.",
+    "subtitle": "Frequently asked questions about Onyu features.",
     "contactTitle": "Still have questions?",
     "contactDesc": "Type the {command} command in Discord or contact an admin.",
     "sections": {

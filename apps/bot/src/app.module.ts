@@ -1,4 +1,4 @@
-import { BotApiClientModule } from '@dhyunbot/bot-api-client';
+import { BotApiClientModule } from '@onyu/bot-api-client';
 import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';

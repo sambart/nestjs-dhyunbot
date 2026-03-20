@@ -1,8 +1,8 @@
-# DHyunBot Database Schema
+# Onyu Database Schema
 
 ## 개요
 
-DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 및 임시 데이터 저장소로 사용한다.
+Onyu은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 및 임시 데이터 저장소로 사용한다.
 
 ### 기술 스택
 
@@ -80,22 +80,25 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
   IDX(guildId, gameName, date)
   영구 보존
 
-┌────────────────────────┐       ┌────────────────────────┐       ┌──────────────────────────┐
-│  AutoChannelConfig     │       │  AutoChannelButton      │       │  AutoChannelSubOption    │
-├────────────────────────┤       ├────────────────────────┤       ├──────────────────────────┤
-│ PK id                  │──1:N─►│ PK id                  │──1:N─►│ PK id                    │
-│ guildId                │       │ FK configId            │       │ FK buttonId              │
-│ name                   │       │ label                  │       │ label                    │
-│ triggerChannelId       │       │ emoji                  │       │ emoji                    │
-│ guideChannelId ?       │       │ targetCategoryId       │       │ channelNameTemplate      │
-│ waitingRoomTemplate ?  │       │ channelNameTemplate ?  │       │ sortOrder                │
-│ guideMessage           │       │ sortOrder              │
-│ embedTitle ?           │
-│ embedColor ?           │         ON DELETE CASCADE                ON DELETE CASCADE
-│ guideMessageId ?       │         IDX(configId)                    IDX(buttonId)
-│ createdAt              │
-│ updatedAt              │
-└────────────────────────┘
+┌──────────────────────────┐       ┌────────────────────────┐       ┌──────────────────────────┐
+│  AutoChannelConfig       │       │  AutoChannelButton      │       │  AutoChannelSubOption    │
+├──────────────────────────┤       ├────────────────────────┤       ├──────────────────────────┤
+│ PK id                    │──1:N─►│ PK id                  │──1:N─►│ PK id                    │
+│ guildId                  │       │ FK configId            │       │ FK buttonId              │
+│ name                     │       │ label                  │       │ label                    │
+│ triggerChannelId         │       │ emoji                  │       │ emoji                    │
+│ mode (select|instant)    │       │ targetCategoryId       │       │ channelNameTemplate      │
+│ guideChannelId ?         │       │ channelNameTemplate ?  │       │ sortOrder                │
+│ waitingRoomTemplate ?    │       │ sortOrder              │
+│ guideMessage             │
+│ embedTitle ?             │         ON DELETE CASCADE                ON DELETE CASCADE
+│ embedColor ?             │         IDX(configId)                    IDX(buttonId)
+│ guideMessageId ?         │
+│ instantCategoryId ?      │
+│ instantNameTemplate ?    │
+│ createdAt                │
+│ updatedAt                │
+└──────────────────────────┘
   UNIQUE(guildId, triggerChannelId)
 
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -482,12 +485,15 @@ F-VOICE-019(`GET /members/search?q=`)는 `WHERE guildId = ? AND userName LIKE '%
 | `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
 | `name` | `varchar` | NOT NULL | 설정 이름 (웹 탭 라벨용, 예: `게임방`, `스터디방`) |
 | `triggerChannelId` | `varchar` | NOT NULL | 트리거 음성 채널 ID |
-| `guideChannelId` | `varchar` | NULLABLE | 안내 메시지를 표시할 텍스트 채널 ID |
+| `mode` | `enum('select','instant')` | NOT NULL, DEFAULT `'select'` | 채널 생성 모드. `select`: 버튼 선택 후 확정방 생성, `instant`: 트리거 진입 즉시 채널 생성 |
+| `guideChannelId` | `varchar` | NULLABLE | 안내 메시지를 표시할 텍스트 채널 ID (`select` 모드 전용) |
 | `waitingRoomTemplate` | `varchar` | NULLABLE | 대기방 네이밍 템플릿 (예: `⌛ {username}의 대기방`) |
-| `guideMessage` | `text` | NOT NULL | 트리거 채널 안내 메시지 텍스트 |
-| `embedTitle` | `varchar` | NULLABLE | 안내 Embed 제목 |
-| `embedColor` | `varchar` | NULLABLE | 안내 Embed 색상 (HEX, 예: `#5865F2`) |
-| `guideMessageId` | `varchar` | NULLABLE | 전송된 안내 메시지 ID (Discord message ID) |
+| `guideMessage` | `text` | NULLABLE | 안내 메시지 Embed 설명 본문 (`select` 모드 전용) |
+| `embedTitle` | `varchar` | NULLABLE | 안내 Embed 제목 (`select` 모드 전용) |
+| `embedColor` | `varchar` | NULLABLE | 안내 Embed 색상 (HEX, 예: `#5865F2`) (`select` 모드 전용) |
+| `guideMessageId` | `varchar` | NULLABLE | 전송된 안내 메시지 ID (Discord message ID) (`select` 모드 전용) |
+| `instantCategoryId` | `varchar` | NULLABLE | 즉시 생성 모드에서 채널이 생성될 카테고리 ID (`instant` 모드 전용) |
+| `instantNameTemplate` | `varchar` | NULLABLE | 즉시 생성 모드에서 사용할 채널명 템플릿 (예: `{username}의 방`) (`instant` 모드 전용) |
 | `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
 | `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
 
@@ -1424,7 +1430,6 @@ EXPIRE voice:excluded:{guildId} 3600
 |---------|-----|------|
 | `auto_channel:waiting:{channelId}` | 12시간 | 대기방 메타데이터 |
 | `auto_channel:confirmed:{channelId}` | 12시간 | 확정방 메타데이터 |
-| `auto_channel:trigger:{guildId}` | — | 서버별 트리거 채널 ID 집합 (조회 최적화) |
 
 #### AutoChannelWaitingState 구조
 
@@ -1443,17 +1448,10 @@ interface AutoChannelWaitingState {
 interface AutoChannelConfirmedState {
   guildId: string;       // 디스코드 서버 ID
   userId: string;        // 확정방 소유 유저 ID
-  buttonId: number;      // auto_channel_button PK
-  subOptionId?: number;  // auto_channel_sub_option PK (하위 선택지 선택 시)
+  configId: number;      // auto_channel_config PK
+  buttonId?: number;     // auto_channel_button PK (select 모드 전용)
+  subOptionId?: number;  // auto_channel_sub_option PK (하위 선택지 선택 시, select 모드 전용)
 }
-```
-
-#### auto_channel:trigger 구조
-
-Redis Set 자료구조로 저장된다. 봇 기동 시 또는 설정 저장 시 갱신된다.
-
-```
-SADD auto_channel:trigger:{guildId} {triggerChannelId}
 ```
 
 ### newbie 키 정의
@@ -1854,10 +1852,9 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
   3. auto_channel_sub_option → PostgreSQL insert/replace (buttonId, label, emoji, channelSuffix, sortOrder)
   4. Discord API → 트리거 채널에 안내 메시지 전송 또는 수정
   5. auto_channel_config.guideMessageId → PostgreSQL update (Discord message ID 저장)
-  6. auto_channel:trigger:{guildId} → Redis SADD (triggerChannelId 추가)
 
 [트리거 채널 입장 — 대기방 생성]
-  1. auto_channel:trigger:{guildId} → Redis SISMEMBER (트리거 채널 여부 확인)
+  1. auto_channel_config → PostgreSQL 조회 (AutoChannelConfigRepository.findByTriggerChannel)
   2. Discord API → 대기방 음성 채널 생성 (waitingRoomTemplate 적용)
   3. Discord API → 사용자를 대기방으로 이동
   4. auto_channel:waiting:{channelId} → Redis set (guildId, userId, triggerChannelId, configId, TTL 12h)
@@ -1867,7 +1864,7 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
   1. auto_channel:waiting:{channelId} → Redis get (대기방 소유자 확인)
   2. Discord API → 대기방 채널명·카테고리 변경 (삭제+재생성 아님)
   3. auto_channel:waiting:{channelId} → Redis delete
-  4. auto_channel:confirmed:{channelId} → Redis set (guildId, userId, buttonId, subOptionId?, TTL 12h)
+  4. auto_channel:confirmed:{channelId} → Redis set (guildId, userId, configId, buttonId, subOptionId?, TTL 12h)
   5. Member/Channel → PostgreSQL upsert (F-VOICE-001과 동일)
   6. VoiceChannelHistory → PostgreSQL insert (joinAt, 확정방부터 세션 추적 시작)
   7. voice:session:{guildId}:{userId} → Redis set (TTL 12h)

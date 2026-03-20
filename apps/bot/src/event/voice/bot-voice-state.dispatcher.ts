@@ -1,4 +1,4 @@
-import { BotApiClientService, type VoiceStateUpdateDto } from '@dhyunbot/bot-api-client';
+import { BotApiClientService, type VoiceStateUpdateDto } from '@onyu/bot-api-client';
 import { On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { ActivityType, type GuildMember, type VoiceState } from 'discord.js';

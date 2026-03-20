@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Logger, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 
 import { getErrorStack } from '../../common/util/error.util';
 import { MissionService } from '../../newbie/application/mission/mission.service';
@@ -68,9 +78,7 @@ export class BotNewbieController {
    * 환영인사/역할 부여 판단을 위해 Bot이 호출한다.
    */
   @Get('config')
-  async getConfig(
-    @Query('guildId') guildId: string,
-  ): Promise<{ ok: boolean; data: unknown }> {
+  async getConfig(@Query('guildId') guildId: string): Promise<{ ok: boolean; data: unknown }> {
     let config = await this.redisRepo.getConfig(guildId);
     if (!config) {
       config = await this.configRepo.findByGuildId(guildId);
@@ -102,7 +110,7 @@ export class BotNewbieController {
     try {
       const config = await this.configRepo.findByGuildId(dto.guildId);
       if (config?.roleDurationDays) {
-        const { getKSTDateString } = await import('@dhyunbot/shared');
+        const { getKSTDateString } = await import('@onyu/shared');
         const startDate = getKSTDateString();
         const expiresDate = this.calcExpiresDate(startDate, config.roleDurationDays);
         await this.periodRepo.create(dto.guildId, dto.memberId, startDate, expiresDate);

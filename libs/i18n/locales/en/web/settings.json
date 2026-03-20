@@ -64,7 +64,7 @@
     "channelNameTemplate": "Channel Name Template (optional)",
     "channelNameTemplateDesc": "'{'username'}' — user nickname, '{'n'}' — auto-increment number (e.g. Overwatch #'{'n'}' → Overwatch #1, #2, ...). Leave blank for default: {default}",
     "subOptions": "Sub-options ({count})",
-    "subOptionsDesc": "In the channel name template, '{'name'}' is replaced with the button's default channel name. e.g. General '{'name'}' → General DHyun's Overwatch",
+    "subOptionsDesc": "In the channel name template, '{'name'}' is replaced with the button's default channel name. e.g. General '{'name'}' → General Onyu's Overwatch",
     "subLabelHeader": "Label",
     "subEmojiHeader": "Emoji",
     "subChannelNameHeader": "Channel Name Template",

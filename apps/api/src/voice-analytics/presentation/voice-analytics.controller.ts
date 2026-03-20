@@ -1,4 +1,3 @@
-import { VoiceActivityData, VoiceAnalysisResult } from '@dhyunbot/shared';
 import {
   BadRequestException,
   Controller,
@@ -9,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { VoiceActivityData, VoiceAnalysisResult } from '@onyu/shared';
 
 import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
 import { RedisService } from '../../redis/redis.service';

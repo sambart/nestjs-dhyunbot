@@ -1,6 +1,6 @@
-import { VoiceActivityData } from '@dhyunbot/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { VoiceActivityData } from '@onyu/shared';
 import { Between, Not, Repository } from 'typeorm';
 
 import { VoiceDailyOrm } from '../../channel/voice/infrastructure/voice-daily.orm-entity';
@@ -8,7 +8,7 @@ import { getErrorStack } from '../../common/util/error.util';
 import { DiscordGateway } from '../../gateway/discord.gateway';
 import { UserAggregateData, VoiceNameEnricherService } from './voice-name-enricher.service';
 
-export { VoiceActivityData } from '@dhyunbot/shared';
+export { VoiceActivityData } from '@onyu/shared';
 
 interface ChannelAggregate {
   channelId: string;

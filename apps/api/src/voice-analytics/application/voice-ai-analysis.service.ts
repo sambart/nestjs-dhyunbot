@@ -1,5 +1,5 @@
-import { VoiceActivityData, VoiceAnalysisResult } from '@dhyunbot/shared';
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { VoiceActivityData, VoiceAnalysisResult } from '@onyu/shared';
 
 import { getErrorMessage, getErrorStack } from '../../common/util/error.util';
 import type { LlmProvider } from '../infrastructure/llm/llm-provider.interface';
@@ -171,7 +171,6 @@ ${JSON.stringify(userActivity, null, 2)}
     }
   }
 
-  // eslint-disable-next-line max-lines-per-function
   async calculateCommunityHealth(activityData: VoiceActivityData): Promise<string> {
     const summarizedData = {
       guildId: activityData.guildId,
