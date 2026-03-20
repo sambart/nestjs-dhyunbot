@@ -1,6 +1,7 @@
 import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 
+import { BotAutoChannelInteractionHandler } from './auto-channel/bot-auto-channel-interaction.handler';
 import { BotChannelStateHandler } from './channel/bot-channel-state.handler';
 import { BotNewbieInteractionHandler } from './newbie/bot-newbie-interaction.handler';
 import { BotNewbieMemberAddHandler } from './newbie/bot-newbie-member-add.handler';
@@ -19,6 +20,7 @@ import { BotVoiceStateDispatcher } from './voice/bot-voice-state.dispatcher';
     BotNewbieMemberAddHandler,
     BotNewbieInteractionHandler,
     BotStatusPrefixInteractionHandler,
+    BotAutoChannelInteractionHandler,
     BotStickyMessageHandler,
     BotChannelStateHandler,
   ],

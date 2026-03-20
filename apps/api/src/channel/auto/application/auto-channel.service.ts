@@ -1,3 +1,8 @@
+import type {
+  AutoChannelButtonClickDto,
+  AutoChannelButtonResult,
+  AutoChannelSubOptionDto,
+} from '@dhyunbot/bot-api-client';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   ActionRowBuilder,
@@ -409,6 +414,117 @@ export class AutoChannelService {
     }
 
     return rows;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Bot → API: interaction 의존 없이 DTO 기반으로 처리
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Bot에서 호출: 1단계 버튼 클릭 처리.
+   * - 하위 선택지 없음 → 확정방 생성 후 결과 반환
+   * - 하위 선택지 있음 → subOptions 목록 반환 (Bot이 ActionRow 구성)
+   */
+  async handleButtonClickFromBot(dto: AutoChannelButtonClickDto): Promise<AutoChannelButtonResult> {
+    if (!dto.voiceChannelId) {
+      return { action: 'error', message: '음성 채널에 입장한 후 클릭하세요.' };
+    }
+
+    const button = await this.configRepo.findButtonById(dto.buttonId);
+
+    if (!button?.config) {
+      return { action: 'error', message: '설정을 찾을 수 없습니다. 관리자에게 문의하세요.' };
+    }
+
+    if (dto.voiceChannelId !== button.config.triggerChannelId) {
+      return { action: 'error', message: '대기 채널에서만 선택할 수 있습니다.' };
+    }
+
+    if (button.subOptions.length === 0) {
+      return this.convertToConfirmedFromBot(dto.guildId, dto.userId, dto.displayName, button);
+    }
+
+    const sorted = [...button.subOptions].sort((a, b) => a.sortOrder - b.sortOrder);
+    return {
+      action: 'show_sub_options',
+      message: '선택지를 고르세요.',
+      subOptions: sorted.map((opt) => ({
+        id: opt.id,
+        label: opt.label,
+        emoji: opt.emoji,
+      })),
+    };
+  }
+
+  /**
+   * Bot에서 호출: 2단계 하위 선택지 클릭 → 확정방 생성.
+   */
+  async handleSubOptionClickFromBot(
+    dto: AutoChannelSubOptionDto,
+  ): Promise<AutoChannelButtonResult> {
+    if (!dto.voiceChannelId) {
+      return { action: 'error', message: '음성 채널에 입장한 후 클릭하세요.' };
+    }
+
+    const subOption = await this.configRepo.findSubOptionById(dto.subOptionId);
+
+    if (!subOption?.button?.config) {
+      return { action: 'error', message: '설정을 찾을 수 없습니다. 관리자에게 문의하세요.' };
+    }
+
+    if (dto.voiceChannelId !== subOption.button.config.triggerChannelId) {
+      return { action: 'error', message: '대기 채널에서만 선택할 수 있습니다.' };
+    }
+
+    return this.convertToConfirmedFromBot(
+      dto.guildId,
+      dto.userId,
+      dto.displayName,
+      subOption.button,
+      subOption,
+    );
+  }
+
+  /**
+   * Bot 경로 전용 확정방 생성.
+   * interaction 없이 채널 생성 + 유저 이동만 수행하고 결과를 반환한다.
+   * 세션 추적은 Bot의 voiceStateUpdate 이벤트로 자연 처리된다.
+   */
+  private async convertToConfirmedFromBot(
+    guildId: string,
+    userId: string,
+    displayName: string,
+    button: AutoChannelButtonOrm,
+    subOption?: AutoChannelSubOptionOrm,
+  ): Promise<AutoChannelButtonResult> {
+    const baseName = this.buildChannelName(displayName, button, subOption);
+    const finalName = await this.resolveChannelName(guildId, button.targetCategoryId, baseName);
+
+    const confirmedChannelId = await this.discordVoiceGateway.createVoiceChannel({
+      guildId,
+      name: finalName,
+      parentCategoryId: button.targetCategoryId,
+    });
+
+    await this.discordVoiceGateway.moveUserToChannel(guildId, userId, confirmedChannelId);
+
+    await this.autoChannelRedis.setConfirmedState(confirmedChannelId, {
+      guildId,
+      userId,
+      buttonId: button.id,
+      subOptionId: subOption?.id,
+    });
+
+    this.logger.log(
+      `[AUTO CHANNEL] Confirmed (bot): guild=${guildId} user=${userId} channel="${finalName}"`,
+    );
+
+    return {
+      action: 'created',
+      channelId: confirmedChannelId,
+      channelName: finalName,
+      message: `**${finalName}** 방이 생성되었습니다!`,
+    };
   }
 
   /**

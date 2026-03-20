@@ -131,19 +131,30 @@ export interface AutoChannelButtonClickDto {
   guildId: string;
   userId: string;
   buttonId: number;
+  voiceChannelId: string | null;
+  displayName: string;
 }
 
 export interface AutoChannelSubOptionDto {
   guildId: string;
   userId: string;
   subOptionId: number;
+  voiceChannelId: string | null;
+  displayName: string;
+}
+
+export interface AutoChannelSubOptionInfo {
+  id: number;
+  label: string;
+  emoji: string | null;
 }
 
 export interface AutoChannelButtonResult {
-  action: 'created' | 'waiting' | 'error' | 'show_sub_options';
+  action: 'created' | 'error' | 'show_sub_options';
   channelId?: string;
   channelName?: string;
   message: string;
+  subOptions?: AutoChannelSubOptionInfo[];
 }
 
 // ── Sticky Message ──

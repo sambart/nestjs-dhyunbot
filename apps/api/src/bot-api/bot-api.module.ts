@@ -8,6 +8,7 @@ import { NewbieModule } from '../newbie/newbie.module';
 import { StatusPrefixModule } from '../status-prefix/status-prefix.module';
 import { StickyMessageModule } from '../sticky-message/sticky-message.module';
 import { VoiceAnalyticsModule } from '../voice-analytics/voice-analytics.module';
+import { BotAutoChannelController } from './auto-channel/bot-auto-channel.controller';
 import { BotApiAuthGuard } from './bot-api-auth.guard';
 import { BotCoPresenceController } from './co-presence/bot-co-presence.controller';
 import { BotMeController } from './me/bot-me.controller';
@@ -43,6 +44,7 @@ import { BotVoiceAnalyticsController } from './voice-analytics/bot-voice-analyti
     BotNewbieController,
     BotStatusPrefixController,
     BotStickyMessageController,
+    BotAutoChannelController,
   ],
   providers: [BotApiAuthGuard, BotVoiceEventListener],
   exports: [BotApiAuthGuard],

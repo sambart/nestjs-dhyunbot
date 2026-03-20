@@ -62,9 +62,9 @@
     "buttonCategory": "대상 카테고리",
     "categorySelect": "카테고리 선택",
     "channelNameTemplate": "채널명 템플릿 (선택)",
-    "channelNameTemplateDesc": "{username} — 유저 닉네임, {n} — 자동 증가 번호 (예: 오버워치 #{n} → 오버워치 #1, #2, ...). 비우면 기본값: {default}",
+    "channelNameTemplateDesc": "'{'username'}' — 유저 닉네임, '{'n'}' — 자동 증가 번호 (예: 오버워치 #'{'n'}' → 오버워치 #1, #2, ...). 비우면 기본값: {default}",
     "subOptions": "하위 선택지 ({count}개)",
-    "subOptionsDesc": "채널명 템플릿에서 {name}은 버튼의 기본 채널명으로 치환됩니다. 예: 일반 {name} → 일반 DHyun의 오버워치",
+    "subOptionsDesc": "채널명 템플릿에서 '{'name'}'은 버튼의 기본 채널명으로 치환됩니다. 예: 일반 '{'name'}' → 일반 DHyun의 오버워치",
     "subLabelHeader": "라벨",
     "subEmojiHeader": "이모지",
     "subChannelNameHeader": "채널명 템플릿",
@@ -73,8 +73,12 @@
     "validationName": "설정 이름을 입력하세요.",
     "validationTriggerChannel": "대기 채널을 선택하세요.",
     "validationGuideChannel": "안내 메시지 채널을 선택하세요.",
+    "validationGuideMessage": "안내 메시지(Embed 설명)를 입력하세요.",
+    "validationButtonRequired": "버튼을 최소 1개 추가하세요.",
     "validationButtonLabel": "버튼 #{index}의 라벨을 입력하세요.",
-    "validationButtonCategory": "버튼 #{index}의 대상 카테고리를 선택하세요."
+    "validationButtonCategory": "버튼 #{index}의 대상 카테고리를 선택하세요.",
+    "validationSubOptionLabel": "버튼 #{btnIndex}의 하위 선택지 #{subIndex} 라벨을 입력하세요.",
+    "validationSubOptionTemplate": "버튼 #{btnIndex}의 하위 선택지 #{subIndex} 채널명 템플릿을 입력하세요."
   },
   "voice": {
     "title": "음성 설정",

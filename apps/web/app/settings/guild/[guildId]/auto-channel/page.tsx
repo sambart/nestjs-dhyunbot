@@ -345,6 +345,14 @@ export default function AutoChannelSettingsPage() {
       setTabState(activeTabIndex, { saveError: t('autoChannel.validationGuideChannel') });
       return;
     }
+    if (!currentTab.guideMessage.trim()) {
+      setTabState(activeTabIndex, { saveError: t('autoChannel.validationGuideMessage') });
+      return;
+    }
+    if (currentTab.buttons.length === 0) {
+      setTabState(activeTabIndex, { saveError: t('autoChannel.validationButtonRequired') });
+      return;
+    }
     for (let i = 0; i < currentTab.buttons.length; i++) {
       const btn = currentTab.buttons[i];
       if (!btn.label.trim()) {
@@ -356,6 +364,21 @@ export default function AutoChannelSettingsPage() {
           saveError: t('autoChannel.validationButtonCategory', { index: i + 1 }),
         });
         return;
+      }
+      for (let j = 0; j < btn.subOptions.length; j++) {
+        const sub = btn.subOptions[j];
+        if (!sub.label.trim()) {
+          setTabState(activeTabIndex, {
+            saveError: t('autoChannel.validationSubOptionLabel', { btnIndex: i + 1, subIndex: j + 1 }),
+          });
+          return;
+        }
+        if (!sub.channelNameTemplate.trim()) {
+          setTabState(activeTabIndex, {
+            saveError: t('autoChannel.validationSubOptionTemplate', { btnIndex: i + 1, subIndex: j + 1 }),
+          });
+          return;
+        }
       }
     }
 
@@ -389,7 +412,13 @@ export default function AutoChannelSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error(`저장 실패 (${res.status})`);
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null) as { message?: string | string[] } | null;
+        const detail = Array.isArray(errorBody?.message)
+          ? errorBody.message[0]
+          : errorBody?.message;
+        throw new Error(detail ?? t('common.saveError'));
+      }
       // Response.json()은 Promise<any> 반환 — 응답 구조에 따라 좁힘
       const data = (await res.json()) as { configId: number };
       // 저장된 configId를 탭에 반영 (이후 수정 시 같은 탭으로 upsert)

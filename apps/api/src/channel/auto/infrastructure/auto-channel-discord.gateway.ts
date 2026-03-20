@@ -1,5 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
+  EmbedBuilder,
+} from 'discord.js';
 
 import { getErrorMessage } from '../../../common/util/error.util';
 import { DiscordRestService } from '../../../discord-rest/discord-rest.service';
@@ -99,7 +105,20 @@ export class AutoChannelDiscordGateway {
           'parent_id' in ch &&
           ch.parent_id === categoryId,
       )
-      .map((ch) => ('name' in ch ? ch.name ?? '' : ''));
+      .map((ch) => ('name' in ch ? (ch.name ?? '') : ''));
+  }
+
+  /**
+   * 유니코드 이모지 또는 Discord 커스텀 이모지 형식인지 검증.
+   * 일반 텍스트(예: "11")는 Discord API에서 Invalid Form Body를 유발한다.
+   */
+  private isValidEmoji(value: string): boolean {
+    // Discord 커스텀 이모지: <:name:id> 또는 <a:name:id>
+    if (/^<a?:\w+:\d+>$/.test(value)) return true;
+
+    // 유니코드 이모지: ASCII 범위 밖의 문자로 시작 (일반 텍스트 제외)
+    const codePoint = value.codePointAt(0) ?? 0;
+    return codePoint > 127;
   }
 
   /**
@@ -134,7 +153,7 @@ export class AutoChannelDiscordGateway {
             .setLabel(btn.label)
             .setStyle(ButtonStyle.Primary);
 
-          if (btn.emoji?.trim()) {
+          if (btn.emoji?.trim() && this.isValidEmoji(btn.emoji.trim())) {
             try {
               builder.setEmoji(btn.emoji.trim());
             } catch {
