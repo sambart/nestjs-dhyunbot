@@ -7,6 +7,7 @@ on:
 env:
   REGISTRY: ghcr.io
   API_IMAGE: ghcr.io/${{ github.repository }}/api
+  BOT_IMAGE: ghcr.io/${{ github.repository }}/bot
   WEB_IMAGE: ghcr.io/${{ github.repository }}/web
 
 jobs:
@@ -95,6 +96,19 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
+      - name: Build and push Bot image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/bot/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ env.BOT_IMAGE }}:latest
+            ${{ env.BOT_IMAGE }}:${{ github.sha }}
+            ${{ env.BOT_IMAGE }}:v${{ needs.version-bump.outputs.new_version }}
+          cache-from: type=gha,scope=bot
+          cache-to: type=gha,mode=max,scope=bot
+
       - name: Build and push Web image
         uses: docker/build-push-action@v6
         with:
@@ -124,20 +138,22 @@ jobs:
             cd ~/nestjs-dhyunbot
             DC="docker compose --env-file .env.prod -f docker-compose.prod.yml"
             API_IMG="ghcr.io/sambart/nestjs-dhyunbot/api"
+            BOT_IMG="ghcr.io/sambart/nestjs-dhyunbot/bot"
             WEB_IMG="ghcr.io/sambart/nestjs-dhyunbot/web"
 
             # 1. 현재 :latest를 :prev로 백업 (롤백용)
             docker tag "${API_IMG}:latest" "${API_IMG}:prev" 2>/dev/null || true
+            docker tag "${BOT_IMG}:latest" "${BOT_IMG}:prev" 2>/dev/null || true
             docker tag "${WEB_IMG}:latest" "${WEB_IMG}:prev" 2>/dev/null || true
             echo "=== 이전 이미지 :prev 태그 백업 완료 ==="
 
             # 2. 소스 업데이트 & 새 이미지 pull
             git pull origin main
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            $DC pull api web
+            $DC pull api bot web
 
             # 3. 새 컨테이너로 교체
-            $DC up -d api web
+            $DC up -d api bot web
 
             # 4. 헬스체크 함수 (최대 60초 대기)
             healthcheck() {
@@ -162,8 +178,9 @@ jobs:
             rollback() {
               echo "!!! 롤백 시작 !!!"
               docker tag "${API_IMG}:prev" "${API_IMG}:latest"
+              docker tag "${BOT_IMG}:prev" "${BOT_IMG}:latest"
               docker tag "${WEB_IMG}:prev" "${WEB_IMG}:latest"
-              $DC up -d api web
+              $DC up -d api bot web
               echo "!!! 이전 버전으로 롤백 완료 !!!"
             }
 

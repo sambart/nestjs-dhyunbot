@@ -17,6 +17,7 @@ COPY tsconfig.json ./
 # Copy workspace package.json files
 COPY apps/web/package.json ./apps/web/
 COPY libs/shared/package.json ./libs/shared/
+COPY libs/i18n/package.json ./libs/i18n/
 
 # Install dependencies (cache mount for faster rebuilds)
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
@@ -24,6 +25,9 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --froze
 # Copy shared library and build
 COPY libs/shared ./libs/shared
 RUN pnpm --filter @dhyunbot/shared build
+
+# Copy i18n library
+COPY libs/i18n ./libs/i18n
 
 # Copy Web source and build (cache SWC binary)
 COPY apps/web ./apps/web
@@ -46,6 +50,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 # Copy workspace package.json files
 COPY apps/web/package.json ./apps/web/
 COPY libs/shared/package.json ./libs/shared/
+COPY libs/i18n/package.json ./libs/i18n/
 
 # Skip husky in production (devDependency)
 ENV HUSKY=0
@@ -56,6 +61,9 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --froze
 # Copy built shared library
 COPY --from=builder /workspace/libs/shared/dist ./libs/shared/dist
 COPY --from=builder /workspace/libs/shared/package.json ./libs/shared/
+
+# Copy i18n locales
+COPY --from=builder /workspace/libs/i18n ./libs/i18n
 
 # Copy built Web app
 COPY --from=builder /workspace/apps/web/.next ./apps/web/.next

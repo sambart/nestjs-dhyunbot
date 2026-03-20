@@ -15,6 +15,23 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  bot:
+    container_name: nest-bot-prod
+    image: ghcr.io/sambart/nestjs-dhyunbot/bot:latest
+    env_file:
+      - .env.prod
+    environment:
+      - NODE_ENV=production
+      - API_BASE_URL=http://api:3000
+      - LAVALINK_URL=lavalink:2333
+      - LAVALINK_PASSWORD=${LAVALINK_PASSWORD:-youshallnotpass}
+    depends_on:
+      api:
+        condition: service_started
+      lavalink:
+        condition: service_started
+    restart: unless-stopped
+
   web:
     container_name: next-web-prod
     image: ghcr.io/sambart/nestjs-dhyunbot/web:latest
@@ -27,6 +44,17 @@ services:
     depends_on:
       api:
         condition: service_started
+    restart: unless-stopped
+
+  lavalink:
+    container_name: lavalink-prod
+    image: ghcr.io/lavalink-devs/lavalink:4
+    volumes:
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml
+    environment:
+      - _JAVA_OPTIONS=-Xmx128m
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
     restart: unless-stopped
 
   db:
