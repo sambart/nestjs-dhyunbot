@@ -24,6 +24,21 @@
 - **시크릿**: 환경변수 `JWT_SECRET`
 - **용도**: API 요청 인증
 
+## API 보안 계층
+
+### Rate Limiting
+- **전역**: `@nestjs/throttler` 기반 60 req/min
+- **auth 엔드포인트**: 5 req/min
+- **voice-analytics 엔드포인트**: 10 req/min
+
+### 보안 헤더
+- `helmet` 미들웨어 적용 (CSP, X-Frame-Options, HSTS 등)
+
+### Guild 접근 제어
+- **Guard**: `GuildMembershipGuard`
+- **동작**: JWT 페이로드의 `guilds` 목록과 요청 `guildId`를 대조하여 멤버 여부 검증
+- **적용 범위**: `/api/guilds/:guildId/*` 엔드포인트 전역 적용
+
 ## 환경변수
 | 변수 | 용도 |
 |------|------|

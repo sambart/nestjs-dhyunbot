@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   CartesianGrid,
   Line,
@@ -18,18 +19,20 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartConfig = {
-  pingMs: {
-    label: "핑 (ms)",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
-
 interface Props {
   data: MetricPoint[];
 }
 
 export default function PingChart({ data }: Props) {
+  const t = useTranslations("dashboard");
+
+  const chartConfig = {
+    pingMs: {
+      label: t("monitoring.pingChart.label"),
+      color: "var(--chart-1)",
+    },
+  } satisfies ChartConfig;
+
   const chartData = data.map((d) => ({
     time: new Date(d.timestamp).toLocaleString("ko-KR", {
       month: "numeric",
@@ -43,7 +46,7 @@ export default function PingChart({ data }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>핑 추이</CardTitle>
+        <CardTitle>{t("monitoring.pingChart.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[250px] w-full">

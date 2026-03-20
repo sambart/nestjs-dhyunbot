@@ -24,31 +24,13 @@ export interface OverviewData {
 
 // ─── API 함수 ────────────────────────────────────────────────────────────────
 
+import { apiClient } from './api-client';
+
 /** 서버 개요 데이터 조회 */
 export async function fetchOverview(guildId: string): Promise<OverviewData> {
-  const res = await fetch(`/api/guilds/${guildId}/overview`);
-  if (!res.ok) {
-    throw new Error('서버 개요 데이터를 불러오는데 실패했습니다.');
-  }
-  return res.json() as Promise<OverviewData>;
+  return apiClient<OverviewData>(`/api/guilds/${guildId}/overview`);
 }
 
 // ─── 유틸리티 ────────────────────────────────────────────────────────────────
 
-/** 초 → "H시간 M분" 형식 */
-export function formatDurationSec(totalSec: number): string {
-  const hours = Math.floor(totalSec / 3600);
-  const minutes = Math.floor((totalSec % 3600) / 60);
-  if (hours > 0) return `${hours}시간 ${minutes}분`;
-  return `${minutes}분`;
-}
-
-/** 'YYYYMMDD' → 'MM/DD' 형식 (차트 X축용) */
-export function formatShortDate(dateStr: string): string {
-  if (dateStr.length === 8) {
-    return `${dateStr.slice(4, 6)}/${dateStr.slice(6, 8)}`;
-  }
-  const parts = dateStr.split('-');
-  if (parts.length < 3) return dateStr;
-  return `${parts[1]}/${parts[2]}`;
-}
+export { formatDurationSec, formatShortDate } from './format-utils';

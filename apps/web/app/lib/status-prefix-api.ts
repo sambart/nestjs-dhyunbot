@@ -30,6 +30,8 @@ export interface StatusPrefixConfig {
 
 // ─── API 함수 ────────────────────────────────────────────────────────────────
 
+import { apiClient,ApiError } from './api-client';
+
 /**
  * 현재 서버의 Status Prefix 설정을 조회한다.
  * 설정이 없으면 null을 반환한다 (백엔드가 404를 반환하는 경우 처리).
@@ -37,30 +39,24 @@ export interface StatusPrefixConfig {
 export async function fetchStatusPrefixConfig(
   guildId: string,
 ): Promise<StatusPrefixConfig | null> {
-  const res = await fetch(
-    `/api/guilds/${guildId}/status-prefix/config`,
-  );
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`설정 조회 실패: ${res.status}`);
-  return res.json() as Promise<StatusPrefixConfig>;
+  try {
+    return await apiClient<StatusPrefixConfig>(`/api/guilds/${guildId}/status-prefix/config`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 /**
  * Status Prefix 설정을 저장한다.
  * 버튼 목록 전체를 배열로 일괄 전송한다.
- * 성공 시 undefined, 실패 시 Error throw.
  */
 export async function saveStatusPrefixConfig(
   guildId: string,
   config: StatusPrefixConfig,
 ): Promise<void> {
-  const res = await fetch(
-    `/api/guilds/${guildId}/status-prefix/config`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
-    },
-  );
-  if (!res.ok) throw new Error(`설정 저장 실패: ${res.status}`);
+  await apiClient<void>(`/api/guilds/${guildId}/status-prefix/config`, {
+    method: 'POST',
+    body: config,
+  });
 }

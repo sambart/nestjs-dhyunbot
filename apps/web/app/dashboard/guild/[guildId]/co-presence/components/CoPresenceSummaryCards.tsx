@@ -1,9 +1,10 @@
 "use client";
 
 import { BarChart3, Clock, Link2, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import type { CoPresenceSummary } from "@/app/lib/co-presence-api";
-import { formatMinutes } from "@/app/lib/co-presence-api";
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface CoPresenceSummaryCardsProps {
@@ -13,25 +14,28 @@ interface CoPresenceSummaryCardsProps {
 export default function CoPresenceSummaryCards({
   summary,
 }: CoPresenceSummaryCardsProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
+
   const cards = [
     {
-      label: "활성 멤버",
-      value: `${summary.activeMemberCount}명`,
+      label: t("coPresence.summary.activeMembers"),
+      value: `${summary.activeMemberCount}${t("common.unit.person")}`,
       icon: Users,
     },
     {
-      label: "총 관계 수",
-      value: `${summary.totalPairCount}쌍`,
+      label: t("coPresence.summary.totalPairs"),
+      value: `${summary.totalPairCount}${t("common.unit.pair")}`,
       icon: Link2,
     },
     {
-      label: "총 동시접속 시간",
-      value: formatMinutes(summary.totalCoPresenceMinutes),
+      label: t("coPresence.summary.totalTime"),
+      value: formatMinutesI18n(summary.totalCoPresenceMinutes, tc),
       icon: Clock,
     },
     {
-      label: "평균 관계 수/인",
-      value: `${summary.avgPairsPerMember.toFixed(1)}개`,
+      label: t("coPresence.summary.avgPairs"),
+      value: `${summary.avgPairsPerMember.toFixed(1)}${t("common.unit.channel")}`,
       icon: BarChart3,
     },
   ];

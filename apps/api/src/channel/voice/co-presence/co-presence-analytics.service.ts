@@ -3,8 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Member } from '../../../member/member.entity';
-import { VoiceCoPresenceDaily } from './domain/voice-co-presence-daily.entity';
-import { VoiceCoPresencePairDaily } from './domain/voice-co-presence-pair-daily.entity';
+import { VoiceCoPresenceDailyOrm } from './infrastructure/voice-co-presence-daily.orm-entity';
+import { VoiceCoPresencePairDailyOrm } from './infrastructure/voice-co-presence-pair-daily.orm-entity';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Response 타입 정의
@@ -139,10 +139,10 @@ const BOTH_DIRECTIONS_DIVISOR = 2;
 @Injectable()
 export class CoPresenceAnalyticsService {
   constructor(
-    @InjectRepository(VoiceCoPresencePairDaily)
-    private readonly pairDailyRepo: Repository<VoiceCoPresencePairDaily>,
-    @InjectRepository(VoiceCoPresenceDaily)
-    private readonly dailyRepo: Repository<VoiceCoPresenceDaily>,
+    @InjectRepository(VoiceCoPresencePairDailyOrm)
+    private readonly pairDailyRepo: Repository<VoiceCoPresencePairDailyOrm>,
+    @InjectRepository(VoiceCoPresenceDailyOrm)
+    private readonly dailyRepo: Repository<VoiceCoPresenceDailyOrm>,
     @InjectRepository(Member)
     private readonly memberRepo: Repository<Member>,
   ) {}
@@ -345,7 +345,7 @@ export class CoPresenceAnalyticsService {
         const subQuery = qb
           .subQuery()
           .select('1')
-          .from(VoiceCoPresencePairDaily, 'p')
+          .from(VoiceCoPresencePairDailyOrm, 'p')
           .where('p.guildId = d.guildId')
           .andWhere('p.userId = d.userId')
           .andWhere('p.date >= :startDate')

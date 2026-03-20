@@ -67,13 +67,7 @@ export interface VoiceUserStat {
 
 // ─── 유틸리티 ────────────────────────────────────────────────────────────────
 
-/** 초를 "HH시간 MM분" 형식으로 변환 */
-export function formatDuration(totalSec: number): string {
-  const hours = Math.floor(totalSec / 3600);
-  const minutes = Math.floor((totalSec % 3600) / 60);
-  if (hours > 0) return `${hours}시간 ${minutes}분`;
-  return `${minutes}분`;
-}
+export { formatDuration } from './format-utils';
 
 /** YYYYMMDD → MM/DD 형식 */
 export function formatDate(yyyymmdd: string): string {
@@ -82,27 +76,29 @@ export function formatDate(yyyymmdd: string): string {
 
 // ─── API 함수 ────────────────────────────────────────────────────────────────
 
+import { apiGet } from './api-client';
+
 /**
  * 음성 일별 집계 데이터를 조회한다.
  * @param guildId 서버 ID
  * @param from 시작일 (YYYYMMDD)
  * @param to 종료일 (YYYYMMDD)
+ * @param timezone IANA 타임존 (예: 'America/New_York'). 미제공 시 서버 기본 KST 기준
  */
 export async function fetchVoiceDaily(
   guildId: string,
   from: string,
   to: string,
+  timezone?: string,
 ): Promise<VoiceDailyRecord[]> {
-  const res = await fetch(
-    `/api/guilds/${guildId}/voice/daily?from=${from}&to=${to}`,
-  );
-  if (!res.ok) return [];
-  return res.json();
+  let url = `/api/guilds/${guildId}/voice/daily?from=${from}&to=${to}`;
+  if (timezone) url += `&timezone=${encodeURIComponent(timezone)}`;
+  return apiGet<VoiceDailyRecord[]>(url, []);
 }
 
 // ─── 클라이언트 집계 함수 ─────────────────────────────────────────────────────
 
-/** 요약 통계 계산 */
+/** 음성 활동 레코드를 기반으로 전체 통계 요약을 계산한다 */
 export function computeSummary(records: VoiceDailyRecord[]): VoiceSummary {
   const globalRecords = records.filter((r) => r.channelId === 'GLOBAL');
   const channelRecords = records.filter((r) => r.channelId !== 'GLOBAL');
@@ -123,7 +119,7 @@ export function computeSummary(records: VoiceDailyRecord[]): VoiceSummary {
   };
 }
 
-/** 일별 추이 데이터 생성 */
+/** 음성 활동 레코드를 일별 트렌드로 집계한다 */
 export function computeDailyTrends(
   records: VoiceDailyRecord[],
 ): VoiceDailyTrend[] {
@@ -170,7 +166,7 @@ export function computeDailyTrends(
   );
 }
 
-/** 채널별 통계 집계 */
+/** 음성 활동 레코드를 채널별 통계로 집계한다 */
 export function computeChannelStats(
   records: VoiceDailyRecord[],
 ): VoiceChannelStat[] {
@@ -201,7 +197,7 @@ export function computeChannelStats(
   );
 }
 
-/** 카테고리별 통계 집계 */
+/** 음성 활동 레코드를 카테고리별 통계로 집계한다 */
 export function computeCategoryStats(
   records: VoiceDailyRecord[],
 ): VoiceCategoryStat[] {
@@ -233,7 +229,7 @@ export function computeCategoryStats(
   );
 }
 
-/** 유저별 통계 집계 */
+/** 음성 활동 레코드를 사용자별 통계로 집계한다 */
 export function computeUserStats(
   records: VoiceDailyRecord[],
 ): VoiceUserStat[] {

@@ -1,17 +1,13 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  Client,
-  EmbedBuilder,
-  TextChannel,
-} from 'discord.js';
+import { Injectable, Logger } from '@nestjs/common';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 
-import { StatusPrefixButton, StatusPrefixButtonType } from '../domain/status-prefix-button.entity';
-import { StatusPrefixConfig } from '../domain/status-prefix-config.entity';
+import { DomainException } from '../../common/domain-exception';
+import { getErrorStack } from '../../common/util/error.util';
+import { StatusPrefixButtonType } from '../domain/status-prefix.types';
+import { StatusPrefixButtonOrm } from '../infrastructure/status-prefix-button.orm-entity';
+import { StatusPrefixConfigOrm } from '../infrastructure/status-prefix-config.orm-entity';
 import { StatusPrefixConfigRepository } from '../infrastructure/status-prefix-config.repository';
+import { StatusPrefixDiscordAdapter } from '../infrastructure/status-prefix-discord.adapter';
 import { StatusPrefixRedisRepository } from '../infrastructure/status-prefix-redis.repository';
 import { StatusPrefixConfigSaveDto } from '../presentation/status-prefix-config-save.dto';
 
@@ -25,7 +21,7 @@ export class StatusPrefixConfigService {
   constructor(
     private readonly configRepo: StatusPrefixConfigRepository,
     private readonly redisRepo: StatusPrefixRedisRepository,
-    @InjectDiscordClient() private readonly client: Client,
+    private readonly discordAdapter: StatusPrefixDiscordAdapter,
   ) {}
 
   /**
@@ -37,7 +33,7 @@ export class StatusPrefixConfigService {
    *   - '[관전] [관전] 동현' → '[관전] 동현' → '동현' (반복 제거)
    *   - '동현' → '동현' (변경 없음)
    */
-  stripPrefixFromNickname(nickname: string, config: StatusPrefixConfig): string {
+  stripPrefixFromNickname(nickname: string, config: StatusPrefixConfigOrm): string {
     if (!config.buttons?.length) return nickname;
 
     const prefixes = config.buttons
@@ -75,7 +71,7 @@ export class StatusPrefixConfigService {
    * 설정 조회 (F-STATUS-PREFIX-001).
    * Redis 캐시 우선, 미스 시 DB 조회 후 캐시 저장.
    */
-  async getConfig(guildId: string): Promise<StatusPrefixConfig | null> {
+  async getConfig(guildId: string): Promise<StatusPrefixConfigOrm | null> {
     const cached = await this.redisRepo.getConfig(guildId);
     if (cached) return cached;
 
@@ -94,7 +90,10 @@ export class StatusPrefixConfigService {
    *   3. enabled = true이면 Discord 채널에 Embed + 버튼 메시지 전송/갱신
    *   4. 전송된 messageId를 DB에 저장
    */
-  async saveConfig(guildId: string, dto: StatusPrefixConfigSaveDto): Promise<StatusPrefixConfig> {
+  async saveConfig(
+    guildId: string,
+    dto: StatusPrefixConfigSaveDto,
+  ): Promise<StatusPrefixConfigOrm> {
     // 0. PREFIX 타입 버튼 간 접두사 중복 검증
     const prefixButtons = dto.buttons.filter((b) => b.type === StatusPrefixButtonType.PREFIX);
     const seen = new Set<string>();
@@ -102,7 +101,7 @@ export class StatusPrefixConfigService {
       const trimmed = btn.prefix?.trim();
       if (!trimmed) continue;
       if (seen.has(trimmed)) {
-        throw new BadRequestException(`접두사 "${trimmed}"이(가) 중복됩니다.`);
+        throw new DomainException(`접두사 "${trimmed}"이(가) 중복됩니다.`, 'PREFIX_DUPLICATE');
       }
       seen.add(trimmed);
     }
@@ -125,7 +124,7 @@ export class StatusPrefixConfigService {
       } catch (err) {
         this.logger.error(
           `[STATUS_PREFIX] Failed to send guide message: guild=${guildId}`,
-          (err as Error).stack,
+          getErrorStack(err),
         );
         throw err; // 채널/권한 오류는 컨트롤러까지 전파하여 API 오류 반환
       }
@@ -139,11 +138,12 @@ export class StatusPrefixConfigService {
    * messageId가 존재하면 기존 메시지 edit 시도, 실패 시 신규 전송으로 폴백.
    * 반환값: 전송된 메시지 ID
    */
-  private async buildAndSendMessage(config: StatusPrefixConfig): Promise<string> {
-    const channel = await this.client.channels.fetch(config.channelId!);
+  private async buildAndSendMessage(config: StatusPrefixConfigOrm): Promise<string> {
+    const channelId = config.channelId!;
+    const fetched = await this.discordAdapter.fetchChannel(channelId);
 
-    if (!channel?.isTextBased()) {
-      throw new Error(`Channel ${config.channelId} is not a text-based channel`);
+    if (!fetched) {
+      throw new Error(`Channel ${channelId} is not found`);
     }
 
     const embed = new EmbedBuilder();
@@ -157,20 +157,19 @@ export class StatusPrefixConfigService {
     const sortedButtons = [...config.buttons].sort((a, b) => a.sortOrder - b.sortOrder);
     const components = this.buildActionRows(sortedButtons);
 
+    const payload = { embeds: [embed.toJSON()], components: components.map((r) => r.toJSON()) };
+
     if (config.messageId) {
-      try {
-        const message = await (channel as TextChannel).messages.fetch(config.messageId);
-        await message.edit({ embeds: [embed], components });
-        return config.messageId;
-      } catch {
-        this.logger.warn(
-          `[STATUS_PREFIX] Failed to edit message ${config.messageId}, sending new one`,
-        );
-        // 메시지 삭제됨 등의 이유로 수정 실패 → 신규 전송으로 폴백
-      }
+      const edited = await this.discordAdapter.editMessage(channelId, config.messageId, payload);
+      if (edited) return config.messageId;
+
+      this.logger.warn(
+        `[STATUS_PREFIX] Failed to edit message ${config.messageId}, sending new one`,
+      );
+      // 메시지 삭제됨 등의 이유로 수정 실패 → 신규 전송으로 폴백
     }
 
-    const message = await (channel as TextChannel).send({ embeds: [embed], components });
+    const message = await this.discordAdapter.sendMessage(channelId, payload);
     return message.id;
   }
 
@@ -180,7 +179,7 @@ export class StatusPrefixConfigService {
    * RESET 버튼: customId = 'status_reset:{buttonId}'
    * style: Primary (파란색) 고정
    */
-  private buildActionRows(buttons: StatusPrefixButton[]): ActionRowBuilder<ButtonBuilder>[] {
+  private buildActionRows(buttons: StatusPrefixButtonOrm[]): ActionRowBuilder<ButtonBuilder>[] {
     const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
     for (let i = 0; i < buttons.length; i += BUTTONS_PER_ROW) {

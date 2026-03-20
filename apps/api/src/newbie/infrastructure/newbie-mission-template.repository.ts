@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { NewbieMissionTemplate } from '../domain/newbie-mission-template.entity';
-import { NewbieMissionTemplateSaveDto } from '../dto/newbie-mission-template-save.dto';
+import { NewbieMissionTemplateSaveDto } from '../presentation/dto/newbie-mission-template-save.dto';
+import { NewbieMissionTemplateOrmEntity as NewbieMissionTemplate } from './newbie-mission-template.orm-entity';
 
 @Injectable()
 export class NewbieMissionTemplateRepository {

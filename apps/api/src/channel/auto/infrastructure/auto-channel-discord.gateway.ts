@@ -1,13 +1,14 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  Client,
+  ChannelType,
   EmbedBuilder,
-  TextChannel,
 } from 'discord.js';
+
+import { getErrorMessage } from '../../../common/util/error.util';
+import { DiscordRestService } from '../../../discord-rest/discord-rest.service';
 
 /** 안내 메시지 전송/수정에 사용하는 버튼 페이로드 */
 export interface GuideMessageButtonPayload {
@@ -23,7 +24,7 @@ const BUTTONS_PER_ROW = 5;
 export class AutoChannelDiscordGateway {
   private readonly logger = new Logger(AutoChannelDiscordGateway.name);
 
-  constructor(@InjectDiscordClient() private readonly client: Client) {}
+  constructor(private readonly discordRest: DiscordRestService) {}
 
   /**
    * F-VOICE-009: 텍스트 채널에 안내 메시지 + 버튼 신규 전송.
@@ -36,16 +37,11 @@ export class AutoChannelDiscordGateway {
     embedColor: string | null,
     buttons: GuideMessageButtonPayload[],
   ): Promise<string> {
-    const channel = await this.client.channels.fetch(channelId);
-    if (!channel?.isTextBased()) {
-      throw new Error(`Channel ${channelId} is not a text-based channel`);
-    }
-
     const embed = this.buildEmbed(guideMessage, embedTitle, embedColor);
     const components = this.buildActionRows(buttons);
-    const message = await (channel as TextChannel).send({
-      embeds: [embed],
-      components,
+    const message = await this.discordRest.sendMessage(channelId, {
+      embeds: [embed.toJSON()],
+      components: components.map((c) => c.toJSON()),
     });
 
     return message.id;
@@ -53,7 +49,7 @@ export class AutoChannelDiscordGateway {
 
   /**
    * F-VOICE-009: 기존 안내 메시지 수정.
-   * 실패 시 (메시지 삭제됨 등) null 반환 — 호출자가 신규 전송으로 폴백.
+   * 실패 시 (메시지 삭제됨 등) null 반환 -- 호출자가 신규 전송으로 폴백.
    */
   async editGuideMessage(
     channelId: string,
@@ -64,24 +60,18 @@ export class AutoChannelDiscordGateway {
     buttons: GuideMessageButtonPayload[],
   ): Promise<string | null> {
     try {
-      const channel = await this.client.channels.fetch(channelId);
-      if (!channel?.isTextBased()) {
-        throw new Error(`Channel ${channelId} is not a text-based channel`);
-      }
-
-      const message = await (channel as TextChannel).messages.fetch(messageId);
       const embed = this.buildEmbed(guideMessage, embedTitle, embedColor);
       const components = this.buildActionRows(buttons);
 
-      await message.edit({
-        embeds: [embed],
-        components,
+      await this.discordRest.editMessage(channelId, messageId, {
+        embeds: [embed.toJSON()],
+        components: components.map((c) => c.toJSON()),
       });
 
       return messageId;
     } catch (error) {
       this.logger.warn(
-        `Failed to edit guide message (channelId=${channelId}, messageId=${messageId}): ${(error as Error).message}`,
+        `Failed to edit guide message (channelId=${channelId}, messageId=${messageId}): ${getErrorMessage(error)}`,
       );
       return null;
     }
@@ -93,14 +83,10 @@ export class AutoChannelDiscordGateway {
    */
   async deleteGuideMessage(channelId: string, messageId: string): Promise<void> {
     try {
-      const channel = await this.client.channels.fetch(channelId);
-      if (!channel?.isTextBased()) return;
-
-      const message = await (channel as TextChannel).messages.fetch(messageId);
-      await message.delete();
+      await this.discordRest.deleteMessage(channelId, messageId);
     } catch (error) {
       this.logger.warn(
-        `Failed to delete guide message (channelId=${channelId}, messageId=${messageId}): ${(error as Error).message}`,
+        `Failed to delete guide message (channelId=${channelId}, messageId=${messageId}): ${getErrorMessage(error)}`,
       );
     }
   }
@@ -110,11 +96,29 @@ export class AutoChannelDiscordGateway {
    * 카테고리별 독립 넘버링을 위해 parentId로 필터링한다.
    */
   async fetchVoiceChannelNamesByCategory(guildId: string, categoryId: string): Promise<string[]> {
-    const guild = this.client.guilds.cache.get(guildId);
-    if (!guild) return [];
-    return guild.channels.cache
-      .filter((ch) => ch.isVoiceBased() && ch.parentId === categoryId)
-      .map((ch) => ch.name);
+    const channels = await this.discordRest.fetchGuildChannels(guildId);
+    return channels
+      .filter(
+        (ch) =>
+          'type' in ch &&
+          (ch.type === ChannelType.GuildVoice || ch.type === ChannelType.GuildStageVoice) &&
+          'parent_id' in ch &&
+          ch.parent_id === categoryId,
+      )
+      .map((ch) => ('name' in ch ? (ch.name ?? '') : ''));
+  }
+
+  /**
+   * 유니코드 이모지 또는 Discord 커스텀 이모지 형식인지 검증.
+   * 일반 텍스트(예: "11")는 Discord API에서 Invalid Form Body를 유발한다.
+   */
+  private isValidEmoji(value: string): boolean {
+    // Discord 커스텀 이모지: <:name:id> 또는 <a:name:id>
+    if (/^<a?:\w+:\d+>$/.test(value)) return true;
+
+    // 유니코드 이모지: ASCII 범위 밖의 문자로 시작 (일반 텍스트 제외)
+    const codePoint = value.codePointAt(0) ?? 0;
+    return codePoint > 127;
   }
 
   /**
@@ -134,7 +138,7 @@ export class AutoChannelDiscordGateway {
 
   /**
    * 버튼 페이로드 목록을 Discord ActionRow 컴포넌트 배열로 변환.
-   * Discord 제약: ActionRow 최대 5개, 버튼 최대 5개/행 → 총 25개.
+   * Discord 제약: ActionRow 최대 5개, 버튼 최대 5개/행 -> 총 25개.
    * customId 형식: auto_btn:{buttonId}
    */
   private buildActionRows(buttons: GuideMessageButtonPayload[]): ActionRowBuilder<ButtonBuilder>[] {
@@ -149,7 +153,7 @@ export class AutoChannelDiscordGateway {
             .setLabel(btn.label)
             .setStyle(ButtonStyle.Primary);
 
-          if (btn.emoji?.trim()) {
+          if (btn.emoji?.trim() && this.isValidEmoji(btn.emoji.trim())) {
             try {
               builder.setEmoji(btn.emoji.trim());
             } catch {

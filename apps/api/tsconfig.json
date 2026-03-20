@@ -13,6 +13,7 @@
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
+    "types": ["vitest/globals"],
     "strictPropertyInitialization": false,
     "strictNullChecks": false,
     "noImplicitAny": false,
@@ -23,7 +24,9 @@
     "paths": {
       "src/*": ["src/*"],
       "@dhyunbot/shared": ["../../libs/shared/src"],
-      "@dhyunbot/shared/*": ["../../libs/shared/src/*"]
+      "@dhyunbot/shared/*": ["../../libs/shared/src/*"],
+      "@dhyunbot/bot-api-client": ["../../libs/bot-api-client/src"],
+      "@dhyunbot/bot-api-client/*": ["../../libs/bot-api-client/src/*"]
     }
   }
 }

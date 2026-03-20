@@ -3,20 +3,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 
 import { Member } from '../../../member/member.entity';
-import { Channel } from '../../channel.entity';
-import { VoiceChannelHistory } from '../domain/voice-channel-history.entity';
+import { ChannelOrm } from '../../infrastructure/channel.orm-entity';
+import { VoiceChannelHistoryOrm } from '../infrastructure/voice-channel-history.orm-entity';
 
 @Injectable()
 export class VoiceChannelHistoryService {
   private readonly logger = new Logger(VoiceChannelHistoryService.name);
 
   constructor(
-    @InjectRepository(VoiceChannelHistory)
-    private readonly voiceChannelHistoryRepository: Repository<VoiceChannelHistory>,
+    @InjectRepository(VoiceChannelHistoryOrm)
+    private readonly voiceChannelHistoryRepository: Repository<VoiceChannelHistoryOrm>,
     private readonly dataSource: DataSource,
   ) {}
 
-  async logJoin(member: Member, channel: Channel): Promise<VoiceChannelHistory> {
+  async logJoin(member: Member, channel: ChannelOrm): Promise<VoiceChannelHistoryOrm> {
     const log = this.voiceChannelHistoryRepository.create({
       member,
       channel,
@@ -25,12 +25,12 @@ export class VoiceChannelHistoryService {
     return this.voiceChannelHistoryRepository.save(log);
   }
 
-  async logLeave(member: Member, channel: Channel): Promise<void> {
+  async logLeave(member: Member, channel: ChannelOrm): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
       const log = await manager
         .createQueryBuilder()
         .select('id')
-        .from(VoiceChannelHistory, 'log')
+        .from(VoiceChannelHistoryOrm, 'log')
         .where('log.memberId = :memberId', { memberId: member.id })
         .andWhere('log.channelId = :channelId', { channelId: channel.id })
         .andWhere('log.leftAt IS NULL')
@@ -39,7 +39,7 @@ export class VoiceChannelHistoryService {
         .getRawOne();
 
       if (log) {
-        await manager.update(VoiceChannelHistory, { id: log.id }, { leftAt: new Date() });
+        await manager.update(VoiceChannelHistoryOrm, { id: log.id }, { leftAt: new Date() });
       }
     });
   }
@@ -48,14 +48,14 @@ export class VoiceChannelHistoryService {
   async closeOrphanRecords(): Promise<number> {
     const result = await this.voiceChannelHistoryRepository
       .createQueryBuilder()
-      .update(VoiceChannelHistory)
+      .update(VoiceChannelHistoryOrm)
       .set({ leftAt: () => 'NOW()' })
       .where({ leftAt: IsNull() })
       .execute();
 
     const affected = result.affected ?? 0;
     if (affected > 0) {
-      this.logger.warn(`Closed ${affected} orphan VoiceChannelHistory record(s)`);
+      this.logger.warn(`Closed ${affected} orphan VoiceChannelHistoryOrm record(s)`);
     }
     return affected;
   }

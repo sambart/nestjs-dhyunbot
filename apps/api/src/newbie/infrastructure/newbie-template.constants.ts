@@ -1,5 +1,4 @@
-import { MissionStatus } from '../domain/newbie-mission.entity';
-import { type StatusMapping } from '../domain/newbie-mission-template.entity';
+import { MissionStatus, type StatusMapping } from '../domain/newbie-mission.types';
 
 // ---- 미션 템플릿 기본값 ----
 

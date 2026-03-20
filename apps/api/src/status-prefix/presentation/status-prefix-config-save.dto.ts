@@ -11,7 +11,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-import { StatusPrefixButtonType } from '../domain/status-prefix-button.entity';
+import { StatusPrefixButtonType } from '../domain/status-prefix.types';
 
 export class StatusPrefixButtonSaveDto {
   @IsString()

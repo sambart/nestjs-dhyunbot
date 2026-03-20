@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
 import { StatusPrefixConfigService } from '../application/status-prefix-config.service';
 import { StatusPrefixConfigSaveDto } from './status-prefix-config-save.dto';
 

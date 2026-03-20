@@ -1,43 +1,36 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from '../auth/auth.module';
-import { VoiceCoPresencePairDaily } from '../channel/voice/co-presence/domain/voice-co-presence-pair-daily.entity';
-import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
+import { VoiceCoPresencePairDailyOrm } from '../channel/voice/co-presence/infrastructure/voice-co-presence-pair-daily.orm-entity';
+import { VoiceDailyOrm } from '../channel/voice/infrastructure/voice-daily.orm-entity';
 import { VoiceRedisRepository } from '../channel/voice/infrastructure/voice-redis.repository';
 import { GatewayModule } from '../gateway/gateway.module';
-import { MocoHuntingDaily } from '../newbie/domain/moco-hunting-daily.entity';
-import { CommunityHealthCommand } from './commands/community-health.command';
-import { MyVoiceStatsCommand } from './commands/my-voice-stats.command';
-import { VoiceLeaderboardCommand } from './commands/voice-leaderboard.command';
-import { VoiceStatsCommand } from './commands/voice-stats.command';
-import { LlmModule } from './llm/llm.module';
-import { BadgeScheduler } from './self-diagnosis/badge.scheduler';
-import { BadgeService } from './self-diagnosis/badge.service';
-import { BadgeQueryService } from './self-diagnosis/badge-query.service';
-import { VoiceHealthBadge } from './self-diagnosis/domain/voice-health-badge.entity';
-import { VoiceHealthConfig } from './self-diagnosis/domain/voice-health-config.entity';
-import { SelfDiagnosisCommand } from './self-diagnosis/self-diagnosis.command';
-import { SelfDiagnosisController } from './self-diagnosis/self-diagnosis.controller';
-import { SelfDiagnosisService } from './self-diagnosis/self-diagnosis.service';
-import { VoiceHealthConfigRepository } from './self-diagnosis/voice-health-config.repository';
-import { VoiceAiAnalysisService } from './voice-ai-analysis.service';
-import { VoiceAnalyticsController } from './voice-analytics.controller';
-import { VoiceAnalyticsService } from './voice-analytics.service';
-import { VoiceNameEnricherService } from './voice-name-enricher.service';
+import { MocoHuntingDailyOrmEntity as MocoHuntingDaily } from '../newbie/infrastructure/moco-hunting-daily.orm-entity';
+import { VoiceAiAnalysisService } from './application/voice-ai-analysis.service';
+import { VoiceAnalyticsService } from './application/voice-analytics.service';
+import { VoiceNameEnricherService } from './application/voice-name-enricher.service';
+import { LlmModule } from './infrastructure/llm/llm.module';
+import { VoiceAnalyticsController } from './presentation/voice-analytics.controller';
+import { BadgeScheduler } from './self-diagnosis/application/badge.scheduler';
+import { BadgeService } from './self-diagnosis/application/badge.service';
+import { BadgeQueryService } from './self-diagnosis/application/badge-query.service';
+import { SelfDiagnosisService } from './self-diagnosis/application/self-diagnosis.service';
+import { VoiceHealthBadgeOrmEntity } from './self-diagnosis/infrastructure/voice-health-badge.orm-entity';
+import { VoiceHealthConfigOrmEntity } from './self-diagnosis/infrastructure/voice-health-config.orm-entity';
+import { VoiceHealthConfigRepository } from './self-diagnosis/infrastructure/voice-health-config.repository';
+import { SelfDiagnosisController } from './self-diagnosis/presentation/self-diagnosis.controller';
 
 @Module({
   imports: [
-    DiscordModule.forFeature(),
     ConfigModule,
     TypeOrmModule.forFeature([
-      VoiceDailyEntity,
-      VoiceCoPresencePairDaily,
+      VoiceDailyOrm,
+      VoiceCoPresencePairDailyOrm,
       MocoHuntingDaily,
-      VoiceHealthConfig,
-      VoiceHealthBadge,
+      VoiceHealthConfigOrmEntity,
+      VoiceHealthBadgeOrmEntity,
     ]),
     GatewayModule,
     AuthModule,
@@ -49,17 +42,19 @@ import { VoiceNameEnricherService } from './voice-name-enricher.service';
     VoiceAnalyticsService,
     VoiceNameEnricherService,
     VoiceRedisRepository,
-    VoiceStatsCommand,
-    MyVoiceStatsCommand,
-    CommunityHealthCommand,
-    VoiceLeaderboardCommand,
     VoiceHealthConfigRepository,
     SelfDiagnosisService,
-    SelfDiagnosisCommand,
     BadgeService,
     BadgeScheduler,
     BadgeQueryService,
   ],
-  exports: [VoiceAiAnalysisService, VoiceAnalyticsService, VoiceRedisRepository, BadgeQueryService],
+  exports: [
+    VoiceAiAnalysisService,
+    VoiceAnalyticsService,
+    VoiceRedisRepository,
+    BadgeQueryService,
+    SelfDiagnosisService,
+    VoiceHealthConfigRepository,
+  ],
 })
 export class VoiceAnalyticsModule {}

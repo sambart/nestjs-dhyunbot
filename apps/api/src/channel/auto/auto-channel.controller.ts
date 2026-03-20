@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -12,7 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
 import { AutoChannelSaveDto } from './dto/auto-channel-save.dto';
 import { AutoChannelConfigRepository } from './infrastructure/auto-channel-config.repository';
 import { AutoChannelDiscordGateway } from './infrastructure/auto-channel-discord.gateway';
@@ -20,6 +21,8 @@ import { AutoChannelDiscordGateway } from './infrastructure/auto-channel-discord
 @Controller('api/guilds/:guildId/auto-channel')
 @UseGuards(JwtAuthGuard)
 export class AutoChannelController {
+  private readonly logger = new Logger(AutoChannelController.name);
+
   constructor(
     private readonly configRepo: AutoChannelConfigRepository,
     private readonly discordGateway: AutoChannelDiscordGateway,
@@ -38,7 +41,7 @@ export class AutoChannelController {
   async save(
     @Param('guildId') guildId: string,
     @Body() dto: AutoChannelSaveDto,
-  ): Promise<{ ok: boolean; configId: number; guideMessageId: string }> {
+  ): Promise<{ ok: boolean; configId: number; guideMessageId: string | null }> {
     // 1. DB upsert
     const config = await this.configRepo.upsert(guildId, dto);
 
@@ -49,23 +52,31 @@ export class AutoChannelController {
       emoji: btn.emoji,
     }));
 
-    let guideMessageId: string;
+    let guideMessageId: string | null = null;
 
-    if (config.guideMessageId) {
-      // 기존 메시지 수정 시도
-      const editResult = await this.discordGateway.editGuideMessage(
-        dto.guideChannelId,
-        config.guideMessageId,
-        dto.guideMessage,
-        dto.embedTitle ?? null,
-        dto.embedColor ?? null,
-        buttonPayloads,
-      );
+    try {
+      if (config.guideMessageId) {
+        const editResult = await this.discordGateway.editGuideMessage(
+          dto.guideChannelId,
+          config.guideMessageId,
+          dto.guideMessage,
+          dto.embedTitle ?? null,
+          dto.embedColor ?? null,
+          buttonPayloads,
+        );
 
-      if (editResult !== null) {
-        guideMessageId = editResult;
+        if (editResult !== null) {
+          guideMessageId = editResult;
+        } else {
+          guideMessageId = await this.discordGateway.sendGuideMessage(
+            dto.guideChannelId,
+            dto.guideMessage,
+            dto.embedTitle ?? null,
+            dto.embedColor ?? null,
+            buttonPayloads,
+          );
+        }
       } else {
-        // 수정 실패 (메시지 삭제됨 등) → 신규 전송
         guideMessageId = await this.discordGateway.sendGuideMessage(
           dto.guideChannelId,
           dto.guideMessage,
@@ -74,19 +85,19 @@ export class AutoChannelController {
           buttonPayloads,
         );
       }
-    } else {
-      // 최초 전송
-      guideMessageId = await this.discordGateway.sendGuideMessage(
-        dto.guideChannelId,
-        dto.guideMessage,
-        dto.embedTitle ?? null,
-        dto.embedColor ?? null,
-        buttonPayloads,
+    } catch (error) {
+      this.logger.warn(
+        `Discord 안내 메시지 전송 실패 (configId=${config.id}): ${
+          error instanceof Error ? error.message : error
+        }`,
       );
+      // DB 저장은 성공했으므로 Discord 메시지 실패를 무시하고 계속 진행
     }
 
-    // 3. guideMessageId DB 저장
-    await this.configRepo.updateGuideMessageId(config.id, guideMessageId);
+    // 3. guideMessageId DB 저장 (Discord 전송 성공 시에만)
+    if (guideMessageId) {
+      await this.configRepo.updateGuideMessageId(config.id, guideMessageId);
+    }
 
     return { ok: true, configId: config.id, guideMessageId };
   }

@@ -7,6 +7,7 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@nestjs/core",
+      "@swc/core",
       "esbuild",
       "ffmpeg-static",
       "sharp",
@@ -23,6 +24,7 @@
     "api:start:prod": "pnpm --filter @dhyunbot/api start:prod",
     "api:test": "pnpm --filter @dhyunbot/api test",
     "api:test:e2e": "pnpm --filter @dhyunbot/api test:e2e",
+    "api:test:integration": "pnpm --filter @dhyunbot/api test:integration",
     "web:dev": "pnpm --filter @dhyunbot/web dev",
     "web:build": "pnpm --filter @dhyunbot/web build",
     "web:start": "pnpm --filter @dhyunbot/web start",
@@ -67,8 +69,11 @@
       "eslint --fix --config apps/web/eslint.config.mjs",
       "prettier --write"
     ],
-    "libs/*/src/**/*.ts": [
+    "libs/shared/src/**/*.ts": [
       "eslint --fix --config libs/shared/eslint.config.mjs",
+      "prettier --write"
+    ],
+    "libs/bot-api-client/src/**/*.ts": [
       "prettier --write"
     ]
   }

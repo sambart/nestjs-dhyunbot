@@ -20,4 +20,10 @@ export interface CoPresenceTickSnapshot {
   guildId: string;
   channelId: string;
   userIds: string[];
+  /** Phase 2: 멤버별 게임 활동 (optional) */
+  memberActivities?: Array<{
+    userId: string;
+    gameName: string | null;
+    applicationId: string | null;
+  }>;
 }

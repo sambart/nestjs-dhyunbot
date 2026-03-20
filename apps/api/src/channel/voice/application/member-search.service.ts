@@ -3,14 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Member } from '../../../member/member.entity';
-import { VoiceDailyEntity } from '../domain/voice-daily.entity';
 import { MemberSearchResultDto } from '../dto/member-search-result.dto';
+import { VoiceDailyOrm } from '../infrastructure/voice-daily.orm-entity';
 
 @Injectable()
 export class MemberSearchService {
   constructor(
-    @InjectRepository(VoiceDailyEntity)
-    private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
+    @InjectRepository(VoiceDailyOrm)
+    private readonly voiceDailyRepo: Repository<VoiceDailyOrm>,
     @InjectRepository(Member)
     private readonly memberRepo: Repository<Member>,
   ) {}

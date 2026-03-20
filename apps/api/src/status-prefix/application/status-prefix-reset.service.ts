@@ -1,8 +1,9 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { ButtonInteraction, Client, GuildMember } from 'discord.js';
+import { ButtonInteraction, GuildMember } from 'discord.js';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { StatusPrefixConfigRepository } from '../infrastructure/status-prefix-config.repository';
+import { StatusPrefixDiscordAdapter } from '../infrastructure/status-prefix-discord.adapter';
 import { StatusPrefixRedisRepository } from '../infrastructure/status-prefix-redis.repository';
 import { StatusPrefixConfigService } from './status-prefix-config.service';
 
@@ -14,7 +15,7 @@ export class StatusPrefixResetService {
     private readonly configRepo: StatusPrefixConfigRepository,
     private readonly redis: StatusPrefixRedisRepository,
     private readonly configService: StatusPrefixConfigService,
-    @InjectDiscordClient() private readonly discordClient: Client,
+    private readonly discordAdapter: StatusPrefixDiscordAdapter,
   ) {}
 
   /**
@@ -31,11 +32,7 @@ export class StatusPrefixResetService {
    * @param memberId - 클릭한 멤버 ID
    * @param interaction - ButtonInteraction 인스턴스 (응답 및 멤버 정보 추출용)
    */
-  async reset(
-    guildId: string,
-    memberId: string,
-    interaction: ButtonInteraction,
-  ): Promise<void> {
+  async reset(guildId: string, memberId: string, interaction: ButtonInteraction): Promise<void> {
     // 1. Redis에서 원래 닉네임 조회
     const originalNickname = await this.redis.getOriginalNickname(guildId, memberId);
 
@@ -62,7 +59,7 @@ export class StatusPrefixResetService {
     } catch (err) {
       this.logger.warn(
         `[STATUS_PREFIX] reset setNickname failed: guild=${guildId} member=${memberId}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
       await interaction.reply({
         ephemeral: true,
@@ -83,6 +80,34 @@ export class StatusPrefixResetService {
     this.logger.log(
       `[STATUS_PREFIX] Reset: guild=${guildId} member=${memberId} restored="${cleanNickname}"`,
     );
+  }
+
+  /**
+   * Bot에서 호출하는 닉네임 복원 (ButtonInteraction 불필요).
+   * 닉네임 변경은 Bot에서 수행하므로 원래 닉네임만 반환한다.
+   */
+  async resetFromBot(guildId: string, memberId: string): Promise<StatusPrefixResetResult> {
+    const originalNickname = await this.redis.getOriginalNickname(guildId, memberId);
+    if (!originalNickname) {
+      return { success: false, message: '변경된 닉네임이 없습니다.' };
+    }
+
+    const config = await this.configService.getConfig(guildId);
+    const cleanNickname = config
+      ? this.configService.stripPrefixFromNickname(originalNickname, config)
+      : originalNickname;
+
+    await this.redis.deleteOriginalNickname(guildId, memberId);
+
+    this.logger.log(
+      `[STATUS_PREFIX] ResetFromBot: guild=${guildId} member=${memberId} restored="${cleanNickname}"`,
+    );
+
+    return {
+      success: true,
+      originalNickname: cleanNickname,
+      message: '닉네임이 원래대로 복원되었습니다.',
+    };
   }
 
   /**
@@ -130,28 +155,18 @@ export class StatusPrefixResetService {
       ? this.configService.stripPrefixFromNickname(originalNickname, config)
       : originalNickname;
 
-    // 5. Discord GuildMember fetch (인터랙션 컨텍스트 없이 Client 직접 사용)
-    let member: GuildMember;
-    try {
-      const guild = this.discordClient.guilds.cache.get(guildId);
-      if (!guild) throw new Error(`Guild ${guildId} not found in cache`);
-      member = await guild.members.fetch(memberId);
-    } catch (err) {
-      this.logger.warn(
-        `[STATUS_PREFIX] restoreOnLeave: Failed to fetch member guild=${guildId} member=${memberId}`,
-        (err as Error).stack,
-      );
+    // 5. Discord REST API로 멤버 확인 (인터랙션 컨텍스트 없이 어댑터 사용)
+    const member = await this.discordAdapter.fetchMember(guildId, memberId);
+    if (!member) {
       // 멤버 fetch 실패 시 Redis 키는 유지 (비정상 종료 대비)
       return;
     }
 
     // 6. 닉네임 복원
-    try {
-      await member.setNickname(cleanNickname);
-    } catch (err) {
+    const isNicknameSet = await this.discordAdapter.setNickname(guildId, memberId, cleanNickname);
+    if (!isNicknameSet) {
       this.logger.warn(
         `[STATUS_PREFIX] restoreOnLeave setNickname failed: guild=${guildId} member=${memberId}`,
-        (err as Error).stack,
       );
       // setNickname 실패 시도 Redis 키 삭제 (봇 권한 없으면 계속 실패하므로 키 누적 방지)
     }
@@ -163,4 +178,10 @@ export class StatusPrefixResetService {
       `[STATUS_PREFIX] restoreOnLeave: guild=${guildId} member=${memberId} restored="${cleanNickname}"`,
     );
   }
+}
+
+export interface StatusPrefixResetResult {
+  success: boolean;
+  originalNickname?: string;
+  message: string;
 }

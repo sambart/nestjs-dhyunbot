@@ -1,31 +1,28 @@
-import { InjectDiscordClient, Once } from '@discord-nestjs/core';
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
-import { Client, type Guild, type VoiceState } from 'discord.js';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { RedisService } from '../../../redis/redis.service';
 import { VoiceRedisRepository } from '../infrastructure/voice-redis.repository';
-import { VoiceStateDto } from '../infrastructure/voice-state.dto';
-import { VoiceChannelService } from './voice-channel.service';
 import { VoiceChannelHistoryService } from './voice-channel-history.service';
 import { VoiceDailyFlushService } from './voice-daily-flush-service';
-import { VoiceExcludedChannelService } from './voice-excluded-channel.service';
+
+// TODO(claude 2026-03-17): 현재 음성 채널 유저 동기화(syncCurrentVoiceStates)는
+// Bot API 엔드포인트 GET /bot-api/discord/voice-states 에서 받아오도록 전환 필요.
+// 현재는 orphan 세션 flush와 고아 history 레코드 종료만 수행한다.
 
 @Injectable()
 export class VoiceRecoveryService implements OnApplicationShutdown {
   private readonly logger = new Logger(VoiceRecoveryService.name);
 
   constructor(
-    @InjectDiscordClient() private readonly client: Client,
     private readonly redis: RedisService,
     private readonly voiceRedisRepository: VoiceRedisRepository,
     private readonly flushService: VoiceDailyFlushService,
     private readonly historyService: VoiceChannelHistoryService,
-    private readonly voiceChannelService: VoiceChannelService,
-    private readonly excludedChannelService: VoiceExcludedChannelService,
   ) {}
 
   async onApplicationShutdown() {
-    this.logger.log('Shutting down — flushing all active voice sessions...');
+    this.logger.log('Shutting down -- flushing all active voice sessions...');
 
     // 1. Redis 세션 flush (기존 로직)
     await this.flushAllActiveSessions();
@@ -37,67 +34,19 @@ export class VoiceRecoveryService implements OnApplicationShutdown {
   }
 
   /**
-   * Discord ready 후 복구 + 현재 음성 채널 유저 동기화 (F-VOICE-023)
-   *
-   * 3단계를 모두 ready 핸들러에서 순차 실행하여
-   * onApplicationBootstrap과의 race condition을 방지한다.
+   * 앱 시작 시 복구 처리.
+   * Gateway 연결 없이 orphan 세션 처리와 고아 레코드 종료만 수행.
    */
-  @Once('ready')
-  async onDiscordReady() {
-    this.logger.log('Discord ready — recovering sessions and syncing voice states...');
+  async onAppReady() {
+    this.logger.log('App ready -- recovering sessions...');
 
-    // 1. 고아 history 레코드 일괄 종료 (F-VOICE-023 2단계 — 크래시 복구)
+    // 1. 고아 history 레코드 일괄 종료 (크래시 복구)
     await this.historyService.closeOrphanRecords();
 
-    // 2. Redis orphan 세션 flush (기존 로직)
+    // 2. Redis orphan 세션 flush
     await this.recoverOrphanSessions();
 
-    // 3. 현재 음성 채널 유저 동기화 (F-VOICE-023 3단계)
-    await this.syncCurrentVoiceStates();
-  }
-
-  /** 단일 voiceState 동기화 — 성공 시 true, 스킵/제외 시 false */
-  private async syncOneVoiceState(voiceState: VoiceState): Promise<boolean> {
-    if (!voiceState.channelId || !voiceState.channel || !voiceState.member) return false;
-
-    const excluded = await this.excludedChannelService.isExcludedChannel(
-      voiceState.guild.id,
-      voiceState.channelId,
-      voiceState.channel.parentId ?? null,
-    );
-    if (excluded) return false;
-
-    const dto = VoiceStateDto.fromVoiceState(voiceState);
-    await this.voiceChannelService.onUserJoined(dto);
-    return true;
-  }
-
-  /** 길드 하나의 voiceState를 순회하며 동기화 */
-  private async syncGuildVoiceStates(guild: Guild): Promise<number> {
-    let synced = 0;
-    for (const voiceState of guild.voiceStates.cache.values()) {
-      try {
-        const isSynced = await this.syncOneVoiceState(voiceState);
-        if (isSynced) synced++;
-      } catch (error) {
-        this.logger.error(
-          `Failed to sync voice state: guild=${guild.id} user=${voiceState.member?.id}`,
-          (error as Error).stack,
-        );
-      }
-    }
-    return synced;
-  }
-
-  /** 현재 음성 채널에 있는 유저들의 세션을 복원한다 */
-  private async syncCurrentVoiceStates(): Promise<void> {
-    let synced = 0;
-
-    for (const guild of this.client.guilds.cache.values()) {
-      synced += await this.syncGuildVoiceStates(guild);
-    }
-
-    this.logger.log(`Voice state sync complete. ${synced} session(s) restored.`);
+    this.logger.log('Session recovery complete.');
   }
 
   /** 서버 재시작 시 Redis에 남아있는 orphan 세션을 flush 처리 */
@@ -133,7 +82,7 @@ export class VoiceRecoveryService implements OnApplicationShutdown {
 
         this.logger.log(`Recovered orphan session: guild=${guildId} user=${userId}`);
       } catch (error) {
-        this.logger.error(`Failed to recover session from key=${key}`, (error as Error).stack);
+        this.logger.error(`Failed to recover session from key=${key}`, getErrorStack(error));
       }
     }
   }
@@ -155,7 +104,7 @@ export class VoiceRecoveryService implements OnApplicationShutdown {
         await this.voiceRedisRepository.accumulateDuration(guildId, userId, session, now);
         await this.flushService.flushDate(guildId, userId, session.date);
       } catch (error) {
-        this.logger.error(`Failed to flush session from key=${key}`, (error as Error).stack);
+        this.logger.error(`Failed to flush session from key=${key}`, getErrorStack(error));
       }
     }
   }

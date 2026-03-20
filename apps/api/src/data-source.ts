@@ -13,7 +13,7 @@ export default new DataSource({
   username: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE_NAME,
-  entities: [__dirname + '/**/*.entity{.ts,.js}'],
+  entities: [__dirname + '/**/*.entity{.ts,.js}', __dirname + '/**/*.orm-entity{.ts,.js}'],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   migrationsTableName: 'migrations',
   synchronize: false,

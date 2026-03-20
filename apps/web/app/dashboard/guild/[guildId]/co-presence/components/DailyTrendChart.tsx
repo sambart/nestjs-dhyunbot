@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Area,
   AreaChart,
@@ -9,7 +10,8 @@ import {
 } from "recharts";
 
 import type { DailyTrendPoint } from "@/app/lib/co-presence-api";
-import { formatMinutes, formatShortDate } from "@/app/lib/co-presence-api";
+import { formatShortDate } from "@/app/lib/co-presence-api";
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   type ChartConfig,
@@ -18,18 +20,21 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartConfig = {
-  totalMinutes: {
-    label: "동시접속 시간(분)",
-    color: "#6366F1",
-  },
-} satisfies ChartConfig;
-
 interface DailyTrendChartProps {
   data: DailyTrendPoint[];
 }
 
 export default function DailyTrendChart({ data }: DailyTrendChartProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
+
+  const chartConfig = {
+    totalMinutes: {
+      label: t("coPresence.dailyTrend.label"),
+      color: "#6366F1",
+    },
+  } satisfies ChartConfig;
+
   const chartData = data.map((d) => ({
     date: formatShortDate(d.date),
     totalMinutes: d.totalMinutes,
@@ -39,12 +44,12 @@ export default function DailyTrendChart({ data }: DailyTrendChartProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>일별 동시접속 추이</CardTitle>
+          <CardTitle>{t("coPresence.dailyTrend.title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex h-[300px] items-center justify-center">
             <p className="text-sm text-muted-foreground">
-              기간 내 동시접속 데이터가 없습니다.
+              {t("coPresence.dailyTrend.noData")}
             </p>
           </div>
         </CardContent>
@@ -52,10 +57,12 @@ export default function DailyTrendChart({ data }: DailyTrendChartProps) {
     );
   }
 
+  const minuteUnit = t("common.unit.minute");
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>일별 동시접속 추이</CardTitle>
+        <CardTitle>{t("coPresence.dailyTrend.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -65,14 +72,15 @@ export default function DailyTrendChart({ data }: DailyTrendChartProps) {
             <YAxis
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v: number) => `${v}분`}
+              tickFormatter={(v: number) => `${v}${minuteUnit}`}
             />
             <ChartTooltip
               content={
                 <ChartTooltipContent
                   formatter={(value) => [
-                    formatMinutes(value as number),
-                    "동시접속 시간",
+                    // recharts formatter: value는 런타임에 number (라이브러리 타입 정의 부정확)
+                    formatMinutesI18n(value as number, tc),
+                    t("coPresence.dailyTrend.tooltipLabel"),
                   ]}
                 />
               }

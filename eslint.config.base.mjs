@@ -35,10 +35,10 @@ export const baseConfig = [
 
   {
     rules: {
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'warn',
       '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
       '@typescript-eslint/consistent-type-imports': [
         'error',
@@ -61,6 +61,17 @@ export const baseConfig = [
       'max-lines-per-function': [
         'warn',
         { max: 50, skipBlankLines: true, skipComments: true },
+      ],
+      'no-magic-numbers': [
+        'warn',
+        {
+          ignore: [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 16, 24, 30, 60, 100, 1000, 1024, 3600],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreReadonlyClassProperties: true,
+          enforceConst: true,
+        },
       ],
       'max-depth': ['error', { max: 3 }],
     },

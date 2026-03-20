@@ -1,6 +1,7 @@
 import { getKSTDateString } from '@dhyunbot/shared';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { RedisService } from '../../../redis/redis.service';
 import { VoiceDailyRepository } from '../infrastructure/voice-daily.repository';
 import { VoiceRedisRepository } from '../infrastructure/voice-redis.repository';
@@ -84,6 +85,33 @@ export class VoiceDailyFlushService {
       await this.voiceDailyRepository.accumulateAloneDuration(guild, user, date, aloneSec);
       await this.redis.del(aloneKey);
     }
+
+    // 4. 화면 공유 시간
+    const streamingKey = `voice:duration:streaming:${guild}:${user}:${date}`;
+    const streamingSec = Number((await this.redis.get(streamingKey)) || 0);
+
+    if (streamingSec > 0) {
+      await this.voiceDailyRepository.accumulateStreamingDuration(guild, user, date, streamingSec);
+      await this.redis.del(streamingKey);
+    }
+
+    // 5. 카메라 ON 시간
+    const videoKey = `voice:duration:video:${guild}:${user}:${date}`;
+    const videoOnSec = Number((await this.redis.get(videoKey)) || 0);
+
+    if (videoOnSec > 0) {
+      await this.voiceDailyRepository.accumulateVideoDuration(guild, user, date, videoOnSec);
+      await this.redis.del(videoKey);
+    }
+
+    // 6. 스피커 음소거 시간
+    const deafKey = `voice:duration:deaf:${guild}:${user}:${date}`;
+    const deafSec = Number((await this.redis.get(deafKey)) || 0);
+
+    if (deafSec > 0) {
+      await this.voiceDailyRepository.accumulateDeafDuration(guild, user, date, deafSec);
+      await this.redis.del(deafKey);
+    }
   }
 
   /** 단일 세션 flush — 성공 시 true, 스킵 시 false */
@@ -125,7 +153,7 @@ export class VoiceDailyFlushService {
           skipped += isFlushed ? 0 : 1;
         } catch (error) {
           skipped++;
-          this.logger.error(`Failed to flush session: ${key}`, (error as Error).stack);
+          this.logger.error(`Failed to flush session: ${key}`, getErrorStack(error));
         }
       }
 

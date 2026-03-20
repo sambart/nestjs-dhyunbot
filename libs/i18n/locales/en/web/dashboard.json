@@ -1,0 +1,537 @@
+{
+  "common": {
+    "loading": "Loading data...",
+    "loadingList": "Loading list...",
+    "loadingConfig": "Loading settings...",
+    "noData": "No data available",
+    "loadFailed": "Failed to load data.",
+    "prev": "Previous",
+    "next": "Next",
+    "refresh": "Refresh",
+    "cancel": "Cancel",
+    "processing": "Processing...",
+    "pageOf": "{current} / {total} pages ({count} {unit} total)",
+    "pagination": "Page {page} of {totalPages} ({total} members total)",
+    "unit": {
+      "person": "",
+      "pair": "pairs",
+      "channel": "",
+      "server": "servers",
+      "session": "",
+      "minute": "min"
+    }
+  },
+  "overview": {
+    "title": "Server Overview",
+    "totalMembers": "Total Members",
+    "todayVoice": "Today's Voice Activity",
+    "currentVoice": "Current Voice Users",
+    "activeRate": "Active / Inactive Rate",
+    "weeklyChart": {
+      "title": "Last 7 Days Voice Activity",
+      "durationMin": "Duration (min)"
+    },
+    "inactiveGrade": {
+      "title": "Inactive Members Summary",
+      "fullyInactive": "Fully Inactive",
+      "lowActive": "Low Active",
+      "declining": "Declining",
+      "total": "Total: {count}"
+    },
+    "missionSummary": {
+      "title": "Newbie Mission Status",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "failed": "Failed"
+    }
+  },
+  "voice": {
+    "title": "Voice Activity Dashboard",
+    "period": {
+      "7d": "Last 7 days",
+      "14d": "Last 14 days",
+      "30d": "Last 30 days"
+    },
+    "periodLabel": {
+      "7d": "7d",
+      "14d": "14d",
+      "30d": "30d"
+    },
+    "summary": {
+      "totalDuration": "Total Voice Time",
+      "micOn": "Mic ON",
+      "micOff": "Mic OFF",
+      "alone": "Alone Time",
+      "activeUsers": "Active Users",
+      "usedChannels": "Channels Used"
+    },
+    "dailyTrend": {
+      "title": "Daily Voice Activity Trend",
+      "durationMin": "Duration (min)",
+      "micOnMin": "Mic ON (min)",
+      "micOffMin": "Mic OFF (min)",
+      "aloneMin": "Alone (min)"
+    },
+    "channelChart": {
+      "title": "Voice Activity (Top 10)",
+      "tabChannel": "By Channel",
+      "tabCategory": "By Category",
+      "durationMin": "Duration (min)",
+      "micOnMin": "Mic ON (min)",
+      "micOffMin": "Mic OFF (min)"
+    },
+    "micDistribution": {
+      "title": "Voice Activity Distribution",
+      "micOn": "Mic ON",
+      "micOff": "Mic OFF",
+      "alone": "Alone"
+    },
+    "userRanking": {
+      "title": "User Voice Activity Ranking",
+      "rank": "#",
+      "user": "User",
+      "duration": "Duration",
+      "micOn": "Mic ON",
+      "alone": "Alone",
+      "noData": "No data available"
+    },
+    "userSearch": {
+      "placeholder": "Search users..."
+    },
+    "userDetail": {
+      "backButton": "Back to Server",
+      "dailyChart": {
+        "title": "Daily Voice Activity",
+        "durationMin": "Duration (min)"
+      },
+      "micPieChart": {
+        "title": "Mic ON/OFF Distribution",
+        "micOn": "Mic ON",
+        "micOff": "Mic OFF"
+      },
+      "channelPieChart": {
+        "title": "Activity by Channel",
+        "tabChannel": "By Channel",
+        "tabCategory": "By Category",
+        "etc": "Other"
+      },
+      "historyTable": {
+        "title": "Join/Leave History",
+        "category": "Category",
+        "channel": "Channel",
+        "joinAt": "Joined At",
+        "leftAt": "Left At",
+        "duration": "Duration",
+        "uncategorized": "Uncategorized",
+        "online": "Online",
+        "noData": "No data available"
+      }
+    }
+  },
+  "inactive": {
+    "title": "Inactive Member Management",
+    "classify": "Run Classification Now",
+    "classifying": "Classifying...",
+    "classifyDone": "{count} members classified",
+    "grade": {
+      "all": "All Grades",
+      "fullyInactive": "Fully Inactive",
+      "lowActive": "Low Active",
+      "declining": "Declining"
+    },
+    "filter": {
+      "search": "Search by nickname...",
+      "sortBy": {
+        "lastVoiceDate": "Last Voice Date",
+        "totalMinutes": "Voice Duration"
+      },
+      "sortOrder": {
+        "ASC": "Ascending",
+        "DESC": "Descending"
+      }
+    },
+    "statsCards": {
+      "active": "Active Members",
+      "fullyInactive": "Fully Inactive",
+      "lowActive": "Low Active",
+      "declining": "Declining",
+      "total": "Total Members"
+    },
+    "activityChart": {
+      "title": "Activity Distribution",
+      "active": "Active",
+      "fullyInactive": "Fully Inactive",
+      "lowActive": "Low Active",
+      "declining": "Declining"
+    },
+    "trendChart": {
+      "title": "Inactive Member Trend",
+      "fullyInactive": "Fully Inactive",
+      "lowActive": "Low Active",
+      "declining": "Declining"
+    },
+    "table": {
+      "selectAll": "Select All",
+      "nickname": "Nickname",
+      "grade": "Grade",
+      "lastVoiceDate": "Last Voice Date",
+      "totalMinutes": "Voice Duration",
+      "gradeChangedAt": "Grade Changed",
+      "noData": "No inactive members found.",
+      "noVoiceDate": "N/A"
+    },
+    "action": {
+      "selected": "selected",
+      "dm": "Send DM",
+      "roleAdd": "Add Role",
+      "roleRemove": "Remove Role",
+      "kick": "Kick",
+      "result": "Success: {success} / Failed: {fail}",
+      "kickModal": {
+        "title": "Confirm Kick",
+        "description": "You are about to kick {count} selected members from the server. This action cannot be undone.",
+        "inputHint": "Type {text} below to confirm.",
+        "confirmText": "강제퇴장",
+        "confirm": "Confirm Kick",
+        "cancel": "Cancel"
+      }
+    }
+  },
+  "newbie": {
+    "title": "Newbie Management",
+    "missionTab": "Missions",
+    "mocoTab": "Moco Ranking",
+    "inactive": "Inactive",
+    "bothDisabled": "Both mission management and Moco hunting features are disabled.",
+    "missionDisabled": "Mission management feature is disabled.",
+    "mocoDisabled": "Moco hunting feature is disabled.",
+    "goToSettings": "Enable in Settings",
+    "disabledBanner": "{featureName} feature is disabled. Data is available in read-only mode.",
+    "goToSettingsLink": "Go to Settings",
+    "missionManage": {
+      "inProgress": "In Progress",
+      "history": "History",
+      "refresh": "Refresh",
+      "loading": "Loading...",
+      "noActive": "No missions in progress.",
+      "noHistory": "No mission history.",
+      "filterAll": "All",
+      "filterCompleted": "Completed",
+      "filterFailed": "Failed",
+      "filterLeft": "Left",
+      "table": {
+        "member": "Member",
+        "start": "Start",
+        "end": "End",
+        "playtime": "Playtime",
+        "status": "Status",
+        "embedTooltip": "Show in Discord embed message"
+      },
+      "status": {
+        "inProgress": "In Progress",
+        "completed": "Completed",
+        "failed": "Failed",
+        "left": "Left"
+      },
+      "completeModal": {
+        "title": "Mark as Complete",
+        "description": "Mark member {name}'s mission as complete.",
+        "roleLabel": "Assign Role (optional)",
+        "roleNone": "No role",
+        "cancel": "Cancel",
+        "confirm": "Mark Complete"
+      },
+      "failModal": {
+        "title": "Mark as Failed",
+        "description": "Mark member {name}'s mission as failed.",
+        "kickLabel": "Kick from server",
+        "dmLabel": "DM reason (optional)",
+        "dmPlaceholder": "Message to send before kicking",
+        "cancel": "Cancel",
+        "confirm": "Mark Failed"
+      }
+    },
+    "moco": {
+      "period": "Period: {period}",
+      "periodNone": "All time (cumulative)",
+      "topHunters": "Top Hunters",
+      "totalParticipants": "{count} participants",
+      "table": {
+        "rank": "Rank",
+        "hunter": "Hunter",
+        "score": "Total Score",
+        "huntTime": "Hunt Time",
+        "sessions": "Sessions",
+        "assistedMoco": "Assisted Moco",
+        "detail": "Detail",
+        "noData": "No ranking data."
+      },
+      "detail": {
+        "loading": "Loading...",
+        "noMoco": "No moco assisted.",
+        "listTitle": "Assisted Moco List",
+        "nickname": "Nickname",
+        "coPresenceTime": "Co-presence Time",
+        "sessionCount": "Sessions"
+      },
+      "rankLabel": {
+        "1": "1st",
+        "2": "2nd",
+        "3": "3rd"
+      },
+      "stats": {
+        "huntMinutes": "{minutes}min hunt",
+        "sessions": "{count} sessions",
+        "mocoCount": "{count} moco"
+      }
+    }
+  },
+  "coPresence": {
+    "title": "Relationship Analysis",
+    "dayUnit": "d",
+    "summary": {
+      "activeMembers": "Active Members",
+      "totalPairs": "Total Pairs",
+      "totalTime": "Total Co-presence Time",
+      "avgPairs": "Avg. Pairs / Member"
+    },
+    "graph": {
+      "title": "Relationship Network Graph",
+      "resetView": "Reset View",
+      "minThreshold": "Min threshold: {value}min",
+      "updating": "Updating graph...",
+      "noData": "No co-presence data for this period.",
+      "hint": "Click node: highlight | Drag node: reposition | Drag canvas: pan | Scroll: zoom",
+      "loading": "Loading graph...",
+      "legend": {
+        "title": "Legend",
+        "nodeSize": "Size = Activity",
+        "edgeWidth": "Width = Relationship strength"
+      },
+      "tooltip": {
+        "activity": "Activity: {value}",
+        "connections": "Connections: {count}"
+      }
+    },
+    "topPairs": {
+      "title": "Intimacy TOP {count}",
+      "noData": "No co-presence data for this period.",
+      "sessionLabel": "{count} sessions"
+    },
+    "dailyTrend": {
+      "title": "Daily Co-presence Trend",
+      "noData": "No co-presence data for this period.",
+      "label": "Co-presence (min)",
+      "tooltipLabel": "Co-presence Time"
+    },
+    "pairsTable": {
+      "title": "Relationship Details",
+      "searchPlaceholder": "Search by nickname...",
+      "userA": "User A",
+      "userB": "User B",
+      "totalTime": "Total Co-presence Time",
+      "sessionCount": "Sessions",
+      "lastDate": "Last Together",
+      "noData": "No results found.",
+      "pagination": "Page {page} of {totalPages} ({total} pairs total)"
+    },
+    "pairDetail": {
+      "period": "Total {time} in last {days} days",
+      "noData": "No co-presence data for this period.",
+      "closeLabel": "Close",
+      "label": "Co-presence (min)",
+      "tooltipLabel": "Co-presence Time"
+    },
+    "isolated": {
+      "title": "Isolated Members",
+      "description": "Members who joined voice channels but were never in the same channel as another member during this period.",
+      "noData": "No isolated members.",
+      "username": "Username",
+      "totalVoice": "Total Voice Time",
+      "lastVoiceDate": "Last Voice Date"
+    }
+  },
+  "monitoring": {
+    "title": "Monitoring",
+    "period": {
+      "24h": "24 hours",
+      "7d": "7 days",
+      "30d": "30 days"
+    },
+    "status": {
+      "title": "Bot Status",
+      "online": "Online",
+      "offline": "Offline",
+      "uptime": "Uptime",
+      "ping": "Ping",
+      "guildCount": "Servers",
+      "memory": "Memory",
+      "voiceUsers": "Voice Users"
+    },
+    "uptimeChart": {
+      "title": "Uptime History",
+      "availability": "Availability",
+      "on": "ON",
+      "off": "OFF",
+      "online": "Online",
+      "offline": "Offline",
+      "statusLabel": "Status"
+    },
+    "pingChart": {
+      "title": "Ping Trend",
+      "label": "Ping (ms)"
+    },
+    "memoryChart": {
+      "title": "Memory Usage",
+      "used": "Used (MB)",
+      "total": "Total (MB)"
+    },
+    "voiceUserChart": {
+      "title": "Voice Users by Hour",
+      "avgUsers": "Avg. Users",
+      "hourLabel": "{hour}:00"
+    },
+    "noMetrics": "No metric data for the selected period.",
+    "loadFailed": "Failed to load metric data."
+  },
+  "gettingStarted": {
+    "title": "Getting Started",
+    "subtitle": "Follow these steps to set up DHyunBot for the first time.",
+    "stepOf": "Step {current} of {total}",
+    "prev": "Previous",
+    "next": "Next",
+    "finish": "Go to Dashboard",
+    "steps": {
+      "1": {
+        "title": "Bot Permissions",
+        "subtitle": "Verify the bot is connected to your server"
+      },
+      "2": {
+        "title": "Voice Tracking",
+        "subtitle": "Learn how voice channel activity is tracked"
+      },
+      "3": {
+        "title": "Notification Channel",
+        "subtitle": "Connect key notification channels"
+      },
+      "4": {
+        "title": "Complete",
+        "subtitle": "All settings are ready"
+      }
+    },
+    "botPermission": {
+      "connectionTitle": "Bot Connection Status",
+      "checking": "Checking...",
+      "online": "Online — Connected successfully",
+      "offline": "Offline — Bot is not connected to the server",
+      "permissionsTitle": "Required Permissions",
+      "permissions": {
+        "readMembers": "Read server member list",
+        "detectVoice": "Detect voice channel activity",
+        "sendMessage": "Send messages",
+        "sendEmbed": "Send embed messages"
+      },
+      "offlineWarning": "The bot is offline. Please verify the bot has been invited to the server and try again."
+    },
+    "voiceTracking": {
+      "autoTitle": "Automatically Activated",
+      "autoDesc": "Voice tracking starts automatically when the bot connects to the server. Join and leave times for all voice channels are recorded without any additional setup.",
+      "dataTitle": "Recorded Data",
+      "dataItems": {
+        "joinLeave": "Voice channel join / leave times",
+        "channelDuration": "Cumulative time per channel",
+        "stats": "Daily, weekly, monthly activity stats"
+      },
+      "excludeTitle": "Want to exclude certain channels?",
+      "excludeDesc": "You can exclude AFK or specific channels from tracking.",
+      "excludeLink": "Go to Voice Tracking Settings"
+    },
+    "notifications": {
+      "optionalNote": "The bot works fine without notification channels. Enable only the features you need.",
+      "newbie": {
+        "title": "Newbie Notifications",
+        "description": "Sends a welcome message and newbie mission when a new member joins.",
+        "link": "Newbie Settings"
+      },
+      "inactive": {
+        "title": "Inactive Member Notifications",
+        "description": "Automatically classifies members with no activity and sends notifications.",
+        "link": "Inactive Member Settings"
+      }
+    },
+    "complete": {
+      "title": "Setup Complete!",
+      "description": "DHyunBot is ready to track activity on your server.",
+      "featuresTitle": "Quick Links",
+      "features": {
+        "overview": {
+          "label": "Server Overview",
+          "desc": "View activity summary and weekly stats at a glance"
+        },
+        "voice": {
+          "label": "Voice Activity",
+          "desc": "Check voice channel activity by member"
+        },
+        "newbie": {
+          "label": "Newbie Management",
+          "desc": "Manage newbie status and mission completion"
+        },
+        "inactive": {
+          "label": "Inactive Members",
+          "desc": "View inactive member classification results"
+        }
+      }
+    }
+  },
+  "help": {
+    "title": "Help",
+    "subtitle": "Frequently asked questions about DHyunBot features.",
+    "contactTitle": "Still have questions?",
+    "contactDesc": "Type the {command} command in Discord or contact an admin.",
+    "sections": {
+      "voice": {
+        "title": "Voice Activity Tracking",
+        "q1": "What data is recorded?",
+        "a1": "The time a member joins and leaves a voice channel, as well as cumulative time per channel, are recorded. All voice channels in the server are tracked by default. Mute and video status are not recorded.",
+        "q2": "How do I exclude channels?",
+        "a2": "Go to Settings → Voice Tracking to select channels to exclude from tracking. Use this to exclude AFK channels or admin-only channels that don't need to be recorded."
+      },
+      "gemini": {
+        "title": "AI Analysis (Gemini)",
+        "q1": "How do I use Gemini AI analysis?",
+        "a1": "Use slash commands in Discord. The bot analyzes voice activity data from the past 7 days and generates a report summarizing peak hours, key participants, and activity trends.",
+        "q2": "What is the slash command?",
+        "a2": "Enter the /voice-report command to generate an AI analysis report. Report generation may take up to 10 seconds. Only members with admin privileges can use this command."
+      },
+      "newbie": {
+        "title": "Newbie Management",
+        "q1": "How do I create missions?",
+        "a1": "Go to Settings → Newbie Management to configure the mission list for new members. Set the mission type (voice channel participation, message sending, etc.), target, and completion reward role. New members who join after configuration will automatically receive missions.",
+        "q2": "What is Moco hunting?",
+        "a2": "A feature to identify members who joined the server but have not been active for a period after completing the newbie mission. Used to manage 'ghost members' who joined but don't actively participate."
+      },
+      "inactive": {
+        "title": "Inactive Members",
+        "q1": "What are the inactivity classification criteria?",
+        "a1": "Members with no voice channel activity during the configured period (default 30 days) are classified as inactive. Grades are divided into warning, caution, and inactive based on configured criteria.",
+        "q2": "How does automatic action work?",
+        "a2": "The bot automatically runs classification according to the inactive member classification schedule (default weekly). After classification, you can configure automatic actions such as notifying a designated channel, assigning or removing specific roles. Actual kicks are not done automatically and must be performed by an admin."
+      },
+      "coPresence": {
+        "title": "Relationship Analysis (Co-presence)",
+        "q1": "How is the intimacy score calculated?",
+        "a1": "The score is calculated based on the cumulative time two members were simultaneously in the same voice channel. The longer they spent together, the higher the intimacy score. You can visually check the connection strength between members in the relationship analysis graph."
+      },
+      "autoChannel": {
+        "title": "Auto Channel Creation",
+        "q1": "How do I set up a trigger channel?",
+        "a1": "Go to Settings → Auto Channel to designate a trigger channel. When a member enters the trigger channel, the bot automatically creates a new voice channel and moves the member. The channel is automatically deleted when empty."
+      }
+    }
+  },
+  "error": {
+    "title": "An error occurred while loading the page",
+    "unknown": "An unknown error occurred.",
+    "retry": "Try Again"
+  }
+}

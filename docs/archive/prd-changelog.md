@@ -7,6 +7,8 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v3.8 | 2026-03-20 | music: Lavalink v4 + Kazagumo v3 아키텍처 전환, /pause·/resume 신규 추가, Now Playing Embed 명세, 모듈 경로 수정 (F-MUSIC-001~005) | — |
+| v3.7 | 2026-03-16 | voice: 음성 채널 추가 데이터 수집 — Phase 1(화면 공유·카메라·스피커 음소거) F-VOICE-025~027, Phase 2(게임 활동) F-VOICE-028~031 추가 | — |
 | v3.6 | 2026-03-14 | web: 대시보드 사이드바에 서버 개요(F-WEB-008)·신입 관리(F-WEB-009) 추가, F-WEB-003-B 진입점 갱신 | — |
 | v3.5 | 2026-03-14 | newbie: F-WEB-NEWBIE-001 설정 페이지 탭 구성 변경 — 탭 3(미션 관리) 제거 및 탭 번호 재조정, F-NEWBIE-005 웹 UI 위치를 대시보드로 명시 | — |
 | v3.4 | 2026-03-14 | self-diagnosis: HHI 표시 레이어를 "관계 다양성 점수"(0~100점)로 변환 (F-SD-003, F-SD-004, F-SD-005, F-SD-008) | — |
@@ -33,6 +35,57 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 27] music: Lavalink v4 + Kazagumo v3 아키텍처 전환 및 기능 확장 (MUSIC-LAVALINK-MIGRATION)
+
+**변경일**: 2026-03-20
+**티켓**: MUSIC-LAVALINK-MIGRATION
+
+**변경 파일**:
+- `docs/specs/prd/music.md` — 아키텍처 전환, 모듈 경로 수정, F-MUSIC-001~005 기능 명세 갱신, Now Playing Embed 명세 추가, 인프라·의존성 섹션 신규 작성
+- `docs/specs/prd/_index.md` — 핵심 기능 요약 3번(음악 재생) 갱신
+
+**변경 내용**:
+1. **아키텍처 전환**: `discord-player` 기반에서 `Lavalink v4(Docker) + Kazagumo v3(Shoukaku v4 래퍼)` 구조로 전환. 아키텍처 다이어그램 신규 추가.
+2. **모듈 경로 수정**: `apps/api/src/music/` → `apps/bot/src/music/` 하위 계층 구조(application/presentation/dto) 반영.
+3. **F-MUSIC-001 개선**: YouTube 검색어·URL 외에 플레이리스트 URL 일괄 큐 추가, Spotify URL, SoundCloud URL 지원 명세 추가. Now Playing Embed 출력 명세 추가.
+4. **F-MUSIC-002 개선**: `/skip` 응답에 다음 트랙 Now Playing Embed 포함 명세 추가.
+5. **F-MUSIC-004 신규**: `/pause` — 일시정지 커맨드 추가. 재생 중인 트랙 없을 시 에러 응답 예외 명세 포함.
+6. **F-MUSIC-005 신규**: `/resume` — 재개 커맨드 추가. 일시정지 상태 아닐 시 에러 응답 예외 명세 포함.
+7. **Now Playing Embed 명세 추가**: 제목·아티스트·진행바·시간·상태 필드 구조 표 형태로 문서화.
+8. **인프라 섹션 신규**: Lavalink Docker 서비스 설정(`docker-compose.yml`, `lavalink/application.yml`), 환경변수(`LAVALINK_URL`, `LAVALINK_PASSWORD`) 명세 추가.
+9. **의존성 갱신**: `kazagumo ^3.4.3`, `shoukaku ^4.1.0`, `@discordjs/voice` 추가. `discord-player`, `@discord-player/extractor`, `yt-search`, `ytdl-core`, `ffmpeg-static` 제거 명세.
+10. **변경이력 참조 링크 추가**: `music.md` 상단에 `prd-changelog.md` 참조 링크 추가.
+
+**변경 사유**: discord-player의 YouTube 추출 불안정 문제를 해소하고 Java 기반 Lavaplayer의 안정적인 오디오 처리 환경으로 전환한다. 플레이리스트·Spotify·SoundCloud 지원 및 /pause·/resume 커맨드 추가로 음악 재생 기능을 확장한다.
+
+---
+
+## [수정 26] voice: 음성 채널 추가 데이터 수집 — Phase 1·2 신규 추가 (VOICE-EXTENDED-DATA)
+
+**변경일**: 2026-03-16
+**티켓**: VOICE-EXTENDED-DATA
+
+**변경 파일**:
+- `docs/specs/prd/voice.md` — Phase 1(F-VOICE-025~027) 및 Phase 2(F-VOICE-028~031) 기능 명세 추가, Phase 1 데이터 모델 변경, Phase 2 신규 테이블 정의
+- `docs/specs/prd/_index.md` — 핵심 기능 요약(1번) 갱신, 데이터베이스 엔티티 테이블에 VoiceGameActivity·VoiceGameDaily 추가, 데이터 보존 정책에 VoiceGameActivity 삭제 대상 추가
+
+**변경 내용**:
+1. **F-VOICE-025 (화면 공유 시간 추적)**: `VoiceState.streaming` 토글 감지 → Redis 세션에 ON/OFF 시각 누적 → `voice_daily.streamingSec` flush. `StreamingToggleHandler` 신설. 기존 MicToggleHandler 패턴 동일 적용.
+2. **F-VOICE-026 (카메라 ON/OFF 시간 추적)**: `VoiceState.selfVideo` 토글 감지 → Redis 세션에 ON/OFF 시각 누적 → `voice_daily.videoOnSec` flush. `VideoToggleHandler` 신설.
+3. **F-VOICE-027 (스피커 음소거 시간 추적)**: `VoiceState.selfDeaf` 토글 감지 → Redis 세션에 ON/OFF 시각 누적 → `voice_daily.deafSec` flush. `DeafToggleHandler` 신설.
+4. **voice_daily 컬럼 추가**: `streamingSec int DEFAULT 0`, `videoOnSec int DEFAULT 0`, `deafSec int DEFAULT 0`. 기존 데이터는 0으로 유지. 마이그레이션 SQL 명세 포함.
+5. **F-VOICE-028 (음성 입장 시 게임 상태 수집)**: `VoiceJoinHandler`에서 `member.presence.activities` 조회 → `ActivityType.Playing` 필터 → Redis 게임 세션 시작. null-safe 처리 명시.
+6. **F-VOICE-029 (CoPresenceScheduler 틱에서 게임 상태 갱신)**: 60초 틱마다 각 멤버의 presence 조회 → 새 게임 시작/전환/종료 감지 → 세션 상태 갱신. 최대 60초 지연 발생 가능 명시.
+7. **F-VOICE-030 (음성 퇴장 시 게임 세션 종료)**: `VoiceLeaveHandler`에서 Redis 게임 세션 조회 → 진행 중 세션 있으면 F-VOICE-031 수행 → Redis 키 삭제.
+8. **F-VOICE-031 (게임 세션 종료 처리 및 저장)**: 플레이 시간 계산 → 1분 이상인 경우만 `voice_game_activity` INSERT + `voice_game_daily` UPSERT → Redis 키 삭제.
+9. **신규 테이블 정의**: `voice_game_activity`(세션 단위, 90일 보존) 및 `voice_game_daily`(일별 집계, 영구 보존) 컬럼·인덱스·보존 정책 명세.
+10. **Phase 2 인프라 요구사항 명세**: Discord Developer Portal PRESENCE INTENT 토글 ON, `discord.config.ts` `GatewayIntentBits.GuildPresences` 추가.
+11. **VoiceGameService 아키텍처 다이어그램**: `onUserJoined()`, `onTick()`, `onUserLeft()`, `endSession()` 메서드 구조 문서화.
+
+**변경 사유**: 현재 수집 중인 마이크 ON/OFF 외에 화면 공유·카메라·스피커 음소거 상태를 추가 수집하여 잠수 탐지 및 콘텐츠 기여자 식별 지표를 확보하고, 음성 채널 참여 중 게임 활동 데이터를 수집하여 멤버 활동 분석의 깊이를 높인다.
 
 ---
 

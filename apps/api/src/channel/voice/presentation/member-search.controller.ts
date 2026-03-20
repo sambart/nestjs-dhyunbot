@@ -8,7 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../../auth/infrastructure/jwt-auth.guard';
 import { MemberSearchService } from '../application/member-search.service';
 import { MemberSearchResultDto } from '../dto/member-search-result.dto';
 

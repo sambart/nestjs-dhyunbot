@@ -1,4 +1,3 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import {
   Body,
   Controller,
@@ -13,18 +12,19 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { Client } from 'discord.js';
 import type { Request } from 'express';
 
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
+import type { JwtUser } from '../../common/types/jwt-user.types';
 import { InactiveMemberService } from '../application/inactive-member.service';
 import { InactiveMemberActionService } from '../application/inactive-member-action.service';
-import { InactiveMemberActionType } from '../domain/inactive-member-action-log.entity';
-import { InactiveMemberRecord } from '../domain/inactive-member-record.entity';
+import { InactiveMemberActionType } from '../domain/inactive-member.types';
 import { InactiveMemberActionDto } from '../dto/inactive-member-action.dto';
 import { InactiveMemberConfigSaveDto } from '../dto/inactive-member-config-save.dto';
 import { InactiveMemberRepository } from '../infrastructure/inactive-member.repository';
+import { InactiveMemberDiscordAdapter } from '../infrastructure/inactive-member-discord.adapter';
 import { InactiveMemberQueryRepository } from '../infrastructure/inactive-member-query.repository';
+import type { InactiveMemberRecordOrm } from '../infrastructure/inactive-member-record.orm-entity';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -44,11 +44,6 @@ interface EnrichedMember {
   classifiedAt: Date;
 }
 
-interface JwtUser {
-  discordId: string;
-  username: string;
-}
-
 @Controller('api/guilds/:guildId/inactive-members')
 @UseGuards(JwtAuthGuard)
 export class InactiveMemberController {
@@ -59,7 +54,7 @@ export class InactiveMemberController {
     private readonly actionService: InactiveMemberActionService,
     private readonly queryRepo: InactiveMemberQueryRepository,
     private readonly repo: InactiveMemberRepository,
-    @InjectDiscordClient() private readonly discord: Client,
+    private readonly discordAdapter: InactiveMemberDiscordAdapter,
   ) {}
 
   @Get()
@@ -89,7 +84,6 @@ export class InactiveMemberController {
     const page = pageRaw ? Math.max(1, parseInt(pageRaw, 10)) : DEFAULT_PAGE;
     const limit = limitRaw ? Math.min(100, Math.max(1, parseInt(limitRaw, 10))) : DEFAULT_LIMIT;
 
-    // search가 있을 때는 전체 조회 후 in-memory 필터/페이지네이션 수행
     const isSearchMode = !!search;
     const queryLimit = isSearchMode ? MAX_SEARCH_LIMIT : limit;
 
@@ -101,55 +95,12 @@ export class InactiveMemberController {
       limit: queryLimit,
     });
 
-    const guild = this.discord.guilds.cache.get(guildId);
-    const memberCache = guild?.members.cache;
+    const userIds = items.map((r: InactiveMemberRecordOrm) => r.userId);
+    const memberMap = await this.discordAdapter.fetchMemberDisplayNames(guildId, userIds);
 
-    // 캐시에서 먼저 해소, 없는 멤버만 API fetch (검색모드 대량 조회 시 rate limit 방지)
-    const memberMap = new Map<string, string>();
-    const uncachedUserIds: string[] = [];
-    if (guild) {
-      for (const record of items) {
-        const cached = memberCache?.get(record.userId);
-        if (cached) {
-          memberMap.set(record.userId, cached.displayName);
-        } else {
-          uncachedUserIds.push(record.userId);
-        }
-      }
-    }
-
-    const stillUnresolved: string[] = [];
-    if (guild && uncachedUserIds.length > 0) {
-      const fetchResults = await Promise.allSettled(
-        uncachedUserIds.map((id) => guild.members.fetch(id)),
-      );
-      for (const result of fetchResults) {
-        if (result.status === 'fulfilled') {
-          memberMap.set(result.value.id, result.value.displayName);
-        }
-      }
-      for (const id of uncachedUserIds) {
-        if (!memberMap.has(id)) {
-          stillUnresolved.push(id);
-        }
-      }
-    }
-
-    // 길드를 떠난 유저는 글로벌 유저 정보로 fallback
-    if (stillUnresolved.length > 0) {
-      const userResults = await Promise.allSettled(
-        stillUnresolved.map((id) => this.discord.users.fetch(id)),
-      );
-      for (const result of userResults) {
-        if (result.status === 'fulfilled') {
-          memberMap.set(result.value.id, result.value.displayName);
-        }
-      }
-    }
-
-    let enriched: EnrichedMember[] = items.map((record: InactiveMemberRecord) => ({
+    let enriched: EnrichedMember[] = items.map((record: InactiveMemberRecordOrm) => ({
       userId: record.userId,
-      nickName: memberMap.get(record.userId) ?? record.userId,
+      nickName: memberMap[record.userId] ?? record.userId,
       grade: record.grade,
       totalMinutes: record.totalMinutes,
       prevTotalMinutes: record.prevTotalMinutes,

@@ -5,4 +5,7 @@ export interface VoiceSession {
   alone: boolean; // 혼자인지 여부
   lastUpdatedAt: number; // duration 계산 마지막 시점
   date: string; // ⭐ YYYYMMDD
+  streaming: boolean; // 화면 공유 상태
+  videoOn: boolean; // 카메라 상태
+  selfDeaf: boolean; // 스피커 음소거 상태
 }

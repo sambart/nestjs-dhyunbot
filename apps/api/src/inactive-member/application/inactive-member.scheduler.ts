@@ -1,9 +1,9 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { Client } from 'discord.js';
 
-import { InactiveMemberGrade } from '../domain/inactive-member-record.entity';
+import { getErrorStack } from '../../common/util/error.util';
+import { InactiveMemberGrade } from '../domain/inactive-member.types';
+import { InactiveMemberRepository } from '../infrastructure/inactive-member.repository';
 import { InactiveMemberService } from './inactive-member.service';
 import { InactiveMemberActionService } from './inactive-member-action.service';
 
@@ -14,7 +14,7 @@ export class InactiveMemberScheduler {
   constructor(
     private readonly inactiveMemberService: InactiveMemberService,
     private readonly actionService: InactiveMemberActionService,
-    @InjectDiscordClient() private readonly discord: Client,
+    private readonly repo: InactiveMemberRepository,
   ) {}
 
   @Cron('0 0 * * *', {
@@ -26,12 +26,13 @@ export class InactiveMemberScheduler {
     try {
       await this.processAllGuilds();
     } catch (err) {
-      this.logger.error('[INACTIVE] Unhandled error during daily classify', (err as Error).stack);
+      this.logger.error('[INACTIVE] Unhandled error during daily classify', getErrorStack(err));
     }
   }
 
   private async processAllGuilds(): Promise<void> {
-    const guildIds = this.discord.guilds.cache.map((g) => g.id);
+    // Gateway 캐시 대신 DB에서 설정된 길드 목록 조회
+    const guildIds = await this.repo.findAllConfiguredGuildIds();
 
     for (const guildId of guildIds) {
       try {
@@ -47,7 +48,7 @@ export class InactiveMemberScheduler {
           await this.actionService.executeAutoActions(guildId, newlyFullyInactiveIds);
         }
       } catch (err) {
-        this.logger.error(`[INACTIVE] Failed guild=${guildId}`, (err as Error).stack);
+        this.logger.error(`[INACTIVE] Failed guild=${guildId}`, getErrorStack(err));
       }
     }
   }

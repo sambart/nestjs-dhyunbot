@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useRef } from 'react';
 
 import GuildEmojiPicker from '../../../../../components/GuildEmojiPicker';
@@ -14,17 +15,18 @@ interface WelcomeTabProps {
   onChange: (partial: Partial<NewbieConfig>) => void;
 }
 
-const TEMPLATE_VARIABLES = [
-  { variable: '{username}', description: '신규 멤버의 닉네임' },
-  { variable: '{mention}', description: '신규 멤버 태그 (@멘션)' },
-  { variable: '{memberCount}', description: '현재 서버 전체 멤버 수' },
-  { variable: '{serverName}', description: '서버 이름' },
-] as const;
-
 export default function WelcomeTab({ config, channels, emojis, onChange }: WelcomeTabProps) {
   const isEnabled = config.welcomeEnabled;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const channelSelectRef = useRef<HTMLSelectElement>(null);
+  const t = useTranslations('settings');
+
+  const templateVariables = [
+    { variable: '{username}', description: t('newbie.welcome.varUsername') },
+    { variable: '{mention}', description: t('newbie.welcome.varMention') },
+    { variable: '{memberCount}', description: t('newbie.welcome.varMemberCount') },
+    { variable: '{serverName}', description: t('newbie.welcome.varServerName') },
+  ];
 
   const insertAtCursor = (insertText: string) => {
     const textarea = textareaRef.current;
@@ -61,9 +63,9 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
       {/* 기능 활성화 토글 */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-900">환영인사 기능</p>
+          <p className="text-sm font-medium text-gray-900">{t('newbie.welcome.toggle')}</p>
           <p className="text-xs text-gray-500 mt-0.5">
-            신규 멤버 가입 시 환영 메시지를 자동으로 전송합니다.
+            {t('newbie.welcome.toggleDesc')}
           </p>
         </div>
         <button
@@ -89,7 +91,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
           htmlFor="welcome-channel"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          환영 메시지 채널
+          {t('newbie.welcome.channel')}
         </label>
         <select
           id="welcome-channel"
@@ -100,7 +102,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
           disabled={!isEnabled}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
         >
-          <option value="">채널을 선택하세요</option>
+          <option value="">{t('common.channelSelect')}</option>
           {channels.map((ch) => (
             <option key={ch.id} value={ch.id}>
               # {ch.name}
@@ -109,7 +111,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
         </select>
         {channels.length === 0 && (
           <p className="text-xs text-gray-400 mt-1">
-            채널 목록을 불러올 수 없습니다. 백엔드 연동 후 사용 가능합니다.
+            {t('common.noChannels')}
           </p>
         )}
       </div>
@@ -120,7 +122,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
           htmlFor="welcome-content"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          메시지 본문
+          {t('newbie.welcome.content')}
         </label>
         <input
           id="welcome-content"
@@ -134,7 +136,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
         />
         <p className="text-xs text-gray-500 mt-1">
-          Embed 바깥에 표시되는 텍스트입니다. 멘션(@)은 여기에 넣어야 정상 표시됩니다.
+          {t('newbie.welcome.contentDesc')}
         </p>
       </div>
 
@@ -144,7 +146,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
           htmlFor="welcome-embed-title"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Embed 제목
+          {t('common.embedTitle')}
         </label>
         <input
           id="welcome-embed-title"
@@ -165,7 +167,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
           htmlFor="welcome-embed-description"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          Embed 설명
+          {t('common.embedDescription')}
         </label>
         <textarea
           ref={textareaRef}
@@ -186,7 +188,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
             disabled={!isEnabled || channels.length === 0}
             className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
-            <option value="">채널 링크 삽입</option>
+            <option value="">{t('newbie.welcome.insertChannelLink')}</option>
             {channels.map((ch) => (
               <option key={ch.id} value={ch.id}>
                 # {ch.name}
@@ -205,7 +207,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
             }}
             className="px-3 py-1.5 bg-indigo-100 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            삽입
+            {t('newbie.welcome.insert')}
           </button>
           <GuildEmojiPicker
             emojis={emojis}
@@ -218,7 +220,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
       {/* Embed 색상 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Embed 색상
+          {t('common.embedColor')}
         </label>
         <div className="flex items-center space-x-3">
           <input
@@ -226,7 +228,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
             value={config.welcomeEmbedColor ?? '#5865F2'}
             onChange={(e) => onChange({ welcomeEmbedColor: e.target.value })}
             disabled={!isEnabled}
-            aria-label="Embed 색상 피커"
+            aria-label={t('common.embedColorPicker')}
             className="h-9 w-16 border border-gray-300 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed p-1"
           />
           <input
@@ -241,7 +243,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
             disabled={!isEnabled}
             maxLength={7}
             placeholder="#5865F2"
-            aria-label="Embed 색상 HEX 코드"
+            aria-label={t('common.embedColorHex')}
             className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
         </div>
@@ -253,7 +255,7 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
           htmlFor="welcome-thumbnail-url"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          썸네일 이미지 URL
+          {t('newbie.welcome.thumbnailUrl')}
         </label>
         <input
           id="welcome-thumbnail-url"
@@ -271,10 +273,10 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
       {/* 템플릿 변수 안내 */}
       <div className="bg-indigo-50 rounded-lg p-4">
         <p className="text-xs font-semibold text-indigo-700 mb-2">
-          사용 가능한 템플릿 변수
+          {t('newbie.welcome.templateVarsTitle')}
         </p>
         <dl className="space-y-1.5">
-          {TEMPLATE_VARIABLES.map((item) => (
+          {templateVariables.map((item) => (
             <div key={item.variable} className="flex items-center space-x-2">
               <code className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono">
                 {item.variable}
@@ -285,14 +287,14 @@ export default function WelcomeTab({ config, channels, emojis, onChange }: Welco
         </dl>
         <div className="mt-3 pt-3 border-t border-indigo-200">
           <p className="text-xs font-semibold text-indigo-700 mb-1.5">
-            채널 링크
+            {t('newbie.welcome.channelLinkTitle')}
           </p>
           <div className="flex items-center space-x-2">
             <code className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono">
               {'<#채널ID>'}
             </code>
             <span className="text-xs text-indigo-600">
-              클릭 가능한 채널 링크 (위 드롭다운으로 삽입)
+              {t('newbie.welcome.channelLinkDesc')}
             </span>
           </div>
         </div>

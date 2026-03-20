@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Area,
   AreaChart,
@@ -20,30 +21,32 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartConfig = {
-  channelDurationMin: {
-    label: "체류 시간(분)",
-    color: "var(--chart-1)",
-  },
-  micOnMin: {
-    label: "마이크 ON(분)",
-    color: "var(--chart-2)",
-  },
-  micOffMin: {
-    label: "마이크 OFF(분)",
-    color: "var(--chart-3)",
-  },
-  aloneMin: {
-    label: "혼자(분)",
-    color: "var(--chart-4)",
-  },
-} satisfies ChartConfig;
-
 interface Props {
   data: VoiceDailyTrend[];
 }
 
 export default function DailyTrendChart({ data }: Props) {
+  const t = useTranslations("dashboard");
+
+  const chartConfig = {
+    channelDurationMin: {
+      label: t("voice.dailyTrend.durationMin"),
+      color: "var(--chart-1)",
+    },
+    micOnMin: {
+      label: t("voice.dailyTrend.micOnMin"),
+      color: "var(--chart-2)",
+    },
+    micOffMin: {
+      label: t("voice.dailyTrend.micOffMin"),
+      color: "var(--chart-3)",
+    },
+    aloneMin: {
+      label: t("voice.dailyTrend.aloneMin"),
+      color: "var(--chart-4)",
+    },
+  } satisfies ChartConfig;
+
   const chartData = data.map((d) => ({
     date: formatDate(d.date),
     channelDurationMin: Math.round(d.channelDurationSec / 60),
@@ -55,13 +58,13 @@ export default function DailyTrendChart({ data }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>일별 음성 활동 추이</CardTitle>
+        <CardTitle>{t("voice.dailyTrend.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
           <AreaChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" tickLine={false} axisLine={false} />
+            <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} interval="preserveStartEnd" />
             <YAxis tickLine={false} axisLine={false} />
             <ChartTooltip content={<ChartTooltipContent />} />
             <ChartLegend content={<ChartLegendContent />} />

@@ -11,10 +11,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/infrastructure/jwt-auth.guard';
 import { StickyMessageConfigService } from '../application/sticky-message-config.service';
-import { StickyMessageConfig } from '../domain/sticky-message-config.entity';
 import { StickyMessageSaveDto } from '../dto/sticky-message-save.dto';
+import type { StickyMessageConfigOrm } from '../infrastructure/sticky-message-config.orm-entity';
 
 @Controller('api/guilds/:guildId/sticky-message')
 @UseGuards(JwtAuthGuard)
@@ -26,7 +26,7 @@ export class StickyMessageController {
    * 설정 목록 조회 (F-STICKY-001).
    */
   @Get()
-  async getConfigs(@Param('guildId') guildId: string): Promise<StickyMessageConfig[]> {
+  async getConfigs(@Param('guildId') guildId: string): Promise<StickyMessageConfigOrm[]> {
     return this.configService.getConfigs(guildId);
   }
 
@@ -39,7 +39,7 @@ export class StickyMessageController {
   async saveConfig(
     @Param('guildId') guildId: string,
     @Body() dto: StickyMessageSaveDto,
-  ): Promise<StickyMessageConfig> {
+  ): Promise<StickyMessageConfigOrm> {
     return this.configService.saveConfig(guildId, dto);
   }
 

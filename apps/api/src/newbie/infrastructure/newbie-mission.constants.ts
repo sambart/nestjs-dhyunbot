@@ -1,4 +1,4 @@
-import { MissionStatus } from '../domain/newbie-mission.entity';
+import { MissionStatus } from '../domain/newbie-mission.types';
 
 /** 미션 상태별 Discord Embed 표시 이모지 */
 export const MISSION_STATUS_EMOJI: Record<MissionStatus, string> = {

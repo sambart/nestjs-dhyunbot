@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { VoiceDailyEntity } from '../domain/voice-daily.entity';
+import { VoiceDailyOrm } from '../infrastructure/voice-daily.orm-entity';
 import { VoiceDailyFlushService } from './voice-daily-flush-service';
 
 @Injectable()
@@ -10,8 +10,8 @@ export class VoiceStatsQueryService {
   private readonly logger = new Logger(VoiceStatsQueryService.name);
 
   constructor(
-    @InjectRepository(VoiceDailyEntity)
-    private readonly voiceDailyRepository: Repository<VoiceDailyEntity>,
+    @InjectRepository(VoiceDailyOrm)
+    private readonly voiceDailyRepository: Repository<VoiceDailyOrm>,
     private readonly flushService: VoiceDailyFlushService,
   ) {}
 

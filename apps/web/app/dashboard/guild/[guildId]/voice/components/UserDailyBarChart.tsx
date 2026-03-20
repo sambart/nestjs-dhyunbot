@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import type { VoiceDailyTrend } from "@/app/lib/voice-dashboard-api";
@@ -12,18 +13,20 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartConfig = {
-  channelDurationMin: {
-    label: "체류 시간(분)",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
-
 interface Props {
   data: VoiceDailyTrend[];
 }
 
 export default function UserDailyBarChart({ data }: Props) {
+  const t = useTranslations("dashboard");
+
+  const chartConfig = {
+    channelDurationMin: {
+      label: t("voice.userDetail.dailyChart.durationMin"),
+      color: "var(--chart-1)",
+    },
+  } satisfies ChartConfig;
+
   const chartData = data.map((d) => ({
     date: formatDate(d.date),
     channelDurationMin: Math.round(d.channelDurationSec / 60),
@@ -32,7 +35,7 @@ export default function UserDailyBarChart({ data }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>일별 음성 활동</CardTitle>
+        <CardTitle>{t("voice.userDetail.dailyChart.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">

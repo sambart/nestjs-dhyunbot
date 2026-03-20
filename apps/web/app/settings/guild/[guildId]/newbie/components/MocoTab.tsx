@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { DiscordChannel, DiscordEmoji } from '../../../../../lib/discord-api';
 import type { MocoTemplate, NewbieConfig } from '../../../../../lib/newbie-api';
 import CollapsibleSection from './CollapsibleSection';
@@ -18,12 +20,6 @@ interface MocoTabProps {
   mocoTemplateSaveSuccess: boolean;
 }
 
-const RESET_PERIOD_LABELS: Record<string, string> = {
-  NONE: '누적',
-  MONTHLY: '매월',
-  CUSTOM: '커스텀',
-};
-
 export default function MocoTab({
   config,
   channels,
@@ -36,16 +32,23 @@ export default function MocoTab({
   mocoTemplateSaveSuccess,
 }: MocoTabProps) {
   const isEnabled = config.mocoEnabled;
+  const t = useTranslations('settings');
+
+  const resetPeriodLabels: Record<string, string> = {
+    NONE: t('newbie.moco.labelNone'),
+    MONTHLY: t('newbie.moco.labelMonthly'),
+    CUSTOM: t('newbie.moco.labelCustom'),
+  };
 
   /* ── 요약 텍스트 생성 ── */
   const basicSummary = [
     `${config.mocoNewbieDays ?? 30}일`,
-    config.mocoAllowNewbieHunter && '사냥꾼 허용',
+    config.mocoAllowNewbieHunter && t('newbie.moco.allowNewbieHunterSummary'),
     config.mocoRankChannelId
       ? `# ${channels.find((c) => c.id === config.mocoRankChannelId)?.name ?? '...'}`
       : null,
     config.mocoAutoRefreshMinutes != null &&
-      `${config.mocoAutoRefreshMinutes}분 갱신`,
+      t('newbie.moco.autoRefreshSummary', { minutes: config.mocoAutoRefreshMinutes }),
   ]
     .filter(Boolean)
     .join(' · ');
@@ -56,10 +59,10 @@ export default function MocoTab({
   if (config.mocoPlayCountIntervalMin != null)
     playCountParts.push(`간격 ${config.mocoPlayCountIntervalMin}분`);
   const playCountSummary =
-    playCountParts.length > 0 ? playCountParts.join(' · ') : '비활성';
+    playCountParts.length > 0 ? playCountParts.join(' · ') : t('newbie.moco.inactive');
 
   const resetLabel =
-    RESET_PERIOD_LABELS[config.mocoResetPeriod ?? 'NONE'] ?? '누적';
+    resetPeriodLabels[config.mocoResetPeriod ?? 'NONE'] ?? t('newbie.moco.labelNone');
   const scoreSummary = `세션 ${config.mocoScorePerSession ?? 10} · 분 ${config.mocoScorePerMinute ?? 1} · 고유 ${config.mocoScorePerUnique ?? 5} · ${resetLabel}`;
 
   const embedSummary = (
@@ -77,9 +80,9 @@ export default function MocoTab({
       {/* 기능 활성화 토글 */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-900">모코코 사냥 기능</p>
+          <p className="text-sm font-medium text-gray-900">{t('newbie.moco.toggle')}</p>
           <p className="text-xs text-gray-500 mt-0.5">
-            기존 멤버가 신입과 함께 음성 채널에서 보낸 시간을 집계합니다.
+            {t('newbie.moco.toggleDesc')}
           </p>
         </div>
         <button
@@ -101,7 +104,7 @@ export default function MocoTab({
 
       {/* ── 그룹 1: 기본 설정 (기본 펼침) ── */}
       <CollapsibleSection
-        title="기본 설정"
+        title={t('newbie.moco.basicSettings')}
         summary={basicSummary || undefined}
         defaultOpen
       >
@@ -111,7 +114,7 @@ export default function MocoTab({
             htmlFor="moco-newbie-days"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            모코코 기준 (가입 후 일수)
+            {t('newbie.moco.newbieDays')}
           </label>
           <input
             id="moco-newbie-days"
@@ -128,7 +131,7 @@ export default function MocoTab({
             className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
           <p className="text-xs text-gray-400 mt-1">
-            서버 가입 후 이 일수 이내인 멤버를 모코코(신입)로 판정합니다.
+            {t('newbie.moco.newbieDaysDesc')}
           </p>
         </div>
 
@@ -136,10 +139,10 @@ export default function MocoTab({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-gray-700">
-              모코코도 사냥꾼 허용
+              {t('newbie.moco.allowNewbieHunter')}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
-              활성화하면 신입(모코코)도 다른 신입의 사냥꾼이 될 수 있습니다.
+              {t('newbie.moco.allowNewbieHunterDesc')}
             </p>
           </div>
           <button
@@ -168,7 +171,7 @@ export default function MocoTab({
             htmlFor="moco-rank-channel"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            순위 표시 채널
+            {t('newbie.moco.rankChannel')}
           </label>
           <select
             id="moco-rank-channel"
@@ -179,7 +182,7 @@ export default function MocoTab({
             disabled={!isEnabled}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
-            <option value="">채널을 선택하세요</option>
+            <option value="">{t('common.channelSelect')}</option>
             {channels.map((ch) => (
               <option key={ch.id} value={ch.id}>
                 # {ch.name}
@@ -187,11 +190,11 @@ export default function MocoTab({
             ))}
           </select>
           <p className="text-xs text-gray-400 mt-1">
-            모코코 사냥 TOP N 순위 Embed를 표시할 채널
+            {t('newbie.moco.rankChannelDesc')}
           </p>
           {channels.length === 0 && (
             <p className="text-xs text-amber-500 mt-1">
-              채널 목록을 불러올 수 없습니다. 백엔드 연동 후 사용 가능합니다.
+              {t('common.noChannels')}
             </p>
           )}
         </div>
@@ -202,7 +205,7 @@ export default function MocoTab({
             htmlFor="moco-auto-refresh"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            자동 갱신 간격 (분)
+            {t('newbie.moco.autoRefreshMinutes')}
           </label>
           <input
             id="moco-auto-refresh"
@@ -219,13 +222,13 @@ export default function MocoTab({
             className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
           <p className="text-xs text-gray-400 mt-1">
-            순위 Embed를 자동으로 갱신하는 주기(분)
+            {t('newbie.moco.autoRefreshMinutesDesc')}
           </p>
         </div>
       </CollapsibleSection>
 
       {/* ── 그룹 2: 플레이횟수 규칙 (기본 접힘) ── */}
-      <CollapsibleSection title="플레이횟수 규칙" summary={playCountSummary}>
+      <CollapsibleSection title={t('newbie.moco.playCountRules')} summary={playCountSummary}>
         {/* 플레이횟수 최소 참여시간 */}
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -247,7 +250,7 @@ export default function MocoTab({
               htmlFor="moco-play-count-min-duration-enabled"
               className="text-sm font-medium text-gray-700"
             >
-              플레이횟수 최소 참여시간 (분)
+              {t('newbie.moco.playCountMinDuration')}
             </label>
           </div>
           <input
@@ -269,8 +272,7 @@ export default function MocoTab({
             className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
           <p className="text-xs text-gray-400 mt-1">
-            세션의 총 참여시간이 N분 이상인 세션만 유효한 1회로 인정합니다. 체크
-            해제 시 비활성화 (모든 세션 인정).
+            {t('newbie.moco.playCountMinDurationDesc')}
           </p>
         </div>
 
@@ -295,7 +297,7 @@ export default function MocoTab({
               htmlFor="moco-play-count-interval-enabled"
               className="text-sm font-medium text-gray-700"
             >
-              플레이횟수 시간 간격 (분)
+              {t('newbie.moco.playCountInterval')}
             </label>
           </div>
           <input
@@ -316,21 +318,20 @@ export default function MocoTab({
             className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
           <p className="text-xs text-gray-400 mt-1">
-            이전 유효 세션 시작 후 N분 이내에 재입장한 세션은 동일 1회로
-            병합합니다. 체크 해제 시 비활성화 (독립 카운트).
+            {t('newbie.moco.playCountIntervalDesc')}
           </p>
         </div>
       </CollapsibleSection>
 
       {/* ── 그룹 3: 점수 & 리셋 (기본 접힘) ── */}
-      <CollapsibleSection title="점수 & 리셋" summary={scoreSummary}>
+      <CollapsibleSection title={t('newbie.moco.scoreAndReset')} summary={scoreSummary}>
         {/* 최소 동시접속 시간 */}
         <div>
           <label
             htmlFor="moco-min-co-presence"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            최소 동시접속 시간 (분)
+            {t('newbie.moco.minCoPresenceMin')}
           </label>
           <input
             id="moco-min-co-presence"
@@ -346,15 +347,15 @@ export default function MocoTab({
             className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
           <p className="text-xs text-gray-400 mt-1">
-            이 시간 미만의 짧은 접속은 사냥 횟수에 포함되지 않습니다.
+            {t('newbie.moco.minCoPresenceMinDesc')}
           </p>
         </div>
 
         {/* 점수 가중치 설정 */}
         <div className="space-y-3">
-          <p className="text-sm font-medium text-gray-700">점수 가중치</p>
+          <p className="text-sm font-medium text-gray-700">{t('newbie.moco.scoreWeights')}</p>
           <p className="text-xs text-gray-500">
-            0으로 설정하면 해당 요소를 비활성화합니다.
+            {t('newbie.moco.scoreWeightsDesc')}
           </p>
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -362,7 +363,7 @@ export default function MocoTab({
                 htmlFor="moco-score-per-session"
                 className="block text-xs font-medium text-gray-600 mb-1"
               >
-                세션당 점수
+                {t('newbie.moco.scorePerSession')}
               </label>
               <input
                 id="moco-score-per-session"
@@ -383,7 +384,7 @@ export default function MocoTab({
                 htmlFor="moco-score-per-minute"
                 className="block text-xs font-medium text-gray-600 mb-1"
               >
-                분당 점수
+                {t('newbie.moco.scorePerMinute')}
               </label>
               <input
                 id="moco-score-per-minute"
@@ -404,7 +405,7 @@ export default function MocoTab({
                 htmlFor="moco-score-per-unique"
                 className="block text-xs font-medium text-gray-600 mb-1"
               >
-                고유 모코코당 점수
+                {t('newbie.moco.scorePerUnique')}
               </label>
               <input
                 id="moco-score-per-unique"
@@ -429,7 +430,7 @@ export default function MocoTab({
             htmlFor="moco-reset-period"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            리셋 주기
+            {t('newbie.moco.resetPeriod')}
           </label>
           <select
             id="moco-reset-period"
@@ -443,9 +444,9 @@ export default function MocoTab({
             disabled={!isEnabled}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
-            <option value="NONE">누적 (리셋 없음)</option>
-            <option value="MONTHLY">매월 1일</option>
-            <option value="CUSTOM">커스텀 간격</option>
+            <option value="NONE">{t('newbie.moco.resetNone')}</option>
+            <option value="MONTHLY">{t('newbie.moco.resetMonthly')}</option>
+            <option value="CUSTOM">{t('newbie.moco.resetCustom')}</option>
           </select>
           {config.mocoResetPeriod === 'CUSTOM' && (
             <div className="mt-2">
@@ -453,7 +454,7 @@ export default function MocoTab({
                 htmlFor="moco-reset-interval-days"
                 className="block text-xs font-medium text-gray-600 mb-1"
               >
-                리셋 간격 (일)
+                {t('newbie.moco.resetIntervalDays')}
               </label>
               <input
                 id="moco-reset-interval-days"
@@ -476,11 +477,11 @@ export default function MocoTab({
       </CollapsibleSection>
 
       {/* ── 그룹 4: Embed 외관 & 템플릿 (기본 접힘) ── */}
-      <CollapsibleSection title="Embed 외관 & 템플릿" summary={embedSummary}>
+      <CollapsibleSection title={t('newbie.moco.embedSection')} summary={embedSummary}>
         {/* Embed 색상 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Embed 색상
+            {t('common.embedColor')}
           </label>
           <div className="flex items-center space-x-3">
             <input
@@ -488,7 +489,7 @@ export default function MocoTab({
               value={config.mocoEmbedColor ?? '#5865F2'}
               onChange={(e) => onChange({ mocoEmbedColor: e.target.value })}
               disabled={!isEnabled}
-              aria-label="Embed 색상 피커"
+              aria-label={t('common.embedColorPicker')}
               className="h-9 w-16 border border-gray-300 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed p-1"
             />
             <input
@@ -503,7 +504,7 @@ export default function MocoTab({
               disabled={!isEnabled}
               maxLength={7}
               placeholder="#5865F2"
-              aria-label="Embed 색상 HEX 코드"
+              aria-label={t('common.embedColorHex')}
               className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
             />
           </div>

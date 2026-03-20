@@ -1,6 +1,7 @@
 'use client';
 
 import { Check, ChevronDown, Loader2, RefreshCw, Server, UserX } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
 import type { DiscordRole } from '../../../../lib/discord-api';
@@ -18,6 +19,7 @@ const PERIOD_DAYS_OPTIONS = [7, 15, 30] as const;
 
 export default function InactiveMemberSettingsPage() {
   const { selectedGuildId } = useSettings();
+  const t = useTranslations('settings');
 
   const [form, setForm] = useState<InactiveMemberConfigSaveDto>({
     periodDays: 30,
@@ -48,6 +50,7 @@ export default function InactiveMemberSettingsPage() {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      // EventTarget → Node 좁히기 (contains() 호출에 필요)
       if (
         excludeDropdownRef.current &&
         !excludeDropdownRef.current.contains(e.target as Node)
@@ -157,7 +160,7 @@ export default function InactiveMemberSettingsPage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3_000);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : '저장에 실패했습니다.');
+      setSaveError(err instanceof Error ? err.message : t('common.saveError'));
     } finally {
       setIsSaving(false);
     }
@@ -188,11 +191,11 @@ export default function InactiveMemberSettingsPage() {
   if (!selectedGuildId) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">비활동 회원 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('inactiveMember.title')}</h1>
         <section className="bg-white rounded-xl border border-gray-200 p-8">
           <div className="flex flex-col items-center text-center py-8">
             <Server className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="text-sm text-gray-500">사이드바에서 서버를 선택하세요.</p>
+            <p className="text-sm text-gray-500">{t('common.selectServer')}</p>
           </div>
         </section>
       </div>
@@ -202,7 +205,7 @@ export default function InactiveMemberSettingsPage() {
   if (isLoading) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">비활동 회원 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('inactiveMember.title')}</h1>
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
         </div>
@@ -221,17 +224,17 @@ export default function InactiveMemberSettingsPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <UserX className="w-6 h-6 text-indigo-600" />
-          <h1 className="text-2xl font-bold text-gray-900">비활동 회원 설정</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('inactiveMember.title')}</h1>
         </div>
         <button
           type="button"
           onClick={handleRefreshRolesClick}
           disabled={isRefreshing}
-          title="역할 목록 새로고침"
+          title={t('common.refreshRoles')}
           className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>역할 새로고침</span>
+          <span>{t('common.refreshRoles')}</span>
         </button>
       </div>
 
@@ -239,13 +242,13 @@ export default function InactiveMemberSettingsPage() {
 
         {/* 섹션 1: 비활동 판정 기준 */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">비활동 판정 기준</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">{t('inactiveMember.criteria')}</h2>
           <div className="space-y-4">
 
             {/* 판단 기간 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                판단 기간
+                {t('inactiveMember.periodDays')}
               </label>
               <div className="flex gap-4">
                 {PERIOD_DAYS_OPTIONS.map((day) => (
@@ -258,7 +261,7 @@ export default function InactiveMemberSettingsPage() {
                       onChange={() => updateForm('periodDays', day)}
                       className="accent-indigo-600"
                     />
-                    <span className="text-sm text-gray-700">{day}일</span>
+                    <span className="text-sm text-gray-700">{t('inactiveMember.periodDaysValue', { days: day })}</span>
                   </label>
                 ))}
               </div>
@@ -270,10 +273,10 @@ export default function InactiveMemberSettingsPage() {
                 htmlFor="low-active-threshold"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                저활동 임계값 (분)
+                {t('inactiveMember.lowActiveThreshold')}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                판단 기간 내 총 접속 시간이 이 값 미만이면 저활동으로 분류됩니다.
+                {t('inactiveMember.lowActiveThresholdDesc')}
               </p>
               <input
                 id="low-active-threshold"
@@ -293,10 +296,10 @@ export default function InactiveMemberSettingsPage() {
                 htmlFor="declining-percent"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                활동 감소 판정 비율 (%)
+                {t('inactiveMember.decliningPercent')}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                이전 동일 기간 대비 접속 시간이 이 비율 이상 감소하면 활동 감소로 분류됩니다.
+                {t('inactiveMember.decliningPercentDesc')}
               </p>
               <input
                 id="declining-percent"
@@ -317,14 +320,14 @@ export default function InactiveMemberSettingsPage() {
 
         {/* 섹션 2: 자동 조치 설정 */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">자동 조치 설정</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">{t('inactiveMember.autoAction')}</h2>
           <div className="space-y-4">
 
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900">자동 조치 활성화</p>
+                <p className="text-sm font-medium text-gray-900">{t('inactiveMember.autoActionEnable')}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  스케줄러 실행 시 새로 완전 비활동으로 분류된 회원에게 자동 조치를 실행합니다.
+                  {t('inactiveMember.autoActionEnableDesc')}
                 </p>
               </div>
               {renderToggle(
@@ -335,9 +338,9 @@ export default function InactiveMemberSettingsPage() {
 
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900">자동 역할 부여</p>
+                <p className="text-sm font-medium text-gray-900">{t('inactiveMember.autoRoleAdd')}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  완전 비활동 판정 시 비활동 역할을 자동으로 부여합니다.
+                  {t('inactiveMember.autoRoleAddDesc')}
                 </p>
               </div>
               {renderToggle(
@@ -348,9 +351,9 @@ export default function InactiveMemberSettingsPage() {
 
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900">자동 DM 발송</p>
+                <p className="text-sm font-medium text-gray-900">{t('inactiveMember.autoDm')}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  완전 비활동 판정 시 DM 템플릿으로 자동 메시지를 발송합니다.
+                  {t('inactiveMember.autoDmDesc')}
                 </p>
               </div>
               {renderToggle(
@@ -365,7 +368,7 @@ export default function InactiveMemberSettingsPage() {
 
         {/* 섹션 3: 역할 설정 */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">역할 설정</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">{t('inactiveMember.roleSettings')}</h2>
           <div className="space-y-4">
 
             <div>
@@ -373,7 +376,7 @@ export default function InactiveMemberSettingsPage() {
                 htmlFor="inactive-role"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                비활동 역할 (부여할 역할)
+                {t('inactiveMember.inactiveRole')}
               </label>
               <select
                 id="inactive-role"
@@ -383,7 +386,7 @@ export default function InactiveMemberSettingsPage() {
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="">선택 안함</option>
+                <option value="">{t('inactiveMember.noRole')}</option>
                 {roles.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -397,7 +400,7 @@ export default function InactiveMemberSettingsPage() {
                 htmlFor="remove-role"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                제거할 역할
+                {t('inactiveMember.removeRole')}
               </label>
               <select
                 id="remove-role"
@@ -407,7 +410,7 @@ export default function InactiveMemberSettingsPage() {
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="">선택 안함</option>
+                <option value="">{t('inactiveMember.noRole')}</option>
                 {roles.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -422,9 +425,9 @@ export default function InactiveMemberSettingsPage() {
 
         {/* 섹션 4: 제외 역할 */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">제외 역할</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">{t('inactiveMember.excludedRoles')}</h2>
           <p className="text-xs text-gray-500 mb-4">
-            비활동 판정에서 제외할 역할을 선택하세요. (예: 관리자, 봇 역할)
+            {t('inactiveMember.excludedRolesDesc')}
           </p>
 
           {/* 선택된 역할 태그 */}
@@ -441,7 +444,7 @@ export default function InactiveMemberSettingsPage() {
                     <button
                       type="button"
                       onClick={() => toggleExcludedRole(roleId)}
-                      aria-label={`${role?.name ?? roleId} 제외 해제`}
+                      aria-label={t('inactiveMember.deselect', { name: role?.name ?? roleId })}
                       className="ml-0.5 text-indigo-500 hover:text-indigo-800"
                     >
                       ×
@@ -461,8 +464,8 @@ export default function InactiveMemberSettingsPage() {
             >
               <span className="text-gray-500">
                 {excludedRoleIds.length > 0
-                  ? `${excludedRoleIds.length}개 역할 선택됨`
-                  : '역할을 선택하세요'}
+                  ? t('inactiveMember.excludedRolesSelected', { count: excludedRoleIds.length })
+                  : t('inactiveMember.excludedRolesPlaceholder')}
               </span>
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
@@ -471,7 +474,7 @@ export default function InactiveMemberSettingsPage() {
               <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                 {roles.length === 0 ? (
                   <p className="px-3 py-2 text-sm text-gray-400">
-                    역할 목록을 불러올 수 없습니다.
+                    {t('inactiveMember.noRolesOption')}
                   </p>
                 ) : (
                   roles.map((role) => {
@@ -500,7 +503,7 @@ export default function InactiveMemberSettingsPage() {
 
         {/* 섹션 5: DM 템플릿 */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">DM 템플릿</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">{t('inactiveMember.dmTemplate')}</h2>
           <div className="space-y-4">
 
             {/* Embed 제목 */}
@@ -509,7 +512,7 @@ export default function InactiveMemberSettingsPage() {
                 htmlFor="dm-embed-title"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Embed 제목
+                {t('common.embedTitle')}
               </label>
               <input
                 id="dm-embed-title"
@@ -529,14 +532,10 @@ export default function InactiveMemberSettingsPage() {
                 htmlFor="dm-embed-body"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Embed 본문
+                {t('inactiveMember.dmEmbedBody')}
               </label>
               <p className="text-xs text-gray-500 mb-1">
-                사용 가능한 변수:{' '}
-                <code className="bg-gray-100 px-1 rounded">{'{nickName}'}</code>,{' '}
-                <code className="bg-gray-100 px-1 rounded">{'{serverName}'}</code>,{' '}
-                <code className="bg-gray-100 px-1 rounded">{'{periodDays}'}</code>,{' '}
-                <code className="bg-gray-100 px-1 rounded">{'{totalMinutes}'}</code>
+                {t('inactiveMember.dmEmbedBodyDesc')}
               </p>
               <textarea
                 id="dm-embed-body"
@@ -553,14 +552,14 @@ export default function InactiveMemberSettingsPage() {
             {/* Embed 색상 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Embed 색상
+                {t('common.embedColor')}
               </label>
               <div className="flex items-center space-x-3">
                 <input
                   type="color"
                   value={embedColor}
                   onChange={(e) => updateForm('dmEmbedColor', e.target.value)}
-                  aria-label="Embed 색상 피커"
+                  aria-label={t('common.embedColorPicker')}
                   className="h-9 w-16 border border-gray-300 rounded cursor-pointer p-1"
                 />
                 <input
@@ -574,7 +573,7 @@ export default function InactiveMemberSettingsPage() {
                   }}
                   maxLength={7}
                   placeholder="#5865F2"
-                  aria-label="Embed 색상 HEX 코드"
+                  aria-label={t('common.embedColorHex')}
                   className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -582,7 +581,7 @@ export default function InactiveMemberSettingsPage() {
 
             {/* Embed 미리보기 */}
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">미리보기</p>
+              <p className="text-sm font-medium text-gray-700 mb-2">{t('common.preview')}</p>
               <div className="bg-[#2B2D31] rounded-lg p-4">
                 <div
                   className="bg-[#313338] rounded-md overflow-hidden"
@@ -590,12 +589,12 @@ export default function InactiveMemberSettingsPage() {
                 >
                   <div className="p-4">
                     <p className="text-white font-semibold text-sm mb-1 break-words">
-                      {form.dmEmbedTitle || '(제목 없음)'}
+                      {form.dmEmbedTitle || t('common.noTitle')}
                     </p>
                     <p className="text-gray-300 text-xs whitespace-pre-wrap break-words">
-                      {(form.dmEmbedBody ?? '(본문 없음)')
-                        .replace('{nickName}', '홍길동')
-                        .replace('{serverName}', '테스트 서버')
+                      {(form.dmEmbedBody ?? t('common.noDescription'))
+                        .replace('{nickName}', t('inactiveMember.previewNickName'))
+                        .replace('{serverName}', t('inactiveMember.previewServerName'))
                         .replace('{periodDays}', String(form.periodDays ?? 30))
                         .replace('{totalMinutes}', '0')}
                     </p>
@@ -610,7 +609,7 @@ export default function InactiveMemberSettingsPage() {
         <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-100">
           <div className="flex-1">
             {saveSuccess && (
-              <p className="text-sm text-green-600 font-medium">저장되었습니다.</p>
+              <p className="text-sm text-green-600 font-medium">{t('common.saveSuccess')}</p>
             )}
             {saveError && (
               <p className="text-sm text-red-600 font-medium">{saveError}</p>
@@ -622,7 +621,7 @@ export default function InactiveMemberSettingsPage() {
             disabled={isSaving}
             className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
           >
-            {isSaving ? '저장 중...' : '저장'}
+            {isSaving ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </section>

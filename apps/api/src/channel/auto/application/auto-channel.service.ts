@@ -1,3 +1,8 @@
+import type {
+  AutoChannelButtonClickDto,
+  AutoChannelButtonResult,
+  AutoChannelSubOptionDto,
+} from '@dhyunbot/bot-api-client';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   ActionRowBuilder,
@@ -7,15 +12,16 @@ import {
   GuildMember,
 } from 'discord.js';
 
+import { getErrorStack } from '../../../common/util/error.util';
 import { VoiceChannelService } from '../../voice/application/voice-channel.service';
 import { DiscordVoiceGateway } from '../../voice/infrastructure/discord-voice.gateway';
 import { VoiceStateDto } from '../../voice/infrastructure/voice-state.dto';
-import { AutoChannelButton } from '../domain/auto-channel-button.entity';
-import { AutoChannelSubOption } from '../domain/auto-channel-sub-option.entity';
+import { AutoChannelButtonOrm } from '../infrastructure/auto-channel-button.orm-entity';
 import { AutoChannelConfigRepository } from '../infrastructure/auto-channel-config.repository';
 import { AutoChannelDiscordGateway } from '../infrastructure/auto-channel-discord.gateway';
 import { AutoChannelRedisRepository } from '../infrastructure/auto-channel-redis.repository';
 import { AutoChannelConfirmedState } from '../infrastructure/auto-channel-state';
+import { AutoChannelSubOptionOrm } from '../infrastructure/auto-channel-sub-option.orm-entity';
 
 /** Discord 버튼 제약: ActionRow당 최대 버튼 수 */
 const BUTTONS_PER_ROW = 5;
@@ -246,8 +252,8 @@ export class AutoChannelService {
     guildId: string,
     userId: string,
     member: GuildMember,
-    button: AutoChannelButton,
-    subOption?: AutoChannelSubOption,
+    button: AutoChannelButtonOrm,
+    subOption?: AutoChannelSubOptionOrm,
   ): Promise<void> {
     const userName = member.displayName;
 
@@ -293,6 +299,9 @@ export class AutoChannelService {
       alone,
       memberCount,
       member.displayAvatarURL({ size: 128 }),
+      voiceState.streaming ?? false,
+      voiceState.selfVideo,
+      voiceState.selfDeaf,
     );
 
     await this.voiceChannelService.onUserJoined(voiceStateDto);
@@ -315,8 +324,8 @@ export class AutoChannelService {
    */
   private buildChannelName(
     userName: string,
-    button: AutoChannelButton,
-    subOption?: AutoChannelSubOption,
+    button: AutoChannelButtonOrm,
+    subOption?: AutoChannelSubOptionOrm,
   ): string {
     const buttonTemplate = button.channelNameTemplate || `{username}의 ${button.label}`;
     const baseName = buttonTemplate.replace(/{username}/g, userName);
@@ -377,7 +386,7 @@ export class AutoChannelService {
    * customId 형식: auto_sub:{subOptionId}
    */
   private buildSubOptionActionRows(
-    subOptions: AutoChannelSubOption[],
+    subOptions: AutoChannelSubOptionOrm[],
   ): ActionRowBuilder<ButtonBuilder>[] {
     const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
@@ -407,6 +416,117 @@ export class AutoChannelService {
     return rows;
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Bot → API: interaction 의존 없이 DTO 기반으로 처리
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Bot에서 호출: 1단계 버튼 클릭 처리.
+   * - 하위 선택지 없음 → 확정방 생성 후 결과 반환
+   * - 하위 선택지 있음 → subOptions 목록 반환 (Bot이 ActionRow 구성)
+   */
+  async handleButtonClickFromBot(dto: AutoChannelButtonClickDto): Promise<AutoChannelButtonResult> {
+    if (!dto.voiceChannelId) {
+      return { action: 'error', message: '음성 채널에 입장한 후 클릭하세요.' };
+    }
+
+    const button = await this.configRepo.findButtonById(dto.buttonId);
+
+    if (!button?.config) {
+      return { action: 'error', message: '설정을 찾을 수 없습니다. 관리자에게 문의하세요.' };
+    }
+
+    if (dto.voiceChannelId !== button.config.triggerChannelId) {
+      return { action: 'error', message: '대기 채널에서만 선택할 수 있습니다.' };
+    }
+
+    if (button.subOptions.length === 0) {
+      return this.convertToConfirmedFromBot(dto.guildId, dto.userId, dto.displayName, button);
+    }
+
+    const sorted = [...button.subOptions].sort((a, b) => a.sortOrder - b.sortOrder);
+    return {
+      action: 'show_sub_options',
+      message: '선택지를 고르세요.',
+      subOptions: sorted.map((opt) => ({
+        id: opt.id,
+        label: opt.label,
+        emoji: opt.emoji,
+      })),
+    };
+  }
+
+  /**
+   * Bot에서 호출: 2단계 하위 선택지 클릭 → 확정방 생성.
+   */
+  async handleSubOptionClickFromBot(
+    dto: AutoChannelSubOptionDto,
+  ): Promise<AutoChannelButtonResult> {
+    if (!dto.voiceChannelId) {
+      return { action: 'error', message: '음성 채널에 입장한 후 클릭하세요.' };
+    }
+
+    const subOption = await this.configRepo.findSubOptionById(dto.subOptionId);
+
+    if (!subOption?.button?.config) {
+      return { action: 'error', message: '설정을 찾을 수 없습니다. 관리자에게 문의하세요.' };
+    }
+
+    if (dto.voiceChannelId !== subOption.button.config.triggerChannelId) {
+      return { action: 'error', message: '대기 채널에서만 선택할 수 있습니다.' };
+    }
+
+    return this.convertToConfirmedFromBot(
+      dto.guildId,
+      dto.userId,
+      dto.displayName,
+      subOption.button,
+      subOption,
+    );
+  }
+
+  /**
+   * Bot 경로 전용 확정방 생성.
+   * interaction 없이 채널 생성 + 유저 이동만 수행하고 결과를 반환한다.
+   * 세션 추적은 Bot의 voiceStateUpdate 이벤트로 자연 처리된다.
+   */
+  private async convertToConfirmedFromBot(
+    guildId: string,
+    userId: string,
+    displayName: string,
+    button: AutoChannelButtonOrm,
+    subOption?: AutoChannelSubOptionOrm,
+  ): Promise<AutoChannelButtonResult> {
+    const baseName = this.buildChannelName(displayName, button, subOption);
+    const finalName = await this.resolveChannelName(guildId, button.targetCategoryId, baseName);
+
+    const confirmedChannelId = await this.discordVoiceGateway.createVoiceChannel({
+      guildId,
+      name: finalName,
+      parentCategoryId: button.targetCategoryId,
+    });
+
+    await this.discordVoiceGateway.moveUserToChannel(guildId, userId, confirmedChannelId);
+
+    await this.autoChannelRedis.setConfirmedState(confirmedChannelId, {
+      guildId,
+      userId,
+      buttonId: button.id,
+      subOptionId: subOption?.id,
+    });
+
+    this.logger.log(
+      `[AUTO CHANNEL] Confirmed (bot): guild=${guildId} user=${userId} channel="${finalName}"`,
+    );
+
+    return {
+      action: 'created',
+      channelId: confirmedChannelId,
+      channelName: finalName,
+      message: `**${finalName}** 방이 생성되었습니다!`,
+    };
+  }
+
   /**
    * 확정방 Redis 키 삭제 후 Discord 채널 삭제.
    */
@@ -424,7 +544,7 @@ export class AutoChannelService {
     } catch (error) {
       this.logger.error(
         `[AUTO CHANNEL] Failed to delete confirmed channel: ${channelId}`,
-        (error as Error).stack,
+        getErrorStack(error),
       );
     }
   }

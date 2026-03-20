@@ -13,10 +13,10 @@ export default function GuildSettingsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const params = useParams();
+  const params = useParams<{ guildId: string }>();
   const router = useRouter();
   const pathname = usePathname();
-  const guildId = params.guildId as string;
+  const guildId = params.guildId;
 
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,8 +42,8 @@ export default function GuildSettingsLayout({
   if (isLoading) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)]">
-        <div className="w-64 bg-white border-r border-gray-200 animate-pulse" />
-        <main className="flex-1 p-8 bg-gray-50" />
+        <div className="hidden md:block w-64 bg-white border-r border-gray-200 animate-pulse" />
+        <main className="flex-1 p-4 md:p-8 bg-gray-50" />
       </div>
     );
   }
@@ -73,7 +73,7 @@ export default function GuildSettingsLayout({
   return (
     <div className="flex">
       <SettingsSidebar guilds={guilds} selectedGuildId={guildId} />
-      <main className="flex-1 p-8 bg-gray-50">
+      <main className="flex-1 p-4 md:p-8 bg-gray-50">
         <SettingsProvider value={{ guilds, selectedGuildId: guildId }}>
           {children}
         </SettingsProvider>

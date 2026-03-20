@@ -1,9 +1,10 @@
 "use client";
 
 import { Activity, Clock, Cpu, Server, Users, Wifi } from "lucide-react";
+import { useTranslations } from "next-intl";
 
+import { formatUptimeI18n } from "@/app/lib/format-utils";
 import type { BotStatus } from "@/app/lib/monitoring-api";
-import { formatUptime } from "@/app/lib/monitoring-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
@@ -11,6 +12,9 @@ interface Props {
 }
 
 export default function StatusCards({ status }: Props) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
+
   const memPercent =
     status.memoryUsage.heapTotalMb > 0
       ? Math.round(
@@ -28,38 +32,38 @@ export default function StatusCards({ status }: Props) {
 
   const cards = [
     {
-      title: "봇 상태",
-      value: status.online ? "온라인" : "오프라인",
+      title: t("monitoring.status.title"),
+      value: status.online ? t("monitoring.status.online") : t("monitoring.status.offline"),
       icon: Activity,
       badge: status.online
         ? "bg-green-100 text-green-700"
         : "bg-red-100 text-red-700",
     },
     {
-      title: "업타임",
-      value: formatUptime(status.uptimeMs),
+      title: t("monitoring.status.uptime"),
+      value: formatUptimeI18n(status.uptimeMs, tc),
       icon: Clock,
     },
     {
-      title: "핑",
+      title: t("monitoring.status.ping"),
       value: `${status.pingMs}ms`,
       icon: Wifi,
       valueClass: pingColor,
     },
     {
-      title: "서버 수",
-      value: `${status.guildCount}개 서버`,
+      title: t("monitoring.status.guildCount"),
+      value: `${status.guildCount}${t("common.unit.server")}`,
       icon: Server,
     },
     {
-      title: "메모리",
+      title: t("monitoring.status.memory"),
       value: `${status.memoryUsage.heapUsedMb}MB / ${status.memoryUsage.heapTotalMb}MB`,
       icon: Cpu,
       sub: `${memPercent}%`,
     },
     {
-      title: "음성 접속자",
-      value: `${status.voiceUserCount}명`,
+      title: t("monitoring.status.voiceUsers"),
+      value: `${status.voiceUserCount}${t("common.unit.person")}`,
       icon: Users,
     },
   ];

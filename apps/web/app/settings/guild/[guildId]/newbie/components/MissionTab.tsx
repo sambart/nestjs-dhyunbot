@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { DiscordChannel, DiscordEmoji } from '../../../../../lib/discord-api';
 import type { MissionTemplate, NewbieConfig } from '../../../../../lib/newbie-api';
 import CollapsibleSection from './CollapsibleSection';
@@ -30,6 +32,7 @@ export default function MissionTab({
   missionTemplateSaveSuccess,
 }: MissionTabProps) {
   const isEnabled = config.missionEnabled;
+  const t = useTranslations('settings');
 
   /* ── 요약 텍스트 생성 ── */
   const basicSummary = [
@@ -49,7 +52,7 @@ export default function MissionTab({
   if (config.playCountIntervalMin != null)
     playCountParts.push(`간격 ${config.playCountIntervalMin}분`);
   const playCountSummary =
-    playCountParts.length > 0 ? playCountParts.join(' · ') : '비활성';
+    playCountParts.length > 0 ? playCountParts.join(' · ') : t('newbie.mission.inactive');
 
   const embedSummary = (
     <span className="inline-flex items-center gap-1.5">
@@ -66,9 +69,9 @@ export default function MissionTab({
       {/* 기능 활성화 토글 */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-900">미션 기능</p>
+          <p className="text-sm font-medium text-gray-900">{t('newbie.mission.toggle')}</p>
           <p className="text-xs text-gray-500 mt-0.5">
-            신규 멤버에게 음성 채널 플레이타임 미션을 부여합니다.
+            {t('newbie.mission.toggleDesc')}
           </p>
         </div>
         <button
@@ -90,7 +93,7 @@ export default function MissionTab({
 
       {/* ── 그룹 1: 기본 설정 (기본 펼침) ── */}
       <CollapsibleSection
-        title="기본 설정"
+        title={t('newbie.mission.basicSettings')}
         summary={basicSummary || undefined}
         defaultOpen
       >
@@ -100,7 +103,7 @@ export default function MissionTab({
             htmlFor="mission-duration-days"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            미션 기간 (일)
+            {t('newbie.mission.durationDays')}
           </label>
           <input
             id="mission-duration-days"
@@ -117,7 +120,7 @@ export default function MissionTab({
             className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
           <p className="text-xs text-gray-400 mt-1">
-            신규 멤버 가입 후 미션 기간(일수)
+            {t('newbie.mission.durationDaysDesc')}
           </p>
         </div>
 
@@ -127,7 +130,7 @@ export default function MissionTab({
             htmlFor="mission-target-playtime"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            목표 플레이타임 (시간)
+            {t('newbie.mission.targetPlaytime')}
           </label>
           <input
             id="mission-target-playtime"
@@ -144,7 +147,7 @@ export default function MissionTab({
             className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
           <p className="text-xs text-gray-400 mt-1">
-            미션 완료 기준 음성 채널 최소 플레이타임(시간)
+            {t('newbie.mission.targetPlaytimeDesc')}
           </p>
         </div>
 
@@ -154,7 +157,7 @@ export default function MissionTab({
             htmlFor="mission-notify-channel"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            미션 현황 알림 채널
+            {t('newbie.mission.notifyChannel')}
           </label>
           <select
             id="mission-notify-channel"
@@ -165,7 +168,7 @@ export default function MissionTab({
             disabled={!isEnabled}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
-            <option value="">채널을 선택하세요</option>
+            <option value="">{t('common.channelSelect')}</option>
             {channels.map((ch) => (
               <option key={ch.id} value={ch.id}>
                 # {ch.name}
@@ -173,18 +176,18 @@ export default function MissionTab({
             ))}
           </select>
           <p className="text-xs text-gray-400 mt-1">
-            미션 현황 Embed 메시지를 표시할 채널
+            {t('newbie.mission.notifyChannelDesc')}
           </p>
           {channels.length === 0 && (
             <p className="text-xs text-amber-500 mt-1">
-              채널 목록을 불러올 수 없습니다. 백엔드 연동 후 사용 가능합니다.
+              {t('common.noChannels')}
             </p>
           )}
         </div>
       </CollapsibleSection>
 
       {/* ── 그룹 2: 플레이횟수 규칙 (기본 접힘) ── */}
-      <CollapsibleSection title="플레이횟수 규칙" summary={playCountSummary}>
+      <CollapsibleSection title={t('newbie.mission.playCountRules')} summary={playCountSummary}>
         {/* 플레이횟수 최소 참여시간 */}
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -206,7 +209,7 @@ export default function MissionTab({
               htmlFor="play-count-min-duration-enabled"
               className="text-sm font-medium text-gray-700"
             >
-              플레이횟수 최소 참여시간 (분)
+              {t('newbie.mission.playCountMinDuration')}
             </label>
           </div>
           <input
@@ -225,8 +228,7 @@ export default function MissionTab({
             className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
           <p className="text-xs text-gray-400 mt-1">
-            세션의 총 참여시간이 N분 이상인 세션만 유효한 1회로 인정합니다. 체크
-            해제 시 비활성화 (모든 세션 인정).
+            {t('newbie.mission.playCountMinDurationDesc')}
           </p>
         </div>
 
@@ -251,7 +253,7 @@ export default function MissionTab({
               htmlFor="play-count-interval-enabled"
               className="text-sm font-medium text-gray-700"
             >
-              플레이횟수 시간 간격 (분)
+              {t('newbie.mission.playCountInterval')}
             </label>
           </div>
           <input
@@ -270,18 +272,17 @@ export default function MissionTab({
             className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
           <p className="text-xs text-gray-400 mt-1">
-            이전 유효 세션 시작 후 N분 이내에 재입장한 세션은 동일 1회로
-            병합합니다. 체크 해제 시 비활성화 (독립 카운트).
+            {t('newbie.mission.playCountIntervalDesc')}
           </p>
         </div>
       </CollapsibleSection>
 
       {/* ── 그룹 3: Embed 외관 & 템플릿 (기본 접힘) ── */}
-      <CollapsibleSection title="Embed 외관 & 템플릿" summary={embedSummary}>
+      <CollapsibleSection title={t('newbie.mission.embedSection')} summary={embedSummary}>
         {/* Embed 색상 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Embed 색상
+            {t('common.embedColor')}
           </label>
           <div className="flex items-center space-x-3">
             <input
@@ -289,7 +290,7 @@ export default function MissionTab({
               value={config.missionEmbedColor ?? '#57F287'}
               onChange={(e) => onChange({ missionEmbedColor: e.target.value })}
               disabled={!isEnabled}
-              aria-label="Embed 색상 피커"
+              aria-label={t('common.embedColorPicker')}
               className="h-9 w-16 border border-gray-300 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed p-1"
             />
             <input
@@ -304,7 +305,7 @@ export default function MissionTab({
               disabled={!isEnabled}
               maxLength={7}
               placeholder="#57F287"
-              aria-label="Embed 색상 HEX 코드"
+              aria-label={t('common.embedColorHex')}
               className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
             />
           </div>

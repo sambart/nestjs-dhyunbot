@@ -37,15 +37,33 @@ export class VoiceRedisRepository {
     await this.redis.pipeline((pipe) => {
       // 채널별 체류 시간
       if (session.channelId) {
-        pipe.incrby(VoiceKeys.channelDuration(guild, user, date, session.channelId), elapsedSeconds);
+        pipe.incrby(
+          VoiceKeys.channelDuration(guild, user, date, session.channelId),
+          elapsedSeconds,
+        );
       }
       // 마이크 상태별 시간
       if (session.channelId) {
-        pipe.incrby(VoiceKeys.micDuration(guild, user, date, session.mic ? 'on' : 'off'), elapsedSeconds);
+        pipe.incrby(
+          VoiceKeys.micDuration(guild, user, date, session.mic ? 'on' : 'off'),
+          elapsedSeconds,
+        );
       }
       // 혼자 있었던 시간
       if (session.alone && session.channelId) {
         pipe.incrby(VoiceKeys.aloneDuration(guild, user, date), elapsedSeconds);
+      }
+      // 화면 공유 시간
+      if (session.streaming && session.channelId) {
+        pipe.incrby(VoiceKeys.streamingDuration(guild, user, date), elapsedSeconds);
+      }
+      // 카메라 ON 시간
+      if (session.videoOn && session.channelId) {
+        pipe.incrby(VoiceKeys.videoDuration(guild, user, date), elapsedSeconds);
+      }
+      // 스피커 음소거 시간
+      if (session.selfDeaf && session.channelId) {
+        pipe.incrby(VoiceKeys.deafDuration(guild, user, date), elapsedSeconds);
       }
       // 세션 저장 (TTL 12시간)
       pipe.set(VoiceKeys.session(guild, user), JSON.stringify(session), 'EX', TTL.SESSION);

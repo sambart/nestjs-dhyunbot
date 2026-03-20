@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { VoiceDailyEntity } from '../../channel/voice/domain/voice-daily.entity';
-import { InactiveMemberActionLog } from '../domain/inactive-member-action-log.entity';
-import { InactiveMemberGrade, InactiveMemberRecord } from '../domain/inactive-member-record.entity';
+import { VoiceDailyOrm } from '../../channel/voice/infrastructure/voice-daily.orm-entity';
+import { InactiveMemberGrade } from '../domain/inactive-member.types';
+import { InactiveMemberActionLogOrm } from './inactive-member-action-log.orm-entity';
+import { InactiveMemberRecordOrm } from './inactive-member-record.orm-entity';
 
 const GRADE_FULLY_INACTIVE = 'FULLY_INACTIVE';
 const GRADE_LOW_ACTIVE = 'LOW_ACTIVE';
@@ -24,12 +25,12 @@ export interface RecordListFilter {
 }
 
 export interface RecordListResult {
-  items: InactiveMemberRecord[];
+  items: InactiveMemberRecordOrm[];
   total: number;
 }
 
 export interface ActionLogListResult {
-  items: InactiveMemberActionLog[];
+  items: InactiveMemberActionLogOrm[];
   total: number;
 }
 
@@ -50,12 +51,12 @@ export interface TrendEntry {
 @Injectable()
 export class InactiveMemberQueryRepository {
   constructor(
-    @InjectRepository(InactiveMemberRecord)
-    private readonly recordRepo: Repository<InactiveMemberRecord>,
-    @InjectRepository(InactiveMemberActionLog)
-    private readonly actionLogRepo: Repository<InactiveMemberActionLog>,
-    @InjectRepository(VoiceDailyEntity)
-    private readonly voiceDailyRepo: Repository<VoiceDailyEntity>,
+    @InjectRepository(InactiveMemberRecordOrm)
+    private readonly recordRepo: Repository<InactiveMemberRecordOrm>,
+    @InjectRepository(InactiveMemberActionLogOrm)
+    private readonly actionLogRepo: Repository<InactiveMemberActionLogOrm>,
+    @InjectRepository(VoiceDailyOrm)
+    private readonly voiceDailyRepo: Repository<VoiceDailyOrm>,
   ) {}
 
   async findRecordList(guildId: string, filter: RecordListFilter): Promise<RecordListResult> {

@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { MocoHuntingDaily } from '../domain/moco-hunting-daily.entity';
-import { MocoHuntingSession } from '../domain/moco-hunting-session.entity';
+import { MocoHuntingDailyOrmEntity as MocoHuntingDaily } from './moco-hunting-daily.orm-entity';
+import { MocoHuntingSessionOrmEntity as MocoHuntingSession } from './moco-hunting-session.orm-entity';
 
 export interface DailyAggregates {
   totalChannelMinutes: number;

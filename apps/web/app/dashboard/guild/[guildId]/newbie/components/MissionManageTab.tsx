@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { DiscordRole } from '../../../../../lib/discord-api';
@@ -34,6 +35,7 @@ interface CompleteModalProps {
 }
 
 function CompleteModal({ mission, roles, guildId, onClose, onDone }: CompleteModalProps) {
+  const t = useTranslations('dashboard');
   const [roleId, setRoleId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -51,7 +53,7 @@ function CompleteModal({ mission, roles, guildId, onClose, onDone }: CompleteMod
         onClose();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '처리에 실패했습니다.');
+      setError(err instanceof Error ? err.message : t('common.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -60,21 +62,21 @@ function CompleteModal({ mission, roles, guildId, onClose, onDone }: CompleteMod
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">성공 처리</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('newbie.missionManage.completeModal.title')}</h3>
         <p className="text-sm text-gray-600 mb-4">
-          멤버 <span className="font-semibold text-indigo-600">{mission.memberName ?? mission.memberId}</span>의 미션을 성공 처리합니다.
+          {t('newbie.missionManage.completeModal.description', { name: mission.memberName ?? mission.memberId })}
         </p>
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            역할 부여 (옵션)
+            {t('newbie.missionManage.completeModal.roleLabel')}
           </label>
           <select
             value={roleId}
             onChange={(e) => setRoleId(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">역할 부여 안함</option>
+            <option value="">{t('newbie.missionManage.completeModal.roleNone')}</option>
             {roles.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
@@ -90,7 +92,7 @@ function CompleteModal({ mission, roles, guildId, onClose, onDone }: CompleteMod
             disabled={loading}
             className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
           >
-            취소
+            {t('newbie.missionManage.completeModal.cancel')}
           </button>
           <button
             type="button"
@@ -98,7 +100,7 @@ function CompleteModal({ mission, roles, guildId, onClose, onDone }: CompleteMod
             disabled={loading}
             className="px-4 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50"
           >
-            {loading ? '처리 중...' : '성공 처리'}
+            {loading ? t('common.processing') : t('newbie.missionManage.completeModal.confirm')}
           </button>
         </div>
       </div>
@@ -116,6 +118,7 @@ interface FailModalProps {
 }
 
 function FailModal({ mission, guildId, onClose, onDone }: FailModalProps) {
+  const t = useTranslations('dashboard');
   const [kick, setKick] = useState(false);
   const [dmReason, setDmReason] = useState('');
   const [loading, setLoading] = useState(false);
@@ -134,7 +137,7 @@ function FailModal({ mission, guildId, onClose, onDone }: FailModalProps) {
         onClose();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '처리에 실패했습니다.');
+      setError(err instanceof Error ? err.message : t('common.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -143,9 +146,9 @@ function FailModal({ mission, guildId, onClose, onDone }: FailModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">실패 처리</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('newbie.missionManage.failModal.title')}</h3>
         <p className="text-sm text-gray-600 mb-4">
-          멤버 <span className="font-semibold text-indigo-600">{mission.memberName ?? mission.memberId}</span>의 미션을 실패 처리합니다.
+          {t('newbie.missionManage.failModal.description', { name: mission.memberName ?? mission.memberId })}
         </p>
 
         <div className="mb-4">
@@ -156,19 +159,19 @@ function FailModal({ mission, guildId, onClose, onDone }: FailModalProps) {
               onChange={(e) => setKick(e.target.checked)}
               className="rounded border-gray-300 text-red-600 focus:ring-red-500"
             />
-            서버에서 강퇴
+            {t('newbie.missionManage.failModal.kickLabel')}
           </label>
         </div>
 
         {kick && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              DM 사유 메시지 (옵션)
+              {t('newbie.missionManage.failModal.dmLabel')}
             </label>
             <textarea
               value={dmReason}
               onChange={(e) => setDmReason(e.target.value)}
-              placeholder="강퇴 전 멤버에게 보낼 메시지"
+              placeholder={t('newbie.missionManage.failModal.dmPlaceholder')}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
             />
@@ -184,7 +187,7 @@ function FailModal({ mission, guildId, onClose, onDone }: FailModalProps) {
             disabled={loading}
             className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
           >
-            취소
+            {t('newbie.missionManage.failModal.cancel')}
           </button>
           <button
             type="button"
@@ -192,7 +195,7 @@ function FailModal({ mission, guildId, onClose, onDone }: FailModalProps) {
             disabled={loading}
             className="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
           >
-            {loading ? '처리 중...' : '실패 처리'}
+            {loading ? t('common.processing') : t('newbie.missionManage.failModal.confirm')}
           </button>
         </div>
       </div>
@@ -203,21 +206,26 @@ function FailModal({ mission, guildId, onClose, onDone }: FailModalProps) {
 // ─── 상태 뱃지 ───────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: MissionStatusType }) {
+  const t = useTranslations('dashboard');
+
   const styles: Record<MissionStatusType, string> = {
     IN_PROGRESS: 'bg-yellow-100 text-yellow-800',
     COMPLETED: 'bg-green-100 text-green-800',
     FAILED: 'bg-red-100 text-red-800',
     LEFT: 'bg-gray-100 text-gray-800',
   };
-  const labels: Record<MissionStatusType, string> = {
-    IN_PROGRESS: '진행중',
-    COMPLETED: '완료',
-    FAILED: '실패',
-    LEFT: '퇴장',
+
+  const labelKeys: Record<MissionStatusType, string> = {
+    IN_PROGRESS: 'newbie.missionManage.status.inProgress',
+    COMPLETED: 'newbie.missionManage.status.completed',
+    FAILED: 'newbie.missionManage.status.failed',
+    LEFT: 'newbie.missionManage.status.left',
   };
+
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${styles[status]}`}>
-      {labels[status]}
+      {/* labelKeys[status]는 런타임에 항상 유효한 t() 키 — 타입 정의의 string 제한을 좁힘 */}
+      {t(labelKeys[status] as Parameters<typeof t>[0])}
     </span>
   );
 }
@@ -228,8 +236,8 @@ function formatDate(yyyymmdd: string): string {
   return `${yyyymmdd.slice(2, 4)}/${yyyymmdd.slice(4, 6)}/${yyyymmdd.slice(6, 8)}`;
 }
 
-function formatPlaytimeMin(sec: number): string {
-  return `${Math.floor(sec / 60)}분`;
+function formatPlaytimeMin(sec: number, unitLabel: string): string {
+  return `${Math.floor(sec / 60)}${unitLabel}`;
 }
 
 // ─── 미션 행 ─────────────────────────────────────────────────────────────────
@@ -244,6 +252,7 @@ interface MissionRowProps {
 }
 
 function MissionRow({ mission, guildId, roles, onRefresh, showEmbed, readonly }: MissionRowProps) {
+  const t = useTranslations('dashboard');
   const [dropOpen, setDropOpen] = useState(false);
   const [completeModal, setCompleteModal] = useState(false);
   const [failModal, setFailModal] = useState(false);
@@ -255,6 +264,7 @@ function MissionRow({ mission, guildId, roles, onRefresh, showEmbed, readonly }:
   useEffect(() => {
     if (!dropOpen) return;
     const handler = (e: MouseEvent) => {
+      // EventTarget → Node 좁히기 (contains() 호출에 필요)
       if (dropRef.current && !dropRef.current.contains(e.target as Node)) setDropOpen(false);
     };
     document.addEventListener('mousedown', handler);
@@ -274,13 +284,15 @@ function MissionRow({ mission, guildId, roles, onRefresh, showEmbed, readonly }:
     setToggling(false);
   };
 
+  const minuteUnit = t('common.unit.minute');
+
   return (
     <>
       <tr className="border-b border-gray-100 hover:bg-gray-50">
         <td className="px-3 py-2 text-sm text-gray-700">{mission.memberName ?? mission.memberId}</td>
         <td className="px-3 py-2 text-xs text-gray-500 tabular-nums">{formatDate(mission.startDate)}</td>
         <td className="px-3 py-2 text-xs text-gray-500 tabular-nums">{formatDate(mission.endDate)}</td>
-        <td className="px-3 py-2 text-xs text-gray-600 tabular-nums">{formatPlaytimeMin(mission.currentPlaytimeSec ?? 0)}/{formatPlaytimeMin(mission.targetPlaytimeSec)}</td>
+        <td className="px-3 py-2 text-xs text-gray-600 tabular-nums">{formatPlaytimeMin(mission.currentPlaytimeSec ?? 0, minuteUnit)}/{formatPlaytimeMin(mission.targetPlaytimeSec, minuteUnit)}</td>
         <td className="px-3 py-2">
           <div className="relative inline-block" ref={dropRef}>
             {canChangeStatus ? (
@@ -297,14 +309,14 @@ function MissionRow({ mission, guildId, roles, onRefresh, showEmbed, readonly }:
                   onClick={() => { setDropOpen(false); setCompleteModal(true); }}
                   className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
                 >
-                  완료
+                  {t('newbie.missionManage.status.completed')}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setDropOpen(false); setFailModal(true); }}
                   className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200 transition-colors"
                 >
-                  실패
+                  {t('newbie.missionManage.status.failed')}
                 </button>
               </div>
             )}
@@ -316,6 +328,7 @@ function MissionRow({ mission, guildId, roles, onRefresh, showEmbed, readonly }:
               type="button"
               onClick={() => { void handleToggleEmbed(); }}
               disabled={toggling || readonly}
+              title={t('newbie.missionManage.table.embedTooltip')}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${
                 mission.hiddenFromEmbed ? 'bg-gray-300' : 'bg-indigo-500'
               }`}
@@ -343,6 +356,7 @@ function MissionRow({ mission, guildId, roles, onRefresh, showEmbed, readonly }:
 // ─── 메인 컴포넌트 ───────────────────────────────────────────────────────────
 
 export default function MissionManageTab({ guildId, roles, readonly }: MissionManageTabProps) {
+  const t = useTranslations('dashboard');
   const [tab, setTab] = useState<'active' | 'history'>('active');
 
   // 진행 중 미션
@@ -380,8 +394,8 @@ export default function MissionManageTab({ guildId, roles, readonly }: MissionMa
     }
   }, [guildId, statusFilter, page]);
 
-  useEffect(() => { void loadActive(); }, [loadActive]); // eslint-disable-line react-hooks/set-state-in-effect -- data fetching on mount
-  useEffect(() => { void loadHistory(); }, [loadHistory]); // eslint-disable-line react-hooks/set-state-in-effect -- data fetching on dependency change
+  useEffect(() => { void loadActive(); }, [loadActive]);  
+  useEffect(() => { void loadHistory(); }, [loadHistory]);  
 
   const handleRefresh = () => {
     void loadActive();
@@ -403,7 +417,7 @@ export default function MissionManageTab({ guildId, roles, readonly }: MissionMa
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          진행 중
+          {t('newbie.missionManage.inProgress')}
           {!activeLoading && (
             <span className="ml-1 text-xs text-gray-400">({activeMissions.length})</span>
           )}
@@ -417,7 +431,7 @@ export default function MissionManageTab({ guildId, roles, readonly }: MissionMa
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          전체 이력
+          {t('newbie.missionManage.history')}
           {!historyLoading && history && (
             <span className="ml-1 text-xs text-gray-400">({history.total})</span>
           )}
@@ -428,7 +442,7 @@ export default function MissionManageTab({ guildId, roles, readonly }: MissionMa
             onClick={handleRefresh}
             className="text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1"
           >
-            새로고침
+            {t('newbie.missionManage.refresh')}
           </button>
         </div>
       </div>
@@ -437,20 +451,20 @@ export default function MissionManageTab({ guildId, roles, readonly }: MissionMa
       {tab === 'active' && (
         <>
           {activeLoading ? (
-            <p className="text-sm text-gray-400">불러오는 중...</p>
+            <p className="text-sm text-gray-400">{t('newbie.missionManage.loading')}</p>
           ) : activeMissions.length === 0 ? (
-            <p className="text-sm text-gray-400">진행 중인 미션이 없습니다.</p>
+            <p className="text-sm text-gray-400">{t('newbie.missionManage.noActive')}</p>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">멤버</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">시작</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">마감</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">플레이타임</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">상태</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500" title="디스코드 임베드 메시지에 표시 여부">Embed</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.missionManage.table.member')}</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.missionManage.table.start')}</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.missionManage.table.end')}</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.missionManage.table.playtime')}</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.missionManage.table.status')}</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500" title={t('newbie.missionManage.table.embedTooltip')}>Embed</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -479,34 +493,35 @@ export default function MissionManageTab({ guildId, roles, readonly }: MissionMa
             <select
               value={statusFilter}
               onChange={(e) => {
+                // select onChange: value는 런타임에 MissionStatusType | '' 멤버만 가능
                 setStatusFilter(e.target.value as MissionStatusType | '');
                 setPage(1);
               }}
               className="text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">전체</option>
-              <option value="COMPLETED">완료</option>
-              <option value="FAILED">실패</option>
-              <option value="LEFT">퇴장</option>
+              <option value="">{t('newbie.missionManage.filterAll')}</option>
+              <option value="COMPLETED">{t('newbie.missionManage.filterCompleted')}</option>
+              <option value="FAILED">{t('newbie.missionManage.filterFailed')}</option>
+              <option value="LEFT">{t('newbie.missionManage.filterLeft')}</option>
             </select>
           </div>
 
           {historyLoading ? (
-            <p className="text-sm text-gray-400">불러오는 중...</p>
+            <p className="text-sm text-gray-400">{t('newbie.missionManage.loading')}</p>
           ) : !history || history.items.length === 0 ? (
-            <p className="text-sm text-gray-400">미션 이력이 없습니다.</p>
+            <p className="text-sm text-gray-400">{t('newbie.missionManage.noHistory')}</p>
           ) : (
             <>
               <div className="overflow-x-auto rounded-lg border border-gray-200">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">멤버</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">시작</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">마감</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">플레이타임</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">상태</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500" title="디스코드 임베드 메시지에 표시 여부">Embed</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.missionManage.table.member')}</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.missionManage.table.start')}</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.missionManage.table.end')}</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.missionManage.table.playtime')}</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('newbie.missionManage.table.status')}</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500" title={t('newbie.missionManage.table.embedTooltip')}>Embed</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -533,7 +548,7 @@ export default function MissionManageTab({ guildId, roles, readonly }: MissionMa
                     disabled={page <= 1}
                     className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    이전
+                    {t('common.prev')}
                   </button>
                   <span className="text-sm text-gray-600">
                     {page} / {totalPages}
@@ -543,7 +558,7 @@ export default function MissionManageTab({ guildId, roles, readonly }: MissionMa
                     disabled={page >= totalPages}
                     className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    다음
+                    {t('common.next')}
                   </button>
                 </div>
               )}

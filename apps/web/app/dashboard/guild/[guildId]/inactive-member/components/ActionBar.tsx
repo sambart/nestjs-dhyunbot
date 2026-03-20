@@ -1,6 +1,7 @@
 "use client";
 
 import { LogOut, MessageSquare, UserMinus, UserPlus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 
 import type { ActionType } from "@/app/lib/inactive-member-api";
@@ -13,8 +14,6 @@ interface Props {
   onAction: (actionType: ActionType) => void;
 }
 
-const KICK_CONFIRM_TEXT = "강제퇴장";
-
 export default function ActionBar({
   selectedCount,
   isActing,
@@ -22,6 +21,11 @@ export default function ActionBar({
   actionError,
   onAction,
 }: Props) {
+  const t = useTranslations("dashboard");
+
+  // The confirm text is intentionally kept as a fixed Korean string (the user must type exactly this)
+  const KICK_CONFIRM_TEXT = t("inactive.action.kickModal.confirmText");
+
   const isDisabled = selectedCount === 0 || isActing;
 
   const [isKickModalOpen, setIsKickModalOpen] = useState(false);
@@ -37,7 +41,7 @@ export default function ActionBar({
     setIsKickModalOpen(false);
     setKickConfirmInput("");
     onAction("ACTION_KICK");
-  }, [kickConfirmInput, onAction]);
+  }, [kickConfirmInput, KICK_CONFIRM_TEXT, onAction]);
 
   const handleKickCancel = useCallback(() => {
     setIsKickModalOpen(false);
@@ -49,17 +53,17 @@ export default function ActionBar({
       <div className="rounded-lg border bg-card p-3 flex flex-wrap items-center justify-between gap-3">
         <span className="text-sm text-muted-foreground">
           {selectedCount > 0 ? (
-            <span className="font-medium text-foreground">{selectedCount}명</span>
+            <span className="font-medium text-foreground">{selectedCount}{t("common.unit.person")}</span>
           ) : (
-            '0명'
+            `0${t("common.unit.person")}`
           )}{' '}
-          선택됨
+          {t("inactive.action.selected")}
         </span>
 
         <div className="flex items-center gap-2 flex-wrap">
           {actionResult && (
             <span className="text-sm text-green-600 font-medium">
-              성공 {actionResult.successCount}명 / 실패 {actionResult.failCount}명
+              {t("inactive.action.result", { success: actionResult.successCount, fail: actionResult.failCount })}
             </span>
           )}
           {actionError && (
@@ -73,7 +77,7 @@ export default function ActionBar({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <MessageSquare className="w-4 h-4" />
-            DM 전송
+            {t("inactive.action.dm")}
           </button>
 
           <button
@@ -83,7 +87,7 @@ export default function ActionBar({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <UserPlus className="w-4 h-4" />
-            역할 부여
+            {t("inactive.action.roleAdd")}
           </button>
 
           <button
@@ -93,7 +97,7 @@ export default function ActionBar({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <UserMinus className="w-4 h-4" />
-            역할 제거
+            {t("inactive.action.roleRemove")}
           </button>
 
           <button
@@ -103,29 +107,22 @@ export default function ActionBar({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-800 text-white text-sm font-medium hover:bg-red-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            강제퇴장
+            {t("inactive.action.kick")}
           </button>
         </div>
       </div>
 
-      {/* 강제퇴장 확인 모달 */}
       {isKickModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900">
             <h2 className="text-lg font-bold text-red-700 dark:text-red-400">
-              강제퇴장 확인
+              {t("inactive.action.kickModal.title")}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              선택된 <span className="font-semibold text-foreground">{selectedCount}명</span>을
-              서버에서 강제퇴장합니다.
-              이 작업은 되돌릴 수 없습니다.
+              {t("inactive.action.kickModal.description", { count: selectedCount })}
             </p>
             <p className="mt-3 text-sm text-muted-foreground">
-              계속하려면 아래에{" "}
-              <span className="font-mono font-semibold text-red-600 dark:text-red-400">
-                {KICK_CONFIRM_TEXT}
-              </span>
-              을 입력하세요.
+              {t("inactive.action.kickModal.inputHint", { text: KICK_CONFIRM_TEXT })}
             </p>
             <input
               type="text"
@@ -141,7 +138,7 @@ export default function ActionBar({
                 onClick={handleKickCancel}
                 className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800 transition-colors"
               >
-                취소
+                {t("inactive.action.kickModal.cancel")}
               </button>
               <button
                 type="button"
@@ -149,7 +146,7 @@ export default function ActionBar({
                 disabled={kickConfirmInput !== KICK_CONFIRM_TEXT}
                 className="px-4 py-2 rounded-lg bg-red-700 text-white text-sm font-medium hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                강제퇴장 실행
+                {t("inactive.action.kickModal.confirm")}
               </button>
             </div>
           </div>

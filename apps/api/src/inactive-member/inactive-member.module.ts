@@ -1,34 +1,34 @@
-import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from '../auth/auth.module';
-import { VoiceDailyEntity } from '../channel/voice/domain/voice-daily.entity';
+import { VoiceDailyOrm } from '../channel/voice/infrastructure/voice-daily.orm-entity';
 import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
 import { InactiveMemberScheduler } from './application/inactive-member.scheduler';
 import { InactiveMemberService } from './application/inactive-member.service';
 import { InactiveMemberActionService } from './application/inactive-member-action.service';
-import { InactiveMemberActionLog } from './domain/inactive-member-action-log.entity';
-import { InactiveMemberConfig } from './domain/inactive-member-config.entity';
-import { InactiveMemberRecord } from './domain/inactive-member-record.entity';
 import { InactiveMemberRepository } from './infrastructure/inactive-member.repository';
+import { InactiveMemberActionLogOrm } from './infrastructure/inactive-member-action-log.orm-entity';
+import { InactiveMemberConfigOrm } from './infrastructure/inactive-member-config.orm-entity';
+import { InactiveMemberDiscordAdapter } from './infrastructure/inactive-member-discord.adapter';
 import { InactiveMemberQueryRepository } from './infrastructure/inactive-member-query.repository';
+import { InactiveMemberRecordOrm } from './infrastructure/inactive-member-record.orm-entity';
 import { InactiveMemberController } from './presentation/inactive-member.controller';
 
 @Module({
   imports: [
-    DiscordModule.forFeature(),
     TypeOrmModule.forFeature([
-      InactiveMemberConfig,
-      InactiveMemberRecord,
-      InactiveMemberActionLog,
-      VoiceDailyEntity,
+      InactiveMemberConfigOrm,
+      InactiveMemberRecordOrm,
+      InactiveMemberActionLogOrm,
+      VoiceDailyOrm,
     ]),
     AuthModule,
     VoiceChannelModule,
   ],
   controllers: [InactiveMemberController],
   providers: [
+    InactiveMemberDiscordAdapter,
     InactiveMemberRepository,
     InactiveMemberQueryRepository,
     InactiveMemberService,

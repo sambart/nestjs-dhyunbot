@@ -1,11 +1,10 @@
 "use client";
 
 import { Clock, Headphones, PieChart, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 
-import {
-  formatDurationSec,
-  type OverviewData,
-} from "@/app/lib/overview-api";
+import { formatDurationSecI18n } from "@/app/lib/format-utils";
+import type { OverviewData } from "@/app/lib/overview-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
@@ -13,26 +12,28 @@ interface Props {
 }
 
 export default function OverviewSummaryCards({ data }: Props) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const inactiveRate = 100 - data.activeRate;
 
   const cards = [
     {
-      title: "총 멤버 수",
-      value: `${data.totalMemberCount}명`,
+      title: t("overview.totalMembers"),
+      value: `${data.totalMemberCount}${t("common.unit.person")}`,
       icon: Users,
     },
     {
-      title: "오늘 음성 활동",
-      value: formatDurationSec(data.todayVoiceTotalSec),
+      title: t("overview.todayVoice"),
+      value: formatDurationSecI18n(data.todayVoiceTotalSec, tc),
       icon: Clock,
     },
     {
-      title: "현재 음성 접속자",
-      value: `${data.currentVoiceUserCount}명`,
+      title: t("overview.currentVoice"),
+      value: `${data.currentVoiceUserCount}${t("common.unit.person")}`,
       icon: Headphones,
     },
     {
-      title: "활성/비활성 비율",
+      title: t("overview.activeRate"),
       value: (
         <>
           <span className="text-green-600">{data.activeRate}%</span>

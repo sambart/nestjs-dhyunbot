@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 
-import { VoiceCoPresenceDaily } from './domain/voice-co-presence-daily.entity';
-import { VoiceCoPresenceSession } from './domain/voice-co-presence-session.entity';
+import { VoiceCoPresenceDailyOrm } from './infrastructure/voice-co-presence-daily.orm-entity';
+import { VoiceCoPresenceSessionOrm } from './infrastructure/voice-co-presence-session.orm-entity';
 
 export interface SaveSessionDto {
   guildId: string;
@@ -28,10 +28,10 @@ export interface UpsertPairDailyRow {
 @Injectable()
 export class CoPresenceDbRepository {
   constructor(
-    @InjectRepository(VoiceCoPresenceSession)
-    private readonly sessionRepo: Repository<VoiceCoPresenceSession>,
-    @InjectRepository(VoiceCoPresenceDaily)
-    private readonly dailyRepo: Repository<VoiceCoPresenceDaily>,
+    @InjectRepository(VoiceCoPresenceSessionOrm)
+    private readonly sessionRepo: Repository<VoiceCoPresenceSessionOrm>,
+    @InjectRepository(VoiceCoPresenceDailyOrm)
+    private readonly dailyRepo: Repository<VoiceCoPresenceDailyOrm>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -62,6 +62,54 @@ export class CoPresenceDbRepository {
         "sessionCount"   = "${tableName}"."sessionCount"   + EXCLUDED."sessionCount"
       `,
       [guildId, userId, date, channelMinutes, sessionCount],
+    );
+  }
+
+  /** 세션 다건 일괄 INSERT */
+  async saveSessionBatch(sessions: SaveSessionDto[]): Promise<void> {
+    if (sessions.length === 0) return;
+    await this.sessionRepo.save(sessions.map((s) => this.sessionRepo.create(s)));
+  }
+
+  /** Daily 다건 배치 UPSERT */
+  async upsertDailyBatch(
+    rows: {
+      guildId: string;
+      userId: string;
+      date: string;
+      minutes: number;
+      sessionCount: number;
+    }[],
+  ): Promise<void> {
+    if (rows.length === 0) return;
+
+    const tableName = this.dailyRepo.metadata.tableName;
+    const schemaPrefix = this.dailyRepo.metadata.schema
+      ? `"${this.dailyRepo.metadata.schema}".`
+      : '';
+    const params: (string | number)[] = [];
+    const valueClauses: string[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const o = i * 5;
+      valueClauses.push(`($${o + 1}, $${o + 2}, $${o + 3}, $${o + 4}::int, $${o + 5}::int)`);
+      params.push(
+        rows[i].guildId,
+        rows[i].userId,
+        rows[i].date,
+        rows[i].minutes,
+        rows[i].sessionCount,
+      );
+    }
+
+    await this.dailyRepo.query(
+      `INSERT INTO ${schemaPrefix}"${tableName}"
+        ("guildId", "userId", "date", "channelMinutes", "sessionCount")
+      VALUES ${valueClauses.join(', ')}
+      ON CONFLICT ("guildId", "userId", "date") DO UPDATE SET
+        "channelMinutes" = "${tableName}"."channelMinutes" + EXCLUDED."channelMinutes",
+        "sessionCount"   = "${tableName}"."sessionCount"   + EXCLUDED."sessionCount"`,
+      params,
     );
   }
 

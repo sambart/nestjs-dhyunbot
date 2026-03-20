@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import type { InactiveTrendPoint } from "@/app/lib/inactive-member-api";
@@ -14,26 +15,28 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartConfig = {
-  fullyInactive: {
-    label: "완전 비활동",
-    color: "var(--chart-1)",
-  },
-  lowActive: {
-    label: "저활동",
-    color: "var(--chart-2)",
-  },
-  declining: {
-    label: "활동 감소",
-    color: "var(--chart-3)",
-  },
-} satisfies ChartConfig;
-
 interface Props {
   trend: InactiveTrendPoint[];
 }
 
 export default function InactiveTrendChart({ trend }: Props) {
+  const t = useTranslations("dashboard");
+
+  const chartConfig = {
+    fullyInactive: {
+      label: t("inactive.trendChart.fullyInactive"),
+      color: "var(--chart-1)",
+    },
+    lowActive: {
+      label: t("inactive.trendChart.lowActive"),
+      color: "var(--chart-2)",
+    },
+    declining: {
+      label: t("inactive.trendChart.declining"),
+      color: "var(--chart-3)",
+    },
+  } satisfies ChartConfig;
+
   const chartData = trend.map((point) => ({
     date: formatTrendDate(point.date),
     fullyInactive: point.fullyInactive,
@@ -44,13 +47,13 @@ export default function InactiveTrendChart({ trend }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>비활동 회원 추이</CardTitle>
+        <CardTitle>{t("inactive.trendChart.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" tickLine={false} axisLine={false} />
+            <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} interval="preserveStartEnd" />
             <YAxis tickLine={false} axisLine={false} />
             <ChartTooltip content={<ChartTooltipContent />} />
             <ChartLegend content={<ChartLegendContent />} />

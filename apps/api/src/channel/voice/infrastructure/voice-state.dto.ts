@@ -24,6 +24,9 @@ export class VoiceStateDto {
     public readonly alone: boolean,
     public readonly channelMemberCount: number,
     public readonly avatarUrl: string | null,
+    public readonly streaming: boolean,
+    public readonly videoOn: boolean,
+    public readonly selfDeaf: boolean,
   ) {}
 
   static fromVoiceState(state: VoiceState): VoiceStateDto {
@@ -49,6 +52,9 @@ export class VoiceStateDto {
       humanMembers.size === 1,
       humanMembers.size,
       state.member.displayAvatarURL({ size: 128 }),
+      state.streaming ?? false,
+      state.selfVideo,
+      state.selfDeaf,
     );
   }
 }

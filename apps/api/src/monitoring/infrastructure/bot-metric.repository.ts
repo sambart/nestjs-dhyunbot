@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
 
-import { BotMetric } from '../domain/bot-metric.entity';
+import { BotMetricOrm } from './bot-metric.orm-entity';
 
 export interface AggregatedMetric {
   timestamp: string;
@@ -17,19 +17,19 @@ export interface AggregatedMetric {
 @Injectable()
 export class BotMetricRepository {
   constructor(
-    @InjectRepository(BotMetric)
-    private readonly repo: Repository<BotMetric>,
+    @InjectRepository(BotMetricOrm)
+    private readonly repo: Repository<BotMetricOrm>,
   ) {}
 
-  async save(metric: Partial<BotMetric>): Promise<BotMetric> {
+  async save(metric: Partial<BotMetricOrm>): Promise<BotMetricOrm> {
     return this.repo.save(this.repo.create(metric));
   }
 
-  async saveBatch(metrics: Partial<BotMetric>[]): Promise<void> {
+  async saveBatch(metrics: Partial<BotMetricOrm>[]): Promise<void> {
     await this.repo.insert(metrics.map((m) => this.repo.create(m)));
   }
 
-  async findByGuildAndRange(guildId: string, from: Date, to: Date): Promise<BotMetric[]> {
+  async findByGuildAndRange(guildId: string, from: Date, to: Date): Promise<BotMetricOrm[]> {
     return this.repo
       .createQueryBuilder('m')
       .where('m.guildId = :guildId', { guildId })

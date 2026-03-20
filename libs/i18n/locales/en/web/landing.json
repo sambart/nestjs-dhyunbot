@@ -1,0 +1,61 @@
+{
+  "hero": {
+    "description": "A Discord bot that supports voice channel statistics, automatic channel creation, music playback, and more",
+    "cta": {
+      "invite": "Add to Server",
+      "features": "Features"
+    }
+  },
+  "features": {
+    "sectionTitle": "Features",
+    "voiceStats": {
+      "title": "Voice Channel Statistics",
+      "description": "Track each member's voice channel time and view daily/weekly/monthly statistics on the dashboard"
+    },
+    "autoChannel": {
+      "title": "Auto Channel Creation",
+      "description": "A personal channel is automatically created when you join a designated voice channel, and deleted when everyone leaves"
+    },
+    "music": {
+      "title": "Music Playback",
+      "description": "Play YouTube music in a voice channel with the /play command"
+    },
+    "gemini": {
+      "title": "Gemini Voice Analysis",
+      "description": "Analyze voice channel conversations with Gemini AI to generate summary reports"
+    },
+    "newbie": {
+      "title": "Welcome New Members",
+      "description": "Automatically sends a welcome message when a new member joins the server"
+    },
+    "dashboard": {
+      "title": "Web Dashboard",
+      "description": "Log in with Discord to manage bot settings and statistics from the web"
+    }
+  },
+  "setup": {
+    "sectionTitle": "Setup Guide",
+    "sectionDescription": "Role configuration is required for all bot features to work properly",
+    "step1": {
+      "title": "Add the Bot to Your Server",
+      "description": "Click the \"Add to Server\" button above to invite the bot. Only the minimum required permissions are requested."
+    },
+    "step2": {
+      "title": "Move the Bot Role to the Top",
+      "description": "Features like nickname changes and role management only apply to members below the bot role according to Discord's role hierarchy rules.",
+      "howTo": "How to configure",
+      "step1": "Go to Server Settings → Roles",
+      "step2": "Drag the Dhyunbot role above the roles you want to manage",
+      "step3": "Save changes",
+      "notice": "* The server owner's nickname cannot be changed by any bot"
+    },
+    "step3": {
+      "title": "Configure in the Web Dashboard",
+      "description": "Log in with your Discord account, then configure auto channels, welcome messages, and other features in the dashboard."
+    }
+  },
+  "footer": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service"
+  }
+}

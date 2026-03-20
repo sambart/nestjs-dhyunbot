@@ -1,7 +1,14 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsEnum, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsEnum,
+  IsNotEmpty,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
-import { VoiceExcludedChannelType } from '../domain/voice-excluded-channel.entity';
+import { VoiceExcludedChannelType } from '../domain/voice-excluded-channel.types';
 
 class ExcludedChannelItem {
   @IsString()

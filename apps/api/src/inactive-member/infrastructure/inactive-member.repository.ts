@@ -2,13 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import {
-  InactiveMemberActionLog,
-  InactiveMemberActionType,
-} from '../domain/inactive-member-action-log.entity';
-import { InactiveMemberConfig } from '../domain/inactive-member-config.entity';
-import { InactiveMemberRecord } from '../domain/inactive-member-record.entity';
+import { InactiveMemberActionType } from '../domain/inactive-member.types';
 import type { InactiveMemberConfigSaveDto } from '../dto/inactive-member-config-save.dto';
+import { InactiveMemberActionLogOrm } from './inactive-member-action-log.orm-entity';
+import { InactiveMemberConfigOrm } from './inactive-member-config.orm-entity';
+import { InactiveMemberRecordOrm } from './inactive-member-record.orm-entity';
 
 export interface UpsertRecordData {
   guildId: string;
@@ -33,19 +31,25 @@ export interface CreateActionLogData {
 @Injectable()
 export class InactiveMemberRepository {
   constructor(
-    @InjectRepository(InactiveMemberConfig)
-    private readonly configRepo: Repository<InactiveMemberConfig>,
-    @InjectRepository(InactiveMemberRecord)
-    private readonly recordRepo: Repository<InactiveMemberRecord>,
-    @InjectRepository(InactiveMemberActionLog)
-    private readonly actionLogRepo: Repository<InactiveMemberActionLog>,
+    @InjectRepository(InactiveMemberConfigOrm)
+    private readonly configRepo: Repository<InactiveMemberConfigOrm>,
+    @InjectRepository(InactiveMemberRecordOrm)
+    private readonly recordRepo: Repository<InactiveMemberRecordOrm>,
+    @InjectRepository(InactiveMemberActionLogOrm)
+    private readonly actionLogRepo: Repository<InactiveMemberActionLogOrm>,
   ) {}
 
-  async findConfigByGuildId(guildId: string): Promise<InactiveMemberConfig | null> {
+  async findConfigByGuildId(guildId: string): Promise<InactiveMemberConfigOrm | null> {
     return this.configRepo.findOne({ where: { guildId } });
   }
 
-  async createDefaultConfig(guildId: string): Promise<InactiveMemberConfig> {
+  /** 설정이 존재하는 모든 길드 ID 목록 반환. */
+  async findAllConfiguredGuildIds(): Promise<string[]> {
+    const configs = await this.configRepo.find({ select: ['guildId'] });
+    return configs.map((c) => c.guildId);
+  }
+
+  async createDefaultConfig(guildId: string): Promise<InactiveMemberConfigOrm> {
     const config = this.configRepo.create({ guildId });
     return this.configRepo.save(config);
   }
@@ -53,7 +57,7 @@ export class InactiveMemberRepository {
   async upsertConfig(
     guildId: string,
     dto: InactiveMemberConfigSaveDto,
-  ): Promise<InactiveMemberConfig> {
+  ): Promise<InactiveMemberConfigOrm> {
     let config = await this.findConfigByGuildId(guildId);
 
     if (!config) {
@@ -80,11 +84,34 @@ export class InactiveMemberRepository {
   async batchUpsertRecords(records: UpsertRecordData[]): Promise<void> {
     if (records.length === 0) return;
 
-    for (const record of records) {
+    const COLS = 7;
+    const CHUNK_SIZE = Math.floor(65535 / COLS);
+
+    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
+      const chunk = records.slice(i, i + CHUNK_SIZE);
+      const params: (string | number | null | Date)[] = [];
+      const valueClauses: string[] = [];
+
+      for (let j = 0; j < chunk.length; j++) {
+        const o = j * COLS;
+        valueClauses.push(
+          `($${o + 1},$${o + 2},$${o + 3},$${o + 4}::int,$${o + 5}::int,$${o + 6},$${o + 7}::timestamp,NOW(),NOW())`,
+        );
+        params.push(
+          chunk[j].guildId,
+          chunk[j].userId,
+          chunk[j].grade,
+          chunk[j].totalMinutes,
+          chunk[j].prevTotalMinutes,
+          chunk[j].lastVoiceDate,
+          chunk[j].classifiedAt,
+        );
+      }
+
       await this.recordRepo.query(
         `INSERT INTO inactive_member_record
-          ("guildId","userId","grade","totalMinutes","prevTotalMinutes","lastVoiceDate","gradeChangedAt","classifiedAt","createdAt","updatedAt")
-        VALUES ($1,$2,$3,$4,$5,$6,NOW(),$7,NOW(),NOW())
+          ("guildId","userId","grade","totalMinutes","prevTotalMinutes","lastVoiceDate","classifiedAt","createdAt","updatedAt")
+        VALUES ${valueClauses.join(', ')}
         ON CONFLICT ("guildId","userId")
         DO UPDATE SET
           "grade" = EXCLUDED."grade",
@@ -98,15 +125,7 @@ export class InactiveMemberRepository {
           END,
           "classifiedAt" = EXCLUDED."classifiedAt",
           "updatedAt" = NOW()`,
-        [
-          record.guildId,
-          record.userId,
-          record.grade,
-          record.totalMinutes,
-          record.prevTotalMinutes,
-          record.lastVoiceDate,
-          record.classifiedAt,
-        ],
+        params,
       );
     }
   }
@@ -114,7 +133,7 @@ export class InactiveMemberRepository {
   async findNewlyFullyInactive(
     guildId: string,
     classifiedAt: Date,
-  ): Promise<InactiveMemberRecord[]> {
+  ): Promise<InactiveMemberRecordOrm[]> {
     return this.recordRepo
       .createQueryBuilder('r')
       .where('r.guildId = :guildId', { guildId })
@@ -123,7 +142,7 @@ export class InactiveMemberRepository {
       .getMany();
   }
 
-  async saveActionLog(data: CreateActionLogData): Promise<InactiveMemberActionLog> {
+  async saveActionLog(data: CreateActionLogData): Promise<InactiveMemberActionLogOrm> {
     const log = this.actionLogRepo.create({
       guildId: data.guildId,
       actionType: data.actionType,

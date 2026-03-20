@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { formatShortDate } from "@/app/lib/overview-api";
@@ -11,18 +12,20 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartConfig = {
-  durationMin: {
-    label: "음성 시간(분)",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
-
 interface Props {
   data: Array<{ date: string; totalSec: number }>;
 }
 
 export default function WeeklyVoiceChart({ data }: Props) {
+  const t = useTranslations("dashboard");
+
+  const chartConfig = {
+    durationMin: {
+      label: t("overview.weeklyChart.durationMin"),
+      color: "var(--chart-1)",
+    },
+  } satisfies ChartConfig;
+
   const chartData = data.map((d) => ({
     date: formatShortDate(d.date),
     durationMin: Math.round(d.totalSec / 60),
@@ -31,13 +34,13 @@ export default function WeeklyVoiceChart({ data }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>최근 7일 음성 활동</CardTitle>
+        <CardTitle>{t("overview.weeklyChart.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[250px] w-full">
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" tickLine={false} axisLine={false} />
+            <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
             <YAxis tickLine={false} axisLine={false} />
             <ChartTooltip content={<ChartTooltipContent />} />
             <Bar

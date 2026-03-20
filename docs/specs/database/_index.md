@@ -42,15 +42,43 @@ DHyunBot은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 
                                                           └──────────────┘
                                                             IDX(guildId)
 
-┌───────────────────────────────────────────────────┐
-│              VoiceDailyEntity (voice_daily)        │
-├───────────────────────────────────────────────────┤
-│ PK guildId + userId + date + channelId            │
-│ channelName, userName                             │
-│ categoryId (nullable), categoryName (nullable)    │
-│ channelDurationSec, micOnSec, micOffSec, aloneSec │
-└───────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                  VoiceDailyEntity (voice_daily)                    │
+├────────────────────────────────────────────────────────────────────┤
+│ PK guildId + userId + date + channelId                             │
+│ channelName, userName                                              │
+│ categoryId (nullable), categoryName (nullable)                     │
+│ channelDurationSec, micOnSec, micOffSec, aloneSec                  │
+│ streamingSec (DEFAULT 0), videoOnSec (DEFAULT 0), deafSec (DEFAULT 0) │
+└────────────────────────────────────────────────────────────────────┘
   (독립 테이블 — FK 없음, Discord ID 직접 저장)
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                  voice_game_activity (게임 세션 단위 이력)                │
+├──────────────────────────────────────────────────────────────────────────┤
+│ PK id (AUTO_INCREMENT)                                                   │
+│ guildId, userId, channelId, gameName                                     │
+│ applicationId (nullable)                                                 │
+│ startedAt, endedAt, durationMin                                          │
+│ createdAt (DEFAULT now())                                                │
+└──────────────────────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  IDX(guildId, userId, startedAt)
+  IDX(guildId, gameName, startedAt)
+  IDX(guildId, startedAt)
+  IDX(startedAt)  ← 자동 삭제 스케줄러용
+  90일 보존 → 자동 삭제
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                  voice_game_daily (게임 일별 집계)                        │
+├──────────────────────────────────────────────────────────────────────────┤
+│ PK guildId + userId + gameName + date                                    │
+│ totalMinutes (DEFAULT 0), sessionCount (DEFAULT 0)                       │
+└──────────────────────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  IDX(guildId, date)
+  IDX(guildId, gameName, date)
+  영구 보존
 
 ┌────────────────────────┐       ┌────────────────────────┐       ┌──────────────────────────┐
 │  AutoChannelConfig     │       │  AutoChannelButton      │       │  AutoChannelSubOption    │
@@ -400,14 +428,28 @@ F-VOICE-020 쿼리는 `WHERE member.discordMemberId = ? AND channel.guildId = ?`
 | `userName` | `varchar` | DEFAULT `''` | 유저명 캐시 (비정규화) |
 | `categoryId` | `varchar` | NULLABLE | 카테고리 채널 ID 캐시 (비정규화). GLOBAL 레코드 또는 카테고리 없는 채널은 null |
 | `categoryName` | `varchar` | NULLABLE | 카테고리명 캐시 (비정규화). GLOBAL 레코드 또는 카테고리 없는 채널은 null |
-| `channelDurationSec` | `int` | DEFAULT `0` | 채널 체류 시간 (초) |
-| `micOnSec` | `int` | DEFAULT `0` | 마이크 ON 시간 (초) |
-| `micOffSec` | `int` | DEFAULT `0` | 마이크 OFF 시간 (초) |
-| `aloneSec` | `int` | DEFAULT `0` | 혼자 있던 시간 (초) |
+| `channelDurationSec` | `int` | NOT NULL, DEFAULT `0` | 채널 체류 시간 (초) |
+| `micOnSec` | `int` | NOT NULL, DEFAULT `0` | 마이크 ON 시간 (초) |
+| `micOffSec` | `int` | NOT NULL, DEFAULT `0` | 마이크 OFF 시간 (초) |
+| `aloneSec` | `int` | NOT NULL, DEFAULT `0` | 혼자 있던 시간 (초) |
+| `streamingSec` | `int` | NOT NULL, DEFAULT `0` | 화면 공유(스트리밍) 시간 (초). GLOBAL 및 개별 채널 레코드 모두에 기록 |
+| `videoOnSec` | `int` | NOT NULL, DEFAULT `0` | 카메라 ON 시간 (초). GLOBAL 및 개별 채널 레코드 모두에 기록 |
+| `deafSec` | `int` | NOT NULL, DEFAULT `0` | 스피커 음소거(selfDeaf) 시간 (초). GLOBAL 및 개별 채널 레코드 모두에 기록 |
 
 - **복합 PK**: `(guildId, userId, date, channelId)`
 - **테이블명**: `voice_daily` (커스텀 지정)
 - **파일**: `apps/api/src/channel/voice/domain/voice-daily.entity.ts`
+
+#### 마이그레이션 (Phase 1)
+
+```sql
+ALTER TABLE voice_daily
+  ADD COLUMN "streamingSec" int NOT NULL DEFAULT 0,
+  ADD COLUMN "videoOnSec"   int NOT NULL DEFAULT 0,
+  ADD COLUMN "deafSec"      int NOT NULL DEFAULT 0;
+```
+
+기존 레코드의 세 컬럼은 기본값 0으로 유지된다.
 
 #### 인덱스
 
@@ -1217,6 +1259,91 @@ WHERE "guildId" = :guildId AND "userId" = :userA AND "peerId" = :userB;
 
 ---
 
+### 26. VoiceGameActivity (`voice_game_activity`)
+
+> Voice Extended Data Collection Phase 2 — 게임 세션 단위 이력. 90일 보존 후 자동 삭제.
+
+음성 채널 참여 중 플레이한 게임 세션을 기록한다. 세션 종료 시점(퇴장 또는 게임 전환)에만 INSERT되며, `durationMin >= 1`인 세션만 저장한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | NOT NULL | 디스코드 서버 ID |
+| `userId` | `varchar` | NOT NULL | 유저 디스코드 ID |
+| `channelId` | `varchar` | NOT NULL | 게임 활동 중이던 음성 채널 ID |
+| `gameName` | `varchar` | NOT NULL | 게임명 (Discord Activity 명칭) |
+| `applicationId` | `varchar` | NULLABLE | Discord Application ID (게임 고유 식별자). 커스텀 상태 등은 null |
+| `startedAt` | `timestamp` | NOT NULL | 게임 세션 시작 시각 |
+| `endedAt` | `timestamp` | NOT NULL | 게임 세션 종료 시각 |
+| `durationMin` | `int` | NOT NULL | 플레이 시간(분). 최소 1 이상만 저장 |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 레코드 생성일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **보존 정책**: 90일 초과 데이터 자동 삭제 (매일 04:00 KST, 기존 보존 스케줄러에 추가)
+- **파일**: `apps/api/src/channel/voice/domain/voice-game-activity.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_game_activity_guild_user` | `(guildId, userId, startedAt)` | 유저별 기간 조회 |
+| `IDX_game_activity_guild_game` | `(guildId, gameName, startedAt)` | 게임별 기간 조회 |
+| `IDX_game_activity_guild_started` | `(guildId, startedAt)` | 서버 전체 기간 조회 |
+| `IDX_game_activity_started` | `(startedAt)` | 90일 자동 삭제 스케줄러 (`DELETE WHERE startedAt < ?`) |
+
+#### 인덱스 설계 근거
+
+자동 삭제 스케줄러(`DELETE WHERE startedAt < ?`)는 guildId 무관하게 날짜 기준으로 전체 삭제한다. `IDX_game_activity_guild_started (guildId, startedAt)`는 guildId가 선두라 guildId 조건 없이 `startedAt` 단독 범위 스캔을 할 때 효율적이지 않다. `voice_co_presence_session`의 `IDX_copresence_session_ended (endedAt)` 패턴과 동일하게, `IDX_game_activity_started (startedAt)` 단독 인덱스를 추가하여 삭제 스케줄러를 커버한다.
+
+---
+
+### 27. VoiceGameDaily (`voice_game_daily`)
+
+> Voice Extended Data Collection Phase 2 — 게임 일별 집계. 영구 보존.
+
+유저별·게임별·날짜별로 일별 집계된 게임 플레이 시간을 저장한다. 세션 종료 시 upsert로 누적된다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `userId` | `varchar` | PK | 유저 디스코드 ID |
+| `gameName` | `varchar` | PK | 게임명 |
+| `date` | `varchar(8)` | PK | 날짜 (`YYYYMMDD`) |
+| `totalMinutes` | `int` | NOT NULL, DEFAULT `0` | 해당 날짜 총 플레이 시간(분) |
+| `sessionCount` | `int` | NOT NULL, DEFAULT `0` | 해당 날짜 세션 수 |
+
+- **복합 PK**: `(guildId, userId, gameName, date)`
+- **테이블명**: `voice_game_daily` (커스텀 지정)
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **보존 정책**: 영구 보존 (삭제 안 함)
+- **파일**: `apps/api/src/channel/voice/domain/voice-game-daily.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_game_daily_guild_date` | `(guildId, date)` | 서버 전체 날짜별 게임 집계 조회 |
+| `IDX_game_daily_guild_game_date` | `(guildId, gameName, date)` | 서버 내 게임별 날짜 집계 |
+
+#### 인덱스 설계 근거
+
+유저의 날짜별 게임 활동 조회(`WHERE guildId = ? AND userId = ? AND date BETWEEN ? AND ?`)는 복합 PK `(guildId, userId, gameName, date)`의 선두 접두사 `(guildId, userId)`로 커버되므로 별도 인덱스가 불필요하다. `IDX_game_daily_guild_date (guildId, date)`는 서버 내 특정 날짜의 전체 게임 활동 집계에 사용된다. `IDX_game_daily_guild_game_date (guildId, gameName, date)`는 특정 게임의 서버 내 인기도·추이 조회에 사용된다.
+
+#### Upsert 쿼리
+
+```sql
+INSERT INTO voice_game_daily ("guildId", "userId", "gameName", "date", "totalMinutes", "sessionCount")
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT ("guildId", "userId", "gameName", "date")
+DO UPDATE SET
+  "totalMinutes" = voice_game_daily."totalMinutes" + EXCLUDED."totalMinutes",
+  "sessionCount" = voice_game_daily."sessionCount" + EXCLUDED."sessionCount"
+```
+
+---
+
 ## Redis 데이터 구조
 
 ### 키 네이밍 패턴
@@ -1240,6 +1367,10 @@ monitoring:{category}:{...params}
 | `voice:duration:channel:{guildId}:{userId}:{date}:{channelId}` | — | String | 채널별 체류 시간 누적 |
 | `voice:duration:mic:{guildId}:{userId}:{date}:{on\|off}` | — | String | 마이크 ON/OFF 시간 누적 |
 | `voice:duration:alone:{guildId}:{userId}:{date}` | — | String | 혼자 있던 시간 누적 |
+| `voice:duration:streaming:{guildId}:{userId}:{date}` | — | String | 화면 공유 누적 시간 (초). F-VOICE-025 |
+| `voice:duration:video:{guildId}:{userId}:{date}` | — | String | 카메라 ON 누적 시간 (초). F-VOICE-026 |
+| `voice:duration:deaf:{guildId}:{userId}:{date}` | — | String | 스피커 음소거 누적 시간 (초). F-VOICE-027 |
+| `voice:game:session:{guildId}:{userId}` | 24시간 | String (JSON) | 유저별 현재 게임 세션 정보. F-VOICE-028~031 |
 | `voice:channel:name:{guildId}:{channelId}` | 7일 | String | 채널명 캐시 |
 | `voice:user:name:{guildId}:{userId}` | 7일 | String | 유저명 캐시 |
 | `voice:excluded:{guildId}` | 1시간 | Set | 길드별 제외 채널 목록 캐시 (제외 대상 channelId/categoryId 집합) |
@@ -1257,6 +1388,19 @@ interface VoiceSession {
   alone: boolean;         // 혼자 여부
   lastUpdatedAt: number;  // 마지막 시간 계산 시점 (ms timestamp)
   date: string;           // 날짜 (YYYYMMDD)
+}
+```
+
+#### VoiceGameSession 구조
+
+`voice:game:session:{guildId}:{userId}` 키에 JSON 직렬화하여 저장된다. TTL 24시간. 세션 종료 시 명시적으로 삭제된다.
+
+```typescript
+interface VoiceGameSession {
+  gameName: string;          // Discord Activity 명칭
+  applicationId: string | null; // Discord Application ID. 커스텀 상태 등은 null
+  startedAt: number;         // 세션 시작 시각 (ms timestamp)
+  channelId: string;         // 음성 채널 ID (세션 종료 시 voice_game_activity.channelId에 저장)
 }
 ```
 
@@ -1425,7 +1569,8 @@ SET monitoring:status:{guildId} {statusJson} EX 10
 | 제외 채널 목록 캐시 | 1시간 (3,600초) | 설정 변경 빈도 낮음. 등록/삭제 시 명시적 무효화 |
 | 세션 데이터 | 12시간 (43,200초) | 서버 크래시 시 고아 세션 자동 정리 |
 | 이름 캐시 | 7일 (604,800초) | Discord API 호출 최소화 |
-| 시간 누적 데이터 | 없음 | 일별 flush 시 삭제 |
+| 시간 누적 데이터 (채널/마이크/혼자/화면공유/카메라/deaf) | 없음 | 일별 flush 시 삭제. `voice:duration:streaming:*`, `voice:duration:video:*`, `voice:duration:deaf:*` 포함 |
+| 게임 세션 데이터 | 24시간 | 봇 크래시 시 고아 세션 자동 정리. 세션 종료 시 명시적 삭제 |
 | 대기방 상태 | 12시간 (43,200초) | 봇 크래시 시 고아 대기방 자동 정리 |
 | 확정방 상태 | 12시간 (43,200초) | voice session과 동일한 생명주기. 봇 크래시 시 고아 키 자동 정리 |
 | 트리거 채널 집합 | 없음 | 설정 변경 시 명시적 갱신 |
@@ -1490,23 +1635,37 @@ SET monitoring:status:{guildId} {statusJson} EX 10
   1. Member/Channel → PostgreSQL upsert
   2. VoiceChannelHistory → PostgreSQL insert (joinAt)
   3. VoiceSession → Redis set (TTL 12h)
+  4. [Phase 2] member.presence.activities 조회 → ActivityType.Playing 감지 시
+     voice:game:session:{guildId}:{userId} → Redis set (gameName, applicationId, startedAt, channelId, TTL 24h)
 
 [마이크 토글]
-  4. mic duration → Redis incrBy
+  mic duration → Redis incrBy (voice:duration:mic:...)
+
+[화면 공유 토글 — F-VOICE-025]
+  voice:duration:streaming:{guildId}:{userId}:{date} → Redis incrBy
+
+[카메라 토글 — F-VOICE-026]
+  voice:duration:video:{guildId}:{userId}:{date} → Redis incrBy
+
+[스피커 음소거 토글 — F-VOICE-027]
+  voice:duration:deaf:{guildId}:{userId}:{date} → Redis incrBy
 
 [퇴장]
-  5. VoiceSession → Redis get & delete
-  6. VoiceChannelHistory → PostgreSQL update (leftAt)
-  7. 시간 계산 → Redis duration keys에 누적
-  8. VoiceDailyEntity → PostgreSQL upsert (GLOBAL + 개별 채널)
+  1. VoiceSession → Redis get & delete
+  2. VoiceChannelHistory → PostgreSQL update (leftAt)
+  3. 시간 계산 → Redis duration keys에 누적 (channel, mic, streaming, video, deaf)
+  4. VoiceDailyEntity → PostgreSQL upsert (GLOBAL + 개별 채널, streamingSec/videoOnSec/deafSec 포함)
+  5. [Phase 2] voice:game:session:{guildId}:{userId} → Redis get
+     - 진행 중인 게임 세션 존재 시 → F-VOICE-031 게임 세션 종료 처리 수행
+     - voice:game:session 키 → Redis delete
 ```
 
 ### 일별 집계 (Daily Flush)
 
 ```
 Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
-                      ├── GLOBAL 레코드: 전체 마이크/혼자시간
-                      └── 채널별 레코드: 채널 체류 시간
+                      ├── GLOBAL 레코드: 전체 마이크/혼자시간/화면공유/카메라/deaf
+                      └── 채널별 레코드: 채널 체류 시간/화면공유/카메라/deaf
 ```
 
 ### 유저 상세 페이지 데이터 흐름 (F-WEB-007)
@@ -1877,6 +2036,54 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
   1. inactive_member_config → PostgreSQL select WHERE guildId = ?
      - 레코드 없음: 기본값으로 INSERT 후 반환
      - 레코드 있음: 전체 필드 반환
+```
+
+### 게임 활동 라이프사이클 (Phase 2)
+
+```
+[음성 입장 시 게임 상태 수집 — F-VOICE-028]
+  1. VoiceJoinHandler → member.presence.activities 조회
+  2. ActivityType.Playing 필터로 gameName, applicationId 추출
+  3. 게임 감지 시:
+     voice:game:session:{guildId}:{userId} → Redis set (TTL 24h)
+     값: { gameName, applicationId, startedAt: now, channelId }
+  4. 게임 없으면 → 처리 없음
+
+[CoPresenceScheduler 60초 틱에서 게임 상태 갱신 — F-VOICE-029]
+  1. 음성 채널 순회 중 각 멤버 member.presence.activities 조회
+  2. voice:game:session:{guildId}:{userId} → Redis get (현재 세션 조회)
+  3. 상태 비교:
+     - 새 게임 시작 (Redis 세션 없음 + 현재 게임 감지):
+         voice:game:session:{guildId}:{userId} → Redis set (TTL 24h)
+     - 게임 전환 (현재 게임 != Redis 세션 gameName):
+         이전 세션 → F-VOICE-031 종료 처리
+         voice:game:session:{guildId}:{userId} → Redis set (새 게임, TTL 24h)
+     - 게임 종료 (현재 게임 없음 + Redis 세션 있음):
+         F-VOICE-031 종료 처리
+         voice:game:session:{guildId}:{userId} → Redis delete
+     - 게임 계속 (현재 게임 == Redis 세션): 무처리
+
+[음성 퇴장 시 게임 세션 종료 — F-VOICE-030]
+  1. VoiceLeaveHandler → voice:game:session:{guildId}:{userId} → Redis get
+  2. 세션 있으면 → F-VOICE-031 종료 처리
+  3. voice:game:session:{guildId}:{userId} → Redis delete
+
+[게임 세션 종료 처리 및 저장 — F-VOICE-031]
+  1. voice:game:session:{guildId}:{userId} → Redis get
+     (gameName, applicationId, startedAt, channelId 추출)
+  2. durationMin = Math.floor((now - startedAt) / 60000) 계산
+  3. durationMin < 1 이면 → DB 저장 없이 종료 (1분 미만 세션 무시)
+  4. durationMin >= 1 이면:
+     a. voice_game_activity → PostgreSQL INSERT
+          (guildId, userId, channelId, gameName, applicationId,
+           startedAt, endedAt=now, durationMin, createdAt=now)
+     b. voice_game_daily → PostgreSQL UPSERT
+          ON CONFLICT (guildId, userId, gameName, date)
+          DO UPDATE SET totalMinutes += durationMin, sessionCount += 1
+
+[게임 활동 90일 자동 삭제 — 매일 04:00 KST (기존 보존 스케줄러)]
+  voice_game_activity → PostgreSQL DELETE WHERE startedAt < (now - 90일)
+  ※ voice_game_daily는 영구 보존 (삭제 안 함)
 ```
 
 ### Voice Co-Presence 라이프사이클

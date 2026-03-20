@@ -1,3 +1,5 @@
+import { apiClient, apiGet } from './api-client';
+
 // ─── 타입 정의 ──────────────────────────────────────────────────────────────
 
 /** GET /api/guilds/{guildId}/voice/excluded-channels 응답 아이템 */
@@ -24,14 +26,11 @@ export interface ExcludedChannelEntry {
 export async function fetchVoiceExcludedChannels(
   guildId: string,
 ): Promise<string[]> {
-  try {
-    const res = await fetch(`/api/guilds/${guildId}/voice/excluded-channels`);
-    if (!res.ok) return [];
-    const body = (await res.json()) as VoiceExcludedChannelItem[];
-    return body.map((item) => item.discordChannelId);
-  } catch {
-    return [];
-  }
+  const items = await apiGet<VoiceExcludedChannelItem[]>(
+    `/api/guilds/${guildId}/voice/excluded-channels`,
+    [],
+  );
+  return items.map((item) => item.discordChannelId);
 }
 
 /**
@@ -42,19 +41,8 @@ export async function saveVoiceExcludedChannels(
   guildId: string,
   channels: ExcludedChannelEntry[],
 ): Promise<void> {
-  const res = await fetch(`/api/guilds/${guildId}/voice/excluded-channels`, {
+  await apiClient<void>(`/api/guilds/${guildId}/voice/excluded-channels`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ channels }),
+    body: { channels },
   });
-  if (!res.ok) {
-    let message = `음성 설정 저장 실패: ${res.status}`;
-    try {
-      const body = (await res.json()) as { message?: string };
-      if (body.message) message = body.message;
-    } catch {
-      // 파싱 실패 시 기본 메시지 사용
-    }
-    throw new Error(message);
-  }
 }

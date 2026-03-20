@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2021",
+    "sourceMap": true,
+    "outDir": "dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictPropertyInitialization": false,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "useDefineForClassFields": true,
+    "paths": {
+      "@dhyunbot/shared": ["../../libs/shared/src"],
+      "@dhyunbot/shared/*": ["../../libs/shared/src/*"],
+      "@dhyunbot/bot-api-client": ["../../libs/bot-api-client/src"],
+      "@dhyunbot/bot-api-client/*": ["../../libs/bot-api-client/src/*"]
+    }
+  }
+}

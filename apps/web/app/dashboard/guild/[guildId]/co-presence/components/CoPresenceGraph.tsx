@@ -4,9 +4,11 @@
 // HTML5 Canvas를 직접 사용하여 네트워크 그래프를 구현한다.
 // 의존성 설치 후 sigma.js 기반으로 교체 가능하도록 Props 인터페이스는 동일하게 유지한다.
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CoPresenceGraphData } from "@/app/lib/co-presence-api";
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
@@ -21,7 +23,12 @@ const MAX_NODE_SIZE = 40;
 const MIN_EDGE_WIDTH = 1;
 const MAX_EDGE_WIDTH = 8;
 const LABEL_FONT = "12px sans-serif";
+const TOOLTIP_FONT = "11px sans-serif";
 const DEBOUNCE_MS = 300;
+
+const MIN_SCALE = 0.3;
+const MAX_SCALE = 5;
+const ZOOM_SENSITIVITY = 0.001;
 
 // ─── 타입 ─────────────────────────────────────────────────────────────────────
 
@@ -39,6 +46,17 @@ interface CoPresenceGraphProps {
   minMinutes: number;
   isLoading: boolean;
   onMinMinutesChange: (value: number) => void;
+}
+
+interface DragState {
+  type: "none" | "pan" | "node";
+  nodeId?: string;
+  startX: number;
+  startY: number;
+  startOffsetX: number;
+  startOffsetY: number;
+  startNodeX: number;
+  startNodeY: number;
 }
 
 // ─── 유틸 ─────────────────────────────────────────────────────────────────────
@@ -190,6 +208,41 @@ function applyForceStep({
   });
 }
 
+interface ScreenToWorldParams {
+  screenX: number;
+  screenY: number;
+  scale: number;
+  offset: { x: number; y: number };
+}
+
+/** 스크린 좌표 → 월드 좌표 변환 */
+function screenToWorld({ screenX, screenY, scale, offset }: ScreenToWorldParams): { wx: number; wy: number } {
+  return {
+    wx: (screenX - offset.x) / scale,
+    wy: (screenY - offset.y) / scale,
+  };
+}
+
+interface HitTestParams {
+  wx: number;
+  wy: number;
+  positions: NodePosition[];
+}
+
+/** 월드 좌표에서 노드 히트 테스트 */
+function hitTestNode({ wx, wy, positions }: HitTestParams): NodePosition | null {
+  // 역순 탐색 — 나중에 그려진 노드가 위에 있으므로
+  for (let i = positions.length - 1; i >= 0; i--) {
+    const pos = positions[i];
+    const dx = pos.x - wx;
+    const dy = pos.y - wy;
+    if (Math.sqrt(dx * dx + dy * dy) <= pos.radius + 4) {
+      return pos;
+    }
+  }
+  return null;
+}
+
 // ─── 컴포넌트 ─────────────────────────────────────────────────────────────────
 
 export default function CoPresenceGraph({
@@ -198,6 +251,8 @@ export default function CoPresenceGraph({
   isLoading,
   onMinMinutesChange,
 }: CoPresenceGraphProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [positions, setPositions] = useState<NodePosition[]>([]);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
@@ -205,15 +260,32 @@ export default function CoPresenceGraph({
   const animationRef = useRef<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 줌/팬 상태
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<DragState>({
+    type: "none",
+    startX: 0,
+    startY: 0,
+    startOffsetX: 0,
+    startOffsetY: 0,
+    startNodeX: 0,
+    startNodeY: 0,
+  });
+
+  // 줌/팬 리셋
+  const handleResetView = useCallback(() => {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+  }, []);
+
   // data 변경 시 레이아웃 초기화 및 force 시뮬레이션 실행
-  // set-state-in-effect 규칙: startTransition으로 래핑하여 cascading render 완화
   useEffect(() => {
     const canvas = canvasRef.current;
     const width = (canvas?.offsetWidth ?? 0) || 700;
     const height = 480;
 
     if (data.nodes.length === 0) {
-      // 빈 데이터 → 포지션 초기화 (외부 시스템 동기화로 간주)
       queueMicrotask(() => {
         setPositions([]);
         setSelectedNode(null);
@@ -229,7 +301,6 @@ export default function CoPresenceGraph({
 
     let pos = computeInitialPositions({ nodes: data.nodes, width, height, colorMap });
 
-    // force 시뮬레이션 50 스텝
     const STEPS = 50;
     for (let i = 0; i < STEPS; i++) {
       pos = applyForceStep({ positions: pos, edges: data.edges, width, height });
@@ -240,7 +311,25 @@ export default function CoPresenceGraph({
       setPositions(computed);
       setSelectedNode(null);
       setHoveredNode(null);
+      // 새 데이터 로드 시 뷰 리셋
+      setScale(1);
+      setOffset({ x: 0, y: 0 });
     });
+  }, [data]);
+
+  // 노드별 연결 수 & 엣지 정보 계산 (툴팁용)
+  const nodeStats = useCallback(() => {
+    const stats = new Map<string, { connectionCount: number; totalMinutes: number }>();
+    for (const node of data.nodes) {
+      stats.set(node.userId, { connectionCount: 0, totalMinutes: node.totalMinutes });
+    }
+    for (const edge of data.edges) {
+      const a = stats.get(edge.userA);
+      const b = stats.get(edge.userB);
+      if (a) a.connectionCount++;
+      if (b) b.connectionCount++;
+    }
+    return stats;
   }, [data]);
 
   // canvas 렌더링
@@ -255,6 +344,10 @@ export default function CoPresenceGraph({
     ctx.clearRect(0, 0, width, height);
 
     if (positions.length === 0) return;
+
+    ctx.save();
+    ctx.translate(offset.x, offset.y);
+    ctx.scale(scale, scale);
 
     const posMap = new Map(positions.map((p) => [p.userId, p]));
     const maxEdgeMinutes = Math.max(...data.edges.map((e) => e.totalMinutes), 1);
@@ -310,29 +403,70 @@ export default function CoPresenceGraph({
       }
     }
 
-    // 호버된 노드 레이블
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // 툴팁 (스크린 좌표 기준으로 그려야 하므로 restore 후 렌더링)
     if (hoveredNode) {
       const pos = posMap.get(hoveredNode);
       if (pos) {
-        ctx.globalAlpha = 1;
-        ctx.font = LABEL_FONT;
+        const stats = nodeStats();
+        const stat = stats.get(hoveredNode);
+        const screenX = pos.x * scale + offset.x;
+        const screenY = pos.y * scale + offset.y;
+        const tooltipY = screenY - pos.radius * scale - 8;
+
+        ctx.font = "bold " + LABEL_FONT;
+        const nameWidth = ctx.measureText(pos.label).width;
+        ctx.font = TOOLTIP_FONT;
+        const line1 = t("coPresence.graph.tooltip.activity", { value: formatMinutesI18n(stat?.totalMinutes ?? 0, tc) });
+        const line2 = t("coPresence.graph.tooltip.connections", { count: stat?.connectionCount ?? 0 });
+        const line1Width = ctx.measureText(line1).width;
+        const line2Width = ctx.measureText(line2).width;
+        const maxWidth = Math.max(nameWidth, line1Width, line2Width);
+
+        const padding = 8;
+        const lineHeight = 16;
+        const boxWidth = maxWidth + padding * 2;
+        const boxHeight = lineHeight * 3 + padding * 2 - 4;
+        const boxX = screenX - boxWidth / 2;
+        const boxY = tooltipY - boxHeight;
+
+        // 배경
+        ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+        ctx.beginPath();
+        const r = 6;
+        ctx.moveTo(boxX + r, boxY);
+        ctx.lineTo(boxX + boxWidth - r, boxY);
+        ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + r);
+        ctx.lineTo(boxX + boxWidth, boxY + boxHeight - r);
+        ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - r, boxY + boxHeight);
+        ctx.lineTo(boxX + r, boxY + boxHeight);
+        ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - r);
+        ctx.lineTo(boxX, boxY + r);
+        ctx.quadraticCurveTo(boxX, boxY, boxX + r, boxY);
+        ctx.closePath();
+        ctx.fill();
+
+        // 텍스트
         ctx.textAlign = "center";
-        const labelY = pos.y - pos.radius - 6;
-        const textWidth = ctx.measureText(pos.label).width;
-        ctx.fillStyle = "rgba(0,0,0,0.7)";
-        ctx.fillRect(
-          pos.x - textWidth / 2 - 4,
-          labelY - 14,
-          textWidth + 8,
-          18,
-        );
         ctx.fillStyle = "#fff";
-        ctx.fillText(pos.label, pos.x, labelY);
+        ctx.font = "bold " + LABEL_FONT;
+        ctx.fillText(pos.label, screenX, boxY + padding + lineHeight - 2);
+        ctx.font = TOOLTIP_FONT;
+        ctx.fillStyle = "#cbd5e1";
+        ctx.fillText(line1, screenX, boxY + padding + lineHeight * 2 - 4);
+        ctx.fillText(line2, screenX, boxY + padding + lineHeight * 3 - 6);
       }
     }
 
-    ctx.globalAlpha = 1;
-  }, [positions, data.edges, hoveredNode, selectedNode]);
+    // 범례 (우하단)
+    renderLegend(ctx, width, height, {
+      title: t("coPresence.graph.legend.title"),
+      nodeSize: t("coPresence.graph.legend.nodeSize"),
+      edgeWidth: t("coPresence.graph.legend.edgeWidth"),
+    });
+  }, [positions, data.edges, hoveredNode, selectedNode, scale, offset, nodeStats, t, tc]);
 
   useEffect(() => {
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
@@ -357,49 +491,165 @@ export default function CoPresenceGraph({
     return () => observer.disconnect();
   }, [render]);
 
+  // 마우스 휠: 줌
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const zoomFactor = 1 - e.deltaY * ZOOM_SENSITIVITY;
+      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * zoomFactor));
+
+      // 마우스 포인터 위치 기준 줌
+      const newOffsetX = mouseX - (mouseX - offset.x) * (newScale / scale);
+      const newOffsetY = mouseY - (mouseY - offset.y) * (newScale / scale);
+
+      setScale(newScale);
+      setOffset({ x: newOffsetX, y: newOffsetY });
+    };
+
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", handleWheel);
+  }, [scale, offset]);
+
   // 마우스 이벤트: 호버
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
 
-    let found: string | null = null;
-    for (const pos of positions) {
-      const dx = pos.x - x;
-      const dy = pos.y - y;
-      if (Math.sqrt(dx * dx + dy * dy) <= pos.radius) {
-        found = pos.userId;
-        break;
-      }
+    const drag = dragRef.current;
+
+    // 드래그 중
+    if (drag.type === "pan") {
+      const dx = screenX - drag.startX;
+      const dy = screenY - drag.startY;
+      setOffset({
+        x: drag.startOffsetX + dx,
+        y: drag.startOffsetY + dy,
+      });
+      canvas.style.cursor = "grabbing";
+      return;
     }
-    setHoveredNode(found);
-    canvas.style.cursor = found ? "pointer" : "default";
+
+    if (drag.type === "node" && drag.nodeId) {
+      const dx = (screenX - drag.startX) / scale;
+      const dy = (screenY - drag.startY) / scale;
+      setPositions((prev) =>
+        prev.map((p) =>
+          p.userId === drag.nodeId
+            ? { ...p, x: drag.startNodeX + dx, y: drag.startNodeY + dy }
+            : p,
+        ),
+      );
+      canvas.style.cursor = "grabbing";
+      return;
+    }
+
+    // 호버 감지
+    const { wx, wy } = screenToWorld({ screenX, screenY, scale, offset });
+    const hit = hitTestNode({ wx, wy, positions });
+    setHoveredNode(hit?.userId ?? null);
+    canvas.style.cursor = hit ? "pointer" : "default";
   };
 
-  // 마우스 이벤트: 클릭
-  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // 마우스 이벤트: 드래그 시작 (pan 또는 node drag)
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (e.button !== 0) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
 
-    for (const pos of positions) {
-      const dx = pos.x - x;
-      const dy = pos.y - y;
-      if (Math.sqrt(dx * dx + dy * dy) <= pos.radius) {
-        setSelectedNode((prev) => (prev === pos.userId ? null : pos.userId));
-        return;
+    const { wx, wy } = screenToWorld({ screenX, screenY, scale, offset });
+    const hit = hitTestNode({ wx, wy, positions });
+
+    if (hit) {
+      // 노드 드래그
+      dragRef.current = {
+        type: "node",
+        nodeId: hit.userId,
+        startX: screenX,
+        startY: screenY,
+        startOffsetX: offset.x,
+        startOffsetY: offset.y,
+        startNodeX: hit.x,
+        startNodeY: hit.y,
+      };
+    } else {
+      // 캔버스 팬
+      dragRef.current = {
+        type: "pan",
+        startX: screenX,
+        startY: screenY,
+        startOffsetX: offset.x,
+        startOffsetY: offset.y,
+        startNodeX: 0,
+        startNodeY: 0,
+      };
+    }
+
+    canvas.style.cursor = "grabbing";
+  };
+
+  // 마우스 이벤트: 드래그 종료
+  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const drag = dragRef.current;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+
+    const hasMoved =
+      Math.abs(screenX - drag.startX) > 3 || Math.abs(screenY - drag.startY) > 3;
+
+    // 드래그 없이 클릭한 경우에만 선택 토글
+    if (!hasMoved) {
+      const { wx, wy } = screenToWorld({ screenX, screenY, scale, offset });
+      const hit = hitTestNode({ wx, wy, positions });
+      if (hit) {
+        setSelectedNode((prev) => (prev === hit.userId ? null : hit.userId));
+      } else {
+        setSelectedNode(null);
       }
     }
-    // 빈 영역 클릭 시 선택 해제
-    setSelectedNode(null);
+
+    dragRef.current = {
+      type: "none",
+      startX: 0,
+      startY: 0,
+      startOffsetX: 0,
+      startOffsetY: 0,
+      startNodeX: 0,
+      startNodeY: 0,
+    };
+    canvas.style.cursor = "default";
   };
 
   const handleMouseLeave = () => {
     setHoveredNode(null);
+    if (dragRef.current.type !== "none") {
+      dragRef.current = {
+        type: "none",
+        startX: 0,
+        startY: 0,
+        startOffsetX: 0,
+        startOffsetY: 0,
+        startNodeX: 0,
+        startNodeY: 0,
+      };
+    }
   };
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -410,17 +660,28 @@ export default function CoPresenceGraph({
     }, DEBOUNCE_MS);
   };
 
+  const isZoomed = scale !== 1 || offset.x !== 0 || offset.y !== 0;
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <CardTitle>관계 네트워크 그래프</CardTitle>
+          <CardTitle>{t("coPresence.graph.title")}</CardTitle>
           <div className="flex items-center gap-3">
+            {isZoomed && (
+              <button
+                type="button"
+                onClick={handleResetView}
+                className="rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                {t("coPresence.graph.resetView")}
+              </button>
+            )}
             <label
               htmlFor="min-minutes-slider"
               className="text-sm text-muted-foreground whitespace-nowrap"
             >
-              최소 임계값: {minMinutes}분
+              {t("coPresence.graph.minThreshold", { value: minMinutes })}
             </label>
             <input
               id="min-minutes-slider"
@@ -437,12 +698,12 @@ export default function CoPresenceGraph({
       <CardContent>
         {isLoading ? (
           <div className="flex h-[480px] items-center justify-center rounded-lg bg-muted/30">
-            <div className="text-muted-foreground">그래프 갱신 중...</div>
+            <div className="text-muted-foreground">{t("coPresence.graph.updating")}</div>
           </div>
         ) : data.nodes.length === 0 ? (
           <div className="flex h-[480px] items-center justify-center rounded-lg bg-muted/30">
             <p className="text-sm text-muted-foreground">
-              기간 내 동시접속 데이터가 없습니다.
+              {t("coPresence.graph.noData")}
             </p>
           </div>
         ) : (
@@ -452,15 +713,92 @@ export default function CoPresenceGraph({
               className="w-full rounded-lg bg-gray-50"
               style={{ height: 480 }}
               onMouseMove={handleMouseMove}
+              onMouseDown={handleMouseDown}
+              onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseLeave}
-              onClick={handleClick}
             />
             <p className="mt-2 text-xs text-muted-foreground">
-              노드 클릭 시 연결된 관계만 강조 표시됩니다.
+              {t("coPresence.graph.hint")}
             </p>
           </div>
         )}
       </CardContent>
     </Card>
   );
+}
+
+// ─── 범례 렌더링 ──────────────────────────────────────────────────────────────
+
+interface LegendLabels {
+  title: string;
+  nodeSize: string;
+  edgeWidth: string;
+}
+
+function renderLegend(ctx: CanvasRenderingContext2D, canvasWidth: number, canvasHeight: number, labels: LegendLabels) {
+  const padding = 10;
+  const lineHeight = 18;
+  const legendWidth = 160;
+  const legendHeight = lineHeight * 4 + padding * 2;
+  const x = canvasWidth - legendWidth - 12;
+  const y = canvasHeight - legendHeight - 12;
+
+  // 배경
+  ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  const r = 6;
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + legendWidth - r, y);
+  ctx.quadraticCurveTo(x + legendWidth, y, x + legendWidth, y + r);
+  ctx.lineTo(x + legendWidth, y + legendHeight - r);
+  ctx.quadraticCurveTo(x + legendWidth, y + legendHeight, x + legendWidth - r, y + legendHeight);
+  ctx.lineTo(x + r, y + legendHeight);
+  ctx.quadraticCurveTo(x, y + legendHeight, x, y + legendHeight - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.textAlign = "left";
+  let curY = y + padding + 12;
+
+  // 제목
+  ctx.font = "bold 11px sans-serif";
+  ctx.fillStyle = "#334155";
+  ctx.fillText(labels.title, x + padding, curY);
+  curY += lineHeight + 2;
+
+  ctx.font = "11px sans-serif";
+  ctx.fillStyle = "#64748b";
+
+  // 노드 크기
+  ctx.beginPath();
+  ctx.arc(x + padding + 5, curY - 4, 4, 0, Math.PI * 2);
+  ctx.fillStyle = "#6366F1";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + padding + 18, curY - 4, 7, 0, Math.PI * 2);
+  ctx.fillStyle = "#6366F1";
+  ctx.fill();
+  ctx.fillStyle = "#64748b";
+  ctx.fillText(labels.nodeSize, x + padding + 30, curY);
+  curY += lineHeight;
+
+  // 엣지 두께
+  ctx.strokeStyle = "#94a3b8";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x + padding, curY - 4);
+  ctx.lineTo(x + padding + 24, curY - 4);
+  ctx.stroke();
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(x + padding, curY - 4 + 8);
+  ctx.lineTo(x + padding + 24, curY - 4 + 8);
+  ctx.stroke();
+  ctx.fillStyle = "#64748b";
+  ctx.fillText(labels.edgeWidth, x + padding + 30, curY + 2);
 }

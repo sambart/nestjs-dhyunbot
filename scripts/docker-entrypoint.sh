@@ -28,9 +28,15 @@ if [ ! -f "$HASH_FILE" ] || [ "$(cat "$HASH_FILE" 2>/dev/null)" != "$CURRENT_HAS
   rm -f "$LOCK_FILE"
 fi
 
-# Always build shared library (fast, ensures latest source)
+# Always build shared libraries (fast, ensures latest source)
 echo "[entrypoint] Building shared library..."
 pnpm --filter @dhyunbot/shared build 2>&1 || true
+# Build bot-api-client if it has a build script and dist doesn't exist
+if [ -f "/workspace/libs/bot-api-client/package.json" ] && [ ! -d "/workspace/libs/bot-api-client/dist" ]; then
+  echo "[entrypoint] Building bot-api-client library..."
+  cd /workspace/libs/bot-api-client && npx tsc --skipLibCheck 2>&1 || true
+  cd /workspace
+fi
 
 cd "$APP_DIR"
 echo "[entrypoint] Starting application..."

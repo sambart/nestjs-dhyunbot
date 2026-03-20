@@ -1,11 +1,13 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 
+import { DomainException } from '../../../common/domain-exception';
 import { RedisService } from '../../../redis/redis.service';
-import { VoiceExcludedChannel, VoiceExcludedChannelType } from '../domain/voice-excluded-channel.entity';
+import { VoiceExcludedChannelType } from '../domain/voice-excluded-channel.types';
 import { VoiceExcludedChannelSaveDto } from '../dto/voice-excluded-channel-save.dto';
 import { VoiceExcludedChannelSyncDto } from '../dto/voice-excluded-channel-sync.dto';
 import { VoiceKeys } from '../infrastructure/voice-cache.keys';
+import { VoiceExcludedChannelOrm } from '../infrastructure/voice-excluded-channel.orm-entity';
 import { VoiceExcludedChannelRepository } from '../infrastructure/voice-excluded-channel.repository';
 
 const TTL = {
@@ -24,8 +26,8 @@ export class VoiceExcludedChannelService {
    * 제외 채널 목록 조회 (F-VOICE-013).
    * Redis 캐시 우선, 미스 시 DB 조회 후 캐시 저장.
    */
-  async getExcludedChannels(guildId: string): Promise<VoiceExcludedChannel[]> {
-    const cached = await this.redis.get<VoiceExcludedChannel[]>(
+  async getExcludedChannels(guildId: string): Promise<VoiceExcludedChannelOrm[]> {
+    const cached = await this.redis.get<VoiceExcludedChannelOrm[]>(
       VoiceKeys.excludedChannels(guildId),
     );
     if (cached) return cached;
@@ -44,14 +46,17 @@ export class VoiceExcludedChannelService {
   async saveExcludedChannel(
     guildId: string,
     dto: VoiceExcludedChannelSaveDto,
-  ): Promise<VoiceExcludedChannel> {
+  ): Promise<VoiceExcludedChannelOrm> {
     try {
       const item = await this.repository.create(guildId, dto.channelId, dto.type);
       await this.redis.del(VoiceKeys.excludedChannels(guildId));
       return item;
     } catch (err) {
-      if (err instanceof QueryFailedError && (err as QueryFailedError & { code: string }).code === '23505') {
-        throw new ConflictException('이미 등록된 채널입니다');
+      if (
+        err instanceof QueryFailedError &&
+        (err as QueryFailedError & { code: string }).code === '23505'
+      ) {
+        throw new DomainException('이미 등록된 채널입니다', 'EXCLUDED_CHANNEL_DUPLICATE');
       }
       throw err;
     }
@@ -77,7 +82,7 @@ export class VoiceExcludedChannelService {
   async syncExcludedChannels(
     guildId: string,
     dto: VoiceExcludedChannelSyncDto,
-  ): Promise<VoiceExcludedChannel[]> {
+  ): Promise<VoiceExcludedChannelOrm[]> {
     const channels = dto.channels.map((ch) => ({
       discordChannelId: ch.channelId,
       type: ch.type,
@@ -100,7 +105,7 @@ export class VoiceExcludedChannelService {
     channelId: string,
     parentCategoryId: string | null,
   ): Promise<boolean> {
-    let items = await this.redis.get<VoiceExcludedChannel[]>(
+    let items = await this.redis.get<VoiceExcludedChannelOrm[]>(
       VoiceKeys.excludedChannels(guildId),
     );
 

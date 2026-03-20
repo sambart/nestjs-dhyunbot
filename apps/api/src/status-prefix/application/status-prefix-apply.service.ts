@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ButtonInteraction, GuildMember } from 'discord.js';
 
+import { getErrorStack } from '../../common/util/error.util';
 import { StatusPrefixConfigRepository } from '../infrastructure/status-prefix-config.repository';
 import { StatusPrefixRedisRepository } from '../infrastructure/status-prefix-redis.repository';
 import { StatusPrefixConfigService } from './status-prefix-config.service';
@@ -97,7 +98,7 @@ export class StatusPrefixApplyService {
     } catch (err) {
       this.logger.warn(
         `[STATUS_PREFIX] setNickname failed: guild=${guildId} member=${memberId}`,
-        (err as Error).stack,
+        getErrorStack(err),
       );
       await interaction.reply({
         ephemeral: true,
@@ -116,4 +117,55 @@ export class StatusPrefixApplyService {
       `[STATUS_PREFIX] Apply: guild=${guildId} member=${memberId} nickname="${newNickname}"`,
     );
   }
+
+  /**
+   * Bot에서 호출하는 접두사 적용 (ButtonInteraction 불필요).
+   * 닉네임 변경은 Bot에서 수행하므로 새 닉네임만 반환한다.
+   */
+  async applyFromBot(
+    guildId: string,
+    memberId: string,
+    buttonId: number,
+    currentDisplayName: string,
+  ): Promise<StatusPrefixApplyResult> {
+    const button = await this.configRepo.findButtonById(buttonId);
+    if (!button) {
+      return { success: false, message: '버튼 설정을 찾을 수 없습니다. 관리자에게 문의하세요.' };
+    }
+    if (!button.prefix) {
+      return { success: false, message: '접두사 설정이 올바르지 않습니다. 관리자에게 문의하세요.' };
+    }
+
+    const config = await this.configService.getConfig(guildId);
+    if (!config) {
+      return { success: false, message: '서버 설정을 찾을 수 없습니다. 관리자에게 문의하세요.' };
+    }
+
+    let originalNickname = await this.redis.getOriginalNickname(guildId, memberId);
+    if (!originalNickname) {
+      const strippedName = this.configService.stripPrefixFromNickname(currentDisplayName, config);
+      await this.redis.setOriginalNicknameNx(guildId, memberId, strippedName);
+      originalNickname = strippedName;
+    }
+
+    const newNickname = config.prefixTemplate
+      .replace('{prefix}', button.prefix)
+      .replace('{nickname}', originalNickname);
+
+    this.logger.log(
+      `[STATUS_PREFIX] ApplyFromBot: guild=${guildId} member=${memberId} nickname="${newNickname}"`,
+    );
+
+    return {
+      success: true,
+      newNickname,
+      message: `닉네임이 **${newNickname}** 으로 변경되었습니다.`,
+    };
+  }
+}
+
+export interface StatusPrefixApplyResult {
+  success: boolean;
+  newNickname?: string;
+  message: string;
 }

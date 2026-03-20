@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
 
-import { NewbiePeriod } from '../domain/newbie-period.entity';
+import { NewbiePeriodOrmEntity as NewbiePeriod } from './newbie-period.orm-entity';
 
 @Injectable()
 export class NewbiePeriodRepository {

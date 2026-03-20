@@ -1,0 +1,28 @@
+import { DiscordModule } from '@discord-nestjs/core';
+import { Module } from '@nestjs/common';
+
+import { BotAutoChannelInteractionHandler } from './auto-channel/bot-auto-channel-interaction.handler';
+import { BotChannelStateHandler } from './channel/bot-channel-state.handler';
+import { BotNewbieInteractionHandler } from './newbie/bot-newbie-interaction.handler';
+import { BotNewbieMemberAddHandler } from './newbie/bot-newbie-member-add.handler';
+import { BotStatusPrefixInteractionHandler } from './status-prefix/bot-status-prefix-interaction.handler';
+import { BotStickyMessageHandler } from './sticky-message/bot-sticky-message.handler';
+import { BotVoiceStateDispatcher } from './voice/bot-voice-state.dispatcher';
+
+/**
+ * Discord 이벤트를 수신하여 API로 전달하는 모듈.
+ * API의 DiscordEventsModule을 대체한다.
+ */
+@Module({
+  imports: [DiscordModule.forFeature()],
+  providers: [
+    BotVoiceStateDispatcher,
+    BotNewbieMemberAddHandler,
+    BotNewbieInteractionHandler,
+    BotStatusPrefixInteractionHandler,
+    BotAutoChannelInteractionHandler,
+    BotStickyMessageHandler,
+    BotChannelStateHandler,
+  ],
+})
+export class BotEventModule {}

@@ -1,7 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
+import { formatDurationSecI18n } from "@/app/lib/format-utils";
 import type { VoiceHistoryPage } from "@/app/lib/user-detail-api";
-import { formatDuration } from "@/app/lib/voice-dashboard-api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,28 +21,30 @@ export default function UserHistoryTable({
   currentPage,
   onPageChange,
 }: Props) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const totalPages = data ? Math.ceil(data.total / data.limit) : 1;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>입퇴장 이력</CardTitle>
+        <CardTitle>{t("voice.userDetail.historyTable.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         {loading ? (
           <div className="flex items-center justify-center py-10">
-            <p className="text-muted-foreground">데이터 로딩 중...</p>
+            <p className="text-muted-foreground">{t("common.loading")}</p>
           </div>
         ) : (
           <>
             <div className="space-y-2">
               {/* 헤더 */}
               <div className="grid grid-cols-5 gap-2 border-b pb-2 text-sm font-medium text-muted-foreground">
-                <span>카테고리</span>
-                <span>채널</span>
-                <span>입장 시각</span>
-                <span>퇴장 시각</span>
-                <span>체류 시간</span>
+                <span>{t("voice.userDetail.historyTable.category")}</span>
+                <span>{t("voice.userDetail.historyTable.channel")}</span>
+                <span>{t("voice.userDetail.historyTable.joinAt")}</span>
+                <span>{t("voice.userDetail.historyTable.leftAt")}</span>
+                <span>{t("voice.userDetail.historyTable.duration")}</span>
               </div>
 
               {/* 데이터 행 */}
@@ -51,7 +55,7 @@ export default function UserHistoryTable({
                     className="grid grid-cols-5 gap-2 items-center text-sm py-1"
                   >
                     <span className="truncate text-muted-foreground">
-                      {item.categoryName ?? "미분류"}
+                      {item.categoryName ?? t("voice.userDetail.historyTable.uncategorized")}
                     </span>
                     <span className="truncate font-medium">
                       {item.channelName}
@@ -61,7 +65,7 @@ export default function UserHistoryTable({
                     </span>
                     <span className="text-muted-foreground">
                       {item.leftAt === null ? (
-                        <Badge variant="secondary">접속 중</Badge>
+                        <Badge variant="secondary">{t("voice.userDetail.historyTable.online")}</Badge>
                       ) : (
                         new Date(item.leftAt).toLocaleString("ko-KR")
                       )}
@@ -69,13 +73,13 @@ export default function UserHistoryTable({
                     <span>
                       {item.durationSec === null
                         ? "-"
-                        : formatDuration(item.durationSec)}
+                        : formatDurationSecI18n(item.durationSec, tc)}
                     </span>
                   </div>
                 ))
               ) : (
                 <p className="py-8 text-center text-muted-foreground">
-                  데이터가 없습니다
+                  {t("voice.userDetail.historyTable.noData")}
                 </p>
               )}
             </div>
@@ -93,7 +97,7 @@ export default function UserHistoryTable({
                     disabled={currentPage <= 1}
                     onClick={() => onPageChange(currentPage - 1)}
                   >
-                    이전
+                    {t("common.prev")}
                   </Button>
                   <Button
                     variant="outline"
@@ -101,7 +105,7 @@ export default function UserHistoryTable({
                     disabled={currentPage >= totalPages}
                     onClick={() => onPageChange(currentPage + 1)}
                   >
-                    다음
+                    {t("common.next")}
                   </Button>
                 </div>
               </div>

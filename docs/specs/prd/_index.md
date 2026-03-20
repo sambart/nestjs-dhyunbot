@@ -43,10 +43,11 @@ libs/shared/  → 공유 타입 및 상수
 ## 핵심 기능 요약
 
 ### 1. 음성 채널 활동 추적 (voice)
-- 실시간 음성 이벤트 감지 (입장/퇴장/이동/마이크 토글)
+- 실시간 음성 이벤트 감지 (입장/퇴장/이동/마이크 토글/화면 공유/카메라/스피커 음소거)
 - Redis 기반 세션 시간 누적 (TTL 관리)
 - PostgreSQL 일별 통계 flush (GLOBAL + 개별 채널)
 - 서버 크래시 복구를 위한 세션 flush 전략
+- 음성 참여 중 유저의 게임 활동 수집 (GuildPresences 인텐트 기반, CoPresenceScheduler 60초 틱 활용)
 
 ### 2. AI 음성 분석 (gemini)
 - `/voice-stats` — 서버 전체 음성 활동 AI 분석 (Gemini)
@@ -55,9 +56,13 @@ libs/shared/  → 공유 타입 및 상수
 - `/voice-leaderboard` — 음성 활동 리더보드
 
 ### 3. 음악 재생 (music)
-- `/play` — YouTube 음악 재생
+- `/play` — YouTube · Spotify · SoundCloud URL 및 검색어 기반 음악 재생 (플레이리스트 일괄 큐 추가 포함)
 - `/skip` — 현재 곡 건너뛰기
 - `/stop` — 재생 중지 및 채널 퇴장
+- `/pause` — 일시정지
+- `/resume` — 재개
+- 모든 커맨드 응답에 Now Playing Embed (트랙 제목, 아티스트, 진행바, 현재시간/총시간) 포함
+- 오디오 처리: Lavalink v4(Docker) + Kazagumo v3(Shoukaku v4 래퍼)
 
 ### 4. 인증 (auth)
 - Discord OAuth2 로그인
@@ -68,6 +73,10 @@ libs/shared/  → 공유 타입 및 상수
 - Discord OAuth 로그인 흐름
 - 대시보드 (프로토타입 단계)
 - 자동방 설정 UI (서버별 트리거 채널, 버튼 구성, 네이밍 규칙 설정)
+- 시작 가이드 (Getting Started 위자드)
+- 도움말 페이지 (FAQ)
+- 개인정보처리방침/이용약관
+- 에러 바운더리
 
 ### 6. 자동방 생성 (auto-channel)
 - 트리거 채널 입장 시 대기방 자동 생성 및 사용자 이동
@@ -113,6 +122,17 @@ libs/shared/  → 공유 타입 및 상수
 - DM 알림 전송, 역할 부여/제거 일괄 조치 및 자동 조치 규칙 설정
 - 활동률 파이 차트 및 주/월별 비활동 추이 라인 차트
 
+### 13. 데이터 보존 및 삭제
+- 90일 자동 삭제 스케줄러 (매일 04:00 KST, `DATA_RETENTION_DAYS` 환경변수)
+- 삭제 대상: `VoiceDailyEntity`, `VoiceChannelHistory`, `VoiceCoPresencePairDaily`, `VoiceGameActivity`
+- 사용자 데이터 삭제 API (`DELETE /api/users/me/data`) — 본인 음성 활동 데이터 전 길드 삭제
+
+### 14. API 보안
+- Rate Limiting: 전역 60 req/min, auth 5 req/min, voice-analytics 10 req/min (`@nestjs/throttler`)
+- 보안 헤더: `helmet` 미들웨어 (CSP, X-Frame-Options, HSTS 등)
+- Guild 접근 제어: `GuildMembershipGuard` — JWT guilds 목록과 요청 guildId 대조, `/api/guilds/:guildId/*` 전역 적용
+- Health Check: `GET /health` (PostgreSQL + Redis + Discord Gateway), `GET /health/liveness` (`@nestjs/terminus`)
+
 ## 데이터베이스 엔티티
 
 | 엔티티 | 테이블 | 역할 |
@@ -120,7 +140,9 @@ libs/shared/  → 공유 타입 및 상수
 | Member | public.member | 디스코드 유저 정보 (discordMemberId, nickName) |
 | Channel | public.channel | 디스코드 채널 정보 (discordChannelId, channelName, status) |
 | VoiceChannelHistory | public.voice_channel_history | 음성 입/퇴장 이력 (joinAt, leftAt, duration) |
-| VoiceDailyEntity | voice_daily | 일별 집계 통계 (channelDurationSec, micOnSec, micOffSec, aloneSec) |
+| VoiceDailyEntity | voice_daily | 일별 집계 통계 (channelDurationSec, micOnSec, micOffSec, aloneSec, streamingSec, videoOnSec, deafSec) |
+| VoiceGameActivity | voice_game_activity | 음성 채널 내 게임 세션 단위 이력 (guildId, userId, channelId, gameName, applicationId, startedAt, endedAt, durationMin). 90일 보존 |
+| VoiceGameDaily | voice_game_daily | 게임 일별 집계 (guildId, userId, gameName, date, totalMinutes, sessionCount). 영구 보존 |
 | VoiceExcludedChannel | voice_excluded_channel | 음성 시간 제외 채널 설정 (guildId, channelId, type: CHANNEL/CATEGORY) |
 | AutoChannelConfig | auto_channel_config | 자동방 설정 (guildId, triggerChannelId, 대기방 템플릿, 안내 메시지) |
 | AutoChannelButton | auto_channel_button | 자동방 버튼 목록 (label, emoji, targetCategoryId) |

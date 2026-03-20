@@ -5,21 +5,21 @@ import { VoiceDailyRepository } from '../infrastructure/voice-daily.repository';
 
 @Injectable()
 export class VoiceDailyService {
-  constructor(
-    private readonly voiceDailyRepository: VoiceDailyRepository,
-  ) {}
+  constructor(private readonly voiceDailyRepository: VoiceDailyRepository) {}
 
   async getDailyRecords(
     guildId: string,
     from: string,
     to: string,
     userId?: string,
+    timezone?: string,
   ): Promise<VoiceDailyRecordDto[]> {
     const entities = await this.voiceDailyRepository.findByGuildIdAndDateRange(
       guildId,
       from,
       to,
       userId,
+      timezone,
     );
     return entities.map((e) => ({
       guildId: e.guildId,

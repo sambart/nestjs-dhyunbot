@@ -1,11 +1,12 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Client, EmbedBuilder, Guild } from 'discord.js';
+import { Injectable, Logger } from '@nestjs/common';
+import { EmbedBuilder } from 'discord.js';
 
-import { InactiveMemberActionType } from '../domain/inactive-member-action-log.entity';
-import { InactiveMemberConfig } from '../domain/inactive-member-config.entity';
-import { InactiveMemberGrade } from '../domain/inactive-member-record.entity';
+import { DomainException } from '../../common/domain-exception';
+import { getErrorStack } from '../../common/util/error.util';
+import { InactiveMemberActionType, InactiveMemberGrade } from '../domain/inactive-member.types';
 import { InactiveMemberRepository } from '../infrastructure/inactive-member.repository';
+import type { InactiveMemberConfigOrm } from '../infrastructure/inactive-member-config.orm-entity';
+import { InactiveMemberDiscordAdapter } from '../infrastructure/inactive-member-discord.adapter';
 import { InactiveMemberService } from './inactive-member.service';
 
 export interface ActionResult {
@@ -15,6 +16,8 @@ export interface ActionResult {
   logId: number;
 }
 
+const CONCURRENCY = 5;
+
 @Injectable()
 export class InactiveMemberActionService {
   private readonly logger = new Logger(InactiveMemberActionService.name);
@@ -22,7 +25,7 @@ export class InactiveMemberActionService {
   constructor(
     private readonly repo: InactiveMemberRepository,
     private readonly inactiveMemberService: InactiveMemberService,
-    @InjectDiscordClient() private readonly discord: Client,
+    private readonly discordAdapter: InactiveMemberDiscordAdapter,
   ) {}
 
   async executeAction(
@@ -32,37 +35,50 @@ export class InactiveMemberActionService {
     executorUserId: string | null = null,
   ): Promise<ActionResult> {
     const config = await this.inactiveMemberService.getOrCreateConfig(guildId);
-    const guild = (await this.discord.guilds.fetch(guildId)) as Guild;
+    const guild = await this.discordAdapter.fetchGuild(guildId);
+    if (!guild) {
+      throw new DomainException('길드를 찾을 수 없습니다.', 'GUILD_NOT_FOUND');
+    }
 
+    const guildName = guild.name;
     let successCount = 0;
     let failCount = 0;
 
     if (actionType === InactiveMemberActionType.ACTION_DM) {
-      ({ successCount, failCount } = await this.executeDmAction(guild, config, targetUserIds));
+      ({ successCount, failCount } = await this.executeDmAction(
+        guildId,
+        guildName,
+        config,
+        targetUserIds,
+      ));
     } else if (actionType === InactiveMemberActionType.ACTION_ROLE_ADD) {
       if (!config.inactiveRoleId) {
-        throw new NotFoundException(
+        throw new DomainException(
           'inactiveRoleId가 설정되지 않아 역할 부여를 실행할 수 없습니다.',
+          'INACTIVE_ROLE_NOT_CONFIGURED',
         );
       }
       ({ successCount, failCount } = await this.executeRoleAction(
-        guild,
+        guildId,
         targetUserIds,
         config.inactiveRoleId,
         'add',
       ));
     } else if (actionType === InactiveMemberActionType.ACTION_ROLE_REMOVE) {
       if (!config.removeRoleId) {
-        throw new NotFoundException('removeRoleId가 설정되지 않아 역할 제거를 실행할 수 없습니다.');
+        throw new DomainException(
+          'removeRoleId가 설정되지 않아 역할 제거를 실행할 수 없습니다.',
+          'REMOVE_ROLE_NOT_CONFIGURED',
+        );
       }
       ({ successCount, failCount } = await this.executeRoleAction(
-        guild,
+        guildId,
         targetUserIds,
         config.removeRoleId,
         'remove',
       ));
     } else if (actionType === InactiveMemberActionType.ACTION_KICK) {
-      ({ successCount, failCount } = await this.executeKickAction(guild, targetUserIds));
+      ({ successCount, failCount } = await this.executeKickAction(guildId, targetUserIds));
     }
 
     const log = await this.repo.saveActionLog({
@@ -91,7 +107,7 @@ export class InactiveMemberActionService {
           null,
         );
       } catch (err) {
-        this.logger.error(`[INACTIVE] Auto role add failed guild=${guildId}`, (err as Error).stack);
+        this.logger.error(`[INACTIVE] Auto role add failed guild=${guildId}`, getErrorStack(err));
       }
     }
 
@@ -104,37 +120,33 @@ export class InactiveMemberActionService {
           null,
         );
       } catch (err) {
-        this.logger.error(`[INACTIVE] Auto DM failed guild=${guildId}`, (err as Error).stack);
+        this.logger.error(`[INACTIVE] Auto DM failed guild=${guildId}`, getErrorStack(err));
       }
     }
   }
 
   private async executeKickAction(
-    guild: Guild,
+    guildId: string,
     targetUserIds: string[],
   ): Promise<{ successCount: number; failCount: number }> {
     let successCount = 0;
     let failCount = 0;
 
-    for (const userId of targetUserIds) {
-      try {
-        const member = await guild.members.fetch(userId).catch(() => null);
-        if (!member) {
-          failCount++;
-          continue;
-        }
-
-        if (!member.kickable) {
-          this.logger.warn(`[INACTIVE] Kick not permitted userId=${userId} (role hierarchy)`);
-          failCount++;
-          continue;
-        }
-
-        await member.kick('비활동 회원 관리 — 강제퇴장');
-        successCount++;
-      } catch (err) {
-        this.logger.warn(`[INACTIVE] Kick failed userId=${userId}`, (err as Error).stack);
-        failCount++;
+    for (let i = 0; i < targetUserIds.length; i += CONCURRENCY) {
+      const batch = targetUserIds.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(async (userId) => {
+          const isSuccess = await this.discordAdapter.kickMember(
+            guildId,
+            userId,
+            '비활동 회원 관리 — 강제퇴장',
+          );
+          if (!isSuccess) throw new Error('kick failed');
+        }),
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled') successCount++;
+        else failCount++;
       }
     }
 
@@ -142,27 +154,30 @@ export class InactiveMemberActionService {
   }
 
   private async executeDmAction(
-    guild: Guild,
-    config: InactiveMemberConfig,
+    guildId: string,
+    guildName: string,
+    config: InactiveMemberConfigOrm,
     targetUserIds: string[],
   ): Promise<{ successCount: number; failCount: number }> {
     let successCount = 0;
     let failCount = 0;
 
-    for (const userId of targetUserIds) {
-      try {
-        const member = await guild.members.fetch(userId).catch(() => null);
-        if (!member) {
-          failCount++;
-          continue;
-        }
+    // displayName 일괄 조회
+    const displayNames = await this.discordAdapter.fetchMemberDisplayNames(guildId, targetUserIds);
 
-        const embed = this.buildDmEmbed(config, member.displayName, guild.name);
-        await member.send({ embeds: [embed] });
-        successCount++;
-      } catch (err) {
-        this.logger.warn(`[INACTIVE] DM failed userId=${userId}`, (err as Error).stack);
-        failCount++;
+    for (let i = 0; i < targetUserIds.length; i += CONCURRENCY) {
+      const batch = targetUserIds.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(async (userId) => {
+          const displayName = displayNames[userId] ?? userId;
+          const embed = this.buildDmEmbed(config, displayName, guildName);
+          const isSuccess = await this.discordAdapter.sendDm(guildId, userId, embed);
+          if (!isSuccess) throw new Error('dm failed');
+        }),
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled') successCount++;
+        else failCount++;
       }
     }
 
@@ -170,7 +185,7 @@ export class InactiveMemberActionService {
   }
 
   private async executeRoleAction(
-    guild: Guild,
+    guildId: string,
     targetUserIds: string[],
     roleId: string,
     action: 'add' | 'remove',
@@ -178,23 +193,17 @@ export class InactiveMemberActionService {
     let successCount = 0;
     let failCount = 0;
 
-    for (const userId of targetUserIds) {
-      try {
-        const member = await guild.members.fetch(userId).catch(() => null);
-        if (!member) {
-          failCount++;
-          continue;
-        }
-
-        if (action === 'add') {
-          await member.roles.add(roleId);
-        } else {
-          await member.roles.remove(roleId);
-        }
-        successCount++;
-      } catch (err) {
-        this.logger.warn(`[INACTIVE] Role ${action} failed userId=${userId}`, (err as Error).stack);
-        failCount++;
+    for (let i = 0; i < targetUserIds.length; i += CONCURRENCY) {
+      const batch = targetUserIds.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(async (userId) => {
+          const isSuccess = await this.discordAdapter.modifyRole(guildId, userId, roleId, action);
+          if (!isSuccess) throw new Error('role action failed');
+        }),
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled') successCount++;
+        else failCount++;
       }
     }
 
@@ -202,7 +211,7 @@ export class InactiveMemberActionService {
   }
 
   private buildDmEmbed(
-    config: InactiveMemberConfig,
+    config: InactiveMemberConfigOrm,
     nickName: string,
     serverName: string,
   ): EmbedBuilder {
@@ -218,7 +227,6 @@ export class InactiveMemberActionService {
     const embed = new EmbedBuilder().setTitle(title).setDescription(body);
 
     if (config.dmEmbedColor) {
-      // hex 색상 코드를 숫자로 변환
       const colorHex = config.dmEmbedColor.replace('#', '');
       embed.setColor(parseInt(colorHex, 16));
     }

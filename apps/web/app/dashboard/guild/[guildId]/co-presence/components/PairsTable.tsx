@@ -1,10 +1,12 @@
 "use client";
 
 import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import type { PairItem, PairsResponse } from "@/app/lib/co-presence-api";
-import { fetchPairs, formatMinutes, formatShortDate } from "@/app/lib/co-presence-api";
+import { fetchPairs, formatShortDate } from "@/app/lib/co-presence-api";
+import { formatMinutesI18n } from "@/app/lib/format-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import PairDetailModal from "./PairDetailModal";
@@ -37,6 +39,8 @@ function SortIcon({ column, currentSortBy, currentSortOrder }: SortIconProps) {
 }
 
 export default function PairsTable({ guildId, days }: PairsTableProps) {
+  const t = useTranslations("dashboard");
+  const tc = useTranslations("common");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [page, setPage] = useState(1);
@@ -78,13 +82,13 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
     } catch (err) {
       if (mountedRef.current) {
         setError(
-          err instanceof Error ? err.message : '관계 데이터를 불러오는데 실패했습니다.',
+          err instanceof Error ? err.message : t("common.loadFailed"),
         );
       }
     } finally {
       if (mountedRef.current) setTableLoading(false);
     }
-  }, [guildId, days, search, page, sortBy, sortOrder]);
+  }, [guildId, days, search, page, sortBy, sortOrder, t]);
 
   useEffect(() => {
     void loadPairs();
@@ -143,12 +147,12 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <CardTitle>관계 상세 테이블</CardTitle>
+            <CardTitle>{t("coPresence.pairsTable.title")}</CardTitle>
             <input
               type="text"
               value={searchInput}
               onChange={handleSearchInputChange}
-              placeholder="닉네임으로 검색..."
+              placeholder={t("coPresence.pairsTable.searchPlaceholder")}
               className="w-[220px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -162,21 +166,21 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
 
           {tableLoading ? (
             <div className="flex items-center justify-center py-10">
-              <div className="text-muted-foreground">목록 로딩 중...</div>
+              <div className="text-muted-foreground">{t("common.loadingList")}</div>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className={thClass}>유저A</th>
-                    <th className={thClass}>유저B</th>
+                    <th className={thClass}>{t("coPresence.pairsTable.userA")}</th>
+                    <th className={thClass}>{t("coPresence.pairsTable.userB")}</th>
                     <th
                       className={`${thSortClass} text-right`}
                       onClick={() => handleSortClick("totalMinutes")}
                     >
                       <span className="inline-flex items-center justify-end w-full">
-                        총 동시접속 시간
+                        {t("coPresence.pairsTable.totalTime")}
                         <SortIcon
                           column="totalMinutes"
                           currentSortBy={sortBy}
@@ -189,7 +193,7 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
                       onClick={() => handleSortClick("sessionCount")}
                     >
                       <span className="inline-flex items-center justify-end w-full">
-                        세션 수
+                        {t("coPresence.pairsTable.sessionCount")}
                         <SortIcon
                           column="sessionCount"
                           currentSortBy={sortBy}
@@ -202,7 +206,7 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
                       onClick={() => handleSortClick("lastDate")}
                     >
                       <span className="inline-flex items-center justify-end w-full">
-                        마지막 함께한 날짜
+                        {t("coPresence.pairsTable.lastDate")}
                         <SortIcon
                           column="lastDate"
                           currentSortBy={sortBy}
@@ -219,7 +223,7 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
                         colSpan={5}
                         className="py-10 text-center text-muted-foreground"
                       >
-                        검색 결과가 없습니다.
+                        {t("coPresence.pairsTable.noData")}
                       </td>
                     </tr>
                   ) : (
@@ -236,7 +240,7 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
                           {item.userB.userName}
                         </td>
                         <td className="py-3 text-right text-muted-foreground">
-                          {formatMinutes(item.totalMinutes)}
+                          {formatMinutesI18n(item.totalMinutes, tc)}
                         </td>
                         <td className="py-3 text-right text-muted-foreground">
                           {item.sessionCount}
@@ -255,7 +259,7 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
           {/* 페이지네이션 */}
           <div className="mt-4 flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
-              {page} / {totalPages} 페이지 (총 {data?.total ?? 0}쌍)
+              {t("coPresence.pairsTable.pagination", { page, totalPages, total: data?.total ?? 0 })}
             </span>
             <div className="flex gap-2">
               <button
@@ -264,7 +268,7 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
                 onClick={() => setPage((p) => p - 1)}
                 className="px-3 py-1.5 rounded-lg border border-input text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                이전
+                {t("common.prev")}
               </button>
               <button
                 type="button"
@@ -272,7 +276,7 @@ export default function PairsTable({ guildId, days }: PairsTableProps) {
                 onClick={() => setPage((p) => p + 1)}
                 className="px-3 py-1.5 rounded-lg border border-input text-sm font-medium hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                다음
+                {t("common.next")}
               </button>
             </div>
           </div>

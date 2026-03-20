@@ -1,10 +1,11 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Client, EmbedBuilder, TextChannel } from 'discord.js';
+import { EmbedBuilder } from 'discord.js';
 
-import { StickyMessageConfig } from '../domain/sticky-message-config.entity';
+import { getErrorStack } from '../../common/util/error.util';
 import { StickyMessageSaveDto } from '../dto/sticky-message-save.dto';
+import { StickyMessageConfigOrm } from '../infrastructure/sticky-message-config.orm-entity';
 import { StickyMessageConfigRepository } from '../infrastructure/sticky-message-config.repository';
+import { StickyMessageDiscordAdapter } from '../infrastructure/sticky-message-discord.adapter';
 import { StickyMessageRedisRepository } from '../infrastructure/sticky-message-redis.repository';
 import { STICKY_FOOTER_MARKER } from '../sticky-message.constants';
 
@@ -15,14 +16,14 @@ export class StickyMessageConfigService {
   constructor(
     private readonly configRepo: StickyMessageConfigRepository,
     private readonly redisRepo: StickyMessageRedisRepository,
-    @InjectDiscordClient() private readonly client: Client,
+    private readonly discordAdapter: StickyMessageDiscordAdapter,
   ) {}
 
   /**
    * 설정 목록 조회 (F-STICKY-001).
    * Redis 캐시 우선, 미스 시 DB 조회 후 캐시 저장.
    */
-  async getConfigs(guildId: string): Promise<StickyMessageConfig[]> {
+  async getConfigs(guildId: string): Promise<StickyMessageConfigOrm[]> {
     const cached = await this.redisRepo.getConfig(guildId);
     if (cached) return cached;
 
@@ -40,7 +41,7 @@ export class StickyMessageConfigService {
    *   2. Redis 설정 캐시 갱신
    *   3. enabled = true이면 기존 메시지 삭제 후 신규 Embed 전송 및 messageId 갱신
    */
-  async saveConfig(guildId: string, dto: StickyMessageSaveDto): Promise<StickyMessageConfig> {
+  async saveConfig(guildId: string, dto: StickyMessageSaveDto): Promise<StickyMessageConfigOrm> {
     // 1. DB save
     const config = await this.configRepo.save(guildId, dto);
 
@@ -61,7 +62,7 @@ export class StickyMessageConfigService {
       } catch (err) {
         this.logger.error(
           `[STICKY_MESSAGE] Failed to send embed: guild=${guildId} channel=${config.channelId}`,
-          (err as Error).stack,
+          getErrorStack(err),
         );
         throw err;
       }
@@ -122,33 +123,17 @@ export class StickyMessageConfigService {
       embedColor: string | null;
     },
   ): Promise<string> {
-    const channel = await this.client.channels.fetch(channelId);
-
-    if (!channel?.isTextBased()) {
-      throw new Error(`Channel ${channelId} is not a text-based channel`);
-    }
-
     const embed = new EmbedBuilder();
     if (config.embedTitle) embed.setTitle(config.embedTitle);
     if (config.embedDescription) embed.setDescription(config.embedDescription);
     if (config.embedColor) embed.setColor(config.embedColor as `#${string}`);
     embed.setFooter({ text: STICKY_FOOTER_MARKER });
 
-    const message = await (channel as TextChannel).send({ embeds: [embed] });
-    return message.id;
+    return this.discordAdapter.sendMessage(channelId, { embeds: [embed.toJSON()] });
   }
 
   /** Discord 메시지 삭제 시도. 실패 시 warn 로그 후 무시. */
   private async tryDeleteMessage(channelId: string, messageId: string): Promise<void> {
-    try {
-      const channel = await this.client.channels.fetch(channelId);
-      if (!channel?.isTextBased()) return;
-      const message = await (channel as TextChannel).messages.fetch(messageId);
-      await message.delete();
-    } catch (err) {
-      this.logger.warn(
-        `[STICKY_MESSAGE] Failed to delete message ${messageId} in channel ${channelId}: ${(err as Error).message}`,
-      );
-    }
+    await this.discordAdapter.deleteMessage(channelId, messageId);
   }
 }

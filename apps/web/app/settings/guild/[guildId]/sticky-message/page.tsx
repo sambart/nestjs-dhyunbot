@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2, Pin, RefreshCw, Server, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
 import GuildEmojiPicker from '../../../../components/GuildEmojiPicker';
@@ -51,6 +52,7 @@ const DEFAULT_EMBED_COLOR = '#5865F2';
 
 export default function StickyMessageSettingsPage() {
   const { selectedGuildId } = useSettings();
+  const t = useTranslations('settings');
 
   const [tabs, setTabs] = useState<TabForm[]>([]);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
@@ -83,7 +85,7 @@ export default function StickyMessageSettingsPage() {
       const ch = channels.find((c) => c.id === tab.channelId);
       if (ch) return `# ${ch.name}`;
     }
-    return '새 고정메세지';
+    return t('stickyMessage.newTab');
   };
 
   // ─── 초기 데이터 로드 ─────────────────────────────────────────────────────
@@ -164,7 +166,7 @@ export default function StickyMessageSettingsPage() {
 
   const updateTab = (clientKey: number, patch: Partial<TabForm>) => {
     setTabs((prev) =>
-      prev.map((t) => (t.clientKey === clientKey ? { ...t, ...patch } : t)),
+      prev.map((tab) => (tab.clientKey === clientKey ? { ...tab, ...patch } : tab)),
     );
   };
 
@@ -172,7 +174,7 @@ export default function StickyMessageSettingsPage() {
 
   const insertEmojiAtCursor = (clientKey: number, insertText: string) => {
     const textarea = embedDescRefs.current.get(clientKey);
-    const tab = tabs.find((t) => t.clientKey === clientKey);
+    const tab = tabs.find((tab) => tab.clientKey === clientKey);
     if (!tab) return;
     const currentValue = tab.embedDescription;
 
@@ -195,7 +197,7 @@ export default function StickyMessageSettingsPage() {
   // ─── 저장 핸들러 ──────────────────────────────────────────────────────────
 
   const handleSave = async (clientKey: number) => {
-    const tab = tabs.find((t) => t.clientKey === clientKey);
+    const tab = tabs.find((tab) => tab.clientKey === clientKey);
     if (!tab || !selectedGuildId) return;
 
     const state = getTabState(clientKey);
@@ -203,7 +205,7 @@ export default function StickyMessageSettingsPage() {
 
     // 유효성 검사: channelId 필수
     if (!tab.channelId) {
-      setTabState(clientKey, { saveError: '채널을 선택해주세요.' });
+      setTabState(clientKey, { saveError: t('stickyMessage.validationChannel') });
       return;
     }
 
@@ -230,7 +232,7 @@ export default function StickyMessageSettingsPage() {
     } catch (err) {
       setTabState(clientKey, {
         isSaving: false,
-        saveError: err instanceof Error ? err.message : '저장에 실패했습니다.',
+        saveError: err instanceof Error ? err.message : t('common.saveError'),
       });
     }
   };
@@ -248,9 +250,7 @@ export default function StickyMessageSettingsPage() {
       return;
     }
 
-    const confirmed = window.confirm(
-      '이 고정메세지를 삭제하면 채널에서도 즉시 제거됩니다. 삭제하시겠습니까?',
-    );
+    const confirmed = window.confirm(t('stickyMessage.deleteConfirm'));
     if (!confirmed) return;
 
     setTabState(tab.clientKey, { isDeleting: true, saveError: null });
@@ -266,7 +266,7 @@ export default function StickyMessageSettingsPage() {
     } catch (err) {
       setTabState(tab.clientKey, {
         isDeleting: false,
-        saveError: err instanceof Error ? err.message : '삭제에 실패했습니다.',
+        saveError: err instanceof Error ? err.message : t('stickyMessage.deleteError'),
       });
     }
   };
@@ -293,11 +293,11 @@ export default function StickyMessageSettingsPage() {
   if (!selectedGuildId) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">고정메세지 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('stickyMessage.title')}</h1>
         <section className="bg-white rounded-xl border border-gray-200 p-8">
           <div className="flex flex-col items-center text-center py-8">
             <Server className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="text-sm text-gray-500">사이드바에서 서버를 선택하세요.</p>
+            <p className="text-sm text-gray-500">{t('common.selectServer')}</p>
           </div>
         </section>
       </div>
@@ -307,7 +307,7 @@ export default function StickyMessageSettingsPage() {
   if (isLoading) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">고정메세지 설정</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('stickyMessage.title')}</h1>
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
         </div>
@@ -326,17 +326,17 @@ export default function StickyMessageSettingsPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <Pin className="w-6 h-6 text-indigo-600" />
-          <h1 className="text-2xl font-bold text-gray-900">고정메세지 설정</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('stickyMessage.title')}</h1>
         </div>
         <button
           type="button"
           onClick={refreshChannels}
           disabled={isRefreshing}
-          title="채널 목록 새로고침"
+          title={t('common.refreshChannels')}
           className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>채널 새로고침</span>
+          <span>{t('common.refreshChannels')}</span>
         </button>
       </div>
 
@@ -362,11 +362,12 @@ export default function StickyMessageSettingsPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
+                    // Radix UI 이벤트 타입 불일치 — React.MouseEvent로 변환
                     handleDelete(idx, e as unknown as React.MouseEvent);
                   }
                 }}
                 className="flex items-center justify-center w-4 h-4 rounded-full hover:bg-red-100 hover:text-red-500 text-gray-400 transition-colors"
-                aria-label="탭 삭제"
+                aria-label={t('stickyMessage.tabDeleteAriaLabel')}
               >
                 <X className="w-3 h-3" />
               </span>
@@ -378,7 +379,7 @@ export default function StickyMessageSettingsPage() {
           onClick={addTab}
           className="px-4 py-3 text-sm font-medium text-indigo-500 border-b-2 border-transparent hover:text-indigo-700 hover:border-indigo-300 whitespace-nowrap transition-colors"
         >
-          + 추가
+          {t('common.tabAdd')}
         </button>
       </div>
 
@@ -388,7 +389,7 @@ export default function StickyMessageSettingsPage() {
           <div className="space-y-6">
             {/* 섹션: 채널 설정 */}
             <div>
-              <h2 className="text-sm font-semibold text-gray-900 mb-3">채널 설정</h2>
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">{t('stickyMessage.channelSettings')}</h2>
               <div className="space-y-4">
 
                 {/* 텍스트 채널 선택 */}
@@ -397,7 +398,7 @@ export default function StickyMessageSettingsPage() {
                     htmlFor={`sm-channel-${activeTab.clientKey}`}
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    텍스트 채널 <span className="text-red-500">*</span>
+                    {t('stickyMessage.textChannelRequired')}
                   </label>
                   <select
                     id={`sm-channel-${activeTab.clientKey}`}
@@ -407,7 +408,7 @@ export default function StickyMessageSettingsPage() {
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="">채널을 선택하세요</option>
+                    <option value="">{t('common.channelSelect')}</option>
                     {channels.map((ch) => (
                       <option key={ch.id} value={ch.id}>
                         # {ch.name}
@@ -416,20 +417,20 @@ export default function StickyMessageSettingsPage() {
                   </select>
                   {channels.length === 0 && (
                     <p className="text-xs text-gray-400 mt-1">
-                      채널 목록을 불러올 수 없습니다. 백엔드 연동 후 사용 가능합니다.
+                      {t('stickyMessage.noChannels')}
                     </p>
                   )}
                   <p className="text-xs text-gray-400 mt-1">
-                    고정메세지를 표시할 텍스트 채널
+                    {t('stickyMessage.textChannelDesc')}
                   </p>
                 </div>
 
                 {/* 기능 활성화 토글 */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">기능 활성화</p>
+                    <p className="text-sm font-medium text-gray-900">{t('stickyMessage.enableFeature')}</p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      활성화 시 저장 즉시 지정 채널에 고정메세지가 전송/갱신됩니다.
+                      {t('stickyMessage.enableFeatureDesc')}
                     </p>
                   </div>
                   <button
@@ -459,7 +460,7 @@ export default function StickyMessageSettingsPage() {
 
             {/* 섹션: Embed 설정 */}
             <div>
-              <h2 className="text-sm font-semibold text-gray-900 mb-3">Embed 설정</h2>
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">{t('stickyMessage.embedSettings')}</h2>
               <div className="space-y-4">
 
                 {/* Embed 제목 */}
@@ -468,7 +469,7 @@ export default function StickyMessageSettingsPage() {
                     htmlFor={`sm-title-${activeTab.clientKey}`}
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Embed 제목
+                    {t('common.embedTitle')}
                   </label>
                   <input
                     id={`sm-title-${activeTab.clientKey}`}
@@ -488,7 +489,7 @@ export default function StickyMessageSettingsPage() {
                     htmlFor={`sm-desc-${activeTab.clientKey}`}
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Embed 설명
+                    {t('common.embedDescription')}
                   </label>
                   <textarea
                     ref={(el) => {
@@ -518,7 +519,7 @@ export default function StickyMessageSettingsPage() {
                 {/* Embed 색상 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Embed 색상
+                    {t('common.embedColor')}
                   </label>
                   <div className="flex items-center space-x-3">
                     <input
@@ -527,7 +528,7 @@ export default function StickyMessageSettingsPage() {
                       onChange={(e) =>
                         updateTab(activeTab.clientKey, { embedColor: e.target.value })
                       }
-                      aria-label="Embed 색상 피커"
+                      aria-label={t('common.embedColorPicker')}
                       className="h-9 w-16 border border-gray-300 rounded cursor-pointer p-1"
                     />
                     <input
@@ -541,7 +542,7 @@ export default function StickyMessageSettingsPage() {
                       }}
                       maxLength={7}
                       placeholder="#5865F2"
-                      aria-label="Embed 색상 HEX 코드"
+                      aria-label={t('common.embedColorHex')}
                       className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
@@ -549,7 +550,7 @@ export default function StickyMessageSettingsPage() {
 
                 {/* Embed 미리보기 */}
                 <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">미리보기</p>
+                  <p className="text-sm font-medium text-gray-700 mb-2">{t('common.preview')}</p>
                   <div className="bg-[#2B2D31] rounded-lg p-4">
                     <div
                       className="bg-[#313338] rounded-md overflow-hidden"
@@ -559,10 +560,10 @@ export default function StickyMessageSettingsPage() {
                     >
                       <div className="p-4">
                         <p className="text-white font-semibold text-sm mb-1 break-words">
-                          {activeTab.embedTitle || '(제목 없음)'}
+                          {activeTab.embedTitle || t('common.noTitle')}
                         </p>
                         <p className="text-gray-300 text-xs whitespace-pre-wrap break-words">
-                          {activeTab.embedDescription || '(설명 없음)'}
+                          {activeTab.embedDescription || t('common.noDescription')}
                         </p>
                       </div>
                     </div>
@@ -577,7 +578,7 @@ export default function StickyMessageSettingsPage() {
               <div className="flex-1">
                 {activeState.saveSuccess && (
                   <p className="text-sm text-green-600 font-medium">
-                    저장되었습니다.
+                    {t('common.saveSuccess')}
                   </p>
                 )}
                 {activeState.saveError && (
@@ -592,7 +593,7 @@ export default function StickyMessageSettingsPage() {
                 disabled={activeState.isSaving || activeState.isDeleting}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
               >
-                {activeState.isSaving ? '저장 중...' : '저장'}
+                {activeState.isSaving ? t('common.saving') : t('common.save')}
               </button>
             </div>
           </div>
