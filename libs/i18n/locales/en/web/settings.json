@@ -77,7 +77,7 @@
     "modeSelectDesc": "Creates a channel after selecting a game from the guide message",
     "instantCategory": "Creation Category",
     "instantNameTemplate": "Channel Name Template (optional)",
-    "instantNameTemplateDesc": "Variables: {username} — user nickname, {n} — auto-increment number",
+    "instantNameTemplateDesc": "Variables: '{'username'}' — user nickname, '{'n'}' — auto-increment number",
     "stepTrigger": "Trigger Settings",
     "stepChannelCreate": "Channel Creation Settings",
     "stepGuideMessage": "Guide Message Settings",

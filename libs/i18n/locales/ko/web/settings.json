@@ -77,7 +77,7 @@
     "modeSelectDesc": "안내 메시지에서 게임 선택 후 채널 생성",
     "instantCategory": "생성 카테고리",
     "instantNameTemplate": "채널명 템플릿 (선택)",
-    "instantNameTemplateDesc": "변수: {username} — 유저 닉네임, {n} — 자동 증가 번호",
+    "instantNameTemplateDesc": "변수: '{'username'}' — 유저 닉네임, '{'n'}' — 자동 증가 번호",
     "stepTrigger": "트리거 설정",
     "stepChannelCreate": "채널 생성 설정",
     "stepGuideMessage": "안내 메시지 설정",
