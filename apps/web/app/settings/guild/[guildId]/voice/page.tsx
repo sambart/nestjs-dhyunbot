@@ -69,7 +69,9 @@ export default function VoiceSettingsPage() {
         setChannelOptions(options);
         setSelectedIds(excludedIds);
       })
-      .catch(() => {})
+      .catch(() => {
+        setSaveError(t('common.loadError'));
+      })
       .finally(() => setIsLoading(false));
   }, [selectedGuildId]);
 

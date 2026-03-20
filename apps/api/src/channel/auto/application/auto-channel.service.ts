@@ -185,7 +185,17 @@ export class AutoChannelService {
 
     if (button.subOptions.length === 0) {
       // 하위 선택지 없음 → 즉시 확정방 생성
-      await this.convertToConfirmed({ interaction, guildId, userId, member, button });
+      try {
+        await this.convertToConfirmed({ interaction, guildId, userId, member, button });
+      } catch (error) {
+        this.logger.error(
+          `[AUTO CHANNEL] convertToConfirmed failed: guild=${guildId} user=${userId}`,
+          getErrorStack(error),
+        );
+        await interaction
+          .editReply({ content: '채널 생성 중 오류가 발생했습니다. 다시 시도해주세요.' })
+          .catch(() => {});
+      }
     } else {
       // 하위 선택지 있음 → Ephemeral로 하위 버튼 표시
       const sorted = [...button.subOptions].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -250,14 +260,24 @@ export class AutoChannelService {
       return;
     }
 
-    await this.convertToConfirmed({
-      interaction,
-      guildId,
-      userId,
-      member,
-      button: subOption.button,
-      subOption,
-    });
+    try {
+      await this.convertToConfirmed({
+        interaction,
+        guildId,
+        userId,
+        member,
+        button: subOption.button,
+        subOption,
+      });
+    } catch (error) {
+      this.logger.error(
+        `[AUTO CHANNEL] convertToConfirmed (sub) failed: guild=${guildId} user=${userId}`,
+        getErrorStack(error),
+      );
+      await interaction
+        .editReply({ content: '채널 생성 중 오류가 발생했습니다. 다시 시도해주세요.' })
+        .catch(() => {});
+    }
   }
 
   /**
@@ -661,23 +681,30 @@ export class AutoChannelService {
     const baseName = this.buildInstantChannelName(displayName, template);
     const finalName = await this.resolveChannelName(guildId, config.instantCategoryId, baseName);
 
-    const confirmedChannelId = await this.discordVoiceGateway.createVoiceChannel({
-      guildId,
-      name: finalName,
-      parentCategoryId: config.instantCategoryId,
-    });
+    try {
+      const confirmedChannelId = await this.discordVoiceGateway.createVoiceChannel({
+        guildId,
+        name: finalName,
+        parentCategoryId: config.instantCategoryId,
+      });
 
-    await this.discordVoiceGateway.moveUserToChannel(guildId, userId, confirmedChannelId);
+      await this.discordVoiceGateway.moveUserToChannel(guildId, userId, confirmedChannelId);
 
-    await this.autoChannelRedis.setConfirmedState(confirmedChannelId, {
-      guildId,
-      userId,
-      configId: config.id,
-    });
+      await this.autoChannelRedis.setConfirmedState(confirmedChannelId, {
+        guildId,
+        userId,
+        configId: config.id,
+      });
 
-    this.logger.log(
-      `[AUTO CHANNEL] Instant confirmed: guild=${guildId} user=${userId} channel="${finalName}"`,
-    );
+      this.logger.log(
+        `[AUTO CHANNEL] Instant confirmed: guild=${guildId} user=${userId} channel="${finalName}"`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[AUTO CHANNEL] Instant channel creation failed: guild=${guildId} user=${userId}`,
+        getErrorStack(error),
+      );
+    }
   }
 
   /**

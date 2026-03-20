@@ -31,7 +31,15 @@ export class NewbieRoleService {
     const roleId = config.newbieRoleId;
 
     // 1. Discord API — 역할 부여 (GuildMember 객체를 통해 직접 호출)
-    await member.roles.add(roleId);
+    try {
+      await member.roles.add(roleId);
+    } catch (error) {
+      this.logger.error(
+        `[NEWBIE ROLE] Failed to assign role ${roleId} to ${memberId} in guild ${guildId}`,
+        error instanceof Error ? error.stack : error,
+      );
+      return;
+    }
     this.logger.log(`[NEWBIE ROLE] Assigned role ${roleId} to ${memberId} in guild ${guildId}`);
 
     // 2. NewbiePeriod 레코드 생성
