@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { APIGuildMember } from 'discord.js';
 import { DiscordAPIError } from 'discord.js';
 
-import { getErrorMessage, getErrorStack } from '../../../common/util/error.util';
+import { getErrorMessage } from '../../../common/util/error.util';
 import { DiscordRestService } from '../../../discord-rest/discord-rest.service';
 
 /** Discord REST API 액션 (역할 부여/강퇴/DM/멤버 조회) 전담. */
@@ -40,9 +40,7 @@ export class MissionDiscordActionService {
     try {
       if (dmReason) {
         await this.discordRest.sendDM(memberId, dmReason).catch(() => {
-          this.logger.warn(
-            `[MISSION] DM failed (blocked or unavailable): member=${memberId}`,
-          );
+          this.logger.warn(`[MISSION] DM failed (blocked or unavailable): member=${memberId}`);
         });
       }
 

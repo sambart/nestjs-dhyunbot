@@ -1,9 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-  ChannelType,
-  REST,
-  Routes,
   type APIChannel,
   type APIEmoji,
   type APIGuild,
@@ -11,11 +8,14 @@ import {
   type APIMessage,
   type APIRole,
   type APIUser,
+  ChannelType,
+  REST,
   type RESTGetAPIGuildMembersQuery,
   type RESTPatchAPIChannelMessageJSONBody,
   type RESTPatchAPIGuildMemberJSONBody,
   type RESTPostAPIChannelMessageJSONBody,
   type RESTPostAPIGuildChannelJSONBody,
+  Routes,
 } from 'discord.js';
 
 /**
@@ -87,9 +87,7 @@ export class DiscordRestService implements OnModuleInit {
 
   async fetchGuildMember(guildId: string, userId: string): Promise<APIGuildMember | null> {
     try {
-      return (await this.rest.get(
-        Routes.guildMember(guildId, userId),
-      )) as APIGuildMember;
+      return (await this.rest.get(Routes.guildMember(guildId, userId))) as APIGuildMember;
     } catch {
       return null;
     }
@@ -117,7 +115,6 @@ export class DiscordRestService implements OnModuleInit {
     let after = '0';
     const limit = 1000;
 
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       try {
         const batch = (await this.rest.get(Routes.guildMembers(guildId), {
@@ -195,10 +192,7 @@ export class DiscordRestService implements OnModuleInit {
     }
   }
 
-  async fetchMessages(
-    channelId: string,
-    options?: { limit?: number },
-  ): Promise<APIMessage[]> {
+  async fetchMessages(channelId: string, options?: { limit?: number }): Promise<APIMessage[]> {
     try {
       const query = new URLSearchParams();
       if (options?.limit) query.set('limit', String(options.limit));
@@ -250,10 +244,7 @@ export class DiscordRestService implements OnModuleInit {
     }
   }
 
-  async sendDMEmbed(
-    userId: string,
-    payload: RESTPostAPIChannelMessageJSONBody,
-  ): Promise<boolean> {
+  async sendDMEmbed(userId: string, payload: RESTPostAPIChannelMessageJSONBody): Promise<boolean> {
     try {
       const dmChannel = (await this.rest.post(Routes.userChannels(), {
         body: { recipient_id: userId },
@@ -289,9 +280,7 @@ export class DiscordRestService implements OnModuleInit {
           Routes.applicationGuildCommands(this.applicationId, guildId),
         )) as unknown[];
       }
-      return (await this.rest.get(
-        Routes.applicationCommands(this.applicationId),
-      )) as unknown[];
+      return (await this.rest.get(Routes.applicationCommands(this.applicationId))) as unknown[];
     } catch {
       return [];
     }
