@@ -38,7 +38,7 @@ export function createIntegrationModuleBuilder(
 ): TestingModuleBuilder {
   const { modules = [], entities = [], providers = [], withRedis = true } = options;
 
-  const imports: Array<Type | DynamicModule> = [
+  const imports: Array<Type | DynamicModule | Promise<DynamicModule>> = [
     ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
     createTestTypeOrmModule(),
     ...modules,
