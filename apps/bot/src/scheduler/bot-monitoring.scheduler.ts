@@ -1,5 +1,5 @@
-import { BotApiClientService } from '@dhyunbot/bot-api-client';
 import type { BotGuildMetric, BotStatusPayload } from '@dhyunbot/bot-api-client';
+import { BotApiClientService } from '@dhyunbot/bot-api-client';
 import { InjectDiscordClient } from '@discord-nestjs/core';
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { Client, Status } from 'discord.js';
