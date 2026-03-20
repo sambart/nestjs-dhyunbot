@@ -1,113 +1,131 @@
-import { InjectDiscordClient } from '@discord-nestjs/core';
-import { DefaultExtractors } from '@discord-player/extractor';
-import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
-import { CacheType, ChatInputCommandInteraction, Client, GuildMember } from 'discord.js';
-import { Player, QueryType, useQueue } from 'discord-player';
-import * as ytSearch from 'yt-search';
+import { Injectable } from '@nestjs/common';
+import type { KazagumoPlayer, KazagumoSearchResult, KazagumoTrack } from 'kazagumo';
+
+import { KazagumoProvider } from '../infrastructure/kazagumo.provider';
+import { DEFAULT_VOLUME } from '../music.constants';
+
+interface PlayResult {
+  player: KazagumoPlayer;
+  isPlaylist: boolean;
+  isQueued: boolean;
+  trackCount: number;
+  /** 첫 번째 트랙 (Embed 표시용) */
+  firstTrack: KazagumoTrack;
+}
 
 @Injectable()
-export class MusicService implements OnApplicationShutdown {
-  private readonly logger = new Logger(MusicService.name);
-  private player: Player;
-  private initialized = false;
+export class MusicService {
+  constructor(private readonly kazagumoProvider: KazagumoProvider) {}
 
-  constructor(@InjectDiscordClient() private readonly client: Client) {
-    this.player = new Player(client);
-  }
+  /**
+   * 트랙 검색 후 큐에 추가하고 재생을 시작한다.
+   * 플레이리스트 URL이면 전체 트랙을 일괄 추가한다.
+   */
+  async play(params: {
+    query: string;
+    guildId: string;
+    textChannelId: string;
+    voiceChannelId: string;
+    requesterId: string;
+  }): Promise<PlayResult> {
+    const kazagumo = this.kazagumoProvider.getInstance();
 
-  async onApplicationShutdown(): Promise<void> {
-    if (this.initialized) {
-      this.player.events.removeAllListeners();
-      await this.player.destroy();
-      this.initialized = false;
+    const result: KazagumoSearchResult = await kazagumo.search(params.query, {
+      requester: { id: params.requesterId },
+    });
+
+    if (!result.tracks.length) {
+      throw new Error('Track not found');
     }
-  }
 
-  async init() {
-    if (this.initialized) return;
-    await this.player.extractors.loadMulti(DefaultExtractors);
-    this.initialized = true;
-    this.logger.log('Extractors loaded');
-
-    this.player.events.on('playerStart', (queue, track) => {
-      this.logger.log(`Now playing: ${track.title}`);
-    });
-
-    this.player.events.on('emptyQueue', (_queue) => {
-      this.logger.debug('Queue ended');
-    });
-
-    this.player.events.on('playerError', (queue, error) => {
-      this.logger.error('Player error', error);
-    });
-
-    this.player.events.on('error', (queue, error) => {
-      this.logger.error('Queue error', error);
-    });
-  }
-
-  async playMusic(url: string, interaction: ChatInputCommandInteraction<CacheType>): Promise<void> {
-    this.logger.debug(`playMusic: ${url}`);
-    await this.init(); // extractor 로드 보장
-
-    const member = interaction.member as GuildMember;
-
-    const searchResult = await this.player.search(url, {
-      requestedBy: interaction.user,
-      searchEngine: QueryType.AUTO,
-    });
-
-    if (!searchResult?.tracks.length) {
-      this.logger.debug(`No result from player.search, trying yt-search`);
-      const newSearch = await ytSearch(url);
-      if (!newSearch?.videos.length) throw new Error('Track not found');
-      await this.player.play(member.voice.channel, newSearch.videos[0].url, {
-        requestedBy: interaction.user,
+    // 기존 플레이어가 있으면 재사용, 없으면 생성
+    let player = kazagumo.players.get(params.guildId);
+    if (!player) {
+      player = await kazagumo.createPlayer({
+        guildId: params.guildId,
+        textId: params.textChannelId,
+        voiceId: params.voiceChannelId,
+        volume: DEFAULT_VOLUME,
       });
+    }
+
+    const isPlaylist = result.type === 'PLAYLIST';
+
+    if (isPlaylist) {
+      // 플레이리스트: 전체 트랙 일괄 추가
+      for (const track of result.tracks) {
+        player.queue.add(track);
+      }
     } else {
-      const trackToPlay = searchResult.tracks[0];
-      await interaction.reply(`재생 시작: ${trackToPlay.title}`);
-      await this.player.play(member.voice.channelId, trackToPlay, {
-        nodeOptions: {
-          metadata: {
-            channel: member.voice.channelId,
-            client: interaction.guild?.members.me,
-            requestedBy: interaction.user.username,
-          },
-          leaveOnEmptyCooldown: 300000,
-          leaveOnEmpty: true,
-          leaveOnEnd: false,
-          bufferingTimeout: 0,
-          volume: 10,
-        },
-      });
+      player.queue.add(result.tracks[0]);
     }
+
+    const isQueued = player.playing || player.paused;
+
+    if (!isQueued) {
+      await player.play();
+    }
+
+    return {
+      player,
+      isPlaylist,
+      isQueued,
+      trackCount: isPlaylist ? result.tracks.length : 1,
+      firstTrack: result.tracks[0],
+    };
   }
 
-  async stop(interaction: ChatInputCommandInteraction<CacheType>): Promise<void> {
-    await interaction.deferReply();
-    const queue = useQueue(interaction.guild.id);
-    if (!queue?.currentTrack)
-      return void interaction.followUp({
-        content: '❌ | 더 이상 재생 중인 트랙이 없습니다.',
-      });
-    queue.node.stop();
-    queue.delete();
-
-    return void interaction.followUp({ content: '🛑 | 노래가 중단 되었습니다.' });
+  /** 현재 트랙을 건너뛰고 다음 트랙을 재생한다. */
+  async skip(guildId: string): Promise<{ player: KazagumoPlayer; nextTrack: KazagumoTrack | null }> {
+    const player = this.getPlayerOrThrow(guildId);
+    // skip 전에 큐의 다음 트랙을 미리 확인 (skip 후 current가 갱신되지 않을 수 있음)
+    const nextTrack = player.queue[0] ?? null;
+    await player.skip();
+    if (nextTrack && !player.playing) {
+      await player.play();
+    }
+    return { player, nextTrack };
   }
 
-  async skip(interaction: ChatInputCommandInteraction<CacheType>): Promise<void> {
-    await interaction.deferReply();
-    const queue = useQueue(interaction.guild.id);
-    if (!queue?.currentTrack)
-      return void interaction.followUp({
-        content: '❌ | 더 이상 재생 중인 트랙이 없습니다.',
-      });
+  /** 재생을 중지하고 큐를 초기화하며 채널에서 퇴장한다. */
+  stop(guildId: string): void {
+    const kazagumo = this.kazagumoProvider.getInstance();
+    // stop은 큐가 비어있어도 player가 존재하면 퇴장 가능하므로 직접 조회
+    const player = kazagumo.players.get(guildId);
+    if (!player) {
+      throw new Error('No active player');
+    }
+    player.queue.clear();
+    kazagumo.destroyPlayer(guildId);
+  }
 
-    const success = queue.node.skip();
-    if (!success) return void interaction.followUp({ content: '❌ | 스킵할 수 없습니다.' });
+  /** 현재 트랙을 일시정지한다. */
+  pause(guildId: string): KazagumoPlayer {
+    const player = this.getPlayerOrThrow(guildId);
+    if (player.paused) {
+      throw new Error('Already paused');
+    }
+    player.pause(true);
+    return player;
+  }
 
-    return void interaction.followUp({ content: '⏭ | 노래가 스킵 되었습니다.' });
+  /** 일시정지된 트랙을 재개한다. */
+  resume(guildId: string): KazagumoPlayer {
+    const player = this.getPlayerOrThrow(guildId);
+    if (!player.paused) {
+      throw new Error('Not paused');
+    }
+    player.pause(false);
+    return player;
+  }
+
+  /** 길드의 플레이어를 조회하고 없으면 예외를 던진다. */
+  private getPlayerOrThrow(guildId: string): KazagumoPlayer {
+    const kazagumo = this.kazagumoProvider.getInstance();
+    const player = kazagumo.players.get(guildId);
+    if (!player?.queue.current) {
+      throw new Error('No active player');
+    }
+    return player;
   }
 }

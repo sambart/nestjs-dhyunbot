@@ -1,6 +1,16 @@
 {
   "joinVoiceChannel": "You must join a voice channel to play music.",
-  "playError": "An error occurred while playing the URL.",
+  "playError": "An error occurred while playing music.",
+  "addedToQueue": "Added to queue.",
+  "playlistAdded": "Added {count} tracks from playlist to the queue.",
+  "skipped": "Skipped the current track.",
+  "skippedNoNext": "Skipped the current track. No more tracks in queue.",
   "skipError": "An error occurred while skipping the music.",
-  "stopError": "An error occurred while stopping the music."
+  "stopped": "Stopped playback and left the channel.",
+  "stopError": "An error occurred while stopping the music.",
+  "paused": "Playback paused.",
+  "pauseError": "No track is playing or already paused.",
+  "resumed": "Playback resumed.",
+  "resumeError": "Not paused or no track is playing.",
+  "noActivePlayer": "No track is currently playing."
 }

@@ -42,7 +42,7 @@ export class BotI18nService implements OnModuleInit {
   }
 
   private loadAllMessages() {
-    const i18nRoot = path.resolve(__dirname, '../../../../libs/i18n/locales');
+    const i18nRoot = path.resolve(__dirname, '../../../../../libs/i18n/locales');
 
     for (const locale of SUPPORTED_LOCALES) {
       this.messages[locale] = {};

@@ -56,9 +56,13 @@ libs/shared/  → 공유 타입 및 상수
 - `/voice-leaderboard` — 음성 활동 리더보드
 
 ### 3. 음악 재생 (music)
-- `/play` — YouTube 음악 재생
+- `/play` — YouTube · Spotify · SoundCloud URL 및 검색어 기반 음악 재생 (플레이리스트 일괄 큐 추가 포함)
 - `/skip` — 현재 곡 건너뛰기
 - `/stop` — 재생 중지 및 채널 퇴장
+- `/pause` — 일시정지
+- `/resume` — 재개
+- 모든 커맨드 응답에 Now Playing Embed (트랙 제목, 아티스트, 진행바, 현재시간/총시간) 포함
+- 오디오 처리: Lavalink v4(Docker) + Kazagumo v3(Shoukaku v4 래퍼)
 
 ### 4. 인증 (auth)
 - Discord OAuth2 로그인

@@ -7,6 +7,7 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v3.8 | 2026-03-20 | music: Lavalink v4 + Kazagumo v3 아키텍처 전환, /pause·/resume 신규 추가, Now Playing Embed 명세, 모듈 경로 수정 (F-MUSIC-001~005) | — |
 | v3.7 | 2026-03-16 | voice: 음성 채널 추가 데이터 수집 — Phase 1(화면 공유·카메라·스피커 음소거) F-VOICE-025~027, Phase 2(게임 활동) F-VOICE-028~031 추가 | — |
 | v3.6 | 2026-03-14 | web: 대시보드 사이드바에 서버 개요(F-WEB-008)·신입 관리(F-WEB-009) 추가, F-WEB-003-B 진입점 갱신 | — |
 | v3.5 | 2026-03-14 | newbie: F-WEB-NEWBIE-001 설정 페이지 탭 구성 변경 — 탭 3(미션 관리) 제거 및 탭 번호 재조정, F-NEWBIE-005 웹 UI 위치를 대시보드로 명시 | — |
@@ -34,6 +35,31 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 27] music: Lavalink v4 + Kazagumo v3 아키텍처 전환 및 기능 확장 (MUSIC-LAVALINK-MIGRATION)
+
+**변경일**: 2026-03-20
+**티켓**: MUSIC-LAVALINK-MIGRATION
+
+**변경 파일**:
+- `docs/specs/prd/music.md` — 아키텍처 전환, 모듈 경로 수정, F-MUSIC-001~005 기능 명세 갱신, Now Playing Embed 명세 추가, 인프라·의존성 섹션 신규 작성
+- `docs/specs/prd/_index.md` — 핵심 기능 요약 3번(음악 재생) 갱신
+
+**변경 내용**:
+1. **아키텍처 전환**: `discord-player` 기반에서 `Lavalink v4(Docker) + Kazagumo v3(Shoukaku v4 래퍼)` 구조로 전환. 아키텍처 다이어그램 신규 추가.
+2. **모듈 경로 수정**: `apps/api/src/music/` → `apps/bot/src/music/` 하위 계층 구조(application/presentation/dto) 반영.
+3. **F-MUSIC-001 개선**: YouTube 검색어·URL 외에 플레이리스트 URL 일괄 큐 추가, Spotify URL, SoundCloud URL 지원 명세 추가. Now Playing Embed 출력 명세 추가.
+4. **F-MUSIC-002 개선**: `/skip` 응답에 다음 트랙 Now Playing Embed 포함 명세 추가.
+5. **F-MUSIC-004 신규**: `/pause` — 일시정지 커맨드 추가. 재생 중인 트랙 없을 시 에러 응답 예외 명세 포함.
+6. **F-MUSIC-005 신규**: `/resume` — 재개 커맨드 추가. 일시정지 상태 아닐 시 에러 응답 예외 명세 포함.
+7. **Now Playing Embed 명세 추가**: 제목·아티스트·진행바·시간·상태 필드 구조 표 형태로 문서화.
+8. **인프라 섹션 신규**: Lavalink Docker 서비스 설정(`docker-compose.yml`, `lavalink/application.yml`), 환경변수(`LAVALINK_URL`, `LAVALINK_PASSWORD`) 명세 추가.
+9. **의존성 갱신**: `kazagumo ^3.4.3`, `shoukaku ^4.1.0`, `@discordjs/voice` 추가. `discord-player`, `@discord-player/extractor`, `yt-search`, `ytdl-core`, `ffmpeg-static` 제거 명세.
+10. **변경이력 참조 링크 추가**: `music.md` 상단에 `prd-changelog.md` 참조 링크 추가.
+
+**변경 사유**: discord-player의 YouTube 추출 불안정 문제를 해소하고 Java 기반 Lavaplayer의 안정적인 오디오 처리 환경으로 전환한다. 플레이리스트·Spotify·SoundCloud 지원 및 /pause·/resume 커맨드 추가로 음악 재생 기능을 확장한다.
 
 ---
 

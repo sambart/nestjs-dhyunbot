@@ -7,6 +7,7 @@ import { BotI18nService } from '../../../common/application/bot-i18n.service';
 import { LocaleResolverService } from '../../../common/application/locale-resolver.service';
 import { MusicService } from '../../application/music.service';
 import { PlayDto } from '../dto/play.dto';
+import { buildNowPlayingEmbed } from '../utils/now-playing-embed.builder';
 
 @Injectable()
 @Command({
@@ -38,17 +39,47 @@ export class MusicPlayCommand {
       interaction.locale,
     );
 
+    // discord.js의 GuildMember 타입은 guild 컨텍스트에서만 사용되므로 안전한 단언
     const member = interaction.member as GuildMember;
     if (!member.voice.channel) {
-      await interaction.reply(this.i18n.t(locale, 'music.joinVoiceChannel'));
+      await interaction.reply({ content: this.i18n.t(locale, 'music.joinVoiceChannel'), ephemeral: true });
       return;
     }
 
+    await interaction.deferReply();
+
     try {
-      await this.musicService.playMusic(dto.url, interaction);
+      const result = await this.musicService.play({
+        query: dto.url,
+        guildId: interaction.guildId ?? '',
+        textChannelId: interaction.channelId,
+        voiceChannelId: member.voice.channelId ?? '',
+        requesterId: interaction.user.id,
+      });
+
+      if (result.isPlaylist) {
+        const content = this.i18n.t(locale, 'music.playlistAdded', {
+          count: String(result.trackCount),
+        });
+        await interaction.followUp({ content });
+      } else if (result.isQueued) {
+        const embed = buildNowPlayingEmbed({ track: result.firstTrack, player: result.player, status: 'queued' });
+        await interaction.followUp({
+          content: this.i18n.t(locale, 'music.addedToQueue'),
+          embeds: [embed],
+        });
+      } else {
+        const currentTrack = result.player.queue.current;
+        const embed = buildNowPlayingEmbed({
+          track: currentTrack ?? result.firstTrack,
+          player: result.player,
+          status: 'playing',
+        });
+        await interaction.followUp({ embeds: [embed] });
+      }
     } catch (error) {
       this.logger.error('Error playing music:', error);
-      await interaction.reply(this.i18n.t(locale, 'music.playError'));
+      await interaction.followUp({ content: this.i18n.t(locale, 'music.playError'), ephemeral: true });
     }
   }
 }

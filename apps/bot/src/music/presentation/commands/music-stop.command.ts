@@ -33,11 +33,14 @@ export class MusicStopCommand {
       interaction.locale,
     );
 
+    await interaction.deferReply();
+
     try {
-      await this.musicService.stop(interaction);
+      this.musicService.stop(interaction.guildId ?? '');
+      await interaction.followUp(this.i18n.t(locale, 'music.stopped'));
     } catch (error) {
       this.logger.error('Error stop music:', error);
-      await interaction.reply(this.i18n.t(locale, 'music.stopError'));
+      await interaction.followUp({ content: this.i18n.t(locale, 'music.stopError'), ephemeral: true });
     }
   }
 }

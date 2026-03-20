@@ -5,6 +5,7 @@ import { ClientEvents } from 'discord.js';
 import { BotI18nService } from '../../../common/application/bot-i18n.service';
 import { LocaleResolverService } from '../../../common/application/locale-resolver.service';
 import { MusicService } from '../../application/music.service';
+import { buildNowPlayingEmbed } from '../utils/now-playing-embed.builder';
 
 @Injectable()
 @Command({
@@ -33,11 +34,24 @@ export class MusicSkipCommand {
       interaction.locale,
     );
 
+    await interaction.deferReply();
+
     try {
-      await this.musicService.skip(interaction);
+      const { player, nextTrack } = await this.musicService.skip(interaction.guildId ?? '');
+
+      if (nextTrack) {
+        const embed = buildNowPlayingEmbed({ track: nextTrack, player, status: 'playing' });
+        await interaction.followUp({
+          content: this.i18n.t(locale, 'music.skipped'),
+          embeds: [embed],
+        });
+      } else {
+        this.musicService.stop(interaction.guildId ?? '');
+        await interaction.followUp(this.i18n.t(locale, 'music.skippedNoNext'));
+      }
     } catch (error) {
       this.logger.error('Error skip music:', error);
-      await interaction.reply(this.i18n.t(locale, 'music.skipError'));
+      await interaction.followUp({ content: this.i18n.t(locale, 'music.skipError'), ephemeral: true });
     }
   }
 }
