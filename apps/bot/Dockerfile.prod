@@ -15,7 +15,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY tsconfig.json ./
 
 # Copy workspace package.json files
-COPY apps/api/package.json ./apps/api/
+COPY apps/bot/package.json ./apps/bot/
 COPY libs/shared/package.json ./libs/shared/
 COPY libs/bot-api-client/package.json ./libs/bot-api-client/
 COPY libs/i18n/package.json ./libs/i18n/
@@ -34,9 +34,9 @@ RUN pnpm --filter @dhyunbot/bot-api-client build
 # Copy i18n library
 COPY libs/i18n ./libs/i18n
 
-# Copy API source and build
-COPY apps/api ./apps/api
-WORKDIR /workspace/apps/api
+# Copy Bot source and build
+COPY apps/bot ./apps/bot
+WORKDIR /workspace/apps/bot
 RUN pnpm run build
 
 # Production stage
@@ -47,21 +47,18 @@ ENV PNPM_HOME="/root/.local/share/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 
-# Fonts for canvas (Korean + Emoji support)
-RUN apk add --no-cache fontconfig font-noto-cjk font-noto-emoji
-
 WORKDIR /workspace
 
 # Copy workspace config and lockfile
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 
 # Copy workspace package.json files
-COPY apps/api/package.json ./apps/api/
+COPY apps/bot/package.json ./apps/bot/
 COPY libs/shared/package.json ./libs/shared/
 COPY libs/bot-api-client/package.json ./libs/bot-api-client/
 COPY libs/i18n/package.json ./libs/i18n/
 
-# Skip husky in production (devDependency)
+# Skip husky in production
 ENV HUSKY=0
 
 # Install only production dependencies
@@ -78,12 +75,10 @@ COPY --from=builder /workspace/libs/bot-api-client/package.json ./libs/bot-api-c
 # Copy i18n locales
 COPY --from=builder /workspace/libs/i18n ./libs/i18n
 
-# Copy built API
-COPY --from=builder /workspace/apps/api/dist ./apps/api/dist
-COPY --from=builder /workspace/apps/api/package.json ./apps/api/
+# Copy built Bot
+COPY --from=builder /workspace/apps/bot/dist ./apps/bot/dist
+COPY --from=builder /workspace/apps/bot/package.json ./apps/bot/
 
-WORKDIR /workspace/apps/api
+WORKDIR /workspace/apps/bot
 
-EXPOSE 3000
-
-CMD ["node", "dist/apps/api/src/main.js"]
+CMD ["node", "dist/apps/bot/src/main.js"]
