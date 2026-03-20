@@ -1,4 +1,4 @@
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import { DEFAULT_VOLUME } from '../music.constants';
 import { MusicService } from './music.service';
@@ -89,7 +89,7 @@ describe('MusicService', () => {
 
       expect(result.isPlaylist).toBe(false);
       expect(result.trackCount).toBe(1);
-      expect(result.firstTrackTitle).toBe('봄날');
+      expect(result.firstTrack.title).toBe('봄날');
       expect(player.queue.add).toHaveBeenCalledWith(track);
     });
 
@@ -178,7 +178,7 @@ describe('MusicService', () => {
 
       await service.play({ ...baseParams, requesterId: 'user-99' });
 
-      expect(mockKazagumo.search).toHaveBeenCalledWith('테스트 노래', { requester: 'user-99' });
+      expect(mockKazagumo.search).toHaveBeenCalledWith('테스트 노래', { requester: { id: 'user-99' } });
     });
   });
 
@@ -186,27 +186,27 @@ describe('MusicService', () => {
   // skip
   // ─────────────────────────────────────────────────────────
   describe('skip', () => {
-    it('현재 트랙을 건너뛰고 플레이어를 반환한다', () => {
+    it('현재 트랙을 건너뛰고 플레이어와 nextTrack을 반환한다', async () => {
       const player = makePlayer();
       mockKazagumo.players.set('guild-1', player);
 
-      const result = service.skip('guild-1');
+      const result = await service.skip('guild-1');
 
       expect(player.skip).toHaveBeenCalled();
-      expect(result).toBe(player);
+      expect(result.player).toBe(player);
     });
 
-    it('활성 플레이어가 없으면 "No active player" 에러를 throw한다', () => {
+    it('활성 플레이어가 없으면 "No active player" 에러를 throw한다', async () => {
       // players Map이 비어있음
 
-      expect(() => service.skip('guild-1')).toThrow('No active player');
+      await expect(service.skip('guild-1')).rejects.toThrow('No active player');
     });
 
-    it('현재 재생 중인 트랙이 없으면 "No active player" 에러를 throw한다', () => {
+    it('현재 재생 중인 트랙이 없으면 "No active player" 에러를 throw한다', async () => {
       const player = makePlayer({ queueCurrent: null });
       mockKazagumo.players.set('guild-1', player);
 
-      expect(() => service.skip('guild-1')).toThrow('No active player');
+      await expect(service.skip('guild-1')).rejects.toThrow('No active player');
     });
   });
 
