@@ -1,6 +1,6 @@
-import { BotApiClientService } from '@onyu/bot-api-client';
 import { On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
+import { BotApiClientService } from '@onyu/bot-api-client';
 import type { ButtonInteraction, Interaction } from 'discord.js';
 
 /** 뉴비 모듈 버튼 customId 접두사 */
