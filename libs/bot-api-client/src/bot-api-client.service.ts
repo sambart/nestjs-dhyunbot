@@ -9,13 +9,13 @@ import type {
   BotApiResponse,
   BotGuildMetric,
   BotStatusPayload,
-  CoPresenceSnapshot,
   CommunityHealthResponse,
+  CoPresenceSnapshot,
   KickMemberDto,
   LeaderboardResponse,
-  MeProfileResponse,
   MemberDisplayNameResponse,
   MemberJoinDto,
+  MeProfileResponse,
   MessageCreatedDto,
   MissionRefreshDto,
   MyVoiceStatsResponse,
@@ -121,13 +121,21 @@ export class BotApiClientService {
     guildId: string,
     channelId: string,
   ): Promise<{ ok: boolean; deletedCount: number }> {
-    return this.delete(`/bot-api/sticky-message/by-channel?guildId=${guildId}&channelId=${channelId}`);
+    return this.delete(
+      `/bot-api/sticky-message/by-channel?guildId=${guildId}&channelId=${channelId}`,
+    );
   }
 
   // ── Voice Analytics ──
 
-  async getMyVoiceStats(guildId: string, userId: string, days: number): Promise<MyVoiceStatsResponse> {
-    return this.get(`/bot-api/voice-analytics/my-stats?guildId=${guildId}&userId=${userId}&days=${days}`);
+  async getMyVoiceStats(
+    guildId: string,
+    userId: string,
+    days: number,
+  ): Promise<MyVoiceStatsResponse> {
+    return this.get(
+      `/bot-api/voice-analytics/my-stats?guildId=${guildId}&userId=${userId}&days=${days}`,
+    );
   }
 
   async getVoiceLeaderboard(guildId: string, days: number): Promise<LeaderboardResponse> {
@@ -139,11 +147,17 @@ export class BotApiClientService {
   }
 
   async getCommunityHealth(guildId: string, days: number): Promise<CommunityHealthResponse> {
-    return this.post(`/bot-api/voice-analytics/community-health?guildId=${guildId}&days=${days}`, {});
+    return this.post(
+      `/bot-api/voice-analytics/community-health?guildId=${guildId}&days=${days}`,
+      {},
+    );
   }
 
   async runSelfDiagnosis(guildId: string, userId: string): Promise<SelfDiagnosisResponse> {
-    return this.post(`/bot-api/voice-analytics/self-diagnosis?guildId=${guildId}&userId=${userId}`, {});
+    return this.post(
+      `/bot-api/voice-analytics/self-diagnosis?guildId=${guildId}&userId=${userId}`,
+      {},
+    );
   }
 
   // ── Co-Presence ──
