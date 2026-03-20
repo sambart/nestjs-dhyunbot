@@ -1,5 +1,5 @@
-import { BotApiClientService } from '@dhyunbot/bot-api-client';
 import type { AutoChannelButtonResult } from '@dhyunbot/bot-api-client';
+import { BotApiClientService } from '@dhyunbot/bot-api-client';
 import { InjectDiscordClient, On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import {
@@ -54,6 +54,10 @@ export class BotAutoChannelInteractionHandler {
       const voiceChannelId = voiceState?.channelId ?? null;
       const member = guild?.members.cache.get(userId);
       const displayName = member?.displayName ?? interaction.user.displayName;
+
+      this.logger.warn(
+        `[AUTO_CHANNEL] guild=${!!guild} voiceState=${!!voiceState} voiceChannelId=${voiceChannelId} member=${!!member} displayName=${displayName}`,
+      );
 
       let result: AutoChannelButtonResult;
 
