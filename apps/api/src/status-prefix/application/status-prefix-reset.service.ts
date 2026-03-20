@@ -87,27 +87,38 @@ export class StatusPrefixResetService {
    * 닉네임 변경은 Bot에서 수행하므로 원래 닉네임만 반환한다.
    */
   async resetFromBot(guildId: string, memberId: string): Promise<StatusPrefixResetResult> {
-    const originalNickname = await this.redis.getOriginalNickname(guildId, memberId);
-    if (!originalNickname) {
-      return { success: false, message: '변경된 닉네임이 없습니다.' };
+    try {
+      const originalNickname = await this.redis.getOriginalNickname(guildId, memberId);
+      if (!originalNickname) {
+        return { success: false, message: '변경된 닉네임이 없습니다.' };
+      }
+
+      const config = await this.configService.getConfig(guildId);
+      const cleanNickname = config
+        ? this.configService.stripPrefixFromNickname(originalNickname, config)
+        : originalNickname;
+
+      await this.redis.deleteOriginalNickname(guildId, memberId);
+
+      this.logger.log(
+        `[STATUS_PREFIX] ResetFromBot: guild=${guildId} member=${memberId} restored="${cleanNickname}"`,
+      );
+
+      return {
+        success: true,
+        originalNickname: cleanNickname,
+        message: '닉네임이 원래대로 복원되었습니다.',
+      };
+    } catch (err) {
+      this.logger.error(
+        `[STATUS_PREFIX] ResetFromBot failed: guild=${guildId} member=${memberId}`,
+        getErrorStack(err),
+      );
+      return {
+        success: false,
+        message: '닉네임 복원 중 오류가 발생했습니다. 잠시 후 다시 시도하세요.',
+      };
     }
-
-    const config = await this.configService.getConfig(guildId);
-    const cleanNickname = config
-      ? this.configService.stripPrefixFromNickname(originalNickname, config)
-      : originalNickname;
-
-    await this.redis.deleteOriginalNickname(guildId, memberId);
-
-    this.logger.log(
-      `[STATUS_PREFIX] ResetFromBot: guild=${guildId} member=${memberId} restored="${cleanNickname}"`,
-    );
-
-    return {
-      success: true,
-      originalNickname: cleanNickname,
-      message: '닉네임이 원래대로 복원되었습니다.',
-    };
   }
 
   /**

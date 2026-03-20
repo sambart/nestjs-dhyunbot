@@ -1,18 +1,29 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { IsInt, IsString } from 'class-validator';
 
 import { StatusPrefixApplyService } from '../../status-prefix/application/status-prefix-apply.service';
 import { StatusPrefixResetService } from '../../status-prefix/application/status-prefix-reset.service';
 import { BotApiAuthGuard } from '../bot-api-auth.guard';
 
 class StatusPrefixApplyDto {
+  @IsString()
   guildId: string;
+
+  @IsString()
   memberId: string;
+
+  @IsInt()
   buttonId: number;
+
+  @IsString()
   currentDisplayName: string;
 }
 
 class StatusPrefixResetDto {
+  @IsString()
   guildId: string;
+
+  @IsString()
   memberId: string;
 }
 

@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { IsString } from 'class-validator';
 
 import { getErrorStack } from '../../common/util/error.util';
 import { MissionService } from '../../newbie/application/mission/mission.service';
@@ -19,17 +20,26 @@ import { NewbieRedisRepository } from '../../newbie/infrastructure/newbie-redis.
 import { BotApiAuthGuard } from '../bot-api-auth.guard';
 
 class MemberJoinDto {
+  @IsString()
   guildId: string;
+
+  @IsString()
   memberId: string;
+
+  @IsString()
   displayName: string;
 }
 
 class MissionRefreshDto {
+  @IsString()
   guildId: string;
 }
 
 class RoleAssignedDto {
+  @IsString()
   guildId: string;
+
+  @IsString()
   memberId: string;
 }
 

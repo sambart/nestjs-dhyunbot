@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { IsBoolean, IsString } from 'class-validator';
 
 import { StickyMessageConfigService } from '../../sticky-message/application/sticky-message-config.service';
 import { StickyMessageRefreshService } from '../../sticky-message/application/sticky-message-refresh.service';
@@ -19,9 +20,16 @@ import { StickyMessageRedisRepository } from '../../sticky-message/infrastructur
 import { BotApiAuthGuard } from '../bot-api-auth.guard';
 
 class MessageCreatedDto {
+  @IsString()
   guildId: string;
+
+  @IsString()
   channelId: string;
+
+  @IsString()
   authorId: string;
+
+  @IsBoolean()
   isBot: boolean;
 }
 
@@ -100,9 +108,7 @@ export class BotStickyMessageController implements OnApplicationShutdown {
 
   /** 서버의 고정메세지 설정 목록 조회 (Bot 슬래시 커맨드 /고정메세지목록 용) */
   @Get('configs')
-  async getConfigs(
-    @Query('guildId') guildId: string,
-  ): Promise<{
+  async getConfigs(@Query('guildId') guildId: string): Promise<{
     ok: boolean;
     data: Array<{
       channelId: string;
