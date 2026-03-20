@@ -1,12 +1,12 @@
 import { BotApiClientService } from '@dhyunbot/bot-api-client';
 import type { AutoChannelButtonResult } from '@dhyunbot/bot-api-client';
-import { On } from '@discord-nestjs/core';
+import { InjectDiscordClient, On } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  type GuildMember,
+  Client,
   Interaction,
 } from 'discord.js';
 
@@ -27,7 +27,10 @@ const BUTTONS_PER_ROW = 5;
 export class BotAutoChannelInteractionHandler {
   private readonly logger = new Logger(BotAutoChannelInteractionHandler.name);
 
-  constructor(private readonly apiClient: BotApiClientService) {}
+  constructor(
+    private readonly apiClient: BotApiClientService,
+    @InjectDiscordClient() private readonly discord: Client,
+  ) {}
 
   @On('interactionCreate')
   async handle(interaction: Interaction): Promise<void> {
@@ -41,10 +44,16 @@ export class BotAutoChannelInteractionHandler {
 
     const guildId = interaction.guildId;
     const userId = interaction.user.id;
-    const member = interaction.member as GuildMember;
 
     try {
       await interaction.deferReply({ ephemeral: true });
+
+      // Gateway 캐시에서 voice state 확보 (REST fetch에는 voice 정보 없음)
+      const guild = this.discord.guilds.cache.get(guildId);
+      const voiceState = guild?.voiceStates.cache.get(userId);
+      const voiceChannelId = voiceState?.channelId ?? null;
+      const member = guild?.members.cache.get(userId);
+      const displayName = member?.displayName ?? interaction.user.displayName;
 
       let result: AutoChannelButtonResult;
 
@@ -59,8 +68,8 @@ export class BotAutoChannelInteractionHandler {
           guildId,
           userId,
           buttonId,
-          voiceChannelId: member.voice.channelId,
-          displayName: member.displayName,
+          voiceChannelId,
+          displayName,
         });
       } else {
         const subOptionId = parseInt(customId.slice(CUSTOM_ID_PREFIX.SUB_OPTION.length), 10);
@@ -73,8 +82,8 @@ export class BotAutoChannelInteractionHandler {
           guildId,
           userId,
           subOptionId,
-          voiceChannelId: member.voice.channelId,
-          displayName: member.displayName,
+          voiceChannelId,
+          displayName,
         });
       }
 
