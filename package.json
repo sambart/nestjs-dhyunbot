@@ -65,6 +65,10 @@
       "eslint --fix --config apps/api/eslint.config.mjs",
       "prettier --write"
     ],
+    "apps/bot/src/**/*.{ts,tsx}": [
+      "eslint --fix --config apps/bot/eslint.config.mjs",
+      "prettier --write"
+    ],
     "apps/web/src/**/*.{ts,tsx}": [
       "eslint --fix --config apps/web/eslint.config.mjs",
       "prettier --write"
