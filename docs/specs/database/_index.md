@@ -42,6 +42,21 @@ Onyu은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 및 
                                                           └──────────────┘
                                                             IDX(guildId)
 
+┌──────────────────────────────────────────────────────────────────────┐
+│                MusicChannelConfig (music_channel_config)             │
+├──────────────────────────────────────────────────────────────────────┤
+│ PK id                                                                │
+│ guildId (UNIQUE)                                                     │
+│ channelId, messageId (nullable)                                      │
+│ embedTitle, embedDescription, embedColor, embedThumbnailUrl          │
+│ buttonConfig (JSONB NOT NULL)                                        │
+│ enabled (DEFAULT true)                                               │
+│ createdAt, updatedAt                                                 │
+└──────────────────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  UQ_music_channel_config_guild: UNIQUE(guildId)
+  IDX_music_channel_config_channel: IDX(channelId)
+
 ┌────────────────────────────────────────────────────────────────────┐
 │                  VoiceDailyEntity (voice_daily)                    │
 ├────────────────────────────────────────────────────────────────────┤
@@ -1350,6 +1365,70 @@ DO UPDATE SET
 
 ---
 
+### 28. MusicChannelConfig (`music_channel_config`)
+
+길드별 음악 전용 채널 임베드 시스템 설정을 저장한다. 길드당 하나의 설정이 존재하며, 버튼 구성은 JSONB 컬럼으로 관리한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
+| `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
+| `channelId` | `varchar` | NOT NULL | 음악 전용 텍스트 채널 ID |
+| `messageId` | `varchar` | NULLABLE | 고정 임베드 메시지 ID (Discord message ID). 신규 전송 후 저장. 메시지 수정 실패 시 NULL로 초기화 |
+| `embedTitle` | `varchar` | NULLABLE | 대기 상태 임베드 제목. NULL이면 기본값 `"음악 채널"` 사용 |
+| `embedDescription` | `text` | NULLABLE | 대기 상태 임베드 설명. NULL이면 기본값 사용 |
+| `embedColor` | `varchar` | NULLABLE | 대기 상태 임베드 색상 (HEX, 예: `#5865F2`). NULL이면 기본값 사용 |
+| `embedThumbnailUrl` | `varchar` | NULLABLE | 대기 상태 임베드 썸네일 이미지 URL. 재생 중 트랙 썸네일이 없을 때도 fallback으로 사용 |
+| `buttonConfig` | `jsonb` | NOT NULL | 버튼 구성. 표시할 버튼 목록, 순서, 활성화 여부를 포함하는 JSON 객체 |
+| `enabled` | `boolean` | NOT NULL, DEFAULT `true` | 음악 전용 채널 기능 활성화 여부. `false`이면 임베드 전송 안 함 |
+| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/bot/src/music/infrastructure/music-channel-config.orm-entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `UQ_music_channel_config_guild` | `(guildId)` UNIQUE | 길드당 하나의 설정 보장. 설정 단건 조회 커버 |
+| `IDX_music_channel_config_channel` | `(channelId)` | F-MUSIC-016: `messageCreate` 이벤트에서 수신 채널이 음악 전용 채널인지 확인하는 `WHERE channelId = ?` 조회 커버 |
+
+#### buttonConfig JSONB 구조
+
+`buttonConfig` 컬럼은 다음 구조의 JSON 객체를 저장한다.
+
+```json
+{
+  "buttons": [
+    { "type": "search",          "label": "음악 검색하기", "emoji": "🔍", "enabled": true, "row": 0 },
+    { "type": "pause_resume",    "label": "일시정지/재개", "emoji": "⏯️", "enabled": true, "row": 1 },
+    { "type": "skip",            "label": "스킵",          "emoji": "⏭️", "enabled": true, "row": 1 },
+    { "type": "stop",            "label": "정지",          "emoji": "⏹️", "enabled": true, "row": 1 },
+    { "type": "queue",           "label": "재생목록",      "emoji": "📋", "enabled": true, "row": 2 },
+    { "type": "melon_chart",     "label": "멜론차트",      "emoji": "🎵", "enabled": true, "row": 2 },
+    { "type": "billboard_chart", "label": "빌보드",        "emoji": "🎶", "enabled": true, "row": 2 }
+  ]
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `type` | `string` | 버튼 식별자. `search` / `pause_resume` / `skip` / `stop` / `queue` / `melon_chart` / `billboard_chart` 중 하나 |
+| `label` | `string` | Discord 버튼 표시 라벨. 웹에서 수정 가능 |
+| `emoji` | `string` | Discord 버튼 이모지 |
+| `enabled` | `boolean` | `false`이면 해당 버튼을 임베드에서 렌더링하지 않음 |
+| `row` | `number` | ActionRow 번호 (0~4). Discord 최대 5행 제한 |
+
+#### 인덱스 설계 근거
+
+길드 설정 조회(`WHERE guildId = ?`)는 단건 조회이므로 UNIQUE 인덱스 하나로 커버된다. 버튼 구성이 JSONB로 관리되므로 버튼별 별도 테이블이 불필요하다. `buttonConfig`에 대한 GIN 인덱스는 현재 스펙에서 JSONB 필드를 조건절에서 직접 조회하지 않으므로 추가하지 않는다.
+
+F-MUSIC-016의 `messageCreate` 이벤트 처리는 수신된 채널 ID가 음악 전용 채널인지 확인하기 위해 `WHERE channelId = ?` 조회를 수행한다. `messageCreate`는 서버의 모든 텍스트 메시지마다 발생하는 고빈도 이벤트이므로, `UNIQUE(guildId)` 인덱스만으로는 이 조회를 커버할 수 없어 `IDX_music_channel_config_channel (channelId)` 단독 인덱스를 추가한다. `channelId`는 Discord 전역에서 고유하므로(Snowflake ID) 단독 인덱스로 충분히 선택도가 높다.
+
+---
+
 ## Redis 데이터 구조
 
 ### 키 네이밍 패턴
@@ -1363,6 +1442,7 @@ newbie:{category}:{...params}
 status_prefix:{category}:{...params}
 sticky_message:{category}:{...params}
 monitoring:{category}:{...params}
+music:{category}:{...params}
 ```
 
 ### voice 키 정의
@@ -1560,6 +1640,32 @@ SET sticky_message:debounce:{channelId} 1 EX 3
 SET monitoring:status:{guildId} {statusJson} EX 10
 ```
 
+### music 키 정의
+
+멜론·빌보드 차트 크롤링 결과를 캐싱한다. 차트 버튼 클릭 시 캐시를 우선 조회하며, 캐시 미스 시 크롤링 후 저장한다.
+
+| 키 패턴 | TTL | 자료구조 | 설명 |
+|---------|-----|----------|------|
+| `music:chart:melon` | 1시간 | String (JSON) | 멜론 인기차트 TOP 20 크롤링 결과 캐시 |
+| `music:chart:billboard` | 1시간 | String (JSON) | 빌보드 HOT 100 TOP 20 크롤링 결과 캐시 |
+
+#### music:chart 구조
+
+차트 크롤링 결과를 JSON 배열로 직렬화하여 저장한다. 각 항목은 곡명과 아티스트 정보를 포함한다.
+
+```json
+[
+  { "title": "곡명", "artist": "아티스트명" },
+  ...
+]
+```
+
+- **저장 시점**: `melon_chart` 또는 `billboard_chart` 버튼 클릭 시 캐시 미스인 경우
+- **삭제 시점**: TTL 만료 (1시간) 후 자동 삭제
+- **파일**: `apps/bot/src/music/application/chart-crawler.service.ts`
+
+---
+
 ### TTL 정책
 
 | 대상 | TTL | 사유 |
@@ -1581,6 +1687,7 @@ SET monitoring:status:{guildId} {statusJson} EX 10
 | sticky_message 설정 캐시 | 1시간 (3,600초) | 설정 변경 빈도 낮음. 저장/삭제 시 명시적 갱신 또는 무효화 |
 | sticky_message 디바운스 타이머 | 3초 | 연속 메시지 수신 시 마지막 메시지 기준으로 3초 후 재전송. 수신마다 TTL 리셋 |
 | monitoring 상태 캐시 | 10초 | 프론트엔드 10초 폴링 주기에 맞춤. Discord 클라이언트 직접 조회 부하 최소화 |
+| music 차트 캐시 (멜론/빌보드) | 1시간 (3,600초) | 크롤링 부하 최소화. TTL 만료 시 다음 버튼 클릭에서 재크롤링 |
 
 ---
 
@@ -2166,6 +2273,80 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
     1. voice_co_presence_pair_daily → WHERE guildId + userId IN (A,B) AND peerId IN (A,B) AND date BETWEEN
          GROUP BY date ORDER BY date
        인덱스: PK (guildId, userId, peerId, date)
+```
+
+### 음악 채널 라이프사이클
+
+```
+[웹 설정 저장 — POST /api/guilds/:guildId/music-channel-config]
+  1. music_channel_config → PostgreSQL insert (guildId, channelId, embedTitle, embedDescription,
+       embedColor, embedThumbnailUrl, buttonConfig, enabled)
+  2. enabled = true 인 경우:
+     a. Bot API → MusicChannelService.upsertEmbed(guildId)
+        - Discord API → channelId 채널 조회
+        - messageId 없음: Discord API → 고정 임베드 메시지 신규 전송
+        - messageId 있음: Discord API → 기존 메시지 edit
+        - 전송/수정 성공: music_channel_config.messageId → PostgreSQL update (Discord message ID 저장)
+        - 전송/수정 실패: messageId → NULL (채널/메시지 삭제 등)
+
+[웹 설정 수정 — PATCH /api/guilds/:guildId/music-channel-config]
+  1. music_channel_config → PostgreSQL update WHERE guildId = ? (변경 필드, updatedAt)
+  2. enabled = true 인 경우: 위 POST 플로우의 2번과 동일 (messageId 유무에 따라 edit 또는 send)
+  3. enabled = false 인 경우: 임베드 전송/수정 없음 (기존 메시지 삭제 안 함)
+
+[웹 설정 조회 — GET /api/guilds/:guildId/music-channel-config]
+  1. music_channel_config → PostgreSQL select WHERE guildId = ?
+     인덱스: UQ_music_channel_config_guild (단건 조회)
+
+[웹 설정 삭제 — DELETE /api/guilds/:guildId/music-channel-config]
+  1. music_channel_config → PostgreSQL select WHERE guildId = ? (messageId, channelId 조회)
+  2. messageId 존재 시 → Discord API: 메시지 삭제 시도 (실패 시 계속)
+  3. music_channel_config → PostgreSQL delete WHERE guildId = ?
+
+[Kazagumo 이벤트 — 임베드 실시간 갱신 (F-MUSIC-017)]
+  playerStart 이벤트 (곡 시작):
+    1. music_channel_config → PostgreSQL select WHERE guildId = ? AND enabled = true (messageId 조회)
+       인덱스: UQ_music_channel_config_guild
+    2. messageId 있음: Discord API → 재생 중 임베드로 메시지 edit
+    3. Discord API 실패 (채널/메시지 삭제 등):
+       music_channel_config.messageId → PostgreSQL update NULL WHERE guildId = ?
+
+  playerEmpty 이벤트 (큐 소진):
+    1. music_channel_config → PostgreSQL select WHERE guildId = ? AND enabled = true
+    2. messageId 있음: Discord API → 대기 상태 임베드로 메시지 edit (커스텀 제목/설명/색상 적용)
+    3. Discord API 실패: messageId → PostgreSQL update NULL
+
+  playerPause / playerResume 이벤트:
+    1. music_channel_config → PostgreSQL select WHERE guildId = ? AND enabled = true
+    2. messageId 있음: Discord API → 상태 텍스트만 갱신 (메시지 edit)
+    3. Discord API 실패: messageId → PostgreSQL update NULL
+
+[버튼 클릭 — search (F-MUSIC-011)]
+  1. Discord API → Modal 팝업 (검색어 입력)
+  2. 모달 제출: Kazagumo → 트랙 검색 → MusicService.play()
+  ※ DB 접근 없음 (인메모리 큐 조작)
+
+[버튼 클릭 — melon_chart (F-MUSIC-014)]
+  1. music:chart:melon → Redis get (캐시 조회)
+  2. 캐시 미스: ChartCrawlerService → 멜론 인기차트 TOP 20 크롤링
+              → music:chart:melon → Redis set (TTL 1시간)
+  3. 곡명+아티스트 조합 → Kazagumo 검색 → MusicService.playBulk()
+  ※ 성공 여부와 무관하게 music_channel_config DB 접근 없음
+
+[버튼 클릭 — billboard_chart (F-MUSIC-015)]
+  1. music:chart:billboard → Redis get (캐시 조회)
+  2. 캐시 미스: ChartCrawlerService → 빌보드 HOT 100 TOP 20 크롤링
+              → music:chart:billboard → Redis set (TTL 1시간)
+  3. 곡명+아티스트 조합 → Kazagumo 검색 → MusicService.playBulk()
+
+[텍스트 메시지 수신 — 음악 전용 채널 자동 검색 (F-MUSIC-016)]
+  messageCreate 이벤트:
+    1. music_channel_config → PostgreSQL select WHERE enabled = true
+       (전체 조회 후 channelId 비교, 또는 캐시 활용)
+    2. message.channelId 가 music_channel_config.channelId 와 일치 여부 확인
+    3. 봇 메시지이면 처리 중단
+    4. 일치: Discord API → 사용자 원본 메시지 삭제
+             Kazagumo → 메시지 내용을 검색어로 트랙 검색 → MusicService.play()
 ```
 
 ---

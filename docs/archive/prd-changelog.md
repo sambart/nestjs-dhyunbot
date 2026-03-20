@@ -7,6 +7,8 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v4.2 | 2026-03-21 | music: 음악 전용 채널 임베드 시스템 추가 (F-MUSIC-010~017, MusicChannelConfig 데이터 모델, 웹 설정 REST API, 아키텍처 다이어그램 확장, 관련 모듈 추가) | — |
+| v4.1 | 2026-03-21 | web: F-WEB-014 음악 설정 페이지 추가 — 음악 전용 채널 지정, 임베드 커스터마이징(실시간 미리보기), 버튼 구성(7종, 행 배치, 라벨/이모지), 기본설정 리셋 | — |
 | v4.0 | 2026-03-20 | voice: 자동방 즉시 생성 모드(`instant`) 추가, 확정방 내 사용자의 버튼 클릭으로 새 채널 생성 가능 (F-VOICE-007 분기, F-VOICE-010/011 조건 확장, F-VOICE-020 신규, AutoChannelConfig 컬럼 추가) | — |
 | v3.9 | 2026-03-20 | web: F-WEB-004 자동방 설정 페이지 — 모드 선택(즉시 생성/선택 생성), 스텝 기반 섹션 분할, 버튼 카드 그리드 + 모달 편집, 통합 미리보기 강화 | — |
 | v3.8 | 2026-03-20 | music: Lavalink v4 + Kazagumo v3 아키텍처 전환, /pause·/resume 신규 추가, Now Playing Embed 명세, 모듈 경로 수정 (F-MUSIC-001~005) | — |
@@ -37,6 +39,56 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 30] web: 음악 설정 페이지 추가 (WEB-MUSIC-CONFIG)
+
+**변경일**: 2026-03-21
+**티켓**: WEB-MUSIC-CONFIG
+
+**변경 파일**:
+- `docs/specs/prd/web.md` — F-WEB-014 음악 설정 페이지 신규 추가, 관련 모듈 섹션 갱신, 미구현 목록 갱신
+
+**변경 내용**:
+1. **F-WEB-014 신규 추가**: `/settings/guild/{guildId}/music` 경로의 음악 설정 페이지 요구사항 작성.
+2. **섹션 1 — 음악 전용 채널 지정**: 텍스트 채널 선택 드롭다운, 채널 새로고침 버튼, 저장 시 고정 임베드 자동 전송 안내 명세.
+3. **섹션 2 — 임베드 커스터마이징**: 제목, 설명, 색상 피커(#HEX), 썸네일 URL 입력, Discord 다크모드 스타일 실시간 미리보기 명세.
+4. **섹션 3 — 버튼 구성**: 7종 버튼(음악 검색, 일시정지/재개, 스킵, 정지, 재생목록, 멜론차트, 빌보드) 활성화 토글, 행(row) 배치 셀렉트, 라벨/이모지 커스텀, 버튼 미리보기 명세.
+5. **섹션 4 — 기본설정 리셋**: 확인 다이얼로그 포함, 임베드 설정 + 버튼 구성 전체 초기화(채널 지정 제외) 명세.
+6. **저장 동작**: PUT 저장 시 DB upsert → 채널에 임베드 전송/수정 → messageId 업데이트 순서 명세.
+7. **API 목록**: GET/PUT /music/config, POST /music/config/reset, GET /channels?type=text 4개 엔드포인트 명세.
+8. **관련 모듈**: `apps/web/app/settings/guild/[guildId]/music/page.tsx`, `apps/web/app/lib/music-config-api.ts` 추가.
+9. **SettingsSidebar**: Music 아이콘 + "음악 설정" 메뉴 항목 추가 명세.
+10. **미구현 목록**: 음악 설정 페이지를 프로토타입/미구현 항목에 추가.
+
+**변경 사유**: 음악 봇의 플레이어 임베드 채널 및 UI를 관리자가 웹에서 직접 커스터마이징할 수 있도록 음악 설정 페이지 요구사항을 PRD에 반영한다.
+
+---
+
+## [수정 30] music: 음악 전용 채널 임베드 시스템 추가 (MUSIC-CHANNEL-EMBED)
+
+**변경일**: 2026-03-21
+**티켓**: MUSIC-CHANNEL-EMBED
+
+**변경 파일**:
+- `docs/specs/prd/music.md` — 음악 전용 채널 임베드 시스템 전체 섹션 신규 추가 (F-MUSIC-010~017, MusicChannelConfig 데이터 모델, 웹 설정 REST API, 아키텍처 다이어그램 확장, 관련 모듈 경로 추가)
+
+**변경 내용**:
+1. **관련 모듈 추가**: `MusicChannelService`, `ChartCrawlerService`, `MusicChannelConfig` ORM 엔티티/레포지토리, 버튼/모달/메시지 인터랙션 핸들러, `music-channel-embed.builder`, API 컨트롤러/DTO 경로 추가.
+2. **아키텍처 섹션 확장**: 기존 슬래시 커맨드 흐름을 "슬래시 커맨드 흐름"으로 명명하고, 음악 전용 채널 임베드 흐름(웹 설정 저장 → 임베드 전송, 버튼 클릭 분기, 텍스트 메시지 입력, Kazagumo 이벤트 → 임베드 갱신)을 별도 다이어그램으로 추가.
+3. **F-MUSIC-010**: 음악 채널 고정 임베드 — 대기/재생 중 임베드 전환, 커스텀 제목/설명/색상/썸네일, messageId 관리 명세 추가.
+4. **F-MUSIC-011**: 음악 검색 버튼 — Discord Modal 팝업 → Kazagumo 검색 → 재생 흐름 명세 추가.
+5. **F-MUSIC-012**: 재생 컨트롤 버튼 3종 (`pause_resume`, `skip`, `stop`) — 기존 MusicService 로직 재사용 명세 추가.
+6. **F-MUSIC-013**: 큐/재생목록 보기 버튼 — ephemeral 큐 목록 응답 명세 추가.
+7. **F-MUSIC-014**: 멜론 인기차트 버튼 — TOP 20 크롤링, Redis 캐싱(1h TTL), Kazagumo 일괄 추가 명세 추가.
+8. **F-MUSIC-015**: 빌보드 차트 버튼 — HOT 100 TOP 20 크롤링, Redis 캐싱(1h TTL), Kazagumo 일괄 추가 명세 추가.
+9. **F-MUSIC-016**: 텍스트 입력 자동 검색 — `messageCreate` 이벤트 기반 자동 검색+재생+메시지 삭제 명세 추가.
+10. **F-MUSIC-017**: 임베드 실시간 갱신 — `playerStart`/`playerEmpty`/`playerPause`/`playerResume` 이벤트별 임베드 갱신 동작 표 추가.
+11. **데이터 모델 추가**: `MusicChannelConfig` (`music_channel_config`) 테이블 컬럼 정의 및 `buttonConfig` JSONB 구조 명세 추가.
+12. **웹 설정 명세 추가**: 음악 채널 설정 섹션 UI 요소, 버튼 구성 섹션 UI 요소, REST API 4종 (GET/POST/PATCH/DELETE) 명세 추가.
+
+**변경 사유**: 슬래시 커맨드 없이 지정된 텍스트 채널에서 버튼 클릭 및 텍스트 입력만으로 음악을 제어할 수 있는 고정 임베드 UI를 제공하고, 멜론/빌보드 차트 연동으로 탐색 없이 인기 곡을 바로 재생하는 경험을 지원한다.
 
 ---
 
