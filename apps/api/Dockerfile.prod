@@ -17,6 +17,7 @@ COPY tsconfig.json ./
 # Copy workspace package.json files
 COPY apps/api/package.json ./apps/api/
 COPY libs/shared/package.json ./libs/shared/
+COPY libs/bot-api-client/package.json ./libs/bot-api-client/
 
 # Install dependencies (cache mount for faster rebuilds)
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
@@ -24,6 +25,10 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --froze
 # Copy shared library and build
 COPY libs/shared ./libs/shared
 RUN pnpm --filter @dhyunbot/shared build
+
+# Copy bot-api-client library and build
+COPY libs/bot-api-client ./libs/bot-api-client
+RUN pnpm --filter @dhyunbot/bot-api-client build
 
 # Copy API source and build
 COPY apps/api ./apps/api
@@ -49,6 +54,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 # Copy workspace package.json files
 COPY apps/api/package.json ./apps/api/
 COPY libs/shared/package.json ./libs/shared/
+COPY libs/bot-api-client/package.json ./libs/bot-api-client/
 
 # Skip husky in production (devDependency)
 ENV HUSKY=0
@@ -59,6 +65,10 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --froze
 # Copy built shared library
 COPY --from=builder /workspace/libs/shared/dist ./libs/shared/dist
 COPY --from=builder /workspace/libs/shared/package.json ./libs/shared/
+
+# Copy built bot-api-client library
+COPY --from=builder /workspace/libs/bot-api-client/dist ./libs/bot-api-client/dist
+COPY --from=builder /workspace/libs/bot-api-client/package.json ./libs/bot-api-client/
 
 # Copy built API
 COPY --from=builder /workspace/apps/api/dist ./apps/api/dist
