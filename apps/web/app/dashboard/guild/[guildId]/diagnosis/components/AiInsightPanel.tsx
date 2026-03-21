@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -31,24 +31,18 @@ export default function AiInsightPanel({
   onRefresh,
 }: AiInsightPanelProps) {
   const t = useTranslations('dashboard');
-  const [remainSec, setRemainSec] = useState(0);
+  const calcRemain = useCallback((): number => {
+    if (!generatedAt) return 0;
+    const elapsed = diffSecFromNow(generatedAt);
+    return Math.max(0, COOLDOWN_SEC - elapsed);
+  }, [generatedAt]);
+
+  const [remainSec, setRemainSec] = useState(() => calcRemain());
 
   useEffect(() => {
-    if (!generatedAt) {
-      setRemainSec(0);
-      return;
-    }
-
-    // if-guard 이후이므로 generatedAt은 string이 보장되나,
-    // 중첩 함수 클로저에서 narrowing이 유지되지 않으므로 지역 변수로 고정
-    const snapshotAt = generatedAt;
-
-    function calcRemain(): number {
-      const elapsed = diffSecFromNow(snapshotAt);
-      return Math.max(0, COOLDOWN_SEC - elapsed);
-    }
-
     setRemainSec(calcRemain());
+
+    if (!generatedAt) return;
 
     const timer = setInterval(() => {
       const r = calcRemain();
@@ -57,7 +51,7 @@ export default function AiInsightPanel({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [generatedAt]);
+  }, [generatedAt, calcRemain]);
 
   const isCooldown = remainSec > 0;
   const cooldownMin = Math.floor(remainSec / 60);
