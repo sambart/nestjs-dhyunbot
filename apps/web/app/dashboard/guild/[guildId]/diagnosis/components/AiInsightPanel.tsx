@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -31,27 +31,21 @@ export default function AiInsightPanel({
   onRefresh,
 }: AiInsightPanelProps) {
   const t = useTranslations('dashboard');
-  const calcRemain = useCallback((): number => {
-    if (!generatedAt) return 0;
-    const elapsed = diffSecFromNow(generatedAt);
-    return Math.max(0, COOLDOWN_SEC - elapsed);
-  }, [generatedAt]);
-
-  const [remainSec, setRemainSec] = useState(() => calcRemain());
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    setRemainSec(calcRemain());
-
     if (!generatedAt) return;
 
     const timer = setInterval(() => {
-      const r = calcRemain();
-      setRemainSec(r);
-      if (r <= 0) clearInterval(timer);
+      setTick((prev) => prev + 1);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [generatedAt, calcRemain]);
+  }, [generatedAt]);
+
+  // tick 또는 generatedAt 변경 시 매번 재계산
+  const remainSec = generatedAt ? Math.max(0, COOLDOWN_SEC - diffSecFromNow(generatedAt)) : 0;
+  void tick; // tick 변경이 리렌더링을 트리거하여 remainSec이 재계산됨
 
   const isCooldown = remainSec > 0;
   const cooldownMin = Math.floor(remainSec / 60);
