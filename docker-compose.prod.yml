@@ -91,4 +91,8 @@ services:
 
 volumes:
   postgres_data_prod:
+    external: true
+    name: nestjs-dhyunbot_postgres_data_prod
   redis_data_prod:
+    external: true
+    name: nestjs-dhyunbot_redis_data_prod
