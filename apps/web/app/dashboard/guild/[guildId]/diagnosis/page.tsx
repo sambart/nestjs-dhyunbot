@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useEffect, useState } from 'react';
 
 import type {
   AiInsightResponse,

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { BarChart3, Loader2, RefreshCw, Server } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useEffect, useState } from 'react';
 
 import type { DiscordChannel } from '../../../../lib/discord-api';
 import { fetchGuildTextChannels } from '../../../../lib/discord-api';
