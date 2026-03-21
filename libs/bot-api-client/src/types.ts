@@ -68,7 +68,11 @@ export interface MocoMyHuntingRequestDto {
 export interface NewbieConfigDto {
   welcomeEnabled: boolean;
   welcomeChannelId: string | null;
-  welcomeMessage: string | null;
+  welcomeContent: string | null;
+  welcomeEmbedTitle: string | null;
+  welcomeEmbedDescription: string | null;
+  welcomeEmbedColor: string | null;
+  welcomeEmbedThumbnailUrl: string | null;
   missionEnabled: boolean;
   roleEnabled: boolean;
   newbieRoleId: string | null;
