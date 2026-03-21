@@ -331,6 +331,28 @@
     "resetSuccess": "기본설정으로 초기화되었습니다.",
     "saveSuccess": "저장되었습니다."
   },
+  "weeklyReport": {
+    "title": "주간 리포트 설정",
+    "enableToggle": "주간 자동 리포트",
+    "enableDescription": "매주 지정 요일/시각에 선택한 채널로 서버 음성 활동 리포트가 자동 전송됩니다.",
+    "channel": "전송 채널",
+    "channelPlaceholder": "텍스트 채널을 선택하세요",
+    "refreshChannels": "채널 새로고침",
+    "dayOfWeek": "발송 요일",
+    "days": {
+      "0": "일",
+      "1": "월",
+      "2": "화",
+      "3": "수",
+      "4": "목",
+      "5": "금",
+      "6": "토"
+    },
+    "hour": "발송 시각",
+    "hourFormat": "{hour}시 (KST)",
+    "validationChannelRequired": "리포트를 활성화하려면 채널을 선택해야 합니다.",
+    "saveSuccess": "저장되었습니다."
+  },
   "inactiveMember": {
     "title": "비활동 회원 설정",
     "criteria": "비활동 판정 기준",

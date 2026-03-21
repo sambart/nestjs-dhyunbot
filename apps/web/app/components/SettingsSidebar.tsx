@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   ArrowLeftRight,
   BarChart3,
+  BrainCircuit,
   HeartPulse,
   Mic,
   Music,
@@ -104,6 +105,16 @@ export default function SettingsSidebar({ guilds, selectedGuildId }: SettingsSid
           href: `/settings/guild/${selectedGuildId}/sticky-message`,
           label: t('settings.stickyMessage'),
           icon: Pin,
+        },
+      ],
+    },
+    {
+      label: t('sidebar.settingsGroup.analytics'),
+      items: [
+        {
+          href: `/settings/guild/${selectedGuildId}/diagnosis`,
+          label: t('settings.diagnosis'),
+          icon: BrainCircuit,
         },
       ],
     },

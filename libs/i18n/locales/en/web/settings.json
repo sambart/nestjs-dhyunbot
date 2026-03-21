@@ -331,6 +331,28 @@
     "resetSuccess": "Reset to defaults successfully.",
     "saveSuccess": "Saved successfully."
   },
+  "weeklyReport": {
+    "title": "Weekly Report Settings",
+    "enableToggle": "Weekly Auto Report",
+    "enableDescription": "A server voice activity report will be automatically sent to the selected channel at the specified day and time each week.",
+    "channel": "Send Channel",
+    "channelPlaceholder": "Select a text channel",
+    "refreshChannels": "Refresh Channels",
+    "dayOfWeek": "Send Day",
+    "days": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    },
+    "hour": "Send Time",
+    "hourFormat": "{hour}:00 (KST)",
+    "validationChannelRequired": "You must select a channel to enable the report.",
+    "saveSuccess": "Saved successfully."
+  },
   "inactiveMember": {
     "title": "Inactive Member Settings",
     "criteria": "Inactivity Criteria",
