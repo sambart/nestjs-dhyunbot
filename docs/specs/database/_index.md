@@ -352,6 +352,20 @@ Onyu은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 및 
 └────────────────────────────────────────────────────────────┘
   (독립 테이블 — FK 없음, Discord ID 직접 저장)
   IDX_inactive_action_log_guild_executed: IDX(guildId, executedAt DESC)
+
+┌────────────────────────────────────────────────────────────┐
+│      WeeklyReportConfig (weekly_report_config)              │
+├────────────────────────────────────────────────────────────┤
+│ PK guildId                                                  │
+│ isEnabled (default false)                                   │
+│ channelId ? (발송 대상 텍스트 채널 ID)                      │
+│ dayOfWeek (default 1, 0=일 ~ 6=토)                          │
+│ hour (default 9, 0 ~ 23)                                    │
+│ timezone (default 'Asia/Seoul', IANA 타임존)                │
+│ updatedAt (timestamp)                                       │
+└────────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  IDX_weekly_report_config_enabled: IDX(isEnabled)
 ```
 
 ---
@@ -1426,6 +1440,61 @@ DO UPDATE SET
 길드 설정 조회(`WHERE guildId = ?`)는 단건 조회이므로 UNIQUE 인덱스 하나로 커버된다. 버튼 구성이 JSONB로 관리되므로 버튼별 별도 테이블이 불필요하다. `buttonConfig`에 대한 GIN 인덱스는 현재 스펙에서 JSONB 필드를 조건절에서 직접 조회하지 않으므로 추가하지 않는다.
 
 F-MUSIC-016의 `messageCreate` 이벤트 처리는 수신된 채널 ID가 음악 전용 채널인지 확인하기 위해 `WHERE channelId = ?` 조회를 수행한다. `messageCreate`는 서버의 모든 텍스트 메시지마다 발생하는 고빈도 이벤트이므로, `UNIQUE(guildId)` 인덱스만으로는 이 조회를 커버할 수 없어 `IDX_music_channel_config_channel (channelId)` 단독 인덱스를 추가한다. `channelId`는 Discord 전역에서 고유하므로(Snowflake ID) 단독 인덱스로 충분히 선택도가 높다.
+
+---
+
+### 29. WeeklyReportConfig (`weekly_report_config`)
+
+> F-GEMINI-006 대응: 길드별 주간 자동 리포트 발송 설정을 저장한다. 스케줄러가 매시간 정각에 이 테이블을 조회하여 조건에 맞는 길드에 리포트를 전송한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `isEnabled` | `boolean` | NOT NULL, DEFAULT `false` | 주간 리포트 발송 활성화 여부 |
+| `channelId` | `varchar` | NULLABLE | 리포트를 전송할 텍스트 채널 ID. `isEnabled = true`일 때 필수 |
+| `dayOfWeek` | `int` | NOT NULL, DEFAULT `1` | 발송 요일. `0`(일) ~ `6`(토) |
+| `hour` | `int` | NOT NULL, DEFAULT `9` | 발송 시간 (시 단위). `0` ~ `23` |
+| `timezone` | `varchar` | NOT NULL, DEFAULT `'Asia/Seoul'` | 발송 기준 타임존. IANA 타임존 문자열 (예: `Asia/Seoul`) |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 마지막 설정 변경 시각 (`@UpdateDateColumn`) |
+
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/voice-analytics/weekly-report/weekly-report-config.entity.ts`
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| `IDX_weekly_report_config_enabled` | `(isEnabled)` | 스케줄러가 매시간 `WHERE isEnabled = true` 조건으로 발송 대상 길드 전체를 조회할 때 사용 |
+
+#### 인덱스 설계 근거
+
+주간 리포트 스케줄러(`0 * * * *`)는 매시간 `WHERE isEnabled = true` 조건으로 발송 대상 길드 전체를 조회한다. `isEnabled`는 boolean이므로 선택도가 낮지만, 비활성화된 길드가 다수인 운영 환경에서는 `true` 레코드 비율이 낮아 인덱스 스캔이 풀스캔보다 효율적이다. 단건 설정 조회(`WHERE guildId = ?`)는 PK 인덱스로 커버된다.
+
+#### SQL DDL
+
+```sql
+CREATE TABLE weekly_report_config (
+  "guildId"    varchar        NOT NULL,
+  "isEnabled"  boolean        NOT NULL DEFAULT false,
+  "channelId"  varchar,
+  "dayOfWeek"  int            NOT NULL DEFAULT 1,
+  "hour"       int            NOT NULL DEFAULT 9,
+  "timezone"   varchar        NOT NULL DEFAULT 'Asia/Seoul',
+  "updatedAt"  timestamptz    NOT NULL DEFAULT now(),
+  CONSTRAINT PK_weekly_report_config PRIMARY KEY ("guildId")
+);
+
+CREATE INDEX IDX_weekly_report_config_enabled ON weekly_report_config ("isEnabled");
+
+COMMENT ON COLUMN weekly_report_config."guildId"   IS '디스코드 서버 ID (PK)';
+COMMENT ON COLUMN weekly_report_config."isEnabled"  IS '주간 리포트 발송 활성화 여부';
+COMMENT ON COLUMN weekly_report_config."channelId"  IS '리포트를 전송할 텍스트 채널 ID (nullable)';
+COMMENT ON COLUMN weekly_report_config."dayOfWeek"  IS '발송 요일: 0(일) ~ 6(토)';
+COMMENT ON COLUMN weekly_report_config."hour"       IS '발송 시간(시 단위): 0 ~ 23';
+COMMENT ON COLUMN weekly_report_config."timezone"   IS 'IANA 타임존 문자열 (예: Asia/Seoul)';
+COMMENT ON COLUMN weekly_report_config."updatedAt"  IS '마지막 설정 변경 시각';
+```
 
 ---
 

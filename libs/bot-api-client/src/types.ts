@@ -174,58 +174,6 @@ export interface StickyMessageConfigItem {
 
 // ── Voice Analytics ──
 
-export interface MyVoiceStatsResponse {
-  ok: boolean;
-  data: {
-    userId: string;
-    username: string;
-    totalVoiceTime: number;
-    totalMicOnTime: number;
-    totalMicOffTime: number;
-    aloneTime: number;
-    activeChannels: Array<{ channelId: string; channelName: string; duration: number }>;
-    activeDays: number;
-    avgDailyVoiceTime: number;
-    micUsageRate: number;
-    userRank: number;
-    totalUsers: number;
-  } | null;
-  days: number;
-}
-
-export interface LeaderboardResponse {
-  ok: boolean;
-  data: {
-    userActivities: Array<{
-      userId: string;
-      username: string;
-      totalVoiceTime: number;
-      micUsageRate: number;
-    }>;
-  } | null;
-  days: number;
-}
-
-export interface VoiceAnalyzeResponse {
-  ok: boolean;
-  data: {
-    analysisText: string;
-    totalStats: {
-      totalUsers: number;
-      totalVoiceTime: number;
-      totalMicOnTime: number;
-      avgDailyActiveUsers: number;
-    };
-  } | null;
-  days: number;
-}
-
-export interface CommunityHealthResponse {
-  ok: boolean;
-  data: { healthText: string } | null;
-  days: number;
-}
-
 export interface SelfDiagnosisResponse {
   ok: boolean;
   data: {
@@ -236,6 +184,29 @@ export interface SelfDiagnosisResponse {
   } | null;
   reason?: 'not_enabled' | 'cooldown' | 'quota_exhausted';
   remainingSeconds?: number;
+}
+
+export interface ServerDiagnosisResponse {
+  ok: boolean;
+  data: {
+    totalStats: {
+      totalUsers: number;
+      totalVoiceTime: number;
+      totalMicOnTime: number;
+      avgDailyActiveUsers: number;
+    };
+    topUsers: Array<{
+      rank: number;
+      userId: string;
+      nickName: string;
+      avatarUrl: string | null;
+      totalSec: number;
+      micOnSec: number;
+      activeDays: number;
+    }>;
+    aiSummary: string | null;
+    days: number;
+  } | null;
 }
 
 export interface SelfDiagnosisResultData {
@@ -269,6 +240,12 @@ export interface SelfDiagnosisResultData {
     current: string;
   }>;
   llmSummary?: string;
+}
+
+export interface LlmSummaryResponse {
+  ok: boolean;
+  data: { llmSummary: string } | null;
+  reason?: 'quota_exhausted';
 }
 
 export interface MeProfileResponse {

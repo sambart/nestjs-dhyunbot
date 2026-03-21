@@ -1,11 +1,11 @@
 /**
  * DashboardSidebar 통합 테스트
  *
- * 6개 플랫 메뉴 → 3그룹(개요/회원활동/시스템) 구조 변경 후
+ * 6개 플랫 메뉴 → 4그룹(개요/회원활동/분석/시스템) 구조 변경 후
  * 유저가 사이드바를 보았을 때 기대하는 결과를 검증한다.
  *
- * - 3개 그룹 헤더가 렌더링되는지 확인
- * - 각 그룹에 올바른 메뉴 항목이 포함되는지 확인
+ * - 4개 그룹 헤더가 렌더링되는지 확인
+ * - 각 그룹에 올바른 메뉴 항목이 포함되는지 확인 (진단 메뉴 포함)
  * - 크로스링크 설정 아이콘이 settingsHref가 있는 항목에만 렌더링되는지 확인
  * - 활성 경로의 메뉴 항목에 활성 스타일이 적용되는지 확인
  */
@@ -77,6 +77,12 @@ describe('DashboardSidebar 통합 테스트', () => {
       expect(screen.getByText('sidebar.dashboardGroup.memberActivity')).toBeInTheDocument();
       expect(screen.getByText('sidebar.dashboardGroup.system')).toBeInTheDocument();
     });
+
+    it('분석 그룹 헤더(analytics)가 렌더링된다', () => {
+      renderSidebar();
+
+      expect(screen.getByText('sidebar.dashboardGroup.analytics')).toBeInTheDocument();
+    });
   });
 
   describe('그룹별 메뉴 항목', () => {
@@ -100,10 +106,16 @@ describe('DashboardSidebar 통합 테스트', () => {
 
       expect(screen.getByText('sidebar.monitoring')).toBeInTheDocument();
     });
+
+    it('분석 그룹에 진단(diagnosis) 항목이 포함된다', () => {
+      renderSidebar();
+
+      expect(screen.getByText('sidebar.diagnosis')).toBeInTheDocument();
+    });
   });
 
   describe('크로스링크 설정 아이콘', () => {
-    it('settingsHref가 있는 항목(음성, 신규회원, 비활동회원)에만 설정 링크가 렌더링된다', () => {
+    it('settingsHref가 있는 항목(음성, 신규회원, 비활동회원, 진단)에만 설정 링크가 렌더링된다', () => {
       renderSidebar();
 
       // title 속성으로 설정 크로스링크를 식별한다
@@ -111,8 +123,8 @@ describe('DashboardSidebar 통합 테스트', () => {
         .getAllByRole('link')
         .filter((el) => el.getAttribute('title') === 'sidebar.crosslink.settings');
 
-      // voice, newbie, inactive-member — 3개
-      expect(settingsLinks).toHaveLength(3);
+      // voice, newbie, inactive-member, diagnosis — 4개
+      expect(settingsLinks).toHaveLength(4);
     });
 
     it('음성 항목의 설정 크로스링크가 올바른 href를 가진다', () => {
@@ -146,6 +158,17 @@ describe('DashboardSidebar 통합 테스트', () => {
 
       const hrefs = settingsLinks.map((el) => el.getAttribute('href'));
       expect(hrefs).toContain(`/settings/guild/${GUILD_ID}/inactive-member`);
+    });
+
+    it('진단 항목의 설정 크로스링크가 올바른 href를 가진다', () => {
+      renderSidebar();
+
+      const settingsLinks = screen
+        .getAllByRole('link')
+        .filter((el) => el.getAttribute('title') === 'sidebar.crosslink.settings');
+
+      const hrefs = settingsLinks.map((el) => el.getAttribute('href'));
+      expect(hrefs).toContain(`/settings/guild/${GUILD_ID}/diagnosis`);
     });
 
     it('settingsHref가 없는 항목(개요, 동시접속, 모니터링)에는 설정 크로스링크가 렌더링되지 않는다', () => {
@@ -209,6 +232,21 @@ describe('DashboardSidebar 통합 테스트', () => {
 
       expect(voiceLink).toBeDefined();
       expect(voiceLink?.className).not.toContain('bg-indigo-50');
+    });
+
+    it('현재 경로가 /diagnosis이면 진단 메뉴 링크에 활성 클래스가 적용된다', () => {
+      renderSidebar(`/dashboard/guild/${GUILD_ID}/diagnosis`);
+
+      const diagnosisLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('sidebar.diagnosis') &&
+            el.getAttribute('href') === `/dashboard/guild/${GUILD_ID}/diagnosis`,
+        );
+
+      expect(diagnosisLink).toBeDefined();
+      expect(diagnosisLink?.className).toContain('bg-indigo-50');
     });
   });
 

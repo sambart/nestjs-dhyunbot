@@ -11,6 +11,8 @@ export class LlmQuotaExhaustedException extends Error {
 export interface LlmOptions {
   temperature?: number;
   maxOutputTokens?: number;
+  /** Gemini thinking 모델의 thinking 토큰 예산. 0이면 thinking 비활성화 */
+  thinkingBudget?: number;
 }
 
 export interface LlmProvider {

@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Logger,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, HttpCode, HttpStatus, Logger, Post, Query, UseGuards } from '@nestjs/common';
 
 import { LlmQuotaExhaustedException } from '../../common/llm/llm-provider.interface';
 import { RedisService } from '../../redis/redis.service';
@@ -21,7 +12,7 @@ import { VoiceHealthKeys } from '../../voice-analytics/self-diagnosis/infrastruc
 import { VoiceHealthConfigRepository } from '../../voice-analytics/self-diagnosis/infrastructure/voice-health-config.repository';
 import { BotApiAuthGuard } from '../bot-api-auth.guard';
 
-const ANALYSIS_CACHE_TTL = 60 * 30; // 30분
+const SERVER_DIAGNOSIS_CACHE_TTL = 60 * 10; // 10분
 
 /**
  * Bot -> API 음성 분석 엔드포인트.
@@ -40,113 +31,71 @@ export class BotVoiceAnalyticsController {
     private readonly redis: RedisService,
   ) {}
 
-  @Get('my-stats')
+  @Post('server-diagnosis')
   @HttpCode(HttpStatus.OK)
-  async getMyStats(
+  async getServerDiagnosis(
+    @Query('guildId') guildId: string,
+    @Query('days') daysStr: string,
+  ): Promise<Record<string, unknown>> {
+    const days = parseInt(daysStr, 10) || 7;
+
+    const cacheKey = `voice:bot-server-diagnosis:${guildId}:${days}`;
+    const cached = await this.redis.get<Record<string, unknown>>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Cache hit for server diagnosis: ${cacheKey}`);
+      return { ok: true, data: cached };
+    }
+
+    const { start, end } = VoiceAnalyticsService.getDateRange(days);
+    const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
+
+    if (activityData.userActivities.length === 0) {
+      return { ok: true, data: null };
+    }
+
+    const [leaderboard] = await Promise.all([
+      this.analyticsService.getLeaderboard(guildId, { days, page: 1, limit: 3 }),
+    ]);
+
+    let aiSummary: string | null = null;
+    try {
+      aiSummary = await this.aiAnalysisService.generateBriefSummary(
+        activityData.totalStats,
+        activityData.userActivities,
+      );
+    } catch {
+      this.logger.warn(`generateBriefSummary failed for guild=${guildId}`);
+    }
+
+    const data = {
+      totalStats: activityData.totalStats,
+      topUsers: leaderboard.users,
+      aiSummary,
+      days,
+    };
+    await this.redis.set(cacheKey, data, SERVER_DIAGNOSIS_CACHE_TTL);
+
+    return { ok: true, data };
+  }
+
+  @Post('self-diagnosis/llm-summary')
+  @HttpCode(HttpStatus.OK)
+  async getSelfDiagnosisLlmSummary(
     @Query('guildId') guildId: string,
     @Query('userId') userId: string,
-    @Query('days') daysStr: string,
   ): Promise<Record<string, unknown>> {
-    const days = parseInt(daysStr, 10) || 7;
-    const { start, end } = VoiceAnalyticsService.getDateRange(days);
-    const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
-
-    const myActivity = activityData.userActivities.find((u) => u.userId === userId);
-    if (!myActivity) {
-      return { ok: true, data: null, days };
+    try {
+      const llmSummary = await this.diagnosisService.generateLlmSummaryFromCache(guildId, userId);
+      if (!llmSummary) {
+        return { ok: true, data: null };
+      }
+      return { ok: true, data: { llmSummary } };
+    } catch (error) {
+      if (error instanceof LlmQuotaExhaustedException) {
+        return { ok: true, data: null, reason: 'quota_exhausted' };
+      }
+      throw error;
     }
-
-    const userRank = activityData.userActivities.findIndex((u) => u.userId === userId) + 1;
-
-    return {
-      ok: true,
-      data: {
-        ...myActivity,
-        userRank,
-        totalUsers: activityData.totalStats.totalUsers,
-      },
-      days,
-    };
-  }
-
-  @Get('leaderboard')
-  @HttpCode(HttpStatus.OK)
-  async getLeaderboard(
-    @Query('guildId') guildId: string,
-    @Query('days') daysStr: string,
-  ): Promise<Record<string, unknown>> {
-    const days = parseInt(daysStr, 10) || 7;
-    const { start, end } = VoiceAnalyticsService.getDateRange(days);
-    const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
-
-    return {
-      ok: true,
-      data: {
-        userActivities: activityData.userActivities.slice(0, 10),
-      },
-      days,
-    };
-  }
-
-  @Post('analyze')
-  @HttpCode(HttpStatus.OK)
-  async analyzeVoiceActivity(
-    @Query('guildId') guildId: string,
-    @Query('days') daysStr: string,
-  ): Promise<Record<string, unknown>> {
-    const days = parseInt(daysStr, 10) || 7;
-
-    const cacheKey = `voice:bot-analysis:guild:${guildId}:${days}`;
-    const cached = await this.redis.get<Record<string, unknown>>(cacheKey);
-    if (cached) {
-      this.logger.debug(`Cache hit for bot guild analysis: ${cacheKey}`);
-      return { ok: true, data: cached, days };
-    }
-
-    const { start, end } = VoiceAnalyticsService.getDateRange(days);
-    const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
-
-    if (activityData.userActivities.length === 0) {
-      return { ok: true, data: null, days };
-    }
-
-    const analysis = await this.aiAnalysisService.analyzeVoiceActivity(activityData);
-    const data = {
-      analysisText: analysis.text,
-      totalStats: activityData.totalStats,
-    };
-    await this.redis.set(cacheKey, data, ANALYSIS_CACHE_TTL);
-
-    return { ok: true, data, days };
-  }
-
-  @Post('community-health')
-  @HttpCode(HttpStatus.OK)
-  async getCommunityHealth(
-    @Query('guildId') guildId: string,
-    @Query('days') daysStr: string,
-  ): Promise<Record<string, unknown>> {
-    const days = parseInt(daysStr, 10) || 7;
-
-    const cacheKey = `voice:bot-health:guild:${guildId}:${days}`;
-    const cached = await this.redis.get<Record<string, unknown>>(cacheKey);
-    if (cached) {
-      this.logger.debug(`Cache hit for bot community health: ${cacheKey}`);
-      return { ok: true, data: cached, days };
-    }
-
-    const { start, end } = VoiceAnalyticsService.getDateRange(days);
-    const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
-
-    if (activityData.userActivities.length === 0) {
-      return { ok: true, data: null, days };
-    }
-
-    const healthText = await this.aiAnalysisService.calculateCommunityHealth(activityData);
-    const data = { healthText };
-    await this.redis.set(cacheKey, data, ANALYSIS_CACHE_TTL);
-
-    return { ok: true, data, days };
   }
 
   @Post('self-diagnosis')

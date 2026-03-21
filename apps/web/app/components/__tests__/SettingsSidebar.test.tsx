@@ -1,11 +1,11 @@
 /**
  * SettingsSidebar 통합 테스트
  *
- * 9개 플랫 메뉴 → 3그룹(서버설정/음성채널/회원관리) 구조 변경 후
+ * 9개 플랫 메뉴 → 4그룹(서버설정/음성채널/회원관리/분석) 구조 변경 후
  * 유저가 사이드바를 보았을 때 기대하는 결과를 검증한다.
  *
- * - 3개 그룹 헤더가 렌더링되는지 확인
- * - 각 그룹에 올바른 메뉴 항목이 포함되는지 확인
+ * - 4개 그룹 헤더가 렌더링되는지 확인 (분석 그룹 포함)
+ * - 각 그룹에 올바른 메뉴 항목이 포함되는지 확인 (진단/주간 리포트 포함)
  * - 활성 경로의 메뉴 항목에 활성 스타일이 적용되는지 확인
  */
 
@@ -74,6 +74,12 @@ describe('SettingsSidebar 통합 테스트', () => {
       expect(screen.getByText('sidebar.settingsGroup.voiceChannel')).toBeInTheDocument();
       expect(screen.getByText('sidebar.settingsGroup.memberManagement')).toBeInTheDocument();
     });
+
+    it('분석 그룹 헤더(analytics)가 렌더링된다', () => {
+      renderSidebar();
+
+      expect(screen.getByText('sidebar.settingsGroup.analytics')).toBeInTheDocument();
+    });
   });
 
   describe('그룹별 메뉴 항목', () => {
@@ -99,6 +105,12 @@ describe('SettingsSidebar 통합 테스트', () => {
       expect(screen.getByText('settings.inactiveMember')).toBeInTheDocument();
       expect(screen.getByText('settings.statusPrefix')).toBeInTheDocument();
       expect(screen.getByText('settings.stickyMessage')).toBeInTheDocument();
+    });
+
+    it('분석 그룹에 진단(diagnosis) 항목이 포함된다', () => {
+      renderSidebar();
+
+      expect(screen.getByText('settings.diagnosis')).toBeInTheDocument();
     });
   });
 
@@ -143,6 +155,20 @@ describe('SettingsSidebar 통합 테스트', () => {
         );
 
       expect(autoChannelLink).toBeDefined();
+    });
+
+    it('진단 설정 링크가 /settings/guild/:id/diagnosis 경로를 가진다', () => {
+      renderSidebar();
+
+      const diagnosisLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('settings.diagnosis') &&
+            el.getAttribute('href') === `/settings/guild/${GUILD_ID}/diagnosis`,
+        );
+
+      expect(diagnosisLink).toBeDefined();
     });
   });
 
@@ -205,6 +231,36 @@ describe('SettingsSidebar 통합 테스트', () => {
 
       expect(newbieLink).toBeDefined();
       expect(newbieLink?.className).toContain('text-indigo-700');
+    });
+
+    it('현재 경로가 /settings/guild/:id/diagnosis이면 진단 링크에 활성 클래스가 적용된다', () => {
+      renderSidebar(`/settings/guild/${GUILD_ID}/diagnosis`);
+
+      const diagnosisLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('settings.diagnosis') &&
+            el.getAttribute('href') === `/settings/guild/${GUILD_ID}/diagnosis`,
+        );
+
+      expect(diagnosisLink).toBeDefined();
+      expect(diagnosisLink?.className).toContain('bg-indigo-50');
+    });
+
+    it('현재 경로가 /settings/guild/:id이면 진단 링크에 활성 클래스가 적용되지 않는다', () => {
+      renderSidebar(`/settings/guild/${GUILD_ID}`);
+
+      const diagnosisLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('settings.diagnosis') &&
+            el.getAttribute('href') === `/settings/guild/${GUILD_ID}/diagnosis`,
+        );
+
+      expect(diagnosisLink).toBeDefined();
+      expect(diagnosisLink?.className).not.toContain('bg-indigo-50');
     });
   });
 

@@ -87,7 +87,11 @@ export class GeminiLlmProvider implements LlmProvider {
         ...(options.maxOutputTokens !== undefined && {
           maxOutputTokens: options.maxOutputTokens,
         }),
-      },
+        // Gemini 2.5 thinking 모델의 thinking 예산 제한
+        ...(options.thinkingBudget !== undefined && {
+          thinkingConfig: { thinkingBudget: options.thinkingBudget },
+        }),
+      } as Record<string, unknown>,
     });
   }
 }
