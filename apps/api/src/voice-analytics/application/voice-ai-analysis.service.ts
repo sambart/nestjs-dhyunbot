@@ -1,9 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { VoiceActivityData, VoiceAnalysisResult } from '@onyu/shared';
 
+import type { LlmProvider } from '../../common/llm/llm-provider.interface';
+import { LLM_PROVIDER } from '../../common/llm/llm-provider.interface';
 import { getErrorMessage, getErrorStack } from '../../common/util/error.util';
-import type { LlmProvider } from '../infrastructure/llm/llm-provider.interface';
-import { LLM_PROVIDER } from '../infrastructure/llm/llm-provider.interface';
 
 @Injectable()
 export class VoiceAiAnalysisService {

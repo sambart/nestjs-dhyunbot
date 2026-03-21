@@ -4,10 +4,11 @@
 VoiceDailyEntity 데이터를 집계하여 Google Gemini API로 AI 분석 리포트를 생성하고, Discord 슬래시 커맨드 및 REST API로 제공하는 도메인이다.
 
 ## 관련 모듈
-- `apps/api/src/gemini/voice-analytics.service.ts` — 데이터 집계 엔진
-- `apps/api/src/gemini/voice-gemini.service.ts` — Gemini API 호출
-- `apps/api/src/gemini/voice-analytics.commands.ts` — Discord 슬래시 커맨드
-- `apps/api/src/gemini/voice-analytics.controller.ts` — REST API 엔드포인트
+- `apps/api/src/voice-analytics/application/voice-analytics.service.ts` — 데이터 집계 엔진
+- `apps/api/src/voice-analytics/application/voice-ai-analysis.service.ts` — LLM 기반 AI 분석
+- `apps/api/src/common/llm/` — LLM 추상화 레이어 (LlmProvider 인터페이스 + GeminiLlmProvider)
+- `apps/api/src/voice-analytics/presentation/voice-analytics.controller.ts` — REST API 엔드포인트
+- `apps/bot/src/command/voice-analytics/` — Discord 슬래시 커맨드 (Bot)
 
 ## 기능 상세
 
@@ -74,17 +75,15 @@ VoiceDailyEntity 데이터를 집계하여 Google Gemini API로 AI 분석 리포
 
 ## 장애 대응 (Resilience)
 
-### Circuit Breaker
-- **라이브러리**: `cockatiel`
-- **개방 조건**: 30초 내 5회 연속 실패 시 회로 개방
+### Circuit Breaker + Retry + Timeout
+- **라이브러리**: `cockatiel` (공통 `ResiliencePolicy` 사용)
+- **개방 조건**: 5회 연속 실패 시 회로 개방
 - **반개방**: 60초 후 반개방 상태로 전환
+- **Timeout**: 호출당 30초
+- **Retry**: 최대 2회, 지수 백오프 (초기 1초)
 
-### Timeout
-- 호출당 30초
-
-### Retry
-- 최대 2회 재시도
-- 지수 백오프 적용 (초기 1초)
+### 기본 모델
+- `gemini-2.5-flash` (환경변수 `GEMINI_MODEL`로 변경 가능)
 
 ### 할당량 초과 처리
 - Gemini API 429 응답 시 `LlmQuotaExhaustedException` throw

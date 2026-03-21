@@ -9,10 +9,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { LlmQuotaExhaustedException } from '../../common/llm/llm-provider.interface';
 import { RedisService } from '../../redis/redis.service';
 import { VoiceAiAnalysisService } from '../../voice-analytics/application/voice-ai-analysis.service';
 import { VoiceAnalyticsService } from '../../voice-analytics/application/voice-analytics.service';
-import { LlmQuotaExhaustedException } from '../../voice-analytics/infrastructure/llm/llm-provider.interface';
 import {
   DiagnosisCooldownException,
   SelfDiagnosisService,
@@ -20,6 +20,8 @@ import {
 import { VoiceHealthKeys } from '../../voice-analytics/self-diagnosis/infrastructure/voice-health-cache.keys';
 import { VoiceHealthConfigRepository } from '../../voice-analytics/self-diagnosis/infrastructure/voice-health-config.repository';
 import { BotApiAuthGuard } from '../bot-api-auth.guard';
+
+const ANALYSIS_CACHE_TTL = 60 * 30; // 30분
 
 /**
  * Bot -> API 음성 분석 엔드포인트.
@@ -93,6 +95,14 @@ export class BotVoiceAnalyticsController {
     @Query('days') daysStr: string,
   ): Promise<Record<string, unknown>> {
     const days = parseInt(daysStr, 10) || 7;
+
+    const cacheKey = `voice:bot-analysis:guild:${guildId}:${days}`;
+    const cached = await this.redis.get<Record<string, unknown>>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Cache hit for bot guild analysis: ${cacheKey}`);
+      return { ok: true, data: cached, days };
+    }
+
     const { start, end } = VoiceAnalyticsService.getDateRange(days);
     const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
 
@@ -101,15 +111,13 @@ export class BotVoiceAnalyticsController {
     }
 
     const analysis = await this.aiAnalysisService.analyzeVoiceActivity(activityData);
-
-    return {
-      ok: true,
-      data: {
-        analysisText: analysis.text,
-        totalStats: activityData.totalStats,
-      },
-      days,
+    const data = {
+      analysisText: analysis.text,
+      totalStats: activityData.totalStats,
     };
+    await this.redis.set(cacheKey, data, ANALYSIS_CACHE_TTL);
+
+    return { ok: true, data, days };
   }
 
   @Post('community-health')
@@ -119,6 +127,14 @@ export class BotVoiceAnalyticsController {
     @Query('days') daysStr: string,
   ): Promise<Record<string, unknown>> {
     const days = parseInt(daysStr, 10) || 7;
+
+    const cacheKey = `voice:bot-health:guild:${guildId}:${days}`;
+    const cached = await this.redis.get<Record<string, unknown>>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Cache hit for bot community health: ${cacheKey}`);
+      return { ok: true, data: cached, days };
+    }
+
     const { start, end } = VoiceAnalyticsService.getDateRange(days);
     const activityData = await this.analyticsService.collectVoiceActivityData(guildId, start, end);
 
@@ -127,12 +143,10 @@ export class BotVoiceAnalyticsController {
     }
 
     const healthText = await this.aiAnalysisService.calculateCommunityHealth(activityData);
+    const data = { healthText };
+    await this.redis.set(cacheKey, data, ANALYSIS_CACHE_TTL);
 
-    return {
-      ok: true,
-      data: { healthText },
-      days,
-    };
+    return { ok: true, data, days };
   }
 
   @Post('self-diagnosis')

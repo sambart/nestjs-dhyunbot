@@ -2,10 +2,7 @@ import { GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import {
-  createResiliencePolicy,
-  type ResiliencePolicy,
-} from '../../../common/resilience/resilience.policy';
+import { createResiliencePolicy, type ResiliencePolicy } from '../resilience/resilience.policy';
 import type { LlmOptions, LlmProvider } from './llm-provider.interface';
 import { LlmQuotaExhaustedException } from './llm-provider.interface';
 
