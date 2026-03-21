@@ -7,6 +7,7 @@ import {
   IsString,
   Max,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 
@@ -39,6 +40,7 @@ export class MusicButtonConfigJsonDto implements MusicButtonConfigJson {
 
 export class MusicChannelConfigSaveDto {
   @IsString()
+  @ValidateIf((o: MusicChannelConfigSaveDto) => o.enabled)
   @IsNotEmpty()
   channelId: string;
 
