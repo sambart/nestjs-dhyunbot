@@ -6,9 +6,9 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  API_IMAGE: ghcr.io/${{ github.repository }}/api
-  BOT_IMAGE: ghcr.io/${{ github.repository }}/bot
-  WEB_IMAGE: ghcr.io/${{ github.repository }}/web
+  API_IMAGE: ghcr.io/sambart/onyu/api
+  BOT_IMAGE: ghcr.io/sambart/onyu/bot
+  WEB_IMAGE: ghcr.io/sambart/onyu/web
 
 jobs:
   version-bump:
