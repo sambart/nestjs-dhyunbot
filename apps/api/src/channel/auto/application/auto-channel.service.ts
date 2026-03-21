@@ -598,7 +598,18 @@ export class AutoChannelService {
       parentCategoryId: button.targetCategoryId,
     });
 
-    await this.discordVoiceGateway.moveUserToChannel(guildId, userId, confirmedChannelId);
+    try {
+      await this.discordVoiceGateway.moveUserToChannel(guildId, userId, confirmedChannelId);
+    } catch (error) {
+      // 이동 실패 시 고아 채널 정리
+      await this.autoChannelRedis.deleteConfirmedState(confirmedChannelId).catch(() => {});
+      await this.discordVoiceGateway.deleteChannel(confirmedChannelId).catch(() => {});
+      this.logger.error(
+        `[AUTO CHANNEL] Move failed, cleaned up orphan channel: guild=${guildId} channel=${confirmedChannelId}`,
+        getErrorStack(error),
+      );
+      return { action: 'error', message: '채널 이동 중 오류가 발생했습니다. 다시 시도해주세요.' };
+    }
 
     await this.autoChannelRedis.setConfirmedState(confirmedChannelId, {
       guildId,
@@ -681,8 +692,9 @@ export class AutoChannelService {
     const baseName = this.buildInstantChannelName(displayName, template);
     const finalName = await this.resolveChannelName(guildId, config.instantCategoryId, baseName);
 
+    let confirmedChannelId: string | undefined;
     try {
-      const confirmedChannelId = await this.discordVoiceGateway.createVoiceChannel({
+      confirmedChannelId = await this.discordVoiceGateway.createVoiceChannel({
         guildId,
         name: finalName,
         parentCategoryId: config.instantCategoryId,
@@ -704,6 +716,11 @@ export class AutoChannelService {
         `[AUTO CHANNEL] Instant channel creation failed: guild=${guildId} user=${userId}`,
         getErrorStack(error),
       );
+      // 채널 생성 후 이동 실패 시 고아 채널 정리
+      if (confirmedChannelId) {
+        await this.autoChannelRedis.deleteConfirmedState(confirmedChannelId).catch(() => {});
+        await this.discordVoiceGateway.deleteChannel(confirmedChannelId).catch(() => {});
+      }
     }
   }
 

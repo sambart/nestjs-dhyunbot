@@ -49,11 +49,18 @@ export class VoiceTempChannelService {
 
   async handleLeave(cmd: VoiceStateDto): Promise<void> {
     if (cmd.channelId && (await this.policy.shouldDeleteChannel(cmd.guildId, cmd.channelId))) {
-      await this.tempChannelStore.removeMember(cmd.channelId, cmd.userId);
-      await this.tempChannelStore.unregisterTempChannel(cmd.guildId, cmd.channelId);
-      await this.discord.deleteChannel(cmd.channelId);
+      try {
+        await this.tempChannelStore.removeMember(cmd.channelId, cmd.userId);
+        await this.tempChannelStore.unregisterTempChannel(cmd.guildId, cmd.channelId);
+        await this.discord.deleteChannel(cmd.channelId);
 
-      this.logger.log(`[TEMP CHANNEL] Deleted ${cmd.channelId}`);
+        this.logger.log(`[TEMP CHANNEL] Deleted ${cmd.channelId}`);
+      } catch (error) {
+        this.logger.error(
+          `[TEMP CHANNEL] Failed to clean up: guild=${cmd.guildId} channel=${cmd.channelId}`,
+          error instanceof Error ? error.stack : error,
+        );
+      }
     }
   }
 }

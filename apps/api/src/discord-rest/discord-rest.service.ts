@@ -186,8 +186,8 @@ export class DiscordRestService implements OnModuleInit {
   async deleteChannel(channelId: string): Promise<void> {
     try {
       await this.rest.delete(Routes.channel(channelId));
-    } catch {
-      // 이미 삭제된 경우 무시
+    } catch (error) {
+      this.logger.debug(`deleteChannel ignored: channel=${channelId}`, this.extractMessage(error));
     }
   }
 
@@ -215,8 +215,11 @@ export class DiscordRestService implements OnModuleInit {
   async deleteMessage(channelId: string, messageId: string): Promise<void> {
     try {
       await this.rest.delete(Routes.channelMessage(channelId, messageId));
-    } catch {
-      // 이미 삭제된 경우 무시
+    } catch (error) {
+      this.logger.debug(
+        `deleteMessage ignored: channel=${channelId} message=${messageId}`,
+        this.extractMessage(error),
+      );
     }
   }
 

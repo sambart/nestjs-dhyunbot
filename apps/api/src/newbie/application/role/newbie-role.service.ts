@@ -42,19 +42,24 @@ export class NewbieRoleService {
     }
     this.logger.log(`[NEWBIE ROLE] Assigned role ${roleId} to ${memberId} in guild ${guildId}`);
 
-    // 2. NewbiePeriod 레코드 생성
-    const startDate = getKSTDateString();
-    const expiresDate = this.calcExpiresDate(startDate, config.roleDurationDays!);
+    // 2. NewbiePeriod 레코드 생성 + Redis 갱신
+    try {
+      const startDate = getKSTDateString();
+      const expiresDate = this.calcExpiresDate(startDate, config.roleDurationDays!);
 
-    await this.periodRepository.create(guildId, memberId, startDate, expiresDate);
+      await this.periodRepository.create(guildId, memberId, startDate, expiresDate);
+      await this.redisRepository.addPeriodActiveMember(guildId, memberId);
 
-    // 3. Redis 신입기간 활성 멤버 Set 갱신 (SADD)
-    await this.redisRepository.addPeriodActiveMember(guildId, memberId);
-
-    this.logger.log(
-      `[NEWBIE ROLE] NewbiePeriod created: guild=${guildId} member=${memberId} ` +
-        `startDate=${startDate} expiresDate=${expiresDate}`,
-    );
+      this.logger.log(
+        `[NEWBIE ROLE] NewbiePeriod created: guild=${guildId} member=${memberId} ` +
+          `startDate=${startDate} expiresDate=${expiresDate}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[NEWBIE ROLE] Failed to create period record: guild=${guildId} member=${memberId}`,
+        error instanceof Error ? error.stack : error,
+      );
+    }
   }
 
   /** startDate(YYYYMMDD) + days 일수를 더한 expiresDate(YYYYMMDD) 계산 */
