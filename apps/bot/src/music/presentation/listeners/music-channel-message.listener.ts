@@ -5,11 +5,9 @@ import type { Message } from 'discord.js';
 
 import { MusicService } from '../../application/music.service';
 
-const VOICE_HINT_DELETE_DELAY_MS = 5000;
-
 /**
  * 음악 전용 채널 텍스트 메시지 수신 리스너.
- * 사용자가 입력한 텍스트를 검색어로 재생하고, 원본 메시지를 삭제한다.
+ * 사용자가 입력한 텍스트를 검색어로 재생한다.
  */
 @Injectable()
 export class MusicChannelMessageListener {
@@ -34,15 +32,7 @@ export class MusicChannelMessageListener {
       // 음성 채널 접속 확인
       const member = message.member;
       if (!member?.voice.channelId) {
-        const reply = await message.reply({ content: '음성 채널에 먼저 입장해 주세요.' });
-        setTimeout(() => {
-          void reply.delete().catch(() => {
-            // 삭제 실패 무시
-          });
-        }, VOICE_HINT_DELETE_DELAY_MS);
-        await message.delete().catch(() => {
-          // 삭제 실패 무시
-        });
+        await message.reply({ content: '음성 채널에 먼저 입장해 주세요.' });
         return;
       }
 
@@ -59,11 +49,6 @@ export class MusicChannelMessageListener {
         `[MUSIC_CHANNEL_MSG] Failed: guild=${message.guildId} channel=${message.channelId}`,
         err instanceof Error ? err.stack : err,
       );
-    } finally {
-      // 원본 메시지 삭제 (봇 메시지 아닌 경우)
-      await message.delete().catch(() => {
-        // 삭제 실패 무시 (권한 없는 경우 등)
-      });
     }
   }
 }
