@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, BarChart3, HeartPulse, Mic, Pin, Radio, Settings, Tag, Users, UserX } from "lucide-react";
+import { ArrowLeftRight, BarChart3, HeartPulse, Mic, Music, Pin, Radio, Settings, Tag, Users, UserX } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -24,10 +24,12 @@ export default function SettingsSidebar({
 
   const selectedGuild = guilds.find((g) => g.id === selectedGuildId);
 
-  const guildIconUrl = (guild: Guild) =>
+  const guildIconUrl = (guild: Guild): string | null =>
     guild.icon
       ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
       : null;
+
+  const selectedGuildIconUrl = selectedGuild ? guildIconUrl(selectedGuild) : null;
 
   const menuItems = [
     { href: `/settings/guild/${selectedGuildId}`, label: t("settings.general"), icon: Settings },
@@ -35,6 +37,7 @@ export default function SettingsSidebar({
     { href: `/settings/guild/${selectedGuildId}/newbie`, label: t("settings.newbie"), icon: Users },
     { href: `/settings/guild/${selectedGuildId}/status-prefix`, label: t("settings.statusPrefix"), icon: Tag },
     { href: `/settings/guild/${selectedGuildId}/sticky-message`, label: t("settings.stickyMessage"), icon: Pin },
+    { href: `/settings/guild/${selectedGuildId}/music`, label: t("settings.music"), icon: Music },
     { href: `/settings/guild/${selectedGuildId}/voice`, label: t("settings.voice"), icon: Mic },
     { href: `/settings/guild/${selectedGuildId}/inactive-member`, label: t("settings.inactiveMember"), icon: UserX },
     { href: `/settings/guild/${selectedGuildId}/voice-health`, label: t("settings.voiceHealth"), icon: HeartPulse },
@@ -48,10 +51,10 @@ export default function SettingsSidebar({
           {t("sidebar.server")}
         </h2>
         <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-          {selectedGuild && guildIconUrl(selectedGuild) ? (
+          {selectedGuildIconUrl ? (
             <img
-              src={guildIconUrl(selectedGuild) ?? ''}
-              alt={selectedGuild.name}
+              src={selectedGuildIconUrl}
+              alt={selectedGuild?.name ?? ''}
               width={20}
               height={20}
               className="rounded-full flex-shrink-0"

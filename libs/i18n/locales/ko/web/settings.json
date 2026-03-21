@@ -326,6 +326,7 @@
     "resetSettings": "기본설정 초기화",
     "resetSettingsDesc": "임베드 설정(제목, 설명, 색상, 썸네일)과 버튼 구성을 기본값으로 되돌립니다. 채널 지정은 유지됩니다.",
     "resetButton": "기본설정으로 초기화",
+    "resetResetting": "초기화 중...",
     "resetConfirm": "임베드 설정과 버튼 구성이 기본값으로 초기화됩니다. 계속하시겠습니까?",
     "resetSuccess": "기본설정으로 초기화되었습니다.",
     "saveSuccess": "저장되었습니다."

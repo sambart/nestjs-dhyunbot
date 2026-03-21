@@ -326,6 +326,7 @@
     "resetSettings": "Reset to Defaults",
     "resetSettingsDesc": "Resets the embed settings (title, description, color, thumbnail) and button configuration to defaults. Channel selection is preserved.",
     "resetButton": "Reset to Defaults",
+    "resetResetting": "Resetting...",
     "resetConfirm": "The embed settings and button configuration will be reset to defaults. Do you want to continue?",
     "resetSuccess": "Reset to defaults successfully.",
     "saveSuccess": "Saved successfully."
