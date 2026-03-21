@@ -12,9 +12,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { MusicChannelConfig } from '../../../../../lib/music-config-api';
 // static import로 vi.mocked를 사용한다 (dynamic import 방식의 타이밍 문제 회피)
 import * as discordApi from '../../../../../lib/discord-api';
+import type { MusicChannelConfig } from '../../../../../lib/music-config-api';
 import * as musicConfigApi from '../../../../../lib/music-config-api';
 import MusicSettingsPage from '../page';
 
