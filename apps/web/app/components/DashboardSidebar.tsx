@@ -1,5 +1,6 @@
 'use client';
 
+import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
   ArrowLeftRight,
@@ -11,7 +12,6 @@ import {
   Sprout,
   UserX,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';

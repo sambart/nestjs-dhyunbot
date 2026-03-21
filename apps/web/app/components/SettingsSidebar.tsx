@@ -1,5 +1,6 @@
 'use client';
 
+import type { LucideIcon } from 'lucide-react';
 import {
   ArrowLeftRight,
   BarChart3,
@@ -13,7 +14,6 @@ import {
   Users,
   UserX,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
