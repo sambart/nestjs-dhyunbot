@@ -4,7 +4,7 @@ import type {
   DiagnosisSummaryResponse,
   HealthScoreResponse,
   LeaderboardResponse,
-} from '@nexus/shared';
+} from '@onyu/shared';
 
 import { apiClient, apiGet } from './api-client';
 
@@ -18,7 +18,7 @@ export type {
   HealthScoreResponse,
   LeaderboardResponse,
   LeaderboardUser,
-} from '@nexus/shared';
+} from '@onyu/shared';
 
 // ─── API 함수 ────────────────────────────────────────────────────────────────
 

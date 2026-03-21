@@ -1,9 +1,9 @@
-import type { WeeklyReportConfigDto } from '@nexus/shared';
+import type { WeeklyReportConfigDto } from '@onyu/shared';
 
 import { apiClient, apiGet } from './api-client';
 
 // ─── 타입 re-export (libs/shared/src/types/weekly-report.ts) ─────────────────
-export type { WeeklyReportConfigDto } from '@nexus/shared';
+export type { WeeklyReportConfigDto } from '@onyu/shared';
 
 // ─── 기본값 ───────────────────────────────────────────────────────────────────
 
