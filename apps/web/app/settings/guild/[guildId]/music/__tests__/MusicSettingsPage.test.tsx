@@ -12,11 +12,11 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import MusicSettingsPage from '../page';
-// static import로 vi.mocked를 사용한다 (dynamic import 방식의 타이밍 문제 회피)
-import * as musicConfigApi from '../../../../../lib/music-config-api';
-import * as discordApi from '../../../../../lib/discord-api';
 import type { MusicChannelConfig } from '../../../../../lib/music-config-api';
+// static import로 vi.mocked를 사용한다 (dynamic import 방식의 타이밍 문제 회피)
+import * as discordApi from '../../../../../lib/discord-api';
+import * as musicConfigApi from '../../../../../lib/music-config-api';
+import MusicSettingsPage from '../page';
 
 // ─── 전역 모킹 ──────────────────────────────────────────────────────────────
 
@@ -174,7 +174,10 @@ describe('MusicSettingsPage 통합 테스트', () => {
     });
 
     it('기존 설정에서 비활성화된 상태(enabled: false)이면 폼이 비활성화된다', async () => {
-      vi.mocked(musicConfigApi.fetchMusicConfig).mockResolvedValue({ ...CONFIG_FIXTURE, enabled: false });
+      vi.mocked(musicConfigApi.fetchMusicConfig).mockResolvedValue({
+        ...CONFIG_FIXTURE,
+        enabled: false,
+      });
 
       await renderAndWaitForLoad();
 
@@ -216,7 +219,10 @@ describe('MusicSettingsPage 통합 테스트', () => {
     });
 
     it('비활성화 상태에서 토글을 다시 클릭하면 활성화되고 폼이 활성화된다', async () => {
-      vi.mocked(musicConfigApi.fetchMusicConfig).mockResolvedValue({ ...CONFIG_FIXTURE, enabled: false });
+      vi.mocked(musicConfigApi.fetchMusicConfig).mockResolvedValue({
+        ...CONFIG_FIXTURE,
+        enabled: false,
+      });
 
       const user = userEvent.setup();
       await renderAndWaitForLoad();
@@ -497,7 +503,9 @@ describe('MusicSettingsPage 통합 테스트', () => {
 
     it('저장 API 실패 시 에러 메시지가 표시되고 폼 데이터는 유지된다', async () => {
       vi.mocked(musicConfigApi.fetchMusicConfig).mockResolvedValue(CONFIG_FIXTURE);
-      vi.mocked(musicConfigApi.saveMusicConfig).mockRejectedValue(new Error('채널을 찾을 수 없습니다.'));
+      vi.mocked(musicConfigApi.saveMusicConfig).mockRejectedValue(
+        new Error('채널을 찾을 수 없습니다.'),
+      );
 
       const user = userEvent.setup();
       await renderAndWaitForLoad();
@@ -663,7 +671,9 @@ describe('MusicSettingsPage 통합 테스트', () => {
     });
 
     it('초기화 API 실패 시 에러 메시지가 표시된다', async () => {
-      vi.mocked(musicConfigApi.resetMusicConfig).mockRejectedValue(new Error('초기화 중 오류가 발생했습니다.'));
+      vi.mocked(musicConfigApi.resetMusicConfig).mockRejectedValue(
+        new Error('초기화 중 오류가 발생했습니다.'),
+      );
 
       vi.spyOn(window, 'confirm').mockReturnValue(true);
       const user = userEvent.setup();
@@ -691,7 +701,9 @@ describe('MusicSettingsPage 통합 테스트', () => {
       await user.click(refreshButton);
 
       await waitFor(() => {
-        expect(vi.mocked(discordApi.fetchGuildTextChannels).mock.calls.length).toBeGreaterThan(initialCallCount);
+        expect(vi.mocked(discordApi.fetchGuildTextChannels).mock.calls.length).toBeGreaterThan(
+          initialCallCount,
+        );
       });
     });
   });

@@ -8,12 +8,15 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type {
+  MusicChannelConfig,
+  MusicChannelConfigSaveDto,
+} from '../../../../../lib/music-config-api';
 import {
   fetchMusicConfig,
   resetMusicConfig,
   saveMusicConfig,
 } from '../../../../../lib/music-config-api';
-import type { MusicChannelConfig, MusicChannelConfigSaveDto } from '../../../../../lib/music-config-api';
 
 // ─── 픽스처 ────────────────────────────────────────────────────────────────
 
@@ -165,9 +168,7 @@ describe('saveMusicConfig', () => {
   it('API 실패 시 에러 메시지와 함께 ApiError를 throw한다', async () => {
     mockFetchError(400, '채널을 찾을 수 없습니다.');
 
-    await expect(saveMusicConfig(GUILD_ID, SAVE_DTO)).rejects.toThrow(
-      '채널을 찾을 수 없습니다.',
-    );
+    await expect(saveMusicConfig(GUILD_ID, SAVE_DTO)).rejects.toThrow('채널을 찾을 수 없습니다.');
   });
 });
 
@@ -201,8 +202,6 @@ describe('resetMusicConfig', () => {
   it('API 실패 시 ApiError를 throw한다', async () => {
     mockFetchError(500, '초기화 중 오류가 발생했습니다.');
 
-    await expect(resetMusicConfig(GUILD_ID)).rejects.toThrow(
-      '초기화 중 오류가 발생했습니다.',
-    );
+    await expect(resetMusicConfig(GUILD_ID)).rejects.toThrow('초기화 중 오류가 발생했습니다.');
   });
 });
