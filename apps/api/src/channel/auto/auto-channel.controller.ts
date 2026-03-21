@@ -46,6 +46,10 @@ export class AutoChannelController {
     // 1. DB upsert
     const config = await this.configRepo.upsert(guildId, dto);
 
+    this.logger.log(
+      `[SAVE] configId=${config.id} mode=${dto.mode} guideMessageId=${config.guideMessageId} guideChannelId=${dto.guideChannelId} buttons=${config.buttons.length}`,
+    );
+
     // 2. 모드별 안내 메시지 처리
     let guideMessageId: string | null = null;
 
