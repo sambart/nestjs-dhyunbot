@@ -27,7 +27,11 @@ export class VoiceDailyFlushService {
       const parts = key.split(':');
       const guild = parts[2];
       const user = parts[3];
-      await this.flushDate(guild, user, today);
+      try {
+        await this.flushDate(guild, user, today);
+      } catch (error) {
+        this.logger.error(`flushTodayAll failed for key=${key}`, getErrorStack(error));
+      }
     }
   }
 

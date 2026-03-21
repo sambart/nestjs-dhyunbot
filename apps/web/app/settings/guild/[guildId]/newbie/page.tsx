@@ -122,7 +122,9 @@ export default function NewbieSettingsPage() {
         if (mocoTmpl) setMocoTemplate(mocoTmpl);
         setConfigLoaded(true);
       })
-      .catch(() => {})
+      .catch(() => {
+        setSaveError(t('common.loadError'));
+      })
       .finally(() => setIsLoading(false));
   }, [selectedGuildId]);
 

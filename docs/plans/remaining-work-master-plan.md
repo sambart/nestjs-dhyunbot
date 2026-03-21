@@ -152,7 +152,7 @@ API `app.module.ts`에서 `DiscordModule` 완전 제거됨. Bot에서만 유지.
 | 4 | `codebase-commonization.md` | 미착수 | 코드 통합 |
 | 5 | `eslint-quality-improvement.md` | 미착수 | ESLint 규칙 강화 |
 | 6 | `eslint-warning-elimination.md` | 미착수 | 경고 제거 |
-| 7 | `llm-abstraction-and-directory-move.md` | 미착수 | LLM 추상화 |
+| 7 | `llm-abstraction-and-directory-move.md` | ✅ 완료 | LLM 추상화 (LlmProvider 인터페이스 + GeminiLlmProvider 분리, gemini/ → voice-analytics/ 이동) |
 | 8 | `co-presence-analytics-backend.md` | 미착수 | 동시접속 분석 |
 | 9 | `co-presence-dashboard-frontend.md` | 미착수 | 동시접속 대시보드 |
 | 10 | `hhi-diversity-score-ux.md` | 미착수 | HHI 다양성 점수 UX |
@@ -212,7 +212,7 @@ API `app.module.ts`에서 `DiscordModule` 완전 제거됨. Bot에서만 유지.
 
 ```
 23. ESLint 경고 제거                                      [C.6]
-24. LLM 추상화                                           [C.7]
+24. LLM 추상화                                           [C.7] ✅ 완료
 25. 코드 통합                                             [C.4]
 26. AI 분석 개선                                          [B-8.24]
 27. 자동 버저닝                                           [B-10.27]

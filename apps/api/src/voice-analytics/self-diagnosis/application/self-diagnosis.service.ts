@@ -4,13 +4,13 @@ import type { Repository } from 'typeorm';
 
 import { VoiceCoPresencePairDailyOrm } from '../../../channel/voice/co-presence/infrastructure/voice-co-presence-pair-daily.orm-entity';
 import { VoiceDailyOrm } from '../../../channel/voice/infrastructure/voice-daily.orm-entity';
-import { MocoHuntingDailyOrmEntity as MocoHuntingDaily } from '../../../newbie/infrastructure/moco-hunting-daily.orm-entity';
-import { RedisService } from '../../../redis/redis.service';
-import type { LlmProvider } from '../../infrastructure/llm/llm-provider.interface';
+import type { LlmProvider } from '../../../common/llm/llm-provider.interface';
 import {
   LLM_PROVIDER,
   LlmQuotaExhaustedException,
-} from '../../infrastructure/llm/llm-provider.interface';
+} from '../../../common/llm/llm-provider.interface';
+import { MocoHuntingDailyOrmEntity as MocoHuntingDaily } from '../../../newbie/infrastructure/moco-hunting-daily.orm-entity';
+import { RedisService } from '../../../redis/redis.service';
 import { VoiceHealthKeys } from '../infrastructure/voice-health-cache.keys';
 import { VoiceHealthConfigOrmEntity as VoiceHealthConfig } from '../infrastructure/voice-health-config.orm-entity';
 import { VoiceHealthConfigRepository } from '../infrastructure/voice-health-config.repository';

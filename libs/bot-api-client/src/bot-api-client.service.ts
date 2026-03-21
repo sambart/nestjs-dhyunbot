@@ -18,6 +18,7 @@ import type {
   MeProfileResponse,
   MessageCreatedDto,
   MissionRefreshDto,
+  MusicChannelConfigResponse,
   MyVoiceStatsResponse,
   NewbieConfigDto,
   RoleAssignedDto,
@@ -217,6 +218,36 @@ export class BotApiClientService {
     return this.post(`/bot-api/guilds/${dto.guildId}/members/${dto.memberId}/kick`, {
       reason: dto.reason,
     });
+  }
+
+  // ── Music ──
+
+  async getMusicChannelConfig(guildId: string): Promise<MusicChannelConfigResponse | null> {
+    try {
+      const response = await this.get<{ ok: boolean; data: MusicChannelConfigResponse | null }>(
+        `/bot-api/music/channel-config?guildId=${guildId}`,
+      );
+      return response.data ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async getMusicChannelConfigByChannel(
+    channelId: string,
+  ): Promise<MusicChannelConfigResponse | null> {
+    try {
+      const response = await this.get<{ ok: boolean; data: MusicChannelConfigResponse | null }>(
+        `/bot-api/music/channel-config/by-channel?channelId=${channelId}`,
+      );
+      return response.data ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async updateMusicChannelMessageId(guildId: string, messageId: string | null): Promise<void> {
+    await this.post('/bot-api/music/channel-config/update-message-id', { guildId, messageId });
   }
 
   // ── Internal ──

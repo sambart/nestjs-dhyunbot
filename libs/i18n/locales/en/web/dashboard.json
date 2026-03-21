@@ -532,6 +532,7 @@
   "error": {
     "title": "An error occurred while loading the page",
     "unknown": "An unknown error occurred.",
-    "retry": "Try Again"
+    "retry": "Try Again",
+    "loadFailed": "Failed to load data."
   }
 }

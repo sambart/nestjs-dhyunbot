@@ -318,6 +318,29 @@ export interface BotStatusPayload {
   voiceUserCount: number;
 }
 
+// ── Music Channel ──
+
+export interface MusicButtonConfigItem {
+  type: string;
+  label: string;
+  emoji: string;
+  enabled: boolean;
+  row: number;
+}
+
+export interface MusicChannelConfigResponse {
+  id: number;
+  guildId: string;
+  channelId: string;
+  messageId: string | null;
+  embedTitle: string | null;
+  embedDescription: string | null;
+  embedColor: string | null;
+  embedThumbnailUrl: string | null;
+  buttonConfig: { buttons: MusicButtonConfigItem[] };
+  enabled: boolean;
+}
+
 // ── Common ──
 
 export interface BotApiResponse<T = unknown> {
