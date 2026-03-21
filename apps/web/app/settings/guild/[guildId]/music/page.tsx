@@ -54,7 +54,7 @@ const DEFAULT_FORM: FormState = {
   embedColor: DEFAULT_EMBED_COLOR,
   embedThumbnailUrl: '',
   buttons: DEFAULT_BUTTONS,
-  enabled: true,
+  enabled: false,
 };
 
 // ─── 헬퍼 ────────────────────────────────────────────────────────────────────
@@ -155,8 +155,7 @@ export default function MusicSettingsPage() {
     if (textarea) {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      const newValue =
-        currentValue.substring(0, start) + insertText + currentValue.substring(end);
+      const newValue = currentValue.substring(0, start) + insertText + currentValue.substring(end);
       setConfig((prev) => ({ ...prev, embedDescription: newValue }));
       requestAnimationFrame(() => {
         textarea.focus();
@@ -176,9 +175,7 @@ export default function MusicSettingsPage() {
   const updateButton = (type: MusicButtonType, patch: Partial<MusicButtonConfig>) => {
     setConfig((prev) => ({
       ...prev,
-      buttons: prev.buttons.map((btn) =>
-        btn.type === type ? { ...btn, ...patch } : btn,
-      ),
+      buttons: prev.buttons.map((btn) => (btn.type === type ? { ...btn, ...patch } : btn)),
     }));
   };
 
@@ -218,9 +215,7 @@ export default function MusicSettingsPage() {
       setSaveSuccessMessage(t('music.saveSuccess'));
       successTimerRef.current = setTimeout(() => setSaveSuccessMessage(null), 3000);
     } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : t('common.saveError'),
-      );
+      setSaveError(err instanceof Error ? err.message : t('common.saveError'));
     } finally {
       setIsSaving(false);
     }
@@ -245,9 +240,7 @@ export default function MusicSettingsPage() {
       setSaveSuccessMessage(t('music.resetSuccess'));
       successTimerRef.current = setTimeout(() => setSaveSuccessMessage(null), 3000);
     } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : t('common.saveError'),
-      );
+      setSaveError(err instanceof Error ? err.message : t('common.saveError'));
     } finally {
       setIsResetting(false);
     }
@@ -292,15 +285,11 @@ export default function MusicSettingsPage() {
   if (!selectedGuildId) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
-          {t('music.title')}
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('music.title')}</h1>
         <section className="bg-white rounded-xl border border-gray-200 p-8">
           <div className="flex flex-col items-center text-center py-8">
             <Server className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="text-sm text-gray-500">
-              {t('common.selectServer')}
-            </p>
+            <p className="text-sm text-gray-500">{t('common.selectServer')}</p>
           </div>
         </section>
       </div>
@@ -310,9 +299,7 @@ export default function MusicSettingsPage() {
   if (isLoading) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
-          {t('music.title')}
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('music.title')}</h1>
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
         </div>
@@ -332,7 +319,9 @@ export default function MusicSettingsPage() {
         </div>
         <button
           type="button"
-          onClick={() => { void refreshChannels(); }}
+          onClick={() => {
+            void refreshChannels();
+          }}
           disabled={isRefreshing}
           title={t('common.refreshChannels')}
           className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -344,28 +333,19 @@ export default function MusicSettingsPage() {
 
       {/* 섹션 1: 기본 설정 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-base font-semibold text-gray-900 mb-4">
-          {t('music.basicSettings')}
-        </h2>
+        <h2 className="text-base font-semibold text-gray-900 mb-4">{t('music.basicSettings')}</h2>
         <div className="space-y-6">
-
           {/* 기능 활성화 토글 */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-900">
-                {t('music.enableFeature')}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {t('music.enableFeatureDesc')}
-              </p>
+              <p className="text-sm font-medium text-gray-900">{t('music.enableFeature')}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{t('music.enableFeatureDesc')}</p>
             </div>
             <button
               type="button"
               role="switch"
               aria-checked={config.enabled}
-              onClick={() =>
-                setConfig((prev) => ({ ...prev, enabled: !prev.enabled }))
-              }
+              onClick={() => setConfig((prev) => ({ ...prev, enabled: !prev.enabled }))}
               className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
                 config.enabled ? 'bg-indigo-600' : 'bg-gray-200'
               }`}
@@ -380,18 +360,13 @@ export default function MusicSettingsPage() {
 
           {/* 텍스트 채널 선택 */}
           <div>
-            <label
-              htmlFor="music-channel"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="music-channel" className="block text-sm font-medium text-gray-700 mb-1">
               {t('music.channelLabel')}
             </label>
             <select
               id="music-channel"
               value={config.channelId}
-              onChange={(e) =>
-                setConfig((prev) => ({ ...prev, channelId: e.target.value }))
-              }
+              onChange={(e) => setConfig((prev) => ({ ...prev, channelId: e.target.value }))}
               disabled={!config.enabled}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
             >
@@ -403,25 +378,17 @@ export default function MusicSettingsPage() {
               ))}
             </select>
             {channels.length === 0 && (
-              <p className="text-xs text-gray-400 mt-1">
-                {t('common.noChannels')}
-              </p>
+              <p className="text-xs text-gray-400 mt-1">{t('common.noChannels')}</p>
             )}
-            <p className="text-xs text-gray-400 mt-1">
-              {t('music.channelDesc')}
-            </p>
+            <p className="text-xs text-gray-400 mt-1">{t('music.channelDesc')}</p>
           </div>
-
         </div>
       </section>
 
       {/* 섹션 2: 임베드 커스터마이징 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-base font-semibold text-gray-900 mb-4">
-          {t('music.embedSettings')}
-        </h2>
+        <h2 className="text-base font-semibold text-gray-900 mb-4">{t('music.embedSettings')}</h2>
         <div className="space-y-6">
-
           {/* Embed 제목 */}
           <div>
             <label
@@ -434,9 +401,7 @@ export default function MusicSettingsPage() {
               id="music-embed-title"
               type="text"
               value={config.embedTitle}
-              onChange={(e) =>
-                setConfig((prev) => ({ ...prev, embedTitle: e.target.value }))
-              }
+              onChange={(e) => setConfig((prev) => ({ ...prev, embedTitle: e.target.value }))}
               disabled={!config.enabled}
               placeholder="예: 음악 플레이어"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
@@ -455,9 +420,7 @@ export default function MusicSettingsPage() {
               ref={embedDescRef}
               id="music-embed-desc"
               value={config.embedDescription}
-              onChange={(e) =>
-                setConfig((prev) => ({ ...prev, embedDescription: e.target.value }))
-              }
+              onChange={(e) => setConfig((prev) => ({ ...prev, embedDescription: e.target.value }))}
               disabled={!config.enabled}
               placeholder="예: 아래 버튼을 눌러 음악을 검색하고 재생하세요."
               rows={4}
@@ -481,9 +444,7 @@ export default function MusicSettingsPage() {
               <input
                 type="color"
                 value={config.embedColor}
-                onChange={(e) =>
-                  setConfig((prev) => ({ ...prev, embedColor: e.target.value }))
-                }
+                onChange={(e) => setConfig((prev) => ({ ...prev, embedColor: e.target.value }))}
                 disabled={!config.enabled}
                 aria-label={t('common.embedColorPicker')}
                 className="h-9 w-16 border border-gray-300 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed p-1"
@@ -534,17 +495,13 @@ export default function MusicSettingsPage() {
             {thumbnailUrlError ? (
               <p className="text-xs text-red-500 mt-1">{thumbnailUrlError}</p>
             ) : (
-              <p className="text-xs text-gray-400 mt-1">
-                {t('music.thumbnailUrlDesc')}
-              </p>
+              <p className="text-xs text-gray-400 mt-1">{t('music.thumbnailUrlDesc')}</p>
             )}
           </div>
 
           {/* Embed 미리보기 */}
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              {t('common.preview')}
-            </p>
+            <p className="text-sm font-medium text-gray-700 mb-2">{t('common.preview')}</p>
             <div className="bg-[#2B2D31] rounded-lg p-4">
               <div
                 className="bg-[#313338] rounded-md overflow-hidden"
@@ -577,27 +534,19 @@ export default function MusicSettingsPage() {
               </div>
             </div>
           </div>
-
         </div>
       </section>
 
       {/* 섹션 3: 버튼 구성 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
         <div className="mb-4">
-          <h2 className="text-base font-semibold text-gray-900">
-            {t('music.buttonSettings')}
-          </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {t('music.buttonSettingsDesc')}
-          </p>
+          <h2 className="text-base font-semibold text-gray-900">{t('music.buttonSettings')}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{t('music.buttonSettingsDesc')}</p>
         </div>
 
         <div className="space-y-3">
           {config.buttons.map((btn) => (
-            <div
-              key={btn.type}
-              className="border border-gray-200 rounded-lg p-4"
-            >
+            <div key={btn.type} className="border border-gray-200 rounded-lg p-4">
               {/* 카드 헤더: 토글 + 타입 배지 */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
@@ -624,7 +573,6 @@ export default function MusicSettingsPage() {
 
               {/* 카드 바디: 필드 그리드 */}
               <div className="grid grid-cols-2 gap-3">
-
                 {/* 라벨 */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -633,9 +581,7 @@ export default function MusicSettingsPage() {
                   <input
                     type="text"
                     value={btn.label}
-                    onChange={(e) =>
-                      updateButton(btn.type, { label: e.target.value })
-                    }
+                    onChange={(e) => updateButton(btn.type, { label: e.target.value })}
                     disabled={!btn.enabled}
                     placeholder={t(`music.buttonType_${btn.type}`)}
                     className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
@@ -651,9 +597,7 @@ export default function MusicSettingsPage() {
                     <input
                       type="text"
                       value={btn.emoji}
-                      onChange={(e) =>
-                        updateButton(btn.type, { emoji: e.target.value })
-                      }
+                      onChange={(e) => updateButton(btn.type, { emoji: e.target.value })}
                       disabled={!btn.enabled}
                       placeholder="예: 🔍"
                       className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
@@ -673,9 +617,7 @@ export default function MusicSettingsPage() {
                   </label>
                   <select
                     value={btn.row}
-                    onChange={(e) =>
-                      updateButton(btn.type, { row: Number(e.target.value) })
-                    }
+                    onChange={(e) => updateButton(btn.type, { row: Number(e.target.value) })}
                     disabled={!btn.enabled}
                     className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
                   >
@@ -686,7 +628,6 @@ export default function MusicSettingsPage() {
                     ))}
                   </select>
                 </div>
-
               </div>
             </div>
           ))}
@@ -695,15 +636,13 @@ export default function MusicSettingsPage() {
 
       {/* 섹션 4: 기본설정 초기화 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-base font-semibold text-gray-900 mb-1">
-          {t('music.resetSettings')}
-        </h2>
-        <p className="text-xs text-gray-500 mb-4">
-          {t('music.resetSettingsDesc')}
-        </p>
+        <h2 className="text-base font-semibold text-gray-900 mb-1">{t('music.resetSettings')}</h2>
+        <p className="text-xs text-gray-500 mb-4">{t('music.resetSettingsDesc')}</p>
         <button
           type="button"
-          onClick={() => { void handleReset(); }}
+          onClick={() => {
+            void handleReset();
+          }}
           disabled={isResetting || !selectedGuildId}
           className="px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
@@ -722,17 +661,15 @@ export default function MusicSettingsPage() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
           {saveSuccessMessage && (
-            <p className="text-sm text-green-600 font-medium">
-              {saveSuccessMessage}
-            </p>
+            <p className="text-sm text-green-600 font-medium">{saveSuccessMessage}</p>
           )}
-          {saveError && (
-            <p className="text-sm text-red-600 font-medium">{saveError}</p>
-          )}
+          {saveError && <p className="text-sm text-red-600 font-medium">{saveError}</p>}
         </div>
         <button
           type="button"
-          onClick={() => { void handleSave(); }}
+          onClick={() => {
+            void handleSave();
+          }}
           disabled={isSaving || !selectedGuildId}
           className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
         >
