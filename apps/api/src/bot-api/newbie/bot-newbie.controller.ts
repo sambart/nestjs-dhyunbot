@@ -101,7 +101,11 @@ export class BotNewbieController {
       data: {
         welcomeEnabled: config.welcomeEnabled,
         welcomeChannelId: config.welcomeChannelId,
-        welcomeMessage: config.welcomeContent,
+        welcomeContent: config.welcomeContent,
+        welcomeEmbedTitle: config.welcomeEmbedTitle,
+        welcomeEmbedDescription: config.welcomeEmbedDescription,
+        welcomeEmbedColor: config.welcomeEmbedColor,
+        welcomeEmbedThumbnailUrl: config.welcomeEmbedThumbnailUrl,
         missionEnabled: config.missionEnabled,
         roleEnabled: config.roleEnabled,
         newbieRoleId: config.newbieRoleId,
