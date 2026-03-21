@@ -7,6 +7,8 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v4.5 | 2026-03-21 | web: 서버 진단 대시보드(F-WEB-016) 및 주간 리포트 설정 페이지(F-WEB-017) 추가, 사이드바 "분석" 그룹 신설, voice-analytics 신규 API 5종 명세 | — |
+| v4.4 | 2026-03-21 | gemini: F-GEMINI-001~004 슬래시 커맨드 삭제(사용률 저조, 웹 대시보드 이관), F-GEMINI-005 `/서버진단` 단일 커맨드 신규, F-GEMINI-006 주간 자동 리포트 신규, WeeklyReportConfig 데이터 모델 추가, 관련 모듈 갱신 | — |
 | v4.3 | 2026-03-21 | web: 사이드바 메뉴 그룹 재구성 — 대시보드(3그룹)/설정(3그룹), "일반 설정" → "커맨드 관리" 라벨 변경, 크로스링크 UX, i18n 키 정의 (F-WEB-015, DashboardSidebar, SettingsSidebar 갱신) | — |
 | v4.2 | 2026-03-21 | music: 음악 전용 채널 임베드 시스템 추가 (F-MUSIC-010~017, MusicChannelConfig 데이터 모델, 웹 설정 REST API, 아키텍처 다이어그램 확장, 관련 모듈 추가) | — |
 | v4.1 | 2026-03-21 | web: F-WEB-014 음악 설정 페이지 추가 — 음악 전용 채널 지정, 임베드 커스터마이징(실시간 미리보기), 버튼 구성(7종, 행 배치, 라벨/이모지), 기본설정 리셋 | — |
@@ -40,6 +42,56 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 32] gemini: 슬래시 커맨드 4종 삭제 및 신규 기능 2종 추가 (GEMINI-VOICE-ANALYTICS-REVAMP)
+
+**변경일**: 2026-03-21
+**티켓**: GEMINI-VOICE-ANALYTICS-REVAMP
+
+**변경 파일**:
+- `docs/specs/prd/gemini.md` — F-GEMINI-001~004 삭제 처리, F-GEMINI-005 신규, F-GEMINI-006 신규, WeeklyReportConfig 데이터 모델 추가, 관련 모듈 섹션 갱신
+
+**변경 내용**:
+1. **F-GEMINI-001~004 삭제 처리**: `/voice-stats`, `/my-voice-stats`, `/community-health`, `/voice-leaderboard` 4개 슬래시 커맨드를 "삭제된 기능" 섹션으로 이동. 삭제 사유(사용률 저조, 웹 대시보드 이관) 명시.
+2. **F-GEMINI-005 신규 추가**: `/서버진단` 단일 요약 커맨드 명세 작성. 입력(guildId 자동, days 기본 7), 처리(통계 집계 + LLM 2~3문장 요약 + TOP 3 리더보드), 출력(공개 Embed + 대시보드 링크 버튼).
+3. **F-GEMINI-006 신규 추가**: 주간 자동 리포트 명세 작성. 매시간 Cron 스케줄러, dayOfWeek/hour/timezone 기반 발송, 이번 주 vs 지난 주 비교, TOP 5 유저, TOP 3 채널, LLM AI 종합 분석, 장애 대응(LLM 실패 시 통계만 전송).
+4. **WeeklyReportConfig 데이터 모델 추가**: 엔티티 정의(guildId, isEnabled, channelId, dayOfWeek, hour, timezone, updatedAt) 명세.
+5. **관련 모듈 섹션 갱신**: 삭제된 커맨드 파일 제거, 신규 모듈 파일 경로(server-diagnosis.command.ts, weekly-report.service.ts, weekly-report.scheduler.ts, weekly-report-config.entity.ts) 추가.
+6. **개요 섹션 갱신**: 삭제 배경 및 대체 전략 요약 문단 추가.
+
+**변경 사유**: F-GEMINI-001~004 슬래시 커맨드의 실사용률이 저조하여 유지 비용 대비 효용이 낮다. 상세 분석 기능은 웹 대시보드로 이관하고, 디스코드에는 핵심 요약(`/서버진단`)과 자동화된 주간 리포트만 유지하여 채널 노출 빈도를 높이고 유저 인지도를 개선한다.
+
+---
+
+## [수정 32] web: 서버 진단 대시보드 및 주간 리포트 설정 페이지 추가 (WEB-DIAGNOSIS)
+
+**변경일**: 2026-03-21
+**티켓**: WEB-DIAGNOSIS
+
+**변경 파일**:
+- `docs/specs/prd/web.md` — F-WEB-016 서버 진단 대시보드, F-WEB-017 주간 리포트 설정 페이지 신규 추가, 관련 모듈·사이드바·미구현 목록 갱신
+
+**변경 내용**:
+1. **F-WEB-016 신규 추가**: `/dashboard/guild/{guildId}/diagnosis` 경로의 서버 진단 대시보드 요구사항 작성. 기존 디스코드 슬래시 커맨드 4종(`/voice-stats`, `/my-voice-stats`, `/community-health`, `/voice-leaderboard`)을 웹으로 이관하여 시각화.
+2. **섹션 1 — 서버 건강도 스코어**: 0~100 원형(도넛) 게이지, 이전 기간 대비 변화량(↑↓), LLM 생성 AI 진단 텍스트 명세. `/community-health` 대체.
+3. **섹션 2 — 활동 트렌드 차트**: 기간 선택(7/14/30/90일 프리셋), 일별 총 음성시간 라인 차트 + 일별 활성유저 수 바 차트 오버레이 명세. `/voice-stats` 대체.
+4. **섹션 3 — 유저 리더보드**: 음성시간 기준 상위 유저 테이블(순위·아바타·닉네임·총 음성시간·마이크 ON 시간·활동일수), 10명 단위 페이지네이션, 행 클릭 시 음성활동 대시보드 유저 상세 뷰 이동 명세. `/voice-leaderboard` 대체.
+5. **섹션 4 — 채널 분석**: 채널별 총 음성시간 가로 바 차트, 고유 사용자 수 표시, 카테고리별 탭 전환 명세.
+6. **섹션 5 — AI 인사이트**: LLM 기반 주간 특이사항 분석 + 개선 제안, "분석 새로고침" 버튼(10분 쿨다운 Redis 기반), 마지막 분석 시각 표시 명세.
+7. **호출 API 5종**: `health-score`, `summary`, `leaderboard`, `channel-stats`, `ai-insight` 신규 엔드포인트 명세 추가.
+8. **관련 FE 파일**: 진단 대시보드 페이지, API 클라이언트, 컴포넌트 5종(HealthScoreGauge, ActivityTrendChart, LeaderboardTable, ChannelAnalysisChart, AiInsightPanel) 명세 추가.
+9. **F-WEB-017 신규 추가**: `/settings/guild/{guildId}/diagnosis` 경로의 주간 리포트 설정 페이지 요구사항 작성. 활성화 토글, 대상 채널 선택, 발송 요일(0~6), 발송 시각(0~23, KST) 설정 명세.
+10. **호출 API 2종**: `GET/POST /weekly-report/config` 엔드포인트 명세 추가.
+11. **사이드바 "분석" 그룹 신설**: 대시보드 사이드바에 [분석] 그룹 추가 및 "서버 진단" 메뉴 항목 추가. F-WEB-009 DashboardSidebar 메뉴 구성 트리 갱신.
+12. **설정 사이드바 "분석" 그룹 신설**: 설정 사이드바에 [분석] 그룹 추가 및 "서버 진단" 메뉴 항목 추가. F-WEB-015 설정 사이드바 표 갱신.
+13. **크로스링크 매핑 갱신**: "서버 진단" 대시보드 ↔ 설정 연결 항목 추가.
+14. **i18n 키 추가**: `sidebar.dashboard.group.analysis`, `sidebar.dashboard.item.diagnosis`, `sidebar.settings.group.analysis`, `sidebar.settings.item.diagnosis` 추가.
+15. **관련 모듈 섹션 갱신**: 진단 대시보드 페이지, 주간 리포트 설정 페이지, API 클라이언트 2종 경로 추가.
+16. **미구현 목록 갱신**: 서버 진단 대시보드, 주간 리포트 설정을 프로토타입/미구현 항목에 추가.
+
+**변경 사유**: 기존 디스코드 슬래시 커맨드(`/voice-stats`, `/community-health`, `/voice-leaderboard`)는 텍스트 기반의 정보 제공에 한계가 있으며, 차트 시각화와 LLM 인사이트를 풍부하게 제공하기 위해 웹 대시보드로 이관한다. 주간 자동 리포트 설정을 웹에서 관리할 수 있도록 설정 페이지를 추가한다.
 
 ---
 
