@@ -30,7 +30,8 @@
       "serverSettings": "Server Settings",
       "voiceChannel": "Voice Channel",
       "memberManagement": "Member Management",
-      "analytics": "Analytics"
+      "analytics": "Analytics",
+      "personal": "Personal Settings"
     },
     "diagnosis": "Server Diagnosis",
     "crosslink": {
@@ -49,6 +50,8 @@
     "voiceHealth": "Self-Diagnosis Settings",
     "music": "Music Settings",
     "diagnosis": "Server Diagnosis",
+    "coPresence": "Co-Presence Settings",
+    "privacy": "Privacy Settings",
     "sectionTitle": "Settings"
   },
   "footer": {

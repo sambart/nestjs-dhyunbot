@@ -30,7 +30,8 @@
       "serverSettings": "서버 설정",
       "voiceChannel": "음성 채널",
       "memberManagement": "회원 관리",
-      "analytics": "분석"
+      "analytics": "분석",
+      "personal": "개인 설정"
     },
     "diagnosis": "서버 진단",
     "crosslink": {
@@ -49,6 +50,8 @@
     "voiceHealth": "자가진단 설정",
     "music": "음악 설정",
     "diagnosis": "서버 진단",
+    "coPresence": "Co-Presence 설정",
+    "privacy": "사생활 설정",
     "sectionTitle": "설정"
   },
   "footer": {
