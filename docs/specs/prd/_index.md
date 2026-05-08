@@ -37,7 +37,7 @@ libs/shared/  → 공유 타입 및 상수
 | channel | 디스코드 채널 정보 관리 | (voice.md에 포함) |
 | auto-channel | 트리거 채널 입장 기반 자동 음성 채널 생성 및 관리 | (voice.md에 포함) |
 | monitoring | 봇 상태 모니터링 (업타임, 핑, 메모리, 음성 접속자 시계열 차트) | [monitoring.md](monitoring.md) |
-| voice-co-presence | 음성 채널 동시접속 범용 추적 (모코코 사냥 등 소비자에 데이터 제공) | [voice-co-presence.md](voice-co-presence.md) |
+| voice-co-presence | 음성 채널 동시접속 범용 추적 + 친밀도 그래프·베스트 프렌드 TOP 리포트 (F-COPRESENCE-001~018) | [voice-co-presence.md](voice-co-presence.md) |
 | inactive-member | 음성 채널 활동 기반 비활동 회원 자동 분류, 대시보드 관리, 자동 조치 | [inactive-member.md](inactive-member.md) |
 | guild-member | 길드 범위 멤버 정보 중앙 관리 (DB 동기화, Discord API 호출 대체) | [guild-member.md](guild-member.md) |
 
@@ -122,12 +122,20 @@ libs/shared/  → 공유 타입 및 상수
 - DM 알림 전송, 역할 부여/제거 일괄 조치 및 자동 조치 규칙 설정
 - 활동률 파이 차트 및 최근 30일 비활동 추이 라인 차트 (`InactiveMemberTrendDaily` 스냅샷 기반)
 
-### 13. 데이터 보존 및 삭제
+### 13. 친밀도 그래프 + 베스트 프렌드 (voice-co-presence Phase 5)
+
+- `/best-friend` (`친한친구`) — 본인 베스트 프렌드 TOP 5 Canvas PNG 카드. 아바타·친밀도 바·AI 한 줄 코멘트 포함 (F-COPRESENCE-014)
+- `/affinity` (`친밀도`) — 두 사람 사이 동시접속 통계 Canvas PNG 카드. 일별 추이 미니 차트 포함 (F-COPRESENCE-015)
+- 주간 자동 리포트에 "💞 이번 주 베스트 페어 TOP 5" 섹션 추가 — 기존 Embed 형식 유지 (F-COPRESENCE-016)
+- opt-out 사생활 설정 (`/privacy` 커맨드 + 웹 설정 페이지) — 기본 공개, 비공개 전환 시 타인 조회에서 익명화(`???`) (F-COPRESENCE-017)
+- Gemini `LlmProvider` 활용 AI 한 줄 코멘트 — 길드 일일 한도 + 인메모리 LRU 5분 캐시 (F-COPRESENCE-018)
+
+### 14. 데이터 보존 및 삭제
 - 90일 자동 삭제 스케줄러 (매일 04:00 KST, `DATA_RETENTION_DAYS` 환경변수)
 - 삭제 대상: `VoiceDailyEntity`, `VoiceChannelHistory`, `VoiceCoPresencePairDaily`, `VoiceGameActivity`
 - 사용자 데이터 삭제 API (`DELETE /api/users/me/data`) — 본인 음성 활동 데이터 전 길드 삭제
 
-### 14. API 보안
+### 15. API 보안
 - Rate Limiting: 전역 60 req/min, auth 5 req/min, voice-analytics 10 req/min (`@nestjs/throttler`)
 - 보안 헤더: `helmet` 미들웨어 (CSP, X-Frame-Options, HSTS 등)
 - Guild 접근 제어: `GuildMembershipGuard` — JWT guilds 목록과 요청 guildId 대조, `/api/guilds/:guildId/*` 전역 적용
@@ -166,6 +174,8 @@ libs/shared/  → 공유 타입 및 상수
 | InactiveMemberRecord | inactive_member_record | 비활동 분류 최신 스냅샷 (userId, grade, totalMinutes, lastVoiceDate, gradeChangedAt) |
 | InactiveMemberActionLog | inactive_member_action_log | 비활동 회원 조치 이력 (actionType, targetUserIds, successCount, failCount, executedAt) |
 | InactiveMemberTrendDaily | inactive_member_trend_daily | 비활동 회원 일별 등급별 인원수 스냅샷 (fullyInactiveCount, lowActiveCount, decliningCount, totalClassified). 90일 보존 |
+| UserPrivacyConfig | user_privacy_config | 사용자별 길드 단위 사생활 설정 (PK: guildId+userId, disableRelationshipShare boolean default false, updatedAt). opt-out 시 친밀도·베프 데이터 익명화 |
+| GuildCoPresenceConfig | guild_co_presence_config | 길드 단위 Co-Presence 공개 설정 (PK: guildId, allowPublicAffinityQuery boolean default false, updatedAt). 타인↔타인 `/affinity` 조회 허용 여부 관리 |
 
 ## 외부 의존성
 
