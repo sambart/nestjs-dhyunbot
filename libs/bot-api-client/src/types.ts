@@ -252,10 +252,38 @@ export interface LlmSummaryResponse {
   reason?: 'quota_exhausted';
 }
 
-export interface MeProfileResponse {
+/**
+ * Bot ↔ API 캔버스 PNG 응답 공통 형식.
+ * /me, /best-friend, /affinity 모두 동일한 응답 셰이프를 사용한다.
+ */
+export interface CanvasCardResponse {
   ok: boolean;
   data: { imageBase64: string } | null;
   days: number;
+  /** 비정상 응답 사유. 비공개·권한 없음 등. */
+  errorCode?: 'PRIVATE' | 'NOT_PERMITTED' | 'NO_DATA';
+}
+
+// 기존 MeProfileResponse를 CanvasCardResponse 별칭으로 치환 (하위 호환 유지)
+export type MeProfileResponse = CanvasCardResponse;
+
+export type BestFriendCardResponse = CanvasCardResponse;
+export type AffinityCardResponse = CanvasCardResponse;
+
+// ── User Privacy ──
+
+export interface UpsertUserPrivacyDto {
+  /** true: 친밀도/베프 노출 비공개 (opt-out 활성). false: 공개. */
+  disableRelationshipShare: boolean;
+}
+
+export interface UserPrivacyResponse {
+  ok: boolean;
+  data: {
+    guildId: string;
+    userId: string;
+    disableRelationshipShare: boolean;
+  } | null;
 }
 
 // ── Voice Sync (봇 시작 시 기존 음성 채널 사용자 동기화) ──
