@@ -1,6 +1,7 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { CanvasModule } from '../../common/canvas';
 import { VoiceAnalyticsModule } from '../../voice-analytics/voice-analytics.module';
 import { ChannelModule } from '../channel.module';
 import { DataDeletionService } from './application/data-deletion.service';
@@ -51,6 +52,7 @@ import { VoiceHistoryController } from './presentation/voice-history.controller'
     ]),
     ChannelModule,
     forwardRef(() => VoiceAnalyticsModule),
+    CanvasModule,
   ],
   controllers: [
     VoiceExcludedChannelController,
