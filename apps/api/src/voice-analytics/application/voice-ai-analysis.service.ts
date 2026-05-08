@@ -1,19 +1,45 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { AiInsightResponse, VoiceActivityData, VoiceAnalysisResult } from '@onyu/shared';
 
+import type { LlmProvider } from '../../common/llm/llm-provider.interface';
+import { LLM_PROVIDER } from '../../common/llm/llm-provider.interface';
+import { getErrorMessage, getErrorStack } from '../../common/util/error.util';
+import { RedisService } from '../../redis/redis.service';
+
 const RECENT_DAYS_SLICE = -7;
 const HEALTH_SCORE_GOOD = 70;
 const HEALTH_SCORE_FAIR = 40;
 
-import type { LlmProvider } from '../../common/llm/llm-provider.interface';
-import { LLM_PROVIDER } from '../../common/llm/llm-provider.interface';
-import { getErrorMessage, getErrorStack } from '../../common/util/error.util';
+/** 길드별 일일 베스트프렌드 LLM 호출 한도 기본값 */
+const FRIEND_LLM_DAILY_QUOTA_DEFAULT = 50;
+/** 길드별 일일 베스트프렌드 LLM 호출 한도 */
+const FRIEND_LLM_DAILY_QUOTA = Number(
+  process.env.FRIEND_LLM_DAILY_QUOTA ?? FRIEND_LLM_DAILY_QUOTA_DEFAULT,
+);
+/** 일일 쿼터 키 TTL (24시간) */
+const FRIEND_LLM_QUOTA_TTL_SEC = 24 * 60 * 60;
+/** LLM 코멘트 최대 출력 토큰 */
+const FRIEND_COMMENT_MAX_TOKENS = 256;
+/** 코멘트용 TOP peer 수 */
+const FRIEND_COMMENT_TOP_PEERS = 3;
+
+/** generateBestFriendComment 입력 컨텍스트 */
+export interface BestFriendAiContext {
+  guildId: string;
+  selfDisplayName: string;
+  // eslint-disable-next-line no-magic-numbers -- 도메인 허용 기간(일) union 타입
+  period: 7 | 30 | 90;
+  topPeers: { displayName: string; totalMinutes: number; sessionCount: number }[];
+}
 
 @Injectable()
 export class VoiceAiAnalysisService {
   private readonly logger = new Logger(VoiceAiAnalysisService.name);
 
-  constructor(@Inject(LLM_PROVIDER) private readonly llmProvider: LlmProvider) {}
+  constructor(
+    @Inject(LLM_PROVIDER) private readonly llmProvider: LlmProvider,
+    private readonly redisService: RedisService,
+  ) {}
 
   async analyzeVoiceActivity(activityData: VoiceActivityData): Promise<VoiceAnalysisResult> {
     try {
@@ -371,11 +397,24 @@ Discord 서버 음성 채널 활동 요약:
     currentData: VoiceActivityData,
     prevData: VoiceActivityData,
     channelStats: VoiceActivityData['channelStats'],
+    // 기본값 [] — 기존 호출자는 영향 없음. 페어 정보가 있으면 프롬프트에 컨텍스트를 추가한다.
+    topPairs: {
+      userAName: string;
+      userBName: string;
+      totalMinutes: number;
+      sessionCount: number;
+    }[] = [],
   ): Promise<string> {
     const formatTime = (seconds: number) => {
       const hours = Math.floor(seconds / 3600);
       const minutes = Math.floor((seconds % 3600) / 60);
       return hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`;
+    };
+
+    const formatMinutes = (minutes: number) => {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return hours > 0 ? `${hours}시간 ${mins}분` : `${mins}분`;
     };
 
     const summarized = {
@@ -396,6 +435,21 @@ Discord 서버 음성 채널 활동 요약:
       })),
     };
 
+    // 베스트 페어 TOP 3만 프롬프트에 포함 (토큰 예산 절약)
+    const TOP_PAIRS_FOR_PROMPT = 3;
+    const pairsContext =
+      topPairs.length > 0
+        ? `\n이번 주 가장 활발한 베스트 페어 TOP ${Math.min(topPairs.length, TOP_PAIRS_FOR_PROMPT)}:\n` +
+          topPairs
+            .slice(0, TOP_PAIRS_FOR_PROMPT)
+            .map(
+              (p, i) =>
+                `${i + 1}. ${p.userAName}↔${p.userBName} — ${formatMinutes(p.totalMinutes)} (${p.sessionCount}세션)`,
+            )
+            .join('\n') +
+          '\n위 페어 정보를 참고하여 서버 분위기를 1~2문장으로 자연스럽게 묘사하세요. (인용/추측 금지)\n'
+        : '';
+
     const prompt = `
 Discord 서버 주간 리포트 AI 종합 분석을 한국어로 작성해주세요.
 
@@ -410,7 +464,7 @@ Discord 서버 주간 리포트 AI 종합 분석을 한국어로 작성해주세
 - 일평균 활성 유저: ${summarized.prev.avgDailyActiveUsers}명
 
 인기 채널 TOP 3: ${summarized.topChannels.map((c) => `${c.name}(${c.time}, ${c.users}명)`).join(', ')}
-
+${pairsContext}
 이번 주와 지난 주를 비교하여 변화와 특징을 2~4문장으로 분석해주세요. Discord Embed에 들어갈 텍스트입니다.
 `;
 
@@ -491,5 +545,73 @@ ${JSON.stringify(summarizedData, null, 2)}
         `- 총 음성 시간: ${Math.floor(activityData.totalStats.totalVoiceTime / 3600)}시간`
       );
     }
+  }
+
+  /**
+   * 베스트 프렌드 TOP 3를 기반으로 한 줄 AI 코멘트를 생성한다.
+   *
+   * 길드별 일일 LLM 호출 한도(`FRIEND_LLM_DAILY_QUOTA`)를 초과하면 null을 반환한다.
+   * LLM 호출 실패 시에도 null을 반환하므로 카드에서 코멘트 영역을 생략할 수 있다.
+   *
+   * @param context - 길드/사용자 정보와 TOP peer 목록
+   * @returns 한 줄 코멘트 문자열 또는 null (한도 초과/실패 시)
+   */
+  async generateBestFriendComment(context: BestFriendAiContext): Promise<string | null> {
+    const count = await this.incrLlmQuota(context.guildId);
+    if (count > FRIEND_LLM_DAILY_QUOTA) {
+      this.logger.warn(`[BestFriend LLM] 길드 ${context.guildId} 일일 한도 초과 (count=${count})`);
+      return null;
+    }
+
+    const prompt = this.buildBestFriendCommentPrompt(context);
+    try {
+      const text = await this.llmProvider.generateText(prompt, {
+        maxOutputTokens: FRIEND_COMMENT_MAX_TOKENS,
+        thinkingBudget: 0,
+      });
+      return text.trim();
+    } catch (error) {
+      this.logger.error('generateBestFriendComment failed', getErrorStack(error));
+      return null;
+    }
+  }
+
+  private async incrLlmQuota(guildId: string): Promise<number> {
+    const key = this.buildLlmQuotaKey(guildId);
+    const count = await this.redisService.incrBy(key, 1);
+
+    if (count === 1) {
+      // 첫 호출: TTL 24시간 설정
+      const expireAt = Math.floor(Date.now() / 1000) + FRIEND_LLM_QUOTA_TTL_SEC;
+      await this.redisService.expireAt(key, expireAt);
+    }
+
+    return count;
+  }
+
+  private buildLlmQuotaKey(guildId: string): string {
+    const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const today = kst.toISOString().slice(0, 10).replace(/-/g, '');
+    return `friend:llm:quota:${guildId}:${today}`;
+  }
+
+  private buildBestFriendCommentPrompt(context: BestFriendAiContext): string {
+    const { selfDisplayName, period, topPeers } = context;
+    const top3 = topPeers.slice(0, FRIEND_COMMENT_TOP_PEERS);
+
+    const peerLines = top3
+      .map((p, i) => {
+        const hours = Math.floor(p.totalMinutes / 60);
+        const mins = p.totalMinutes % 60;
+        const timeStr = hours > 0 ? `${hours}시간 ${mins}분` : `${mins}분`;
+        return `${i + 1}. ${p.displayName} — ${timeStr} (${p.sessionCount}세션)`;
+      })
+      .join('\n');
+
+    return (
+      `사용자 ${selfDisplayName}의 최근 ${period}일 베스트 프렌드 TOP ${top3.length}는 다음과 같다:\n` +
+      `${peerLines}\n` +
+      `이 데이터를 1~2문장의 친근한 한국어로 묘사하라. 인용/추측 금지.`
+    );
   }
 }

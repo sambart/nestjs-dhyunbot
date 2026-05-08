@@ -2,6 +2,7 @@ import { type VoiceActivityData } from '@onyu/shared';
 import { type Mock } from 'vitest';
 
 import { type LlmProvider } from '../../common/llm/llm-provider.interface';
+import { type RedisService } from '../../redis/redis.service';
 import { VoiceAiAnalysisService } from './voice-ai-analysis.service';
 
 function makeVoiceActivityData(overrides: Partial<VoiceActivityData> = {}): VoiceActivityData {
@@ -49,14 +50,19 @@ function makeVoiceActivityData(overrides: Partial<VoiceActivityData> = {}): Voic
 describe('VoiceAiAnalysisService', () => {
   let service: VoiceAiAnalysisService;
   let llmProvider: { generateText: Mock } & LlmProvider;
+  let redisService: Partial<RedisService>;
 
   beforeEach(() => {
     llmProvider = {
       generateText: vi.fn(),
     };
+    redisService = {
+      incrBy: vi.fn().mockResolvedValue(1),
+      expireAt: vi.fn().mockResolvedValue(undefined),
+    };
 
     // constructor에 직접 모킹 객체 전달
-    service = new VoiceAiAnalysisService(llmProvider);
+    service = new VoiceAiAnalysisService(llmProvider, redisService as RedisService);
 
     vi.clearAllMocks();
   });
