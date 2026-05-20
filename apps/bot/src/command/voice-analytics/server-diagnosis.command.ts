@@ -13,7 +13,8 @@ import {
 
 const EMBED_COLOR = 0x5b8def;
 const DEFAULT_DAYS = 7;
-const WEB_URL = process.env['WEB_URL'] ?? 'https://onyu.app';
+// 대시보드 기본 URL (WEB_URL 미설정 시 prod 도메인)
+const DEFAULT_WEB_URL = 'https://onyu.dev';
 
 class ServerDiagnosisDto {
   @Param({
@@ -113,10 +114,12 @@ export class ServerDiagnosisCommand {
   }
 
   private buildButtonRow(guildId: string): ActionRowBuilder<ButtonBuilder> {
+    // WEB_URL은 런타임에 읽는다 — 모듈 import 시점 평가 시 ConfigModule의 .env 로드 전이라 fallback이 굳을 수 있다
+    const webUrl = process.env['WEB_URL'] ?? DEFAULT_WEB_URL;
     const button = new ButtonBuilder()
       .setLabel('대시보드에서 자세히 보기')
       .setStyle(ButtonStyle.Link)
-      .setURL(`${WEB_URL}/guilds/${guildId}/voice-analytics`);
+      .setURL(`${webUrl}/guilds/${guildId}/voice-analytics`);
 
     return new ActionRowBuilder<ButtonBuilder>().addComponents(button);
   }

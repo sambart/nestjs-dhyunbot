@@ -256,7 +256,7 @@ export class WeeklyReportService {
     const button = new ButtonBuilder()
       .setLabel('대시보드에서 자세히 보기')
       .setStyle(ButtonStyle.Link)
-      .setURL(`${process.env['WEB_URL'] ?? 'https://onyu.app'}/guilds/${guildId}/voice-analytics`);
+      .setURL(`${process.env['WEB_URL'] ?? 'https://onyu.dev'}/guilds/${guildId}/voice-analytics`);
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
 
