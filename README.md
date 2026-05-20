@@ -142,16 +142,6 @@ Discord Gateway (voiceStateUpdate, guildMemberAdd, interactionCreate)
 - 웹 대시보드: 업타임 히스토리, 핑 추이, 메모리 추이, 시간대별 접속자 차트
 - 30일 보존 정책 자동 삭제
 
-### Music Player
-
-Discord 음성 채널에서 YouTube 음악을 재생합니다 (discord-player 기반).
-
-| Command | Description |
-|---------|-------------|
-| `/play` | YouTube 검색어 또는 URL로 음악 재생 |
-| `/skip` | 현재 곡 건너뛰기 |
-| `/stop` | 재생 중지 및 채널 퇴장 |
-
 ## Web Dashboard
 
 Next.js 16 + React 19 + Tailwind CSS 기반 관리 대시보드입니다. Discord OAuth2 인증을 통해 접근하며, 서버 관리 권한을 가진 사용자만 설정을 변경할 수 있습니다.
@@ -177,7 +167,7 @@ Next.js 16 + React 19 + Tailwind CSS 기반 관리 대시보드입니다. Discor
 |-------|-------------|
 | **Backend** | NestJS 10 · TypeORM 0.3 · PostgreSQL 15 · Redis 7 |
 | **Frontend** | Next.js 16 · React 19 · Tailwind CSS 3 · Lucide Icons |
-| **Discord** | Discord.js 14 · discord-nestjs 5 · discord-player |
+| **Discord** | Discord.js 14 · discord-nestjs 5 |
 | **AI** | Google Gemini API (`@google/generative-ai`) |
 | **Infrastructure** | Docker Compose · pnpm workspaces monorepo |
 
@@ -190,7 +180,6 @@ onyu/
 │   │   └── src/
 │   │       ├── channel/voice/  # Voice tracking, auto-channel, co-presence
 │   │       ├── gemini/         # AI analytics & report generation
-│   │       ├── music/          # Music player commands
 │   │       ├── newbie/         # Newbie management (welcome, mission, moco, role)
 │   │       ├── monitoring/     # Bot metrics collection & API
 │   │       ├── inactive-member/# Inactive member classification & actions

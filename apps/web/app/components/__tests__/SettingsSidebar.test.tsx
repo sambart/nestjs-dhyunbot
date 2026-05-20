@@ -83,11 +83,10 @@ describe('SettingsSidebar 통합 테스트', () => {
   });
 
   describe('그룹별 메뉴 항목', () => {
-    it('서버 설정 그룹에 일반 설정, 음악 항목이 포함된다', () => {
+    it('서버 설정 그룹에 일반 설정 항목이 포함된다', () => {
       renderSidebar();
 
       expect(screen.getByText('settings.general')).toBeInTheDocument();
-      expect(screen.getByText('settings.music')).toBeInTheDocument();
     });
 
     it('음성 채널 그룹에 음성, 음성상태, 자동방 항목이 포함된다', () => {
@@ -127,20 +126,6 @@ describe('SettingsSidebar 통합 테스트', () => {
         );
 
       expect(generalLink).toBeDefined();
-    });
-
-    it('음악 설정 링크가 /settings/guild/:id/music 경로를 가진다', () => {
-      renderSidebar();
-
-      const musicLink = screen
-        .getAllByRole('link')
-        .find(
-          (el) =>
-            el.textContent?.includes('settings.music') &&
-            el.getAttribute('href') === `/settings/guild/${GUILD_ID}/music`,
-        );
-
-      expect(musicLink).toBeDefined();
     });
 
     it('자동방 설정 링크가 /settings/guild/:id/auto-channel 경로를 가진다', () => {
@@ -201,21 +186,6 @@ describe('SettingsSidebar 통합 테스트', () => {
 
       expect(voiceLink).toBeDefined();
       expect(voiceLink?.className).toContain('bg-indigo-50');
-    });
-
-    it('현재 경로가 /settings/guild/:id이면 음악 링크에는 활성 클래스가 적용되지 않는다', () => {
-      renderSidebar(`/settings/guild/${GUILD_ID}`);
-
-      const musicLink = screen
-        .getAllByRole('link')
-        .find(
-          (el) =>
-            el.textContent?.includes('settings.music') &&
-            el.getAttribute('href') === `/settings/guild/${GUILD_ID}/music`,
-        );
-
-      expect(musicLink).toBeDefined();
-      expect(musicLink?.className).not.toContain('bg-indigo-50');
     });
 
     it('활성 경로의 링크는 text-indigo-700 클래스를 가진다', () => {
@@ -306,44 +276,7 @@ describe('SettingsSidebar 통합 테스트', () => {
     });
   });
 
-  // ─── 신규 메뉴 검증 (Co-Presence + 개인 설정) ──────────────────────────────
-
-  describe('신규 Co-Presence 메뉴', () => {
-    it('회원 관리 그룹에 Co-Presence 항목이 포함된다', () => {
-      renderSidebar();
-
-      expect(screen.getByText('settings.coPresence')).toBeInTheDocument();
-    });
-
-    it('Co-Presence 링크가 /settings/guild/:id/co-presence 경로를 가진다', () => {
-      renderSidebar();
-
-      const coPresenceLink = screen
-        .getAllByRole('link')
-        .find(
-          (el) =>
-            el.textContent?.includes('settings.coPresence') &&
-            el.getAttribute('href') === `/settings/guild/${GUILD_ID}/co-presence`,
-        );
-
-      expect(coPresenceLink).toBeDefined();
-    });
-
-    it('현재 경로가 /settings/guild/:id/co-presence이면 Co-Presence 링크에 활성 클래스가 적용된다', () => {
-      renderSidebar(`/settings/guild/${GUILD_ID}/co-presence`);
-
-      const coPresenceLink = screen
-        .getAllByRole('link')
-        .find(
-          (el) =>
-            el.textContent?.includes('settings.coPresence') &&
-            el.getAttribute('href') === `/settings/guild/${GUILD_ID}/co-presence`,
-        );
-
-      expect(coPresenceLink).toBeDefined();
-      expect(coPresenceLink?.className).toContain('bg-indigo-50');
-    });
-  });
+  // ─── 신규 메뉴 검증 (개인 설정) ──────────────────────────────
 
   describe('신규 개인 설정 그룹 + 사생활 메뉴', () => {
     it('개인 설정 그룹 헤더(personal)가 렌더링된다', () => {

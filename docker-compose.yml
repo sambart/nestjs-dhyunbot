@@ -36,8 +36,6 @@ services:
       - DATABASE_HOST=db
       - REDIS_HOST=redis
       - API_BASE_URL=http://api:3000
-      - LAVALINK_URL=${LAVALINK_URL:-lavalink:2333}
-      - LAVALINK_PASSWORD=${LAVALINK_PASSWORD:-youshallnotpass}
     volumes:
       - .:/workspace
       - root_node_modules:/workspace/node_modules
@@ -45,7 +43,6 @@ services:
     working_dir: /workspace/apps/bot
     depends_on:
       - api
-      - lavalink
     restart: unless-stopped
 
   web:
@@ -67,18 +64,6 @@ services:
     working_dir: /workspace/apps/web
     depends_on:
       - api
-    restart: unless-stopped
-
-  lavalink:
-    container_name: lavalink
-    image: ghcr.io/lavalink-devs/lavalink:4
-    ports:
-      - "2333:2333"
-    volumes:
-      - ./lavalink/application.yml:/opt/Lavalink/application.yml
-    environment:
-      - _JAVA_OPTIONS=-Xmx128m
-      - YOUTUBE_OAUTH_REFRESH_TOKEN=${YOUTUBE_OAUTH_REFRESH_TOKEN:-}
     restart: unless-stopped
 
   db:

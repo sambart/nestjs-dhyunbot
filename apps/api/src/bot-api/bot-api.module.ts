@@ -3,11 +3,9 @@ import { Module } from '@nestjs/common';
 import { AutoChannelModule } from '../channel/auto/auto-channel.module';
 import { CoPresenceModule } from '../channel/voice/co-presence/co-presence.module';
 import { VoiceChannelModule } from '../channel/voice/voice-channel.module';
-import { MusicModule } from '../music/music.module';
 import { NewbieModule } from '../newbie/newbie.module';
 import { StatusPrefixModule } from '../status-prefix/status-prefix.module';
 import { StickyMessageModule } from '../sticky-message/sticky-message.module';
-import { UserPrivacyModule } from '../user-privacy/user-privacy.module';
 import { VoiceAnalyticsModule } from '../voice-analytics/voice-analytics.module';
 import { BotAutoChannelController } from './auto-channel/bot-auto-channel.controller';
 import { BotApiAuthGuard } from './bot-api-auth.guard';
@@ -15,11 +13,9 @@ import { BotCoPresenceController } from './co-presence/bot-co-presence.controlle
 import { BotGuildMemberController } from './guild-member/bot-guild-member.controller';
 import { BotHealthController } from './health/bot-health.controller';
 import { BotMeController } from './me/bot-me.controller';
-import { BotMusicController } from './music/bot-music.controller';
 import { BotNewbieController } from './newbie/bot-newbie.controller';
 import { BotStatusPrefixController } from './status-prefix/bot-status-prefix.controller';
 import { BotStickyMessageController } from './sticky-message/bot-sticky-message.controller';
-import { BotUserPrivacyController } from './user-privacy/bot-user-privacy.controller';
 import { BotVoiceController } from './voice/bot-voice.controller';
 import { BotVoiceEventListener } from './voice/bot-voice-event.listener';
 import { BotVoiceAnalyticsController } from './voice-analytics/bot-voice-analytics.controller';
@@ -33,12 +29,10 @@ import { BotVoiceAnalyticsController } from './voice-analytics/bot-voice-analyti
     VoiceChannelModule,
     AutoChannelModule,
     CoPresenceModule,
-    MusicModule,
     StatusPrefixModule,
     NewbieModule,
     StickyMessageModule,
     VoiceAnalyticsModule,
-    UserPrivacyModule,
   ],
   controllers: [
     BotVoiceController,
@@ -49,10 +43,8 @@ import { BotVoiceAnalyticsController } from './voice-analytics/bot-voice-analyti
     BotStatusPrefixController,
     BotStickyMessageController,
     BotAutoChannelController,
-    BotMusicController,
     BotGuildMemberController,
     BotHealthController,
-    BotUserPrivacyController,
   ],
   providers: [BotApiAuthGuard, BotVoiceEventListener],
   exports: [BotApiAuthGuard],

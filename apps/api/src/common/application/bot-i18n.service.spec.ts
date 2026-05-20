@@ -106,11 +106,11 @@ describe('BotI18nService', () => {
       (service as any).messages = {
         en: {
           commands: { help: 'Help text in English' },
-          music: { play: 'Now playing: {title}' },
+          voice: { play: 'Now playing: {title}' },
         },
         ko: {
           commands: { help: '한국어 도움말' },
-          // music namespace는 ko에 없음
+          // voice.play 번역은 ko에 없음
         },
       };
     });
@@ -122,7 +122,7 @@ describe('BotI18nService', () => {
     });
 
     it('ko locale에 번역이 없으면 en 폴백을 사용한다', () => {
-      const result = service.t('ko', 'music.play', { title: 'Song' });
+      const result = service.t('ko', 'voice.play', { title: 'Song' });
 
       expect(result).toBe('Now playing: Song');
     });

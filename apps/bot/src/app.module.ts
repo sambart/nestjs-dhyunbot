@@ -11,7 +11,6 @@ import { BotCommandModule } from './command/bot-command.module';
 import { DiscordConfig } from './config/discord.config';
 import { BotEventModule } from './event/bot-event.module';
 import { BotMetricsModule } from './monitoring/bot-metrics.module';
-import { MusicModule } from './music/music.module';
 import { BotSchedulerModule } from './scheduler/bot-scheduler.module';
 
 const METRICS_PATH = '/metrics';
@@ -46,7 +45,6 @@ const METRICS_PATH = '/metrics';
     }),
     BotEventModule,
     BotCommandModule,
-    MusicModule,
     BotSchedulerModule,
     BotMetricsModule,
   ],
