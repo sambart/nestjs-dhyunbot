@@ -24,12 +24,12 @@ import { GuildMemberModule } from './guild-member/guild-member.module';
 import { HealthModule } from './health/health.module';
 import { InactiveMemberModule } from './inactive-member/inactive-member.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
-import { MusicModule } from './music/music.module';
 import { NewbieModule } from './newbie/newbie.module';
 import { OverviewModule } from './overview/overview.module';
 import { RedisModule } from './redis/redis.module';
 import { StatusPrefixModule } from './status-prefix/status-prefix.module';
 import { StickyMessageModule } from './sticky-message/sticky-message.module';
+import { UserPrivacyModule } from './user-privacy/user-privacy.module';
 import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
 
 @Module({
@@ -62,7 +62,6 @@ import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
     InactiveMemberModule,
     StatusPrefixModule,
     StickyMessageModule,
-    MusicModule,
     RedisModule,
     HealthModule,
     CommonModule,
@@ -71,6 +70,7 @@ import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
     OverviewModule,
     BotApiModule,
     MonitoringModule,
+    UserPrivacyModule,
   ],
   controllers: [AppController],
   providers: [

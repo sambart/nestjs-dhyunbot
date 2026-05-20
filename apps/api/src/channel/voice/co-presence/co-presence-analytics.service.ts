@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { GuildMemberService } from '../../../guild-member/application/guild-member.service';
+import { UserPrivacyConfigService } from '../../../user-privacy/application/user-privacy-config.service';
+import type { TopPeerItem } from './application/best-friend-card.types';
 import { VoiceCoPresenceDailyOrm } from './infrastructure/voice-co-presence-daily.orm-entity';
 import { VoiceCoPresencePairDailyOrm } from './infrastructure/voice-co-presence-pair-daily.orm-entity';
 
@@ -60,6 +62,8 @@ export interface PairDetailResponse {
   totalMinutes: number;
   dailyData: { date: string; minutes: number }[];
 }
+
+export type { TopPeerItem };
 
 // ────────────────────────────────────────────────────────────────────────────
 // 내부 쿼리 옵션 타입
@@ -128,6 +132,12 @@ interface RawSumRow {
   total: string;
 }
 
+interface RawTopPeerRow {
+  peerId: string;
+  totalMinutes: string;
+  sessionCount: string;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // 상수
 // ────────────────────────────────────────────────────────────────────────────
@@ -135,6 +145,9 @@ interface RawSumRow {
 const MAX_GRAPH_NODES = 50;
 const MAX_SEARCH_FETCH = 1000;
 const BOTH_DIRECTIONS_DIVISOR = 2;
+/** GuildMember 조회 실패 시 익명 폴백 접두사 */
+const MEMBER_FALLBACK_PREFIX = 'Member-';
+const MEMBER_FALLBACK_ID_LEN = 6;
 
 @Injectable()
 export class CoPresenceAnalyticsService {
@@ -144,6 +157,7 @@ export class CoPresenceAnalyticsService {
     @InjectRepository(VoiceCoPresenceDailyOrm)
     private readonly dailyRepo: Repository<VoiceCoPresenceDailyOrm>,
     private readonly guildMemberService: GuildMemberService,
+    private readonly userPrivacyConfigService: UserPrivacyConfigService,
   ) {}
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -152,7 +166,8 @@ export class CoPresenceAnalyticsService {
 
   /** Date 객체를 KST(UTC+9) 기준 'YYYY-MM-DD' 문자열로 변환한다 */
   private toKstDateString(d: Date): string {
-    const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+    const KST_OFFSET_MS = 9 * 60 * 60 * 1000; // UTC+9 (KST)
+    const kst = new Date(d.getTime() + KST_OFFSET_MS);
     return kst.toISOString().slice(0, 10);
   }
 
@@ -531,6 +546,72 @@ export class CoPresenceAnalyticsService {
       userB: { userId: userB, userName: userMap.get(userB)?.userName ?? userB },
       totalMinutes,
       dailyData: dailyData.map((d) => ({ date: d.date, minutes: Number(d.minutes) })),
+    };
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // F-COPRESENCE-014: getMyTopPeers
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * 본인 시점 베스트 프렌드 목록을 반환한다.
+   *
+   * `userId = :me` 단방향 쿼리로 조회하고, opt-out 사용자는 익명화한다.
+   * GuildMember 조회 실패 시 `Member-XXXXXX` 폴백을 적용한다.
+   *
+   * @param guildId - 디스코드 서버 ID
+   * @param userId - 본인 userId
+   * @param days - 집계 기간(일)
+   * @param limit - 반환 상한 (3~5)
+   */
+  async getMyTopPeers(
+    guildId: string,
+    userId: string,
+    days: number,
+    limit: number,
+  ): Promise<TopPeerItem[]> {
+    const startDate = this.getStartDate(days);
+
+    const rawRows = await this.pairDailyRepo
+      .createQueryBuilder('p')
+      .select('p.peerId', 'peerId')
+      .addSelect('SUM(p.minutes)', 'totalMinutes')
+      .addSelect('SUM(p.sessionCount)', 'sessionCount')
+      .where('p.guildId = :guildId', { guildId })
+      .andWhere('p.userId = :userId', { userId })
+      .andWhere('p.date >= :startDate', { startDate })
+      .groupBy('p.peerId')
+      .orderBy('SUM(p.minutes)', 'DESC')
+      .limit(limit)
+      .getRawMany<RawTopPeerRow>();
+
+    if (rawRows.length === 0) return [];
+
+    const peerIds = rawRows.map((r) => r.peerId);
+    const [privacyMap, memberMap] = await Promise.all([
+      this.userPrivacyConfigService.filterPeers(guildId, peerIds),
+      this.getUserMap(guildId, peerIds),
+    ]);
+
+    return rawRows.map((row) => this.buildTopPeerItem(row, privacyMap, memberMap));
+  }
+
+  private buildTopPeerItem(
+    row: RawTopPeerRow,
+    privacyMap: Map<string, { isAnonymous: boolean }>,
+    memberMap: Map<string, { userName: string; avatarUrl: string | null }>,
+  ): TopPeerItem {
+    const isAnonymous = privacyMap.get(row.peerId)?.isAnonymous ?? false;
+    const member = memberMap.get(row.peerId);
+    const fallbackName = `${MEMBER_FALLBACK_PREFIX}${row.peerId.slice(0, MEMBER_FALLBACK_ID_LEN)}`;
+
+    return {
+      userId: row.peerId,
+      displayName: isAnonymous ? '???' : (member?.userName ?? fallbackName),
+      avatarUrl: isAnonymous ? null : (member?.avatarUrl ?? null),
+      totalMinutes: Number(row.totalMinutes),
+      sessionCount: Number(row.sessionCount),
+      isAnonymous,
     };
   }
 }

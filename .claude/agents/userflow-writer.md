@@ -17,6 +17,14 @@ color: yellow
 - 구체적인 문구 등은 포함하지 않는다.
 
 유저플로우 문서 구조:
-- 공통 플로우 및 목차: `/docs/specs/userflow/_index.md`에 작성
-- 기능별 플로우: `/docs/specs/userflow/{domain}.md`에 작성 (evaluation, weight, question, participant, department, admin-results, user-auth, user-assessment, user-results)
-- 변경이력은 `/docs/archive/userflow-changelog.md`에서 관리한다.
+- 공통 플로우 및 목차: `/docs/specs/userflow/_index.md`에 작성 (디렉토리/파일이 없으면 신설)
+- 기능별 플로우: `/docs/specs/userflow/{domain}.md`에 작성. {domain} 목록은 `/docs/specs/feature-manifest.json` 의 `domains` 키를 진실의 소스로 사용한다 (하드코딩 금지)
+- 변경이력은 `/docs/archive/userflow-changelog.md`에서 관리한다 (파일이 없으면 신설).
+
+## 마커 컨벤션 (🔴 게이트 vs 🔒 정보성)
+
+흐름에 법무/결제/권한/DB파괴적 4분야가 등장하면 다음 기준으로 마커를 단다:
+
+- **🔴 = 결정 대기 (게이트)**: 신규 기능에서 **사용자 답변이 필요한 미결 사항** (예: 새 권한 스코프 도입 여부, 새 PII 수집 정책). feat-implement 파이프라인이 grep 해 후속 Phase 를 정지시킨다.
+- **🔒 = 정보성 민감 영역 (비게이트)**: 이미 구현·결정된 PII/권한/결제/DB 영역을 독자에게 알리는 표기 (예: 기존 OAuth 스코프, 기존 닉네임(PII) 처리). 게이트 아님.
+- **판단 원칙**: 기존 동작 설명·backfill 이면 🔒, 신규 미결 결정이면 🔴. 확실치 않으면 🔒(정보성)로 두고 본문에 사유 명시.

@@ -7,6 +7,8 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 
 | 버전 | 날짜 | 변경 요약 | 작성자 |
 |------|------|-----------|--------|
+| v6.4 | 2026-05-20 | voice-co-presence: /affinity·/privacy 커맨드 삭제, /best-friend 파라미터 제거 단순화 — F-COPRESENCE-015 전체 삭제, F-COPRESENCE-014 파라미터 전부 제거(30일·TOP5·공개 고정), F-COPRESENCE-017 /privacy 커맨드 제거(웹 전용), GuildCoPresenceConfig DROP 예정 명시, _index.md 갱신 | — |
+| v6.3 | 2026-05-04 | voice-co-presence: 친밀도 그래프 + 베스트 프렌드 TOP 리포트 Phase 5 추가 — F-COPRESENCE-014~018 신규, UserPrivacyConfig·GuildCoPresenceConfig 엔티티 추가, _index.md 도메인 설명·기능 요약·엔티티 테이블 갱신 | — |
 | v6.2 | 2026-05-01 | inactive-member: 등급별 탭 분리 및 컬럼 차별화 — 필터 탭 UI 전환, 탭별 테이블 컬럼 분리, prevTotalMinutes 응답 노출, sortBy decreaseRate 추가, i18n 키 추가 | — |
 | v6.1 | 2026-05-01 | newbie: F-NEWBIE-002 확장 — missionUseMicTime 옵션 추가 (마이크 ON 시간 기반 플레이타임 측정), NewbieConfig 컬럼 추가, 탭 2 UI 체크박스, Voice 연계 쿼리 분기, 캐시 무효화 규칙 갱신 | — |
 | v6.0 | 2026-04-13 | web: 랜딩 페이지 리디자인 — F-WEB-001 전면 갱신(고정 네비·Hero·zig-zag 기능 섹션·CTA 밴드·Footer 명세), F-WEB-018 고정 네비게이션 신규, 비활동 회원 기능 블록 추가, 음악 기능 렌더링 제외, i18n 키 추가 목록 명세 | — |
@@ -59,6 +61,53 @@ PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않
 | v1.3 | 2026-03-08 | 게임방 상태 접두사(status-prefix) 도메인 PRD 신규 추가 | — |
 | v1.2 | 2026-03-08 | 신규사용자 관리(newbie) 도메인 PRD 신규 추가 | — |
 | v1.1 | 2026-03-08 | 자동방 생성(Auto Channel) 기능 추가 | — |
+
+---
+
+## [수정 51] voice-co-presence: /affinity·/privacy 커맨드 삭제, /best-friend 파라미터 제거 단순화 (COPRESENCE-SIMPLIFY)
+
+**변경일**: 2026-05-20
+**티켓**: COPRESENCE-SIMPLIFY
+
+**변경 파일**:
+- `docs/specs/prd/voice-co-presence.md` — F-COPRESENCE-014 파라미터 제거, F-COPRESENCE-015 전체 삭제, F-COPRESENCE-017 /privacy 커맨드 제거 반영, GuildCoPresenceConfig DROP 예정 명시, 관련 모듈·마이그레이션 전략·공통 구현 패턴 갱신
+- `docs/specs/prd/_index.md` — 핵심 기능 요약 13번 갱신, 도메인 목록 설명 갱신, 엔티티 테이블 GuildCoPresenceConfig 행 삭제
+
+**변경 내용**:
+1. **F-COPRESENCE-014 (`/best-friend`) 파라미터 제거**: `period` / `limit` / `private` 파라미터 전부 삭제. "파라미터 없음 — 최근 30일·TOP 5·공개(비-ephemeral) 응답 고정"으로 변경. 카드 레이아웃·캔버스·AI 코멘트·opt-out 익명화·대시보드 Link 버튼은 유지.
+2. **F-COPRESENCE-015 (`/affinity`) 전체 삭제**: 섹션 전체 제거. 사용 빈도 낮고 파라미터 복잡하다는 이유.
+3. **F-COPRESENCE-016 (주간 리포트 베스트 페어)**: 변경 없음. `filterPeers` 익명화 유지.
+4. **F-COPRESENCE-017 (사생활 설정) 수정**: `/privacy` 슬래시 커맨드 제거. opt-out 설정은 웹 `/settings/me/privacy` 페이지로만 가능. `UserPrivacyConfig` 엔티티·`filterPeers` 로직·웹 `GET/PUT /api/users/me/privacy`는 유지. `POST /bot-api/user-privacy/upsert` 봇 API 제거. opt-out 적용 채널이 `/best-friend`·주간 리포트로 축소됨을 명시.
+5. **F-COPRESENCE-018 (AI 한 줄 코멘트)**: 변경 없음 (best-friend용).
+6. **GuildCoPresenceConfig (`guild_co_presence_config`) 삭제**: 데이터 모델 섹션에서 해당 항목 제거. 🔴 테이블 DROP 마이그레이션은 Phase 2에서 database-architect가 상세화한다는 안내 추가.
+7. **사생활 정책 P-2 갱신**: 테이블에서 "길드 토글" → "제거됨 — /affinity 삭제로 해당 없음"으로 변경.
+8. **관련 모듈·마이그레이션 전략 갱신**: affinity 관련 파일(`affinity-card-renderer.ts`, `affinity.command.ts`, `getAffinity()` 메서드)·Phase 5-2 affinity 구현 단계 삭제. Phase 5 전체 번호 재조정.
+9. **`_index.md` 엔티티 테이블**: `GuildCoPresenceConfig` 행 삭제, `UserPrivacyConfig` 행 설명에서 "친밀도" 제거.
+
+**변경 사유**: 명령어 단순화 결정. `/affinity`는 사용 빈도 낮고 파라미터 복잡. `/privacy`는 웹 설정으로 통합하여 봇 커맨드 수 감소. `/best-friend` 파라미터 제거로 진입 장벽 해소.
+
+---
+
+## [수정 50] voice-co-presence: 친밀도 그래프 + 베스트 프렌드 TOP 리포트 Phase 5 추가 (COPRESENCE-BESTFRIEND-PHASE5)
+
+**변경일**: 2026-05-04
+**티켓**: COPRESENCE-BESTFRIEND-PHASE5
+
+**변경 파일**:
+- `docs/specs/prd/voice-co-presence.md` — F-COPRESENCE-014~018 신규 추가, 데이터 모델 2종 추가, 변경이력 참조 링크 추가
+- `docs/specs/prd/_index.md` — 도메인 설명 갱신, 13번 기능 요약 섹션 신규, 기존 13~14번 → 14~15번 재번호, 엔티티 테이블에 UserPrivacyConfig·GuildCoPresenceConfig 추가
+
+**변경 내용**:
+1. **F-COPRESENCE-014** `/best-friend` (`친한친구`) 슬래시 커맨드 명세: 본인 베스트 프렌드 TOP 5 Canvas PNG 카드. `/me` 패턴(`@napi-rs/canvas` + base64 + AttachmentBuilder) 채택. `BestFriendCardRenderer` 신규 렌더러. 친밀도 바, 아바타, AI 코멘트 영역 포함. 인메모리 LRU 5분 캐시.
+2. **F-COPRESENCE-015** `/affinity` (`친밀도`) 슬래시 커맨드 명세: 두 사람 사이 동시접속 통계 Canvas PNG 카드. 자기 자신 포함 조합은 항상 허용. 타인↔타인은 `GuildCoPresenceConfig.allowPublicAffinityQuery` 또는 `ManageGuild` 권한 필요.
+3. **F-COPRESENCE-016** 주간 자동 리포트 친밀도 섹션 추가: `WeeklyReportService.collectReportData()`에 `getTopPairs(guildId, 7, 5)` 호출 추가. 기존 Embed 형식 유지. opt-out 처리 규칙 명세.
+4. **F-COPRESENCE-017** 사용자 사생활 설정 명세: `UserPrivacyConfig` 엔티티, `/privacy` 슬래시 커맨드, 웹 설정 페이지 (`GET/PUT /api/users/me/privacy`). 기본 공개(opt-out 시 비공개). 웹 분석 페이지(F-COPRESENCE-007~013)는 미적용.
+5. **F-COPRESENCE-018** AI 한 줄 코멘트 명세: `VoiceAiAnalysisService.generateBestFriendComment()` 신규. 길드 일일 LLM 한도(Redis INCR) + 결과 캐시 1시간. 실패 시 코멘트 생략 폴백.
+6. **데이터 모델 추가**: `UserPrivacyConfig` (`user_privacy_config`, PK: guildId+userId, disableRelationshipShare boolean default false), `GuildCoPresenceConfig` (`guild_co_presence_config`, PK: guildId, allowPublicAffinityQuery boolean default false).
+7. **사생활 정책 결정사항 명문화**: P-1(공개 기본) ~ P-7(도메인 경계) 모두 voice-co-presence.md에 반영.
+8. **마이그레이션 전략**: Phase 5-1~5-4 단계별 구현 순서 명세.
+
+**변경 사유**: 기존 `voice-co-presence` 데이터를 Discord 슬래시 커맨드로 소비하는 사용자 대면 기능 공백 해소. 친목 서버에서 "내 친구 카드" 형태의 바이럴 가능성 확보. Gemini AI 코멘트 및 opt-out 사생활 정책으로 차별화 및 안전한 운영 기반 마련.
 
 ---
 

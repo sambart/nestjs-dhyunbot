@@ -11,14 +11,14 @@ import { BotCommandModule } from './command/bot-command.module';
 import { DiscordConfig } from './config/discord.config';
 import { BotEventModule } from './event/bot-event.module';
 import { BotMetricsModule } from './monitoring/bot-metrics.module';
-import { MusicModule } from './music/music.module';
 import { BotSchedulerModule } from './scheduler/bot-scheduler.module';
 
 const METRICS_PATH = '/metrics';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // 네이티브 실행 시 cwd가 apps/bot이므로 모노레포 루트의 .env를 명시적으로 지정
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env' }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
@@ -45,7 +45,6 @@ const METRICS_PATH = '/metrics';
     }),
     BotEventModule,
     BotCommandModule,
-    MusicModule,
     BotSchedulerModule,
     BotMetricsModule,
   ],

@@ -6,8 +6,8 @@ import {
   BarChart3,
   BrainCircuit,
   HeartPulse,
+  Lock,
   Mic,
-  Music,
   Pin,
   Radio,
   Settings,
@@ -60,11 +60,6 @@ export default function SettingsSidebar({ guilds, selectedGuildId }: SettingsSid
           label: t('settings.general'),
           icon: Settings,
         },
-        {
-          href: `/settings/guild/${selectedGuildId}/music`,
-          label: t('settings.music'),
-          icon: Music,
-        },
       ],
     },
     {
@@ -115,6 +110,16 @@ export default function SettingsSidebar({ guilds, selectedGuildId }: SettingsSid
           href: `/settings/guild/${selectedGuildId}/diagnosis`,
           label: t('settings.diagnosis'),
           icon: BrainCircuit,
+        },
+      ],
+    },
+    {
+      label: t('sidebar.settingsGroup.personal'),
+      items: [
+        {
+          href: `/settings/me/privacy`,
+          label: t('settings.privacy'),
+          icon: Lock,
         },
       ],
     },

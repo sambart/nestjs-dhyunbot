@@ -109,7 +109,7 @@ export default function Header() {
                 )}
                 <Link href="/" className="flex items-center space-x-2">
                   <Image
-                    src="/discord_onyu_logo_03.png"
+                    src="/brand/img_onyu_cat.png"
                     alt="Onyu 로고"
                     width={HEADER_LOGO_SIZE}
                     height={HEADER_LOGO_SIZE}

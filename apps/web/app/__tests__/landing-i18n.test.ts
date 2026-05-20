@@ -102,17 +102,6 @@ describe('Landing 번역 파일 키 구조 검증', () => {
     });
   });
 
-  describe('음악 기능 — landing.json에는 존재하지만 페이지에서는 사용 안 함', () => {
-    it('ko landing.json에 features.music 키가 존재한다 (번역 파일은 보존)', () => {
-      const value = getNestedValue(koLanding as Record<string, unknown>, 'features.music.title');
-      // music 번역 키는 파일에 남아있을 수 있으나 FEATURE_BLOCKS에서 제거됨
-      // 이 테스트는 번역 파일 보존 여부만 확인 (실패해도 무방)
-      if (value !== undefined) {
-        expect(typeof value).toBe('string');
-      }
-    });
-  });
-
   describe('ko/en 키 일치 검증', () => {
     it('ko에 있는 필수 키는 en에도 모두 존재한다', () => {
       const missingInEn: string[] = [];

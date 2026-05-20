@@ -1,4 +1,4 @@
-# Onyu Database Schema
+﻿# Onyu Database Schema
 
 ## 개요
 
@@ -60,21 +60,6 @@ Onyu은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 및 
 └──────────────────────────────────────────┘
   guild_member 테이블로 완전 대체 예정.
   마이그레이션 검증 완료 후 DROP.
-
-┌──────────────────────────────────────────────────────────────────────┐
-│                MusicChannelConfig (music_channel_config)             │
-├──────────────────────────────────────────────────────────────────────┤
-│ PK id                                                                │
-│ guildId (UNIQUE)                                                     │
-│ channelId, messageId (nullable)                                      │
-│ embedTitle, embedDescription, embedColor, embedThumbnailUrl          │
-│ buttonConfig (JSONB NOT NULL)                                        │
-│ enabled (DEFAULT true)                                               │
-│ createdAt, updatedAt                                                 │
-└──────────────────────────────────────────────────────────────────────┘
-  (독립 테이블 — FK 없음, Discord ID 직접 저장)
-  UQ_music_channel_config_guild: UNIQUE(guildId)
-  IDX_music_channel_config_channel: IDX(channelId)
 
 ┌────────────────────────────────────────────────────────────────────┐
 │                  VoiceDailyEntity (voice_daily)                    │
@@ -392,6 +377,21 @@ Onyu은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 및 
 └────────────────────────────────────────────────────────────┘
   (독립 테이블 — FK 없음, Discord ID 직접 저장)
   IDX_weekly_report_config_enabled: IDX(isEnabled)
+
+┌────────────────────────────────────────────────────────────┐
+│      UserPrivacyConfig (user_privacy_config)                │
+│      Phase 5 — F-COPRESENCE-014/016/017                     │
+├────────────────────────────────────────────────────────────┤
+│ PK guildId + userId                                         │
+│ disableRelationshipShare (boolean, default false)           │
+│ updatedAt (timestamp, default now())                        │
+└────────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  PK: (guildId, userId)
+  Redis 캐시: friend:privacy:{guildId}:{userId}, TTL 30분
+  ※ userId 단독 인덱스: IDX_user_privacy_config_user (향후 탈퇴 처리 대비)
+  ※ InactiveMemberConfig 등 기존 도메인별 설정 테이블과 병합하지 않음.
+    도메인 경계 위반 방지. 향후 추가 콜럼은 이 테이블에서 수용.
 ```
 
 ---
@@ -1513,71 +1513,7 @@ DO UPDATE SET
 
 ---
 
-### 29. MusicChannelConfig (`music_channel_config`)
-
-길드별 음악 전용 채널 임베드 시스템 설정을 저장한다. 길드당 하나의 설정이 존재하며, 버튼 구성은 JSONB 컬럼으로 관리한다.
-
-| 컬럼 | 타입 | 제약조건 | 설명 |
-|-------|------|----------|------|
-| `id` | `int` | PK, AUTO_INCREMENT | 내부 ID |
-| `guildId` | `varchar` | UNIQUE, NOT NULL | 디스코드 서버 ID |
-| `channelId` | `varchar` | NOT NULL | 음악 전용 텍스트 채널 ID |
-| `messageId` | `varchar` | NULLABLE | 고정 임베드 메시지 ID (Discord message ID). 신규 전송 후 저장. 메시지 수정 실패 시 NULL로 초기화 |
-| `embedTitle` | `varchar` | NULLABLE | 대기 상태 임베드 제목. NULL이면 기본값 `"음악 채널"` 사용 |
-| `embedDescription` | `text` | NULLABLE | 대기 상태 임베드 설명. NULL이면 기본값 사용 |
-| `embedColor` | `varchar` | NULLABLE | 대기 상태 임베드 색상 (HEX, 예: `#5865F2`). NULL이면 기본값 사용 |
-| `embedThumbnailUrl` | `varchar` | NULLABLE | 대기 상태 임베드 썸네일 이미지 URL. 재생 중 트랙 썸네일이 없을 때도 fallback으로 사용 |
-| `buttonConfig` | `jsonb` | NOT NULL | 버튼 구성. 표시할 버튼 목록, 순서, 활성화 여부를 포함하는 JSON 객체 |
-| `enabled` | `boolean` | NOT NULL, DEFAULT `true` | 음악 전용 채널 기능 활성화 여부. `false`이면 임베드 전송 안 함 |
-| `createdAt` | `timestamp` | NOT NULL, DEFAULT now() | 생성일 |
-| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 수정일 |
-
-- **스키마**: `public`
-- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
-- **파일**: `apps/bot/src/music/infrastructure/music-channel-config.orm-entity.ts`
-
-#### 인덱스
-
-| 인덱스 | 컬럼 | 용도 |
-|--------|------|------|
-| `UQ_music_channel_config_guild` | `(guildId)` UNIQUE | 길드당 하나의 설정 보장. 설정 단건 조회 커버 |
-| `IDX_music_channel_config_channel` | `(channelId)` | F-MUSIC-016: `messageCreate` 이벤트에서 수신 채널이 음악 전용 채널인지 확인하는 `WHERE channelId = ?` 조회 커버 |
-
-#### buttonConfig JSONB 구조
-
-`buttonConfig` 컬럼은 다음 구조의 JSON 객체를 저장한다.
-
-```json
-{
-  "buttons": [
-    { "type": "search",          "label": "음악 검색하기", "emoji": "🔍", "enabled": true, "row": 0 },
-    { "type": "pause_resume",    "label": "일시정지/재개", "emoji": "⏯️", "enabled": true, "row": 1 },
-    { "type": "skip",            "label": "스킵",          "emoji": "⏭️", "enabled": true, "row": 1 },
-    { "type": "stop",            "label": "정지",          "emoji": "⏹️", "enabled": true, "row": 1 },
-    { "type": "queue",           "label": "재생목록",      "emoji": "📋", "enabled": true, "row": 2 },
-    { "type": "melon_chart",     "label": "멜론차트",      "emoji": "🎵", "enabled": true, "row": 2 },
-    { "type": "billboard_chart", "label": "빌보드",        "emoji": "🎶", "enabled": true, "row": 2 }
-  ]
-}
-```
-
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| `type` | `string` | 버튼 식별자. `search` / `pause_resume` / `skip` / `stop` / `queue` / `melon_chart` / `billboard_chart` 중 하나 |
-| `label` | `string` | Discord 버튼 표시 라벨. 웹에서 수정 가능 |
-| `emoji` | `string` | Discord 버튼 이모지 |
-| `enabled` | `boolean` | `false`이면 해당 버튼을 임베드에서 렌더링하지 않음 |
-| `row` | `number` | ActionRow 번호 (0~4). Discord 최대 5행 제한 |
-
-#### 인덱스 설계 근거
-
-길드 설정 조회(`WHERE guildId = ?`)는 단건 조회이므로 UNIQUE 인덱스 하나로 커버된다. 버튼 구성이 JSONB로 관리되므로 버튼별 별도 테이블이 불필요하다. `buttonConfig`에 대한 GIN 인덱스는 현재 스펙에서 JSONB 필드를 조건절에서 직접 조회하지 않으므로 추가하지 않는다.
-
-F-MUSIC-016의 `messageCreate` 이벤트 처리는 수신된 채널 ID가 음악 전용 채널인지 확인하기 위해 `WHERE channelId = ?` 조회를 수행한다. `messageCreate`는 서버의 모든 텍스트 메시지마다 발생하는 고빈도 이벤트이므로, `UNIQUE(guildId)` 인덱스만으로는 이 조회를 커버할 수 없어 `IDX_music_channel_config_channel (channelId)` 단독 인덱스를 추가한다. `channelId`는 Discord 전역에서 고유하므로(Snowflake ID) 단독 인덱스로 충분히 선택도가 높다.
-
----
-
-### 30. WeeklyReportConfig (`weekly_report_config`)
+### 29. WeeklyReportConfig (`weekly_report_config`)
 
 > F-GEMINI-006 대응: 길드별 주간 자동 리포트 발송 설정을 저장한다. 스케줄러가 매시간 정각에 이 테이블을 조회하여 조건에 맞는 길드에 리포트를 전송한다.
 
@@ -1630,6 +1566,59 @@ COMMENT ON COLUMN weekly_report_config."timezone"   IS 'IANA 타임존 문자열
 COMMENT ON COLUMN weekly_report_config."updatedAt"  IS '마지막 설정 변경 시각';
 ```
 
+
+### 30. UserPrivacyConfig (user_privacy_config)
+
+> Phase 5 — F-COPRESENCE-017. 사용자별 길드 단위 친밀도·베프 노출 opt-out 설정을 저장한다. 기본값은 공개(공개 opt-out). 레코드가 없으면 공개로 간주하며 INSERT하지 않는다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `userId` | `varchar` | PK | 사용자 디스코드 ID |
+| `disableRelationshipShare` | `boolean` | NOT NULL, DEFAULT `false` | `true` = 친밀도·베프 노출 비공개(opt-out) |
+| `updatedAt` | `timestamptz` | NOT NULL, DEFAULT now() | 마지막 변경 시각 |
+
+- **복합 PK**: `(guildId, userId)`
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/channel/voice/co-presence/infrastructure/user-privacy-config.orm-entity.ts`
+- **보존 정책**: 영구 보존 (삭제 안 함). `DELETE /api/users/me/data` 대상에 미포함.
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| PK | `(guildId, userId)` | 단건 조회·upsert ON CONFLICT 키 |
+| `IDX_user_privacy_config_user` | `(userId)` | 향후 탈퇴 처리 시 `WHERE userId = ?` 전체 길드 삭제 커버 |
+
+#### 인덱스 설계 근거
+
+일반적인 조회 패턴은 `WHERE guildId = ? AND userId IN (...)` (베스트 프렌드 peer 목록 opt-out 일괄 확인)이며, PK `(guildId, userId)`로 커버된다. 향후 사용자 탈퇴 처리 또는 개인정보 삭제 API에서 `WHERE userId = ?` 전체 길드 삭제가 발생할 경우를 대비하여 `IDX_user_privacy_config_user (userId)` 인덱스를 추가한다. (실제 마이그레이션 `1777100000000`에서 생성됨)
+
+#### 캐시 전략
+
+| 키 | TTL | 자료구조 | 설명 |
+|----|-----|----------|------|
+| `friend:privacy:{guildId}:{userId}` | 30분 (1,800초) | String (`"0"` or `"1"`) | `"1"` = 비공개. 설정 변경 시 DEL로 즉시 무효화 |
+
+TTL 30분은 안전 장치 역할이다. 설정 변경 시 즉시 `DEL`이 호출되므로 반영 지연은 없다. TTL 연장(예: 1시간)은 DEL 실패 시 stale 상태 유지 시간을 늘리므로 채택하지 않는다.
+
+F-COPRESENCE-014에서 peer 5명의 opt-out 확인은 Redis `MGET` 단일 왕복으로 처리한다. 5개 키를 개별 GET하지 않고 `MGET friend:privacy:{guildId}:{peer1} ... {peer5}`로 배치 조회한다. 길드 전체 opt-out Set 캐시(`friend:privacy:{guildId}:set`)는 추가하지 않는다 — MGET 5회와 Set SISMEMBER 5회의 Redis 왕복 비용이 동일하고, Set 관리(SADD/SREM) 복잡도가 추가되어 오버엔지니어링이다.
+
+#### DDL
+
+```sql
+CREATE TABLE user_privacy_config (
+  "guildId"                    varchar      NOT NULL,
+  "userId"                     varchar      NOT NULL,
+  "disableRelationshipShare"   boolean      NOT NULL DEFAULT false,
+  "updatedAt"                  timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT "PK_user_privacy_config" PRIMARY KEY ("guildId", "userId")
+);
+
+CREATE INDEX "IDX_user_privacy_config_user" ON user_privacy_config ("userId");
+```
+
 ---
 
 ## Redis 데이터 구조
@@ -1644,7 +1633,6 @@ auto_channel:{category}:{...params}
 newbie:{category}:{...params}
 status_prefix:{category}:{...params}
 sticky_message:{category}:{...params}
-music:{category}:{...params}
 ```
 
 ### voice 키 정의
@@ -1823,29 +1811,35 @@ SET sticky_message:config:{guildId} {configArrayJson} EX 3600
 SET sticky_message:debounce:{channelId} 1 EX 3
 ```
 
-### music 키 정의
+### friend 키 정의 (Phase 5)
 
-멜론·빌보드 차트 크롤링 결과를 캐싱한다. 차트 버튼 클릭 시 캐시를 우선 조회하며, 캐시 미스 시 크롤링 후 저장한다.
+Co-Presence 친밀도·베스트 프렌드 기능(F-COPRESENCE-014~018)의 사생활 캐시 및 LLM 한도 카운터를 저장한다.
 
 | 키 패턴 | TTL | 자료구조 | 설명 |
 |---------|-----|----------|------|
-| `music:chart:melon` | 1시간 | String (JSON) | 멜론 인기차트 TOP 20 크롤링 결과 캐시 |
-| `music:chart:billboard` | 1시간 | String (JSON) | 빌보드 HOT 100 TOP 20 크롤링 결과 캐시 |
+| `friend:privacy:{guildId}:{userId}` | 30분 (1,800초) | String (`"0"` 또는 `"1"`) | 사용자 opt-out 설정 캐시. `"1"` = 비공개, `"0"` = 공개. `UserPrivacyConfigService` 캐시 레이어. 설정 변경 시 DEL로 즉시 무효화 |
+| `friend:llm:quota:{guildId}:{YYYYMMDD}` | 24시간 (86,400초) | String (숫자, INCR) | 길드별 일일 LLM 호출 카운터. INCR 후 한도(예: 50) 초과 시 AI 코멘트 생략. EXPIRE 86400 설정으로 다음 날 자동 만료 |
 
-#### music:chart 구조
+#### friend:privacy 구조
 
-차트 크롤링 결과를 JSON 배열로 직렬화하여 저장한다. 각 항목은 곡명과 아티스트 정보를 포함한다.
-
-```json
-[
-  { "title": "곡명", "artist": "아티스트명" },
-  ...
-]
+```
+SET friend:privacy:{guildId}:{userId} {0|1} EX 1800
 ```
 
-- **저장 시점**: `melon_chart` 또는 `billboard_chart` 버튼 클릭 시 캐시 미스인 경우
-- **삭제 시점**: TTL 만료 (1시간) 후 자동 삭제
-- **파일**: `apps/bot/src/music/application/chart-crawler.service.ts`
+- `0` = `disableRelationshipShare = false` (공개, 기본값)
+- `1` = `disableRelationshipShare = true` (비공개, opt-out)
+- 캐시 미스 시 `user_privacy_config` → PostgreSQL SELECT. 레코드 없으면 기본값 `0` 반환 (INSERT 하지 않음)
+- TTL 30분은 안전 장치다. 설정 변경 시 즉시 DEL 호출로 실시간 반영. TTL 연장은 DEL 실패 시 stale 유지 시간을 늘리므로 채택 안 함.
+- F-COPRESENCE-014 peer 5명 opt-out 확인: `MGET friend:privacy:{guildId}:{peer1} ... {peer5}` 단일 왕복으로 처리. 길드 전체 opt-out Set 별도 캐시는 추가하지 않음(MGET 대비 관리 복잡도만 증가).
+
+#### friend:llm:quota 구조
+
+```
+INCR friend:llm:quota:{guildId}:{YYYYMMDD}
+EXPIRE friend:llm:quota:{guildId}:{YYYYMMDD} 86400
+```
+
+키가 존재하지 않으면 INCR 명령이 자동 생성 후 1을 반환한다. EXPIRE는 키 첫 생성 시 1회만 설정한다. 한도 초과 여부는 INCR 반환값으로 판정 (반환값 > 한도이면 코멘트 생략).
 
 ---
 
@@ -1869,7 +1863,8 @@ SET sticky_message:debounce:{channelId} 1 EX 3
 | status_prefix 설정 캐시 | 1시간 (3,600초) | 설정 변경 빈도 낮음, 저장 시 명시적 갱신 |
 | sticky_message 설정 캐시 | 1시간 (3,600초) | 설정 변경 빈도 낮음. 저장/삭제 시 명시적 갱신 또는 무효화 |
 | sticky_message 디바운스 타이머 | 3초 | 연속 메시지 수신 시 마지막 메시지 기준으로 3초 후 재전송. 수신마다 TTL 리셋 |
-| music 차트 캐시 (멜론/빌보드) | 1시간 (3,600초) | 크롤링 부하 최소화. TTL 만료 시 다음 버튼 클릭에서 재크롤링 |
+| friend:privacy:{guildId}:{userId} | 30분 (1,800초) | opt-out 빠른 확인용. 설정 변경 시 DEL로 즉시 무효화 |
+| friend:llm:quota:{guildId}:{YYYYMMDD} | 24시간 (86,400초) | 길드별 일일 LLM 호출 카운터. INCR + EXPIRE 패턴. 다음 날 자동 만료 |
 
 ---
 
@@ -2322,6 +2317,114 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
      - 레코드 있음: 전체 필드 반환
 ```
 
+---
+
+### 30. UserPrivacyConfig (`user_privacy_config`)
+
+> Voice Co-Presence Phase 5 — F-COPRESENCE-014/016/017 대응. 사용자별 길드 단위 친밀도·베스트 프렌드 노출 opt-out 설정을 저장한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `userId` | `varchar` | PK | 사용자 디스코드 ID |
+| `disableRelationshipShare` | `boolean` | NOT NULL, DEFAULT `false` | `true` = 친밀도·베스트 프렌드 데이터 노출 비공개(opt-out). 타인의 `/best-friend`, 주간 리포트에서 익명화(`???`) 처리됨 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT `now()` | 마지막 설정 변경 시각 |
+
+- **복합 PK**: `(guildId, userId)`
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/channel/voice/co-presence/infrastructure/user-privacy-config.orm-entity.ts`
+- **캐시**: `friend:privacy:{guildId}:{userId}` — Redis, TTL 30분. 설정 변경(`upsert`) 시 `DEL` 즉시 무효화
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 종류 | 용도 |
+|--------|------|------|------|
+| PK `PK_user_privacy_config` | `(guildId, userId)` | PRIMARY KEY | `UserPrivacyConfigService.findOne(guildId, userId)` 단건 조회. upsert `ON CONFLICT` 키 |
+| `IDX_user_privacy_config_user` | `(userId)` | INDEX | 사용자가 탈퇴하거나 전체 길드에서 opt-out 상태를 일괄 조회할 경우의 `WHERE userId = ?` 스캔 커버. PK 선두가 `guildId`이므로 `userId` 단독 조회는 커버되지 않아 별도 인덱스 필요 |
+
+#### 인덱스 설계 근거
+
+일반적인 조회 패턴은 `WHERE guildId = ? AND userId IN (...)` (베스트 프렌드 peer 목록 opt-out 일괄 확인)이며, 이는 PK `(guildId, userId)`로 커버된다. 단, 향후 사용자 탈퇴 처리 또는 개인정보 삭제 API(`DELETE /api/users/me/data`)에서 `WHERE userId = ?` 전체 길드 삭제가 발생할 경우를 대비하여 `IDX_user_privacy_config_user (userId)` 인덱스를 추가한다. FK가 없는 기존 패턴(`voice_co_presence_*` 테이블과 동일)을 따른다.
+
+#### SQL DDL
+
+```sql
+CREATE TABLE user_privacy_config (
+  "guildId"                   varchar     NOT NULL,
+  "userId"                    varchar     NOT NULL,
+  "disableRelationshipShare"  boolean     NOT NULL DEFAULT false,
+  "updatedAt"                 timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT "PK_user_privacy_config" PRIMARY KEY ("guildId", "userId")
+);
+
+CREATE INDEX "IDX_user_privacy_config_user" ON user_privacy_config ("userId");
+
+COMMENT ON TABLE  user_privacy_config                                IS '사용자별 길드 단위 친밀도·베스트 프렌드 노출 opt-out 설정 (Phase 5)';
+COMMENT ON COLUMN user_privacy_config."guildId"                     IS '디스코드 서버 ID (복합 PK 선두)';
+COMMENT ON COLUMN user_privacy_config."userId"                      IS '사용자 디스코드 ID (복합 PK 후미)';
+COMMENT ON COLUMN user_privacy_config."disableRelationshipShare"    IS 'true = 친밀도·베프 노출 비공개(opt-out). 타인 조회 시 익명화(???) 처리됨. 기본값 false(공개)';
+COMMENT ON COLUMN user_privacy_config."updatedAt"                   IS '마지막 설정 변경 시각';
+```
+
+---
+
+### Phase 5 Co-Presence 사생활 정책 데이터 흐름
+
+```
+[사용자 opt-out 설정 — 웹 설정 페이지 (PUT /api/users/me/privacy)]
+  1. UserPrivacyConfigService.upsert(guildId, userId, { disableRelationshipShare })
+  2. user_privacy_config → PostgreSQL
+       INSERT INTO user_privacy_config ("guildId", "userId", "disableRelationshipShare", "updatedAt")
+       VALUES ($1, $2, $3, now())
+       ON CONFLICT ("guildId", "userId") DO UPDATE SET
+         "disableRelationshipShare" = EXCLUDED."disableRelationshipShare",
+         "updatedAt" = now()
+  3. friend:privacy:{guildId}:{userId} → Redis DEL (캐시 즉시 무효화)
+  4. 웹 페이지에서 성공/실패 토스트 표시
+
+[/best-friend 슬래시 커맨드 — F-COPRESENCE-014]
+  1. Bot: interaction.deferReply()
+  2. Bot → API: POST /bot-api/co-presence/best-friends (guildId, userId, displayName, avatarUrl)
+  3. API:
+     a. voice_co_presence_pair_daily → PostgreSQL
+          SELECT "peerId", SUM(minutes) AS totalMin
+          FROM voice_co_presence_pair_daily
+          WHERE "guildId" = $1 AND "userId" = $2
+            AND date >= CURRENT_DATE - INTERVAL '30 days'
+          GROUP BY "peerId"
+          ORDER BY totalMin DESC
+          LIMIT 5
+        인덱스: IDX_copresence_pair_guild_user_date (guildId, userId, date)
+     b. UserPrivacyConfigService.filterPeers(guildId, peerIds):
+          - friend:privacy:{guildId}:{peerId} → Redis GET (캐시 조회, 미스 시 DB)
+          - 캐시 미스: user_privacy_config → PostgreSQL
+               SELECT "userId", "disableRelationshipShare"
+               WHERE "guildId" = $1 AND "userId" = ANY($2)
+            → Redis SET friend:privacy:{guildId}:{peerId} {value} EX 1800
+          - disableRelationshipShare = true인 peer → 익명화 (name:'???', avatarUrl:null, isAnonymous:true)
+     c. GuildMemberService.findByUserIds(guildId, peerIds) → 닉네임/아바타 일괄 조회
+     d. (선택) VoiceAiAnalysisService.generateBestFriendComment() → LLM 코멘트
+          - friend:llm:quota:{guildId}:{YYYYMMDD} → Redis INCR + EXPIRE 86400 (일일 한도 체크)
+     e. BestFriendCardRenderer.render() → PNG Buffer → base64
+  4. Bot: AttachmentBuilder + Link 버튼 → interaction.editReply()
+
+[주간 리포트 친밀도 섹션 — F-COPRESENCE-016]
+  1. WeeklyReportScheduler (기존 매시간 정각 Cron, 변경 없음)
+  2. CoPresenceAnalyticsService.getTopPairs(guildId, 7, 5):
+       SELECT "userId", "peerId", SUM(minutes) AS totalMin, SUM("sessionCount") AS cnt
+       FROM voice_co_presence_pair_daily
+       WHERE "guildId" = $1 AND "userId" < "peerId"
+         AND date >= CURRENT_DATE - INTERVAL '7 days'
+       GROUP BY "userId", "peerId"
+       ORDER BY totalMin DESC
+       LIMIT 5
+  3. UserPrivacyConfigService.filterPeers() (위 동일 패턴):
+       - 양측 모두 disableRelationshipShare = true → 해당 페어 섹션에서 제외
+       - 한쪽만 true → 비공개 측 익명화(???) 후 포함
+  4. WeeklyReportService.buildPayload()에 친밀도 섹션 삽입 (기존 Embed 형식 유지)
+```
+
 ### 게임 활동 라이프사이클 (Phase 2)
 
 ```
@@ -2455,80 +2558,6 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
        인덱스: PK (guildId, userId, peerId, date)
 ```
 
-### 음악 채널 라이프사이클
-
-```
-[웹 설정 저장 — POST /api/guilds/:guildId/music-channel-config]
-  1. music_channel_config → PostgreSQL insert (guildId, channelId, embedTitle, embedDescription,
-       embedColor, embedThumbnailUrl, buttonConfig, enabled)
-  2. enabled = true 인 경우:
-     a. Bot API → MusicChannelService.upsertEmbed(guildId)
-        - Discord API → channelId 채널 조회
-        - messageId 없음: Discord API → 고정 임베드 메시지 신규 전송
-        - messageId 있음: Discord API → 기존 메시지 edit
-        - 전송/수정 성공: music_channel_config.messageId → PostgreSQL update (Discord message ID 저장)
-        - 전송/수정 실패: messageId → NULL (채널/메시지 삭제 등)
-
-[웹 설정 수정 — PATCH /api/guilds/:guildId/music-channel-config]
-  1. music_channel_config → PostgreSQL update WHERE guildId = ? (변경 필드, updatedAt)
-  2. enabled = true 인 경우: 위 POST 플로우의 2번과 동일 (messageId 유무에 따라 edit 또는 send)
-  3. enabled = false 인 경우: 임베드 전송/수정 없음 (기존 메시지 삭제 안 함)
-
-[웹 설정 조회 — GET /api/guilds/:guildId/music-channel-config]
-  1. music_channel_config → PostgreSQL select WHERE guildId = ?
-     인덱스: UQ_music_channel_config_guild (단건 조회)
-
-[웹 설정 삭제 — DELETE /api/guilds/:guildId/music-channel-config]
-  1. music_channel_config → PostgreSQL select WHERE guildId = ? (messageId, channelId 조회)
-  2. messageId 존재 시 → Discord API: 메시지 삭제 시도 (실패 시 계속)
-  3. music_channel_config → PostgreSQL delete WHERE guildId = ?
-
-[Kazagumo 이벤트 — 임베드 실시간 갱신 (F-MUSIC-017)]
-  playerStart 이벤트 (곡 시작):
-    1. music_channel_config → PostgreSQL select WHERE guildId = ? AND enabled = true (messageId 조회)
-       인덱스: UQ_music_channel_config_guild
-    2. messageId 있음: Discord API → 재생 중 임베드로 메시지 edit
-    3. Discord API 실패 (채널/메시지 삭제 등):
-       music_channel_config.messageId → PostgreSQL update NULL WHERE guildId = ?
-
-  playerEmpty 이벤트 (큐 소진):
-    1. music_channel_config → PostgreSQL select WHERE guildId = ? AND enabled = true
-    2. messageId 있음: Discord API → 대기 상태 임베드로 메시지 edit (커스텀 제목/설명/색상 적용)
-    3. Discord API 실패: messageId → PostgreSQL update NULL
-
-  playerPause / playerResume 이벤트:
-    1. music_channel_config → PostgreSQL select WHERE guildId = ? AND enabled = true
-    2. messageId 있음: Discord API → 상태 텍스트만 갱신 (메시지 edit)
-    3. Discord API 실패: messageId → PostgreSQL update NULL
-
-[버튼 클릭 — search (F-MUSIC-011)]
-  1. Discord API → Modal 팝업 (검색어 입력)
-  2. 모달 제출: Kazagumo → 트랙 검색 → MusicService.play()
-  ※ DB 접근 없음 (인메모리 큐 조작)
-
-[버튼 클릭 — melon_chart (F-MUSIC-014)]
-  1. music:chart:melon → Redis get (캐시 조회)
-  2. 캐시 미스: ChartCrawlerService → 멜론 인기차트 TOP 20 크롤링
-              → music:chart:melon → Redis set (TTL 1시간)
-  3. 곡명+아티스트 조합 → Kazagumo 검색 → MusicService.playBulk()
-  ※ 성공 여부와 무관하게 music_channel_config DB 접근 없음
-
-[버튼 클릭 — billboard_chart (F-MUSIC-015)]
-  1. music:chart:billboard → Redis get (캐시 조회)
-  2. 캐시 미스: ChartCrawlerService → 빌보드 HOT 100 TOP 20 크롤링
-              → music:chart:billboard → Redis set (TTL 1시간)
-  3. 곡명+아티스트 조합 → Kazagumo 검색 → MusicService.playBulk()
-
-[텍스트 메시지 수신 — 음악 전용 채널 자동 검색 (F-MUSIC-016)]
-  messageCreate 이벤트:
-    1. music_channel_config → PostgreSQL select WHERE enabled = true
-       (전체 조회 후 channelId 비교, 또는 캐시 활용)
-    2. message.channelId 가 music_channel_config.channelId 와 일치 여부 확인
-    3. 봇 메시지이면 처리 중단
-    4. 일치: Discord API → 사용자 원본 메시지 삭제
-             Kazagumo → 메시지 내용을 검색어로 트랙 검색 → MusicService.play()
-```
-
 ---
 
 ## 자가진단 (Self-Diagnosis) 도메인
@@ -2587,3 +2616,65 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
 |----|-----|------|
 | `voice-health:cooldown:{guildId}:{userId}` | `cooldownHours` (설정값) | 자가진단 쿨다운 |
 | `voice-health:config:{guildId}` | 1시간 | VoiceHealthConfig 캐시 |
+
+---
+
+## 마이그레이션 변경 계획
+
+### 🔴 `1777200000000-DropGuildCoPresenceConfig`
+
+> DB 파괴적 변경. 실제 DROP 실행은 Phase 4 implementer가 수행한다.
+
+**배경**: `/affinity` 슬래시 커맨드 삭제(PRD F-COPRESENCE-015 제거)로 `guild_co_presence_config` 테이블의 유일한 용도(`allowPublicAffinityQuery` 권한 토글)가 사라졌다. 해당 테이블을 DROP하여 스키마를 단순화한다.
+
+**선행 조건**:
+- `guild-co-presence-config.orm-entity.ts` 파일 삭제 및 TypeORM 엔티티 등록에서 제거 완료
+- `/affinity` 관련 Bot API 엔드포인트(`POST /bot-api/co-presence/affinity`) 삭제 완료
+- `GuildCoPresenceConfigService` 및 관련 의존성 제거 완료
+
+**마이그레이션 파일 경로**: `apps/api/src/migrations/1777200000000-DropGuildCoPresenceConfig.ts`
+
+**타임스탬프**: `1777200000000` (기존 최신 마이그레이션 `1777100000000-AddBestFriendCanvasConfig` 보다 큰 값)
+
+#### `up()` — 적용
+
+```typescript
+public async up(queryRunner: QueryRunner): Promise<void> {
+  await queryRunner.query(`DROP TABLE "guild_co_presence_config"`);
+}
+```
+
+#### `down()` — 롤백 (원복 DDL)
+
+원복 시 `1777100000000-AddBestFriendCanvasConfig` 마이그레이션의 `guild_co_presence_config` 생성 DDL과 동일하게 재생성한다.
+
+```typescript
+public async down(queryRunner: QueryRunner): Promise<void> {
+  await queryRunner.query(
+    `CREATE TABLE "guild_co_presence_config" (
+      "guildId" character varying NOT NULL,
+      "allowPublicAffinityQuery" boolean NOT NULL DEFAULT false,
+      "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+      CONSTRAINT "PK_guild_co_presence_config" PRIMARY KEY ("guildId")
+    )`,
+  );
+
+  await queryRunner.query(
+    `COMMENT ON TABLE "guild_co_presence_config" IS '길드 단위 Co-Presence 공개 설정 — 타인↔타인 /affinity 조회 허용 여부 (Phase 5)'`,
+  );
+  await queryRunner.query(
+    `COMMENT ON COLUMN "guild_co_presence_config"."guildId" IS '디스코드 서버 ID (PK)'`,
+  );
+  await queryRunner.query(
+    `COMMENT ON COLUMN "guild_co_presence_config"."allowPublicAffinityQuery" IS 'true = 일반 사용자도 본인 미포함 타인↔타인 /affinity 조회 허용. false(기본) = ManageGuild 권한 보유자만 허용'`,
+  );
+  await queryRunner.query(
+    `COMMENT ON COLUMN "guild_co_presence_config"."updatedAt" IS '마지막 설정 변경 시각'`,
+  );
+}
+```
+
+#### 주의사항
+
+- 기존 `1777100000000-AddBestFriendCanvasConfig` 마이그레이션은 **수정하지 않는다**. 해당 마이그레이션은 이미 프로덕션에 적용·머지된 상태이므로 신규 DROP 마이그레이션으로 분리 처리한다.
+- `user_privacy_config` 테이블은 이 마이그레이션의 영향을 받지 않는다. `1777100000000` 마이그레이션의 `down()`에는 `user_privacy_config` DROP이 포함되어 있으므로, 이 마이그레이션 롤백(`down()`) 후 `1777100000000` 롤백 순서를 역순으로 적용하면 완전 원복된다.

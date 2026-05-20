@@ -1,4 +1,5 @@
-import { Shield } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Mic, Moon, Shield, Sparkles, TrendingUp, UserPlus } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
@@ -7,7 +8,21 @@ import LandingNav from './components/LandingNav';
 
 const BOT_PERMISSIONS = 411108370;
 const FOOTER_LOGO_SIZE = 40;
-const HERO_LOGO_SIZE = 96;
+
+// Hero 마스코트 크기 — 모바일 기준 / PC에서 더 크게 표시
+const HERO_MASCOT_SIZE = 220;
+
+// cat-group 배너 표시 크기
+const CAT_GROUP_HEIGHT = 320;
+
+// CTA 고양이 크기
+const CTA_CAT_SIZE = 160;
+
+// Setup 안내냥 크기
+const SETUP_CAT_SIZE = 120;
+
+// 기능 카드 내 일러스트 크기
+const FEATURE_ILLUST_SIZE = 100;
 
 function getInviteUrl(): string | null {
   const clientId = process.env.DISCORD_CLIENT_ID;
@@ -27,23 +42,27 @@ const ACCENT_CLASSES: Record<string, { bg: string; text: string; iconBg: string 
 
 interface FeatureBlock {
   key: 'voiceStats' | 'autoChannel' | 'gemini' | 'newbie' | 'dashboard' | 'inactiveMember';
-  icon: string;
-  illustration?: string;
+  icon: LucideIcon;
+  illustration: string | null;
   accent: string;
 }
 
-const FEATURE_BLOCKS: FeatureBlock[] = [
-  { key: 'voiceStats', icon: '/landing/icon_trend.png', accent: 'indigo' },
-  { key: 'autoChannel', icon: '/landing/icon_mic.png', accent: 'purple' },
-  { key: 'gemini', icon: '/landing/icon_lightning.png', accent: 'blue' },
-  {
-    key: 'newbie',
-    icon: '/landing/icon_adduser.png',
-    illustration: '/landing/03_cat_newmember.png',
-    accent: 'green',
-  },
-  { key: 'dashboard', icon: '/landing/icon_settings.png', accent: 'yellow' },
-  { key: 'inactiveMember', icon: '/landing/icon_settings.png', accent: 'pink' },
+const FEATURE_BLOCKS = [
+  { key: 'voiceStats', icon: TrendingUp, accent: 'indigo', illustration: null },
+  { key: 'autoChannel', icon: Mic, accent: 'blue', illustration: null },
+  { key: 'gemini', icon: Sparkles, accent: 'purple', illustration: null },
+  { key: 'newbie', icon: UserPlus, accent: 'green', illustration: '/landing/cat-flag.png' },
+  { key: 'dashboard', icon: LayoutDashboard, accent: 'yellow', illustration: null },
+  { key: 'inactiveMember', icon: Moon, accent: 'pink', illustration: '/landing/cat-sleeping.png' },
+] satisfies ReadonlyArray<FeatureBlock>;
+
+const FOOTER_FEATURE_KEYS: Array<FeatureBlock['key']> = [
+  'voiceStats',
+  'autoChannel',
+  'gemini',
+  'newbie',
+  'dashboard',
+  'inactiveMember',
 ];
 
 function HeroCta({
@@ -60,17 +79,17 @@ function HeroCta({
           href={inviteUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center px-8 py-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold text-lg focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+          className="inline-flex items-center justify-center px-8 py-4 bg-indigo-600 text-white rounded-full hover:brightness-110 hover:scale-[1.02] active:scale-95 transition font-semibold text-lg focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2"
         >
           {t('hero.cta.invite')}
         </a>
       ) : null}
       <a
         href="#features"
-        className={`px-8 py-4 rounded-lg font-semibold text-lg transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
+        className={`px-8 py-4 rounded-full font-semibold text-lg transition focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
           inviteUrl
             ? 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            : 'bg-indigo-600 text-white hover:brightness-110'
         }`}
       >
         {t('hero.cta.features')}
@@ -87,93 +106,151 @@ function HeroSection({
   inviteUrl: string | null;
 }) {
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-0">
       <div className="grid md:grid-cols-2 gap-12 items-center">
+        {/* 텍스트 컬럼 */}
         <div className="text-center md:text-left">
-          <h1 className="flex items-center justify-center gap-4 text-5xl sm:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            <Image
-              src="/discord_onyu_logo_03.png"
-              alt="Onyu 로고"
-              width={HERO_LOGO_SIZE}
-              height={HERO_LOGO_SIZE}
-              priority
-              unoptimized
-              className="rounded-xl"
-            />
-            <span>Onyu</span>
+          {/* 비-무료 후킹 배지 */}
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-sm font-semibold mb-5">
+            ✦ {t('hero.badge')} ✦
+          </span>
+
+          {/* 가치제안 h1 — 브랜드명 아닌 가치 제안 텍스트 */}
+          <h1 className="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight text-gray-900 mb-5">
+            {t('hero.headline')}
           </h1>
-          <p className="text-xl text-gray-600 mb-8 leading-relaxed">{t('hero.description')}</p>
+
+          <p className="text-base md:text-lg text-gray-600 mb-8 leading-relaxed">
+            {t('hero.description')}
+          </p>
+
           <HeroCta t={t} inviteUrl={inviteUrl} />
         </div>
+
+        {/* 마스코트 컬럼 */}
         <div className="flex justify-center md:justify-end">
-          <div
-            role="img"
-            aria-label="Hero 일러스트 자리"
-            className="w-full max-w-md md:max-w-none aspect-[4/3] rounded-2xl bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 border-2 border-dashed border-indigo-300 flex items-center justify-center text-indigo-400 font-medium"
-          >
-            Hero Image
-          </div>
+          <Image
+            src="/brand/img_onyu_cat.png"
+            alt="Onyu 마스코트 고양이"
+            width={HERO_MASCOT_SIZE}
+            height={HERO_MASCOT_SIZE}
+            priority
+            unoptimized
+            className="animate-[float_4s_ease-in-out_infinite] motion-reduce:animate-none drop-shadow-2xl"
+          />
         </div>
+      </div>
+
+      {/* Hero 하단 배너 — cat-group (누끼 처리된 투명 PNG, 라이트 배경 위에 직접 노출) */}
+      <div className="mt-12 flex justify-center">
+        <Image
+          src="/landing/cat-group.png"
+          alt="음성 채널에 모인 고양이들"
+          width={1280}
+          height={CAT_GROUP_HEIGHT}
+          unoptimized
+          className="w-full max-w-3xl h-auto"
+        />
       </div>
     </section>
   );
 }
 
-function FeatureItem({
+function FeatureCard({
   block,
-  index,
   t,
 }: {
   block: FeatureBlock;
-  index: number;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   const accent = ACCENT_CLASSES[block.accent] ?? ACCENT_CLASSES.indigo;
-  const isOdd = index % 2 !== 0;
-  const isIllustration = Boolean(block.illustration);
+  // lucide 컴포넌트는 대문자 변수로 받아 JSX로 렌더 (타입 안전)
+  const IconComponent = block.icon;
 
   return (
-    <div className={`grid md:grid-cols-2 gap-10 items-center scroll-mt-20`}>
-      {/* 이미지 컬럼 (placeholder) */}
-      <div className={`flex justify-center ${isOdd ? 'md:order-2' : ''}`}>
-        <div className={`${accent.iconBg} rounded-2xl p-8 flex items-center justify-center`}>
-          <div
-            role="img"
-            aria-label={`${block.key} placeholder`}
-            className={`${isIllustration ? 'w-64 h-64' : 'w-24 h-24'} border-2 border-dashed border-gray-400 rounded-xl flex items-center justify-center text-gray-500 text-xs font-medium bg-white/60`}
-          >
-            {isIllustration ? 'Illustration' : 'Icon'}
-          </div>
-        </div>
+    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm transition hover:-translate-y-1 hover:shadow-lg motion-reduce:hover:translate-y-0 flex flex-col gap-4">
+      {/* 아이콘 박스 — 액센트색은 lucide 아이콘 컨테이너에만 적용 */}
+      <div className={`inline-flex rounded-2xl p-3 ${accent.iconBg} self-start`}>
+        <IconComponent className={`h-6 w-6 ${accent.text}`} aria-hidden />
       </div>
 
-      {/* 텍스트 컬럼 */}
-      <div className={isOdd ? 'md:order-1' : ''}>
-        <h3 className="text-2xl font-bold text-gray-900 mb-3">
+      <div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">
           {/* next-intl t() 파라미터 타입 — 동적 키 허용 오버로드로 캐스팅 */}
           {t(`features.${block.key}.title` as Parameters<typeof t>[0])}
         </h3>
-        <p className={`text-base font-medium mb-3 ${accent.text}`}>
+        <p className={`text-sm font-medium mb-2 ${accent.text}`}>
           {t(`features.${block.key}.description` as Parameters<typeof t>[0])}
         </p>
-        <p className="text-gray-600 leading-relaxed">
+        <p className="text-gray-600 text-sm leading-relaxed">
           {t(`features.${block.key}.detail` as Parameters<typeof t>[0])}
         </p>
       </div>
+
+      {/* 일러스트 동반 카드(newbie·inactiveMember): 흰 카드 본문 위에 직접 배치(누끼 불필요) */}
+      {block.illustration ? (
+        <div className="flex justify-end mt-auto pt-2">
+          <Image
+            src={block.illustration}
+            alt={t(`features.${block.key}.title` as Parameters<typeof t>[0])}
+            width={FEATURE_ILLUST_SIZE}
+            height={FEATURE_ILLUST_SIZE}
+            unoptimized
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function FeaturesSection({ t }: { t: Awaited<ReturnType<typeof getTranslations>> }) {
+  // 대표 카드(voiceStats)와 나머지 5개로 분리해 리듬 부여
+  const [featuredBlock, ...gridBlocks] = FEATURE_BLOCKS;
+
   return (
     <section id="features" className="scroll-mt-20 bg-gradient-to-b from-white to-gray-50 py-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-gray-900">{t('features.sectionTitle')}</h2>
         </div>
-        <div className="space-y-20">
-          {FEATURE_BLOCKS.map((block, index) => (
-            <FeatureItem key={block.key} block={block} index={index} t={t} />
+
+        {/* 대표 카드 — 풀폭 split (voiceStats) */}
+        {featuredBlock ? (
+          <div className="grid md:grid-cols-2 gap-8 items-center bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm mb-8">
+            <div>
+              <div
+                className={`inline-flex rounded-2xl p-3 ${ACCENT_CLASSES[featuredBlock.accent]?.iconBg ?? ACCENT_CLASSES.indigo.iconBg} mb-4`}
+              >
+                <featuredBlock.icon
+                  className={`h-10 w-10 ${ACCENT_CLASSES[featuredBlock.accent]?.text ?? ACCENT_CLASSES.indigo.text}`}
+                  aria-hidden
+                />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                {t(`features.${featuredBlock.key}.title` as Parameters<typeof t>[0])}
+              </h3>
+              <p
+                className={`text-base font-medium mb-3 ${ACCENT_CLASSES[featuredBlock.accent]?.text ?? ACCENT_CLASSES.indigo.text}`}
+              >
+                {t(`features.${featuredBlock.key}.description` as Parameters<typeof t>[0])}
+              </p>
+              <p className="text-gray-600 leading-relaxed">
+                {t(`features.${featuredBlock.key}.detail` as Parameters<typeof t>[0])}
+              </p>
+            </div>
+            {/* 미니 차트 목업 자리 — 향후 실제 차트로 교체 가능 */}
+            <div className="hidden md:flex items-center justify-center">
+              <div className="w-full h-48 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 flex items-center justify-center">
+                <TrendingUp className="h-16 w-16 text-indigo-300" aria-hidden />
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* 나머지 5개 그리드 카드 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {gridBlocks.map((block) => (
+            <FeatureCard key={block.key} block={block} t={t} />
           ))}
         </div>
       </div>
@@ -250,6 +327,16 @@ function SetupSection({ t }: { t: Awaited<ReturnType<typeof getTranslations>> })
     <section id="setup" className="scroll-mt-20 border-t border-gray-200 bg-white py-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-16">
+          {/* 안내냥(cat-wave)을 섹션 헤더 옆에 배치 — 흰 섹션 위라 누끼 불필요 */}
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <Image
+              src="/landing/cat-wave.png"
+              alt="안내하는 Onyu 고양이"
+              width={SETUP_CAT_SIZE}
+              height={SETUP_CAT_SIZE}
+              unoptimized
+            />
+          </div>
           <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('setup.sectionTitle')}</h2>
           <p className="text-lg text-gray-600">{t('setup.sectionDescription')}</p>
         </div>
@@ -272,7 +359,7 @@ function CtaBandButton({
         href={inviteUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center justify-center px-8 py-4 bg-white text-indigo-700 rounded-xl hover:bg-indigo-50 transition-colors font-bold text-lg shadow-lg focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-600"
+        className="inline-flex items-center justify-center px-8 py-4 bg-white text-indigo-700 rounded-full hover:bg-indigo-50 transition-colors font-bold text-lg shadow-lg focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-600"
       >
         {t('ctaBand.button')}
       </a>
@@ -281,7 +368,7 @@ function CtaBandButton({
   return (
     <button
       disabled
-      className="px-8 py-4 bg-white/50 text-indigo-400 rounded-xl font-bold text-lg cursor-not-allowed"
+      className="px-8 py-4 bg-white/50 text-indigo-400 rounded-full font-bold text-lg cursor-not-allowed"
       aria-disabled="true"
     >
       {t('ctaBand.button')}
@@ -305,29 +392,21 @@ function CtaBandSection({
             <p className="text-lg text-white/80 mb-8">{t('ctaBand.description')}</p>
             <CtaBandButton t={t} inviteUrl={inviteUrl} />
           </div>
-          <div className="flex justify-center md:justify-end order-first md:order-last">
-            <div
-              role="img"
-              aria-label="CTA 일러스트 자리"
-              className="w-48 h-48 md:w-64 md:h-64 rounded-2xl border-2 border-dashed border-white/60 bg-white/10 flex items-center justify-center text-white/80 font-medium"
-            >
-              CTA Image
-            </div>
+          {/* cat-cheer — 누끼(투명 PNG) 전제로 컬러 밴드 위에 직접 노출 */}
+          <div className="flex justify-center md:justify-end">
+            <Image
+              src="/landing/cat-cheer.png"
+              alt="환호하는 Onyu 고양이"
+              width={CTA_CAT_SIZE}
+              height={CTA_CAT_SIZE}
+              unoptimized
+            />
           </div>
         </div>
       </div>
     </section>
   );
 }
-
-const FOOTER_FEATURE_KEYS: Array<FeatureBlock['key']> = [
-  'voiceStats',
-  'autoChannel',
-  'gemini',
-  'newbie',
-  'dashboard',
-  'inactiveMember',
-];
 
 function FooterFeatureColumn({ t }: { t: Awaited<ReturnType<typeof getTranslations>> }) {
   return (
@@ -360,7 +439,7 @@ function LandingFooter({ t }: { t: Awaited<ReturnType<typeof getTranslations>> }
           <div>
             <div className="flex items-center gap-2 mb-3">
               <Image
-                src="/discord_onyu_logo_03.png"
+                src="/brand/img_onyu_cat.png"
                 alt="Onyu 로고"
                 width={FOOTER_LOGO_SIZE}
                 height={FOOTER_LOGO_SIZE}

@@ -25,7 +25,7 @@
     ▼
 [discord-nestjs ExplorerService]   ← DiscoveryService.getProviders()로 @Command 자동 탐색
     │
-    └── 각 모듈(MusicModule, GeminiModule, VoiceAnalyticsModule 등)의
+    └── 각 모듈(GeminiModule, VoiceAnalyticsModule 등)의
         providers에 등록된 커맨드 클래스를 자동 발견하여 Discord에 등록
 
 Web Dashboard (일반설정 페이지)
@@ -60,11 +60,6 @@ GET /api/guilds/:guildId/commands   (Next.js 프록시 → NestJS)
 
   | 커맨드 | 모듈 | 설명 |
   |--------|------|------|
-  | `/play` | MusicModule | 음악 재생 (일시 중단) |
-  | `/skip` | MusicModule | 현재 곡 건너뛰기 (일시 중단) |
-  | `/stop` | MusicModule | 재생 중지 및 채널 퇴장 (일시 중단) |
-  | `/pause` | MusicModule | 일시정지 (일시 중단) |
-  | `/resume` | MusicModule | 재개 (일시 중단) |
   | `/서버진단` | VoiceAnalyticsModule | 서버 음성 활동 요약 + AI 분석 |
   | `/self-diagnosis` | BotCommandModule | 봇 자가 진단 |
   | `/server-diagnosis` | BotCommandModule | 서버 진단 |
@@ -92,11 +87,6 @@ GET /api/guilds/:guildId/commands   (Next.js 프록시 → NestJS)
   ```json
   [
     {
-      "id": "1234567890",
-      "name": "play",
-      "description": "YouTube에서 음악을 재생합니다."
-    },
-    {
       "id": "1234567891",
       "name": "voice-stats",
       "description": "서버 전체 음성 활동을 AI로 분석합니다."
@@ -108,7 +98,7 @@ GET /api/guilds/:guildId/commands   (Next.js 프록시 → NestJS)
   | 필드 | 타입 | 설명 |
   |------|------|------|
   | `id` | `string` | Discord Application Command ID |
-  | `name` | `string` | 커맨드 이름 (슬래시 제외, 예: `play`) |
+  | `name` | `string` | 커맨드 이름 (슬래시 제외, 예: `version`) |
   | `description` | `string` | 커맨드 설명 |
 
 - **오류 처리**:
@@ -129,13 +119,12 @@ GET /api/guilds/:guildId/commands   (Next.js 프록시 → NestJS)
 
      | 커맨드 접두어 | 아이콘 (Lucide) |
      |--------------|----------------|
-     | `play`, `stop`, `skip`, `pause`, `resume` | `Music` |
      | `서버진단`, `self-diagnosis`, `server-diagnosis` | `Mic` |
      | `voice-flush` | `RefreshCw` |
      | `고정메세지등록`, `고정메세지삭제`, `고정메세지목록` | `Pin` |
      | 그 외 | `Hash` (기본값) |
 
-  5. 응답의 `name` 필드 앞에 `/`를 붙여 표시 (예: `play` → `/play`)
+  5. 응답의 `name` 필드 앞에 `/`를 붙여 표시 (예: `version` → `/version`)
   6. "등록된 명령어" 카운트 표시를 API 응답 배열의 길이로 동적 갱신
 
 - **API 클라이언트 함수**: `apps/web/app/lib/discord-api.ts`에 `fetchGuildCommands(guildId)` 함수 추가

@@ -143,7 +143,7 @@ export default function LandingNav() {
           className="flex items-center gap-2 font-bold text-xl text-gray-900 hover:opacity-80 transition-opacity"
         >
           <Image
-            src="/discord_onyu_logo_03.png"
+            src="/brand/img_onyu_cat.png"
             alt="Onyu 로고"
             width={LOGO_SIZE}
             height={LOGO_SIZE}

@@ -1,0 +1,275 @@
+{
+  "$schema": "feature-manifest-schema",
+  "version": "1.1",
+  "updatedAt": "2026-05-20",
+  "description": "feat-implement.md 파이프라인이 도메인별 코드 위치와 문서 경로를 resolve하기 위한 매니페스트",
+  "schema": {
+    "code": "도메인의 실제 코드 위치. 키는 api/bot/web/sharedTypes/migrations/tests 중 실재하는 것만. 예정 경로는 적지 않는다.",
+    "userflow": "화면/상호작용 흐름 문서 경로 (선택적 산출물 — user-facing 표면일 때만 생성).",
+    "usecases": "통합 검증 usecase 문서 디렉토리 경로 (선택적 산출물 — cross-app 통합 기능일 때만 생성). 파일은 {경로}/UC-NN-{slug}.md + _index.md.",
+    "status": "not-started | scaffolded | implemented",
+    "policy": "code 필드가 없거나 일부 경로가 실재하지 않으면 Phase 0이 status를 not-started로 자동 다운그레이드하고 warning 출력. userflow/usecases 문서 경로는 예정 경로 OK (실재 강제는 code 경로에만 적용)."
+  },
+  "domains": {
+    "voice": {
+      "description": "음성 채널 접속 추적, 세션 관리, 일별 통계 집계 (member/channel/auto-channel 포함)",
+      "prd": "/docs/specs/prd/voice.md",
+      "userflow": "/docs/specs/userflow/voice.md",
+      "usecases": "/docs/usecases/voice/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/channel/voice/",
+        "bot": "apps/bot/src/event/voice/",
+        "web": "apps/web/app/dashboard/guild/[guildId]/voice/",
+        "migrations": [
+          "apps/api/src/migrations/1772000000000-AddVoiceAndMemberTables.ts",
+          "apps/api/src/migrations/1772905024511-AddAutoChannel.ts",
+          "apps/api/src/migrations/1774100000000-AddVoiceExcludedChannel.ts",
+          "apps/api/src/migrations/1774400000000-AddChannelGuildIdAndHistoryIndex.ts",
+          "apps/api/src/migrations/1775900000000-AddVoiceExtendedData.ts"
+        ],
+        "tests": [
+          "apps/api/src/channel/voice/**/*.spec.ts",
+          "apps/api/src/channel/voice/**/*.integration-spec.ts"
+        ]
+      },
+      "status": "implemented"
+    },
+    "gemini": {
+      "description": "Gemini 기반 음성 활동 AI 분석 및 리포트 생성 (서버진단 + 주간 리포트)",
+      "prd": "/docs/specs/prd/gemini.md",
+      "userflow": "/docs/specs/userflow/gemini.md",
+      "usecases": "/docs/usecases/gemini/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/common/llm/",
+        "web": "apps/web/app/dashboard/guild/[guildId]/diagnosis/",
+        "tests": [
+          "apps/api/src/voice-analytics/application/voice-ai-analysis.service.spec.ts",
+          "apps/api/src/voice-analytics/application/voice-ai-analysis-new-methods.spec.ts"
+        ]
+      },
+      "status": "implemented"
+    },
+    "auth": {
+      "description": "Discord OAuth2 인증, JWT 세션 관리",
+      "prd": "/docs/specs/prd/auth.md",
+      "userflow": "/docs/specs/userflow/auth.md",
+      "usecases": "/docs/usecases/auth/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/auth/",
+        "web": "apps/web/app/auth/",
+        "tests": [
+          "apps/api/src/auth/**/*.spec.ts"
+        ]
+      },
+      "status": "implemented"
+    },
+    "web": {
+      "description": "웹 대시보드 UI 셸 (랜딩, 로그인 흐름, 시작 가이드, 도움말, 약관, 에러 바운더리, 사이드바)",
+      "prd": "/docs/specs/prd/web.md",
+      "userflow": "/docs/specs/userflow/web.md",
+      "usecases": "/docs/usecases/web/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "web": "apps/web/app/",
+        "tests": [
+          "apps/web/app/components/__tests__/**",
+          "apps/web/app/dashboard/guild/[guildId]/getting-started/__tests__/**"
+        ]
+      },
+      "status": "implemented"
+    },
+    "newbie": {
+      "description": "신규사용자 관리 (환영인사, 미션 추적, 모코코 사냥, 신입기간 역할)",
+      "prd": "/docs/specs/prd/newbie.md",
+      "userflow": "/docs/specs/userflow/newbie.md",
+      "usecases": "/docs/usecases/newbie/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/newbie/",
+        "bot": "apps/bot/src/event/newbie/",
+        "web": "apps/web/app/settings/guild/[guildId]/newbie/",
+        "migrations": [
+          "apps/api/src/migrations/1773100000000-AddNewbie.ts",
+          "apps/api/src/migrations/1773700000000-AddNewbieTemplates.ts",
+          "apps/api/src/migrations/1774700000000-AddMocoHuntingScoreSystem.ts"
+        ],
+        "tests": [
+          "apps/api/src/newbie/**/*.spec.ts",
+          "apps/api/src/newbie/**/*.integration-spec.ts"
+        ]
+      },
+      "status": "implemented"
+    },
+    "status-prefix": {
+      "description": "게임방 상태 접두사 설정 (버튼 클릭으로 닉네임 접두사 변경 및 자동 복원)",
+      "prd": "/docs/specs/prd/status-prefix.md",
+      "userflow": "/docs/specs/userflow/status-prefix.md",
+      "usecases": "/docs/usecases/status-prefix/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/status-prefix/",
+        "bot": "apps/bot/src/event/status-prefix/",
+        "web": "apps/web/app/settings/guild/[guildId]/status-prefix/",
+        "migrations": [
+          "apps/api/src/migrations/1773200000000-AddStatusPrefix.ts"
+        ],
+        "tests": [
+          "apps/api/src/status-prefix/**/*.spec.ts",
+          "apps/api/src/status-prefix/**/*.integration-spec.ts"
+        ]
+      },
+      "status": "implemented"
+    },
+    "general": {
+      "description": "슬래시 커맨드 자동 등록, 커맨드 목록 API, 일반설정 페이지 동적 커맨드 렌더링",
+      "prd": "/docs/specs/prd/general.md",
+      "userflow": "/docs/specs/userflow/general.md",
+      "usecases": "/docs/usecases/general/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/gateway/",
+        "bot": "apps/bot/src/command/",
+        "web": "apps/web/app/settings/"
+      },
+      "status": "implemented"
+    },
+    "sticky-message": {
+      "description": "텍스트 채널 고정메세지 (항상 최하단 유지, 디바운스 재전송, 웹/슬래시커맨드 관리)",
+      "prd": "/docs/specs/prd/sticky-message.md",
+      "userflow": "/docs/specs/userflow/sticky-message.md",
+      "usecases": "/docs/usecases/sticky-message/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/sticky-message/",
+        "bot": "apps/bot/src/command/sticky-message/",
+        "web": "apps/web/app/settings/guild/[guildId]/sticky-message/",
+        "migrations": [
+          "apps/api/src/migrations/1773900000000-AddStickyMessage.ts"
+        ],
+        "tests": [
+          "apps/api/src/sticky-message/**/*.spec.ts",
+          "apps/api/src/sticky-message/**/*.integration-spec.ts"
+        ]
+      },
+      "status": "implemented"
+    },
+    "monitoring": {
+      "description": "봇 상태 모니터링 (업타임, 핑, 메모리, 음성 접속자 시계열 차트)",
+      "prd": "/docs/specs/prd/monitoring.md",
+      "userflow": "/docs/specs/userflow/monitoring.md",
+      "usecases": "/docs/usecases/monitoring/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/monitoring/",
+        "bot": "apps/bot/src/monitoring/",
+        "web": "apps/web/app/dashboard/guild/[guildId]/overview/",
+        "tests": [
+          "apps/api/src/monitoring/**/*.spec.ts",
+          "apps/bot/src/monitoring/**/*.spec.ts"
+        ]
+      },
+      "status": "implemented"
+    },
+    "voice-co-presence": {
+      "description": "음성 채널 동시접속 범용 추적 (모코코 사냥 등 소비자에 데이터 제공)",
+      "prd": "/docs/specs/prd/voice-co-presence.md",
+      "userflow": "/docs/specs/userflow/voice-co-presence.md",
+      "usecases": "/docs/usecases/voice-co-presence/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/channel/voice/co-presence/",
+        "bot": "apps/bot/src/scheduler/",
+        "web": "apps/web/app/dashboard/guild/[guildId]/co-presence/",
+        "migrations": [
+          "apps/api/src/migrations/1775500000000-AddVoiceCoPresence.ts",
+          "apps/api/src/migrations/1776000000000-PairDailyUnidirectional.ts",
+          "apps/api/src/migrations/1777100000000-AddBestFriendCanvasConfig.ts",
+          "apps/api/src/migrations/1777200000000-DropGuildCoPresenceConfig.ts"
+        ],
+        "tests": [
+          "apps/api/src/channel/voice/co-presence/**/*.spec.ts",
+          "apps/api/src/channel/voice/co-presence/**/*.integration-spec.ts"
+        ]
+      },
+      "status": "implemented"
+    },
+    "user-privacy": {
+      "description": "사용자별 친밀도·베스트 프렌드 노출 opt-out 설정 (웹 전용 설정, /best-friend·주간 리포트 익명화에 사용)",
+      "prd": "/docs/specs/prd/voice-co-presence.md",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/user-privacy/",
+        "web": "apps/web/app/settings/me/privacy/",
+        "migrations": [
+          "apps/api/src/migrations/1777100000000-AddBestFriendCanvasConfig.ts"
+        ],
+        "tests": [
+          "apps/api/src/user-privacy/**/*.spec.ts"
+        ]
+      },
+      "status": "implemented"
+    },
+    "inactive-member": {
+      "description": "음성 채널 활동 기반 비활동 회원 자동 분류, 대시보드 관리, 자동 조치",
+      "prd": "/docs/specs/prd/inactive-member.md",
+      "userflow": "/docs/specs/userflow/inactive-member.md",
+      "usecases": "/docs/usecases/inactive-member/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/inactive-member/",
+        "web": "apps/web/app/dashboard/guild/[guildId]/inactive-member/",
+        "migrations": [
+          "apps/api/src/migrations/1775300000000-AddInactiveMember.ts",
+          "apps/api/src/migrations/1776900000000-AddInactiveMemberTrendDaily.ts"
+        ],
+        "tests": [
+          "apps/api/src/inactive-member/**/*.spec.ts",
+          "apps/api/src/inactive-member/**/*.integration-spec.ts"
+        ]
+      },
+      "status": "implemented"
+    },
+    "guild-member": {
+      "description": "길드 범위 멤버 정보 중앙 관리 (DB 동기화, Discord API 호출 대체)",
+      "prd": "/docs/specs/prd/guild-member.md",
+      "userflow": "/docs/specs/userflow/guild-member.md",
+      "usecases": "/docs/usecases/guild-member/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/guild-member/",
+        "bot": "apps/bot/src/event/guild-member/",
+        "migrations": [
+          "apps/api/src/migrations/1776700000000-AddGuildMember.ts",
+          "apps/api/src/migrations/1776800000000-MigrateVoiceHistoryToGuildMember.ts"
+        ],
+        "tests": [
+          "apps/api/src/guild-member/**/*.spec.ts"
+        ]
+      },
+      "status": "implemented"
+    },
+    "self-diagnosis": {
+      "description": "음성 건강도 자가 진단 (HHI 분산도, 배지 시스템, 주간 리포트 설정)",
+      "prd": "/docs/specs/prd/self-diagnosis.md",
+      "userflow": "/docs/specs/userflow/self-diagnosis.md",
+      "usecases": "/docs/usecases/self-diagnosis/",
+      "database": "/docs/specs/database/_index.md",
+      "code": {
+        "api": "apps/api/src/voice-analytics/self-diagnosis/",
+        "bot": "apps/bot/src/command/voice-analytics/",
+        "web": "apps/web/app/settings/guild/[guildId]/voice-health/",
+        "migrations": [
+          "apps/api/src/migrations/1773475188667-1773475187-SelfDiagnosis.ts"
+        ],
+        "tests": [
+          "apps/api/src/voice-analytics/self-diagnosis/**/*.spec.ts",
+          "apps/api/src/voice-analytics/self-diagnosis/**/*.integration-spec.ts"
+        ]
+      },
+      "status": "implemented"
+    }
+  }
+}

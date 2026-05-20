@@ -1,6 +1,7 @@
 import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 
+import { BestFriendCommand } from './friend/best-friend.command';
 import { MeCommand } from './me.command';
 import { StickyMessageDeleteCommand } from './sticky-message/sticky-message-delete.command';
 import { StickyMessageListCommand } from './sticky-message/sticky-message-list.command';
@@ -27,6 +28,8 @@ import { VoiceFlushCommand } from './voice-flush.command';
     ServerDiagnosisCommand,
     // Me
     MeCommand,
+    // Phase 5: 베스트 프렌드
+    BestFriendCommand,
   ],
 })
 export class BotCommandModule {}

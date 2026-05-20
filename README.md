@@ -9,6 +9,10 @@
 </p>
 
 <p align="center">
+  <a href="https://onyu.dev"><strong>🌐 onyu.dev</strong></a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/NestJS-10-E0234E?logo=nestjs&logoColor=white" alt="NestJS" />
   <img src="https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white" alt="Next.js" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
@@ -142,16 +146,6 @@ Discord Gateway (voiceStateUpdate, guildMemberAdd, interactionCreate)
 - 웹 대시보드: 업타임 히스토리, 핑 추이, 메모리 추이, 시간대별 접속자 차트
 - 30일 보존 정책 자동 삭제
 
-### Music Player
-
-Discord 음성 채널에서 YouTube 음악을 재생합니다 (discord-player 기반).
-
-| Command | Description |
-|---------|-------------|
-| `/play` | YouTube 검색어 또는 URL로 음악 재생 |
-| `/skip` | 현재 곡 건너뛰기 |
-| `/stop` | 재생 중지 및 채널 퇴장 |
-
 ## Web Dashboard
 
 Next.js 16 + React 19 + Tailwind CSS 기반 관리 대시보드입니다. Discord OAuth2 인증을 통해 접근하며, 서버 관리 권한을 가진 사용자만 설정을 변경할 수 있습니다.
@@ -177,7 +171,7 @@ Next.js 16 + React 19 + Tailwind CSS 기반 관리 대시보드입니다. Discor
 |-------|-------------|
 | **Backend** | NestJS 10 · TypeORM 0.3 · PostgreSQL 15 · Redis 7 |
 | **Frontend** | Next.js 16 · React 19 · Tailwind CSS 3 · Lucide Icons |
-| **Discord** | Discord.js 14 · discord-nestjs 5 · discord-player |
+| **Discord** | Discord.js 14 · discord-nestjs 5 |
 | **AI** | Google Gemini API (`@google/generative-ai`) |
 | **Infrastructure** | Docker Compose · pnpm workspaces monorepo |
 
@@ -190,7 +184,6 @@ onyu/
 │   │   └── src/
 │   │       ├── channel/voice/  # Voice tracking, auto-channel, co-presence
 │   │       ├── gemini/         # AI analytics & report generation
-│   │       ├── music/          # Music player commands
 │   │       ├── newbie/         # Newbie management (welcome, mission, moco, role)
 │   │       ├── monitoring/     # Bot metrics collection & API
 │   │       ├── inactive-member/# Inactive member classification & actions
@@ -235,30 +228,47 @@ cp .env.example .env
 # Edit .env with your credentials (Discord token, DB, Redis, Gemini API key, JWT secret)
 ```
 
-### Run with Docker Compose
+### Run Locally (Development) — 권장
+
+빠른 핫리로드를 위해 **DB/Redis만 컨테이너로 띄우고, 앱(api/bot/web)은 호스트에서 네이티브로 실행**합니다. `.env`의 `DATABASE_HOST`·`REDIS_HOST`는 `localhost` 기준입니다.
 
 ```bash
-docker compose up --build
+# 1. 인프라(PostgreSQL + Redis) 컨테이너 기동 — 최초 1회
+pnpm infra:up
+
+# 2. api + bot + web 동시 watch 실행
+pnpm dev
+
+# 인프라 기동 + 앱 실행을 한 번에:
+pnpm dev:all
+
+# 인프라 종료 / 로그 확인
+pnpm infra:down
+pnpm infra:logs
+```
+
+개별 실행도 가능합니다.
+
+```bash
+pnpm api:dev   # API 서버만 (port 3000)
+pnpm bot:dev   # Discord 봇만 (port 3001)
+pnpm web:dev   # 웹 대시보드만 (port 4000)
 ```
 
 | Service | URL |
 |---------|-----|
 | API Server | `http://localhost:3000` |
+| Discord Bot | `http://localhost:3001` (health/metrics) |
 | Web Dashboard | `http://localhost:4000` |
 | PostgreSQL | `localhost:5432` |
 | Redis | `localhost:6379` |
 
-### Run Locally (Development)
+### Run with Docker Compose (전체 컨테이너)
+
+앱까지 모두 컨테이너로 실행합니다. 컨테이너 내부에서는 compose가 `DATABASE_HOST`/`REDIS_HOST`를 서비스명(`db`/`redis`)으로 자동 override합니다.
 
 ```bash
-# Start database & cache
-docker compose up db redis
-
-# API server (terminal 1)
-pnpm --filter @nexus/api dev
-
-# Web dashboard (terminal 2)
-pnpm --filter @nexus/web dev
+docker compose up --build
 ```
 
 ## Data Pipeline

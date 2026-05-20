@@ -1,7 +1,8 @@
 {
   "hero": {
-    "badge": "Completely Free",
-    "description": "A Discord bot that supports voice channel statistics, automatic channel creation, music playback, and more",
+    "badge": "Ready in 5 min",
+    "headline": "Bring your voice channels to life",
+    "description": "A Discord bot that supports voice channel statistics, automatic channel creation, AI voice analysis, and more",
     "cta": {
       "invite": "Add to Server",
       "features": "Features"
@@ -18,10 +19,6 @@
       "title": "Auto Channel Creation",
       "description": "A personal channel is automatically created when you join a designated voice channel, and deleted when everyone leaves",
       "detail": "Joining a designated waiting channel instantly creates a personal channel, optionally via a selection screen. Channels are automatically deleted when everyone leaves."
-    },
-    "music": {
-      "title": "Music Playback",
-      "description": "Play YouTube music in a voice channel with the /play command"
     },
     "gemini": {
       "title": "Gemini Voice Analysis",
@@ -67,7 +64,7 @@
   },
   "ctaBand": {
     "title": "Get Started Right Now",
-    "description": "Onyu is completely free. Check voice statistics within 5 minutes of installation.",
+    "description": "Check voice statistics within 5 minutes of installation.",
     "button": "Add to Server Now"
   },
   "nav": {

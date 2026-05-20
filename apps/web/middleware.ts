@@ -5,7 +5,7 @@ const PUBLIC_PATHS = [
   '/api/',
   '/_next/',
   '/favicon.ico',
-  '/discord_onyu_logo_03.png',
+  '/brand/img_onyu_cat.png',
   '/privacy',
   '/terms',
   '/landing/',

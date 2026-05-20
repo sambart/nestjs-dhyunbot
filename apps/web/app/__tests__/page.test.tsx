@@ -4,10 +4,9 @@
  * 유저 관점 검증 항목:
  * 1. 6개 섹션(네비/Hero/Features/SetupGuide/CtaBand/Footer) 모두 렌더링
  * 2. 기능 카드 6개 (음성통계, 자동채널, AI분석, 신규멤버, 대시보드, 비활동회원) 렌더링
- * 3. 음악(music) 기능 카드 미렌더링 확인
- * 4. DISCORD_CLIENT_ID 없을 때 Hero 초대 버튼 숨김, 있을 때 표시
- * 5. 주요 이미지 alt 속성 존재
- * 6. 랜드마크 구조 존재
+ * 3. DISCORD_CLIENT_ID 없을 때 Hero 초대 버튼 숨김, 있을 때 표시
+ * 4. 주요 이미지 alt 속성 존재
+ * 5. 랜드마크 구조 존재
  *
  * page.tsx는 async 서버 컴포넌트이므로 await Home() 후 render 패턴을 사용한다.
  */
@@ -68,7 +67,8 @@ vi.mock('next-intl/server', () => ({
   getTranslations: () =>
     Promise.resolve((key: string) => {
       const translations: Record<string, string> = {
-        'hero.badge': '완전 무료',
+        'hero.badge': '5분이면 끝',
+        'hero.headline': '음성 채널이 살아있는 디스코드 서버를 만들어요',
         'hero.description': '음성 채널 통계를 지원하는 디스코드 봇',
         'hero.cta.invite': '서버에 추가하기',
         'hero.cta.features': '기능 목록',
@@ -105,7 +105,7 @@ vi.mock('next-intl/server', () => ({
         'setup.step3.title': '웹 대시보드에서 설정',
         'setup.step3.description': '대시보드에서 설정합니다',
         'ctaBand.title': '지금 바로 시작해보세요',
-        'ctaBand.description': 'Onyu는 완전 무료입니다',
+        'ctaBand.description': '설치 후 5분 안에 음성 통계를 확인할 수 있습니다',
         'ctaBand.button': '지금 서버에 추가',
         'nav.features': '기능',
         'nav.setup': '설정 가이드',
@@ -139,10 +139,15 @@ describe('랜딩 페이지 통합 테스트', () => {
       expect(screen.getByTestId('landing-nav')).toBeInTheDocument();
     });
 
-    it('Hero 섹션에 "Onyu" 제목이 표시된다', async () => {
+    it('Hero 섹션에 가치제안 h1이 표시된다', async () => {
       delete process.env.DISCORD_CLIENT_ID;
       await renderLandingPage();
-      expect(screen.getByRole('heading', { level: 1, name: 'Onyu' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', {
+          level: 1,
+          name: '음성 채널이 살아있는 디스코드 서버를 만들어요',
+        }),
+      ).toBeInTheDocument();
     });
 
     it('Features 섹션 타이틀이 표시된다', async () => {
@@ -229,17 +234,6 @@ describe('랜딩 페이지 통합 테스트', () => {
     });
   });
 
-  describe('음악 카드 미렌더링', () => {
-    it('음악 재생(music) 기능 카드가 렌더링되지 않는다', async () => {
-      delete process.env.DISCORD_CLIENT_ID;
-      await renderLandingPage();
-      // ko landing.json에 features.music.title = "음악 재생"이 존재하지만
-      // FEATURE_BLOCKS에는 music 키가 없으므로 렌더링되어서는 안 된다
-      expect(screen.queryByRole('heading', { name: '음악 재생' })).not.toBeInTheDocument();
-      expect(screen.queryByText('/play 명령어')).not.toBeInTheDocument();
-    });
-  });
-
   describe('초대 버튼 — DISCORD_CLIENT_ID 조건 분기', () => {
     afterEach(() => {
       delete process.env.DISCORD_CLIENT_ID;
@@ -300,15 +294,21 @@ describe('랜딩 페이지 통합 테스트', () => {
       delete process.env.DISCORD_CLIENT_ID;
     });
 
-    it('Hero 이미지에 alt 텍스트가 존재한다', async () => {
+    it('Hero 마스코트 이미지에 alt 텍스트가 존재한다', async () => {
       await renderLandingPage();
-      const heroImg = screen.getByAltText('산과 나무 배경 위의 고양이들');
+      const heroImg = screen.getByAltText('Onyu 마스코트 고양이');
       expect(heroImg).toBeInTheDocument();
+    });
+
+    it('Hero 배너 이미지에 alt 텍스트가 존재한다', async () => {
+      await renderLandingPage();
+      const bannerImg = screen.getByAltText('음성 채널에 모인 고양이들');
+      expect(bannerImg).toBeInTheDocument();
     });
 
     it('CTA 밴드 이미지에 alt 텍스트가 존재한다', async () => {
       await renderLandingPage();
-      const ctaImg = screen.getByAltText('고양이 장식 일러스트');
+      const ctaImg = screen.getByAltText('환호하는 Onyu 고양이');
       expect(ctaImg).toBeInTheDocument();
     });
 

@@ -1,14 +1,16 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from '../auth/auth.module';
+import { CoPresenceModule } from '../channel/voice/co-presence/co-presence.module';
 import { VoiceCoPresencePairDailyOrm } from '../channel/voice/co-presence/infrastructure/voice-co-presence-pair-daily.orm-entity';
 import { VoiceDailyOrm } from '../channel/voice/infrastructure/voice-daily.orm-entity';
 import { VoiceRedisRepository } from '../channel/voice/infrastructure/voice-redis.repository';
 import { LlmModule } from '../common/llm/llm.module';
 import { GatewayModule } from '../gateway/gateway.module';
 import { MocoHuntingDailyOrmEntity as MocoHuntingDaily } from '../newbie/infrastructure/moco-hunting-daily.orm-entity';
+import { UserPrivacyModule } from '../user-privacy/user-privacy.module';
 import { VoiceAiAnalysisService } from './application/voice-ai-analysis.service';
 import { VoiceAnalyticsService } from './application/voice-analytics.service';
 import { VoiceNameEnricherService } from './application/voice-name-enricher.service';
@@ -41,6 +43,9 @@ import { WeeklyReportController } from './weekly-report/presentation/weekly-repo
     GatewayModule,
     AuthModule,
     LlmModule,
+    // CoPresenceModule ↔ VoiceAnalyticsModule 양방향 의존 — forwardRef로 순환 참조 해소
+    forwardRef(() => CoPresenceModule),
+    UserPrivacyModule,
   ],
   controllers: [SelfDiagnosisController, DiagnosisController, WeeklyReportController],
   providers: [

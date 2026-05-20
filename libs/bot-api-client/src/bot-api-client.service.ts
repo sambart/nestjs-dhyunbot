@@ -7,6 +7,7 @@ import type {
   AutoChannelButtonClickDto,
   AutoChannelButtonResult,
   AutoChannelSubOptionDto,
+  BestFriendCardResponse,
   BotApiResponse,
   CoPresenceSnapshot,
   GuildMemberBulkUpsertDto,
@@ -23,7 +24,6 @@ import type {
   MissionRefreshDto,
   MocoMyResponse,
   MocoRankResponse,
-  MusicChannelConfigResponse,
   NewbieConfigDto,
   RoleAssignedDto,
   RoleModifyDto,
@@ -34,6 +34,7 @@ import type {
   StatusPrefixResetDto,
   StatusPrefixResetResult,
   StickyMessageConfigItem,
+  ValidBestFriendPeriod,
   VoiceStateUpdateDto,
   VoiceSyncDto,
 } from './types';
@@ -176,6 +177,27 @@ export class BotApiClientService {
     await this.post('/bot-api/co-presence/flush', {});
   }
 
+  // ── Co-Presence (Phase 5: 베스트 프렌드) ──
+
+  async getMyBestFriends(
+    guildId: string,
+    userId: string,
+    displayName: string,
+    avatarUrl: string,
+    period: ValidBestFriendPeriod,
+    limit: number,
+  ): Promise<BestFriendCardResponse> {
+    const params = new URLSearchParams({
+      guildId,
+      userId,
+      displayName,
+      avatarUrl,
+      period: String(period),
+      limit: String(limit),
+    });
+    return this.post(`/bot-api/co-presence/best-friends?${params.toString()}`, {});
+  }
+
   // ── Me ──
 
   async getMeProfile(
@@ -213,36 +235,6 @@ export class BotApiClientService {
     return this.post(`/bot-api/guilds/${dto.guildId}/members/${dto.memberId}/kick`, {
       reason: dto.reason,
     });
-  }
-
-  // ── Music ──
-
-  async getMusicChannelConfig(guildId: string): Promise<MusicChannelConfigResponse | null> {
-    try {
-      const response = await this.get<{ ok: boolean; data: MusicChannelConfigResponse | null }>(
-        `/bot-api/music/channel-config?guildId=${guildId}`,
-      );
-      return response.data ?? null;
-    } catch {
-      return null;
-    }
-  }
-
-  async getMusicChannelConfigByChannel(
-    channelId: string,
-  ): Promise<MusicChannelConfigResponse | null> {
-    try {
-      const response = await this.get<{ ok: boolean; data: MusicChannelConfigResponse | null }>(
-        `/bot-api/music/channel-config/by-channel?channelId=${channelId}`,
-      );
-      return response.data ?? null;
-    } catch {
-      return null;
-    }
-  }
-
-  async updateMusicChannelMessageId(guildId: string, messageId: string | null): Promise<void> {
-    await this.post('/bot-api/music/channel-config/update-message-id', { guildId, messageId });
   }
 
   // ── Guild Member ──

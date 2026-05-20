@@ -83,11 +83,10 @@ describe('SettingsSidebar 통합 테스트', () => {
   });
 
   describe('그룹별 메뉴 항목', () => {
-    it('서버 설정 그룹에 일반 설정, 음악 항목이 포함된다', () => {
+    it('서버 설정 그룹에 일반 설정 항목이 포함된다', () => {
       renderSidebar();
 
       expect(screen.getByText('settings.general')).toBeInTheDocument();
-      expect(screen.getByText('settings.music')).toBeInTheDocument();
     });
 
     it('음성 채널 그룹에 음성, 음성상태, 자동방 항목이 포함된다', () => {
@@ -127,20 +126,6 @@ describe('SettingsSidebar 통합 테스트', () => {
         );
 
       expect(generalLink).toBeDefined();
-    });
-
-    it('음악 설정 링크가 /settings/guild/:id/music 경로를 가진다', () => {
-      renderSidebar();
-
-      const musicLink = screen
-        .getAllByRole('link')
-        .find(
-          (el) =>
-            el.textContent?.includes('settings.music') &&
-            el.getAttribute('href') === `/settings/guild/${GUILD_ID}/music`,
-        );
-
-      expect(musicLink).toBeDefined();
     });
 
     it('자동방 설정 링크가 /settings/guild/:id/auto-channel 경로를 가진다', () => {
@@ -201,21 +186,6 @@ describe('SettingsSidebar 통합 테스트', () => {
 
       expect(voiceLink).toBeDefined();
       expect(voiceLink?.className).toContain('bg-indigo-50');
-    });
-
-    it('현재 경로가 /settings/guild/:id이면 음악 링크에는 활성 클래스가 적용되지 않는다', () => {
-      renderSidebar(`/settings/guild/${GUILD_ID}`);
-
-      const musicLink = screen
-        .getAllByRole('link')
-        .find(
-          (el) =>
-            el.textContent?.includes('settings.music') &&
-            el.getAttribute('href') === `/settings/guild/${GUILD_ID}/music`,
-        );
-
-      expect(musicLink).toBeDefined();
-      expect(musicLink?.className).not.toContain('bg-indigo-50');
     });
 
     it('활성 경로의 링크는 text-indigo-700 클래스를 가진다', () => {
@@ -303,6 +273,66 @@ describe('SettingsSidebar 통합 테스트', () => {
       );
 
       expect(screen.getByText('sidebar.switchServer')).toBeInTheDocument();
+    });
+  });
+
+  // ─── 신규 메뉴 검증 (개인 설정) ──────────────────────────────
+
+  describe('신규 개인 설정 그룹 + 사생활 메뉴', () => {
+    it('개인 설정 그룹 헤더(personal)가 렌더링된다', () => {
+      renderSidebar();
+
+      expect(screen.getByText('sidebar.settingsGroup.personal')).toBeInTheDocument();
+    });
+
+    it('개인 설정 그룹에 사생활 설정(privacy) 항목이 포함된다', () => {
+      renderSidebar();
+
+      expect(screen.getByText('settings.privacy')).toBeInTheDocument();
+    });
+
+    it('사생활 설정 링크가 /settings/me/privacy 경로를 가진다 (guildId 없음)', () => {
+      renderSidebar();
+
+      const privacyLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('settings.privacy') &&
+            el.getAttribute('href') === '/settings/me/privacy',
+        );
+
+      expect(privacyLink).toBeDefined();
+    });
+
+    it('현재 경로가 /settings/me/privacy이면 사생활 링크에 활성 클래스가 적용된다', () => {
+      renderSidebar('/settings/me/privacy');
+
+      const privacyLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('settings.privacy') &&
+            el.getAttribute('href') === '/settings/me/privacy',
+        );
+
+      expect(privacyLink).toBeDefined();
+      expect(privacyLink?.className).toContain('bg-indigo-50');
+    });
+
+    it('현재 경로가 /settings/guild/:id이면 사생활 링크에 활성 클래스가 적용되지 않는다', () => {
+      renderSidebar(`/settings/guild/${GUILD_ID}`);
+
+      const privacyLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('settings.privacy') &&
+            el.getAttribute('href') === '/settings/me/privacy',
+        );
+
+      expect(privacyLink).toBeDefined();
+      expect(privacyLink?.className).not.toContain('bg-indigo-50');
     });
   });
 });

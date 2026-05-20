@@ -16,7 +16,7 @@ color: orange
 
 PRD 문서 구조:
 - 전역 내용(개요, Stakeholders, IA, 비기능 요구사항): `/docs/specs/prd/_index.md`에 작성
-- 기능별 명세(6.x절): `/docs/specs/prd/{domain}.md`에 작성 (evaluation, weight, question, participant, department, admin-results, user-assessment, user-results, organization)
+- 기능별 명세(6.x절): `/docs/specs/prd/{domain}.md`에 작성. {domain} 목록은 `/docs/specs/feature-manifest.json` 의 `domains` 키를 진실의 소스로 사용한다 (도메인을 코드에 하드코딩하지 말 것)
 - **PRD 본문(`/docs/specs/prd/*.md`)에는 변경이력을 직접 작성하지 않는다.** 각 파일의 변경이력 섹션에는 참조 링크만 유지한다.
 
 변경이력 작성 규칙:
@@ -39,3 +39,19 @@ PRD 문서 구조:
   ```
 
 외부 서비스 연동 관련 정보가 필요하다면 /docs/external/\*.md 을 참고한다.
+
+## HITL 4 분야 위험 마커 (필수)
+
+PRD 본문에 다음 4 분야 결정이 포함되면, 해당 문장 / 줄 앞에 **🔴 마커** + 문서 끝에 별도 § "사용자 확인 필요 항목" 으로 모아 명시한다. (디스코드 봇 맥락 기준 예시)
+
+| 분야 | 예시 (onyu 디스코드 봇) |
+|---|---|
+| **법무** | 개인정보 (PII — 디스코드 사용자 ID / 음성 활동 로그 보관 기간·처리 동의) / Discord 개발자 ToS·API 이용약관 / 데이터 보존 정책 |
+| **결제** | 해당 기능에 결제가 없으면 "결제 — 해당 없음" 으로 명시. (유료 구독 / 후원 연동 등 신규 도입 시에만 마커) |
+| **권한** | Discord OAuth2 스코프 / 봇 권한(permissions integer) / 디스코드 역할(role) 기반 권한 등급 / 슬래시 커맨드 default_member_permissions / 관리자 전용 명령 |
+| **DB 파괴적 변경** | `DROP TABLE` / `DELETE` / TypeORM destructive migration / 컬럼 제거 / 엔티티 컬럼 타입 변경으로 인한 데이터 손실 |
+
+규칙:
+- 🔴 마커가 PRD 본문에 1개라도 남아 있는 동안 후속 Phase 진행 금지 — 메인 세션 게이트 발동
+- 메인 세션이 사용자에게 답변 받고 결정 확정 후 🔴 → ✅ 으로 promote + "사용자 확인 필요 항목" § 의 해당 행도 갱신
+- 🔴 마커는 절대 본 agent 가 자체 판단으로 제거 / 누락하지 않는다 — 확실하지 않으면 마커를 남기는 쪽이 안전

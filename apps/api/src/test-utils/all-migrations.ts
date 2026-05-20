@@ -38,7 +38,6 @@ import { RemoveDuplicateNewbieMissions1775700000000 } from '../migrations/177570
 import { AddRecordedAtColumns1775800000000 } from '../migrations/1775800000000-AddRecordedAtColumns';
 import { AddVoiceExtendedData1775900000000 } from '../migrations/1775900000000-AddVoiceExtendedData';
 import { PairDailyUnidirectional1776000000000 } from '../migrations/1776000000000-PairDailyUnidirectional';
-import { AddMusicChannelConfig1776100000000 } from '../migrations/1776100000000-AddMusicChannelConfig';
 import { AddWeeklyReportConfig1776200000000 } from '../migrations/1776200000000-AddWeeklyReportConfig';
 import { DropBotMetric1776300000000 } from '../migrations/1776300000000-DropBotMetric';
 import { AddAutoChannelGrouping1776400000000 } from '../migrations/1776400000000-AddAutoChannelGrouping';
@@ -49,6 +48,7 @@ import { AddGuildMember1776700000000 } from '../migrations/1776700000000-AddGuil
 import { MigrateVoiceHistoryToGuildMember1776800000000 } from '../migrations/1776800000000-MigrateVoiceHistoryToGuildMember';
 import { AddInactiveMemberTrendDaily1776900000000 } from '../migrations/1776900000000-AddInactiveMemberTrendDaily';
 import { AddMissionUseMicTime1777000000000 } from '../migrations/1777000000000-AddMissionUseMicTime';
+import { DropMusicChannelConfig1777100000000 } from '../migrations/1777100000000-DropMusicChannelConfig';
 
 /** 모든 마이그레이션을 타임스탬프 순서대로 배열 */
 export const ALL_MIGRATIONS = [
@@ -92,7 +92,6 @@ export const ALL_MIGRATIONS = [
   AddRecordedAtColumns1775800000000,
   AddVoiceExtendedData1775900000000,
   PairDailyUnidirectional1776000000000,
-  AddMusicChannelConfig1776100000000,
   AddWeeklyReportConfig1776200000000,
   DropBotMetric1776300000000,
   AddAutoChannelGrouping1776400000000,
@@ -103,4 +102,5 @@ export const ALL_MIGRATIONS = [
   MigrateVoiceHistoryToGuildMember1776800000000,
   AddInactiveMemberTrendDaily1776900000000,
   AddMissionUseMicTime1777000000000,
+  DropMusicChannelConfig1777100000000,
 ];
