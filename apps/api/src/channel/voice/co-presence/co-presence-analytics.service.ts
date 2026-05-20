@@ -63,16 +63,6 @@ export interface PairDetailResponse {
   dailyData: { date: string; minutes: number }[];
 }
 
-/** F-COPRESENCE-015 친밀도 조회 응답 타입 */
-export interface AffinityResponse {
-  userA: { userId: string; displayName: string; avatarUrl: string | null };
-  userB: { userId: string; displayName: string; avatarUrl: string | null };
-  totalMinutes: number;
-  sessionCount: number;
-  lastDate: string | null;
-  dailyData: { date: string; minutes: number }[];
-}
-
 export type { TopPeerItem };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -146,11 +136,6 @@ interface RawTopPeerRow {
   peerId: string;
   totalMinutes: string;
   sessionCount: string;
-}
-
-interface RawAffinityAggRow {
-  sessionCount: string;
-  lastDate: string | null;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -628,94 +613,5 @@ export class CoPresenceAnalyticsService {
       sessionCount: Number(row.sessionCount),
       isAnonymous,
     };
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // F-COPRESENCE-015: getAffinity
-  // ──────────────────────────────────────────────────────────────────────────
-
-  /**
-   * 두 사용자의 친밀도 데이터를 반환한다.
-   *
-   * `userId < peerId` 정렬로 단방향 키를 사용하며, 기존 `getPairDetail()`의
-   * 일별 데이터에 sessionCount / lastDate 를 추가 집계한다.
-   * 권한 검사는 컨트롤러에서 수행하므로 이 메서드는 데이터 조회만 담당한다.
-   *
-   * @param guildId - 디스코드 서버 ID
-   * @param userA - 사용자 A userId
-   * @param userB - 사용자 B userId
-   * @param days - 집계 기간(일)
-   */
-  async getAffinity(
-    guildId: string,
-    userA: string,
-    userB: string,
-    days: number,
-  ): Promise<AffinityResponse> {
-    const startDate = this.getStartDate(days);
-    const [sortedA, sortedB] = userA < userB ? [userA, userB] : [userB, userA];
-
-    const [dailyData, aggRow, memberMap] = await Promise.all([
-      this.fetchAffinityDailyData(guildId, sortedA, sortedB, startDate),
-      this.fetchAffinityAgg(guildId, sortedA, sortedB, startDate),
-      this.getUserMap(guildId, [userA, userB]),
-    ]);
-
-    const totalMinutes = dailyData.reduce((sum, d) => sum + Number(d.minutes), 0);
-
-    return {
-      userA: {
-        userId: userA,
-        displayName: memberMap.get(userA)?.userName ?? userA,
-        avatarUrl: memberMap.get(userA)?.avatarUrl ?? null,
-      },
-      userB: {
-        userId: userB,
-        displayName: memberMap.get(userB)?.userName ?? userB,
-        avatarUrl: memberMap.get(userB)?.avatarUrl ?? null,
-      },
-      totalMinutes,
-      sessionCount: Number(aggRow?.sessionCount ?? 0),
-      lastDate: aggRow?.lastDate ?? null,
-      dailyData: dailyData.map((d) => ({ date: d.date, minutes: Number(d.minutes) })),
-    };
-  }
-
-  private async fetchAffinityDailyData(
-    guildId: string,
-    sortedA: string,
-    sortedB: string,
-    startDate: string,
-  ): Promise<RawPairDetailRow[]> {
-    return this.pairDailyRepo
-      .createQueryBuilder('p')
-      .select('p.date', 'date')
-      .addSelect('SUM(p.minutes)', 'minutes')
-      .where('p.guildId = :guildId', { guildId })
-      .andWhere('p.userId = :sortedA', { sortedA })
-      .andWhere('p.peerId = :sortedB', { sortedB })
-      .andWhere('p.date >= :startDate', { startDate })
-      .groupBy('p.date')
-      .orderBy('p.date', 'ASC')
-      .getRawMany<RawPairDetailRow>();
-  }
-
-  private async fetchAffinityAgg(
-    guildId: string,
-    sortedA: string,
-    sortedB: string,
-    startDate: string,
-  ): Promise<RawAffinityAggRow | null> {
-    const row = await this.pairDailyRepo
-      .createQueryBuilder('p')
-      .select('SUM(p.sessionCount)', 'sessionCount')
-      .addSelect("MAX(TO_CHAR(p.date, 'YYYY-MM-DD'))", 'lastDate')
-      .where('p.guildId = :guildId', { guildId })
-      .andWhere('p.userId = :sortedA', { sortedA })
-      .andWhere('p.peerId = :sortedB', { sortedB })
-      .andWhere('p.date >= :startDate', { startDate })
-      .getRawOne<RawAffinityAggRow>();
-
-    return row ?? null;
   }
 }

@@ -535,26 +535,24 @@ apps/web/app/lib/
 | 결정 항목 | 결정 | 근거 |
 |-----------|------|------|
 | P-1: opt-out 기본값 | **공개**(opt-out 시 비공개) | 트렌드·UX 표준. 첫 가입자 알림으로 보완 |
-| P-2: 본인 미포함 페어 조회 | **길드 토글** (`GuildCoPresenceConfig.allowPublicAffinityQuery`) | 길드 성격에 따라 결정 가능 |
+| P-2: 본인 미포함 페어 조회 | **제거됨** — `/affinity` 커맨드 삭제로 해당 없음 (`GuildCoPresenceConfig` 테이블 DROP 예정) | 단순화 결정 |
 | P-3: 웹 분석 페이지 opt-out 적용 | **미적용** — 관리자 분석 도구로 유지 | `JwtAuthGuard + GuildMembershipGuard` 통과 인원에게만 노출, 합리적 |
 | P-4: 비공개 사용자 표시 | **익명화**(`???` + 회색 원) — 결과에서 제거하지 않음 | 존재는 보이되 식별 불가; "1명 비공개" 병기 |
 | P-5: 데이터 정확도 완화책 | **적용 보류** — 단순 SUM(minutes) 사용 | 채널 인원 가중치·최소 시간 임계는 별도 후속 과제 |
-| P-6: 명령어 네이밍 | 영어 + ko 별칭: `/best-friend` + `ko: 친한친구`, `/affinity` + `ko: 친밀도` | `/me`와 일관성 유지 |
+| P-6: 명령어 네이밍 | 영어 + ko 별칭: `/best-friend` + `ko: 친한친구` | `/me`와 일관성 유지. `/affinity`는 삭제됨 |
 | P-7: 도메인 경계 | `voice-co-presence` 확장 흡수 | 데이터 소스 동일, 별도 모듈 분리 시 의존성 복잡도만 증가 |
 
 ### 관련 모듈 (Phase 5 신규)
 
 - **API**: `apps/api/src/channel/voice/co-presence/application/best-friend-card-renderer.ts` — 베스트 프렌드 PNG 카드 렌더러
-- **API**: `apps/api/src/channel/voice/co-presence/application/affinity-card-renderer.ts` — 친밀도 PNG 카드 렌더러
 - **API**: `apps/api/src/bot-api/co-presence/bot-co-presence.controller.ts` — Bot API 엔드포인트 (신규)
 - **API**: `apps/api/src/channel/voice/co-presence/application/user-privacy-config.service.ts` — 사생활 설정 서비스
 - **Bot**: `apps/bot/src/command/friend/best-friend.command.ts` — `/best-friend` 슬래시 커맨드
-- **Bot**: `apps/bot/src/command/friend/affinity.command.ts` — `/affinity` 슬래시 커맨드
-- **공통**: `BotApiClientService`에 `getMyBestFriends()`, `getAffinity()` 메서드 추가
+- **공통**: `BotApiClientService`에 `getMyBestFriends()` 메서드 추가
 
 ### 공통 구현 패턴 (Canvas PNG)
 
-모든 사용자 대면 슬래시 커맨드(F-COPRESENCE-014/015)는 `/me` 패턴(`@napi-rs/canvas` PNG → base64 → AttachmentBuilder)을 따른다.
+사용자 대면 슬래시 커맨드(F-COPRESENCE-014)는 `/me` 패턴(`@napi-rs/canvas` PNG → base64 → AttachmentBuilder)을 따른다.
 
 ```
 [Bot]                                    [API]
@@ -562,7 +560,7 @@ apps/web/app/lib/
   ├─ interaction.deferReply()           
   ├─ BotApiClient.getMyBestFriends()  ──► POST /bot-api/co-presence/best-friends
   │     (guildId, userId, displayName,        │
-  │      avatarUrl, period, limit)            ├─ CoPresenceAnalyticsService.getMyTopPeers()
+  │      avatarUrl)                           ├─ CoPresenceAnalyticsService.getMyTopPeers()
   │                                           ├─ UserPrivacyConfigService.filterPeers()
   │                                           ├─ (선택) VoiceAiAnalysisService.generateBestFriendComment()
   │                                           └─ BestFriendCardRenderer.render() → PNG Buffer → base64
@@ -594,18 +592,14 @@ apps/web/app/lib/
 
 #### 입력
 
-| 파라미터 | 타입 | 기본값 | 설명 |
-|----------|------|--------|------|
-| `period` | choice(`7`, `30`, `90`) | `30` | 집계 기간(일) |
-| `limit` | integer (3~5) | `5` | TOP N 개수 |
-| `private` | boolean | `false` | `true`이면 ephemeral 응답(본인만 확인) |
+파라미터 없음 — 최근 30일·TOP 5·공개(비-ephemeral) 응답 고정.
 
 #### 처리
 
 1. `interaction.deferReply()` (이미지 생성 시간 확보)
-2. Bot이 `BotApiClient.getMyBestFriends(guildId, userId, displayName, avatarUrl, period, limit)` 호출
+2. Bot이 `BotApiClient.getMyBestFriends(guildId, userId, displayName, avatarUrl)` 호출
 3. API(`POST /bot-api/co-presence/best-friends`) 처리 순서:
-   a. `CoPresenceAnalyticsService.getMyTopPeers(guildId, userId, period, limit)` — 신규 메서드. `WHERE userId = :me AND date >= :from GROUP BY peerId ORDER BY SUM(minutes) DESC` 단방향 쿼리
+   a. `CoPresenceAnalyticsService.getMyTopPeers(guildId, userId, 30, 5)` — `WHERE userId = :me AND date >= :from GROUP BY peerId ORDER BY SUM(minutes) DESC LIMIT 5` 단방향 쿼리 (기간 30일, TOP 5 고정)
    b. `UserPrivacyConfigService.filterPeers(guildId, peers)` — `disableRelationshipShare = true`인 peer를 익명화(`name: '???'`, avatarUrl: null, isAnonymous: true)
    c. `GuildMemberService.findByUserIds(guildId, peerIds)` — 닉네임/아바타 일괄 조회. 실패 시 `Member-{userId.slice(0,6)}` 폴백
    d. (선택) `VoiceAiAnalysisService.generateBestFriendComment(data)` — 길드 일일 LLM 한도(`Redis INCR`) 미초과 시 호출
@@ -632,12 +626,12 @@ apps/web/app/lib/
 - 친밀도 바: 1위 시간 = 100% 기준 상대 길이. BLURPLE(`#5865F2`) 색상으로 `/me` 바 톤과 통일
 - 비공개 사용자: 회색 원(`ctx.arc() + #cccccc`) + `???`. 아바타·이름 노출 금지
 - AI 코멘트: 1~2줄. LLM 미사용 시 해당 영역 생략하고 카드 높이 자동 축소
-- 본인 데이터 0건: "비활성" 카드 변형 — "최근 N일간 함께한 친구 기록이 없어요. 음성방에 들어가 친구를 만들어보세요!" 메시지 출력
+- 본인 데이터 0건: "비활성" 카드 변형 — "최근 30일간 함께한 친구 기록이 없어요. 음성방에 들어가 친구를 만들어보세요!" 메시지 출력
 
 응답 구성:
 - `files`: `best-friends.png`
 - `components`: `[ActionRow [LinkButton("대시보드에서 그래프 보기" → /dashboard/guild/{guildId}/co-presence)]]`
-- `ephemeral`: `private` 파라미터 값을 따름 (기본 `false` — 공개, 자랑 가능)
+- `ephemeral`: 항상 `false` (공개 응답 고정)
 
 #### 장애 대응
 
@@ -652,7 +646,7 @@ apps/web/app/lib/
 
 | 키 | TTL | 저장소 | 용도 |
 |----|-----|--------|------|
-| `friend:card:{guildId}:{userId}:{period}` | 5분 | 인메모리 LRU (`lru-cache`) | PNG base64 결과 재렌더 방지 (~30~80 KB이므로 Redis 미사용) |
+| `friend:card:{guildId}:{userId}` | 5분 | 인메모리 LRU (`lru-cache`) | PNG base64 결과 재렌더 방지 (~30~80 KB이므로 Redis 미사용, 기간 30일 고정) |
 | `friend:llm:quota:{guildId}:{YYYYMMDD}` | 24시간 | Redis | 길드별 일일 LLM 호출 카운터 |
 | `friend:privacy:{guildId}:{userId}` | 30분 | Redis | opt-out 설정 빠른 확인 |
 
@@ -668,70 +662,6 @@ apps/web/app/lib/
 
 ---
 
-### F-COPRESENCE-015: 두 사람 친밀도 조회 (`/affinity`)
-
-#### 트리거
-
-사용자가 `/affinity` (또는 한국어 별칭 `/친밀도`) 슬래시 커맨드를 실행한다.
-
-#### 입력
-
-| 파라미터 | 타입 | 필수 | 설명 |
-|----------|------|------|------|
-| `user` | User (멘션) | 필수 | 비교 대상 |
-| `user2` | User (멘션) | 선택 | 생략 시 명령 실행자 본인 |
-| `period` | choice(`7`, `30`, `90`) | 선택 | 기본 `30` |
-
-#### 처리
-
-1. `interaction.deferReply()`
-2. Bot이 `BotApiClient.getAffinity(guildId, userAId, userBId, period)` 호출
-3. API(`POST /bot-api/co-presence/affinity`) 처리 순서:
-   a. **권한 검증**: `user2` 생략(실행자↔대상) → 자기 자신 포함이므로 허용. `user2` 지정(타인↔타인) → `GuildCoPresenceConfig.allowPublicAffinityQuery` 확인. `false`이고 실행자가 `ManageGuild` 권한 없으면 ephemeral 에러 응답으로 분기
-   b. **opt-out 검증**: 한쪽이라도 `disableRelationshipShare = true`이고 실행자가 해당 사용자 본인이 아니면 ephemeral 텍스트 응답 분기 (캔버스 미생성)
-   c. `userId < peerId` 정렬로 단방향 키 생성 → `CoPresenceAnalyticsService.getPairDetail(guildId, userA, userB, period)` 재사용
-   d. 일별 데이터(`dailyData`)까지 함께 수집 → 카드 내 미니 막대 차트로 활용
-   e. `AffinityCardRenderer.render(data, memberA, memberB)` → PNG Buffer → base64
-4. Bot이 `AttachmentBuilder(buf, { name: 'affinity.png' })` + Link 버튼으로 응답
-
-#### 출력: 카드 레이아웃 (800 × 약 360 px)
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  [원형 A 아바타]  동현      ⇆      민수  [원형 B 아바타]│
-│                                                          │
-│  💞 최근 30일 함께한 시간                                │
-│  ┌──────────────────┐  ┌──────────────┐  ┌────────────┐│
-│  │ 12시간 30분       │  │ 24 세션      │  │ 마지막     ││
-│  │ (총 동시접속)     │  │              │  │ 05-02      ││
-│  └──────────────────┘  └──────────────┘  └────────────┘│
-│                                                          │
-│  📊 일별 추이 (최근 30일)                                │
-│   ▂▂▃▅▃▂▁▁▃▆█▅▃▂▁▂▃▅▆▄▃▂▁▁▂▃▄▅▆▇                     │
-└─────────────────────────────────────────────────────────┘
-```
-
-- 통계 카드 3개(`drawStatCardWithSub()`) — 총 시간 / 세션 수 / 마지막 함께한 날짜
-- 일별 차트(`drawBarChart()`) — `ProfileCardRenderer` 헬퍼 재사용
-- 응답 구성: `files: [affinity.png]` + Link 버튼(`PairDetailModal` 웹 페이지로 이동)
-
-#### 장애 대응
-
-- `getPairDetail()` 조회 결과 0건: "두 분은 아직 함께한 음성 기록이 없어요" 카드 변형
-- 캔버스 렌더 실패: Embed 폴백 (텍스트 요약)
-- opt-out / 권한 미달: ephemeral 텍스트 응답, 이유 안내
-
-#### 권한
-
-| 조합 | 조건 |
-|------|------|
-| 자기 자신 포함 페어 | 항상 허용 |
-| 본인 미포함 페어 (타인↔타인) | `GuildCoPresenceConfig.allowPublicAffinityQuery = true` 이거나 실행자가 `ManageGuild` 권한 보유 |
-| 비공개 사용자 포함 | ephemeral 텍스트 응답 (캔버스 미렌더) |
-
-슬래시 커맨드 등록: `nameLocalizations: { ko: '친밀도' }`
-
----
 
 ### F-COPRESENCE-016: 주간 자동 리포트 친밀도 섹션 추가
 
@@ -784,40 +714,36 @@ apps/web/app/lib/
 
 #### 개요
 
-사용자가 자신의 친밀도·베스트 프렌드 데이터 노출 여부를 제어할 수 있는 opt-out 정책이다. **기본값은 공개**이며, 비공개로 전환 시 타인의 슬래시 커맨드 결과에서 익명화된다.
+사용자가 자신의 베스트 프렌드 데이터 노출 여부를 제어할 수 있는 opt-out 정책이다. **기본값은 공개**이며, 비공개로 전환 시 타인의 슬래시 커맨드 결과에서 익명화된다.
+
+`/privacy` 슬래시 커맨드는 삭제되었다. opt-out 설정은 **웹 `/settings/me/privacy` 페이지로만** 변경할 수 있다. `UserPrivacyConfig` 엔티티·`filterPeers` 익명화 로직·웹 API는 그대로 유지한다.
 
 #### 트리거
 
-- 슬래시 커맨드: `/privacy affinity-visible:<true|false>` (ephemeral 응답, 텍스트만)
-- 웹 대시보드: `apps/web/app/settings/me/privacy/page.tsx` — 친밀도 공개 토글 UI
+웹 대시보드: `apps/web/app/settings/me/privacy/page.tsx` — 친밀도 공개 토글 UI
 
-#### 입력
-
-슬래시 커맨드:
-
-| 파라미터 | 타입 | 설명 |
-|----------|------|------|
-| `affinity-visible` | boolean | `true` = 공개, `false` = 비공개 |
-
-웹 API:
+#### 웹 API
 
 - `GET /api/users/me/privacy` — 현재 설정 조회
 - `PUT /api/users/me/privacy` — `{ disableRelationshipShare: boolean }` body
+
+> **봇 API 제거**: `POST /bot-api/user-privacy/upsert`는 `/privacy` 슬래시 커맨드 전용으로 추가되었던 엔드포인트이므로 함께 제거한다.
 
 #### 처리
 
 1. `UserPrivacyConfigService.upsert(guildId, userId, { disableRelationshipShare })` 호출
 2. Redis 캐시 즉시 무효화 (`DEL friend:privacy:{guildId}:{userId}`)
-3. ephemeral 확인 메시지 응답 ("친밀도 공개 설정이 변경되었습니다.")
+3. 웹 페이지에서 성공/실패 토스트 표시
 
 #### 적용 범위
 
 | 기능 | opt-out 적용 |
 |------|-------------|
 | F-COPRESENCE-014 (베스트 프렌드 카드) | 적용 — 비공개 사용자 익명화 |
-| F-COPRESENCE-015 (친밀도 카드) | 적용 — 본인이 비공개이고 실행자가 본인이 아니면 ephemeral 분기 |
 | F-COPRESENCE-016 (주간 리포트) | 적용 — 익명화 처리 |
 | F-COPRESENCE-007~013 (웹 분석 대시보드) | **미적용** — 관리자 전용 분석 도구. `JwtAuthGuard + GuildMembershipGuard` 통과 인원에게만 노출되므로 합리적 |
+
+> `/affinity` 커맨드 삭제로 opt-out이 적용되던 채널이 `/best-friend`·주간 리포트로 축소되었다.
 
 #### 권한
 
@@ -883,20 +809,8 @@ apps/web/app/lib/
 
 **캐시**: `friend:privacy:{guildId}:{userId}` — Redis, TTL 30분
 
-### GuildCoPresenceConfig (`guild_co_presence_config`)
 
-길드 단위 Co-Presence 공개 설정을 저장한다. P-2 결정(본인 미포함 페어 조회 허용 여부)을 관리한다.
-
-| 컬럼 | 타입 | 제약조건 | 설명 |
-|-------|------|----------|------|
-| `guildId` | `varchar` | PK | 디스코드 서버 ID |
-| `allowPublicAffinityQuery` | `boolean` | NOT NULL, DEFAULT `false` | `true` = 일반 사용자도 타인↔타인 `/affinity` 조회 가능 |
-| `updatedAt` | `timestamp` | NOT NULL, DEFAULT now() | 마지막 변경 시각 |
-
-**인덱스**:
-- PK: `guildId`
-
-**설정 경로**: 웹 대시보드 관리자 설정 페이지에서 토글. `InactiveMemberConfig`와 동일한 패턴.
+> 🔴 **`guild_co_presence_config` 테이블 삭제 예정**: `/affinity` 커맨드 삭제로 이 테이블의 유일한 용도(`allowPublicAffinityQuery` 권한 토글)가 사라졌다. DROP 마이그레이션은 Phase 2에서 database-architect가 상세화한다.
 
 ---
 
@@ -905,32 +819,27 @@ apps/web/app/lib/
 ### Phase 5-1: 사생활 정책 + 본인 베프 카드 (~1.5주)
 
 1. `UserPrivacyConfigOrm` 엔티티 + Repository + `UserPrivacyConfigService`
-2. `GuildCoPresenceConfigOrm` 엔티티 + Repository
-3. `CoPresenceAnalyticsService.getMyTopPeers(guildId, userId, days, limit)` 신규 메서드
-4. `BestFriendCardRenderer` 신규 (`ProfileCardRenderer` 폰트 등록 패턴 답습)
-5. `POST /bot-api/co-presence/best-friends` Bot API 엔드포인트 신규
-6. Bot 슬래시 커맨드 `/best-friend` 신규 (`me.command.ts` 패턴 동일)
-7. `BotApiClientService.getMyBestFriends()` 추가
-8. `/privacy` 슬래시 커맨드 신규 (ephemeral, 텍스트)
+2. `CoPresenceAnalyticsService.getMyTopPeers(guildId, userId, 30, 5)` 신규 메서드 (기간·TOP 수 고정)
+3. `BestFriendCardRenderer` 신규 (`ProfileCardRenderer` 폰트 등록 패턴 답습)
+4. `POST /bot-api/co-presence/best-friends` Bot API 엔드포인트 신규
+5. Bot 슬래시 커맨드 `/best-friend` 신규 (파라미터 없음, `me.command.ts` 패턴 동일)
+6. `BotApiClientService.getMyBestFriends()` 추가
 
-### Phase 5-2: 친밀도 카드 + 주간 리포트 통합 (~5일)
+### Phase 5-2: 주간 리포트 통합 (~3일)
 
-9. `AffinityCardRenderer` 신규 (Phase 5-1 헬퍼/폰트 재사용)
-10. `POST /bot-api/co-presence/affinity` Bot API 엔드포인트 신규
-11. Bot 슬래시 커맨드 `/affinity` 신규
-12. `WeeklyReportService.collectReportData()`에 `getTopPairs()` 호출 + opt-out 필터 추가
-13. `WeeklyReportService.buildPayload()`에 친밀도 섹션 삽입
+7. `WeeklyReportService.collectReportData()`에 `getTopPairs()` 호출 + opt-out 필터 추가
+8. `WeeklyReportService.buildPayload()`에 친밀도 섹션 삽입
 
 ### Phase 5-3: AI 코멘트 (~2일, 선택)
 
-14. `VoiceAiAnalysisService.generateBestFriendComment()` 추가
-15. Redis 일일 한도 + 인메모리 LRU 캐시(5분) 구현
-16. `BestFriendCardRenderer`에 코멘트 영역 렌더 통합
+9. `VoiceAiAnalysisService.generateBestFriendComment()` 추가
+10. Redis 일일 한도 + 인메모리 LRU 캐시(5분) 구현
+11. `BestFriendCardRenderer`에 코멘트 영역 렌더 통합
 
-### Phase 5-4: 웹 사생활 설정 페이지 (~2일, 선택)
+### Phase 5-4: 웹 사생활 설정 페이지 (~2일)
 
-17. `apps/web/app/settings/me/privacy/page.tsx` — 친밀도 공개 토글
-18. API `GET/PUT /api/users/me/privacy` (JwtAuthGuard 적용)
+12. `apps/web/app/settings/me/privacy/page.tsx` — 친밀도 공개 토글
+13. API `GET/PUT /api/users/me/privacy` (JwtAuthGuard 적용)
 
 ---
 

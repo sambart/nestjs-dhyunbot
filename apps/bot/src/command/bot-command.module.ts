@@ -1,10 +1,8 @@
 import { DiscordModule } from '@discord-nestjs/core';
 import { Module } from '@nestjs/common';
 
-import { AffinityCommand } from './friend/affinity.command';
 import { BestFriendCommand } from './friend/best-friend.command';
 import { MeCommand } from './me.command';
-import { PrivacyCommand } from './privacy/privacy.command';
 import { StickyMessageDeleteCommand } from './sticky-message/sticky-message-delete.command';
 import { StickyMessageListCommand } from './sticky-message/sticky-message-list.command';
 import { StickyMessageRegisterCommand } from './sticky-message/sticky-message-register.command';
@@ -30,11 +28,8 @@ import { VoiceFlushCommand } from './voice-flush.command';
     ServerDiagnosisCommand,
     // Me
     MeCommand,
-    // Phase 5: 친밀도/베프
+    // Phase 5: 베스트 프렌드
     BestFriendCommand,
-    AffinityCommand,
-    // Phase 5: 사생활
-    PrivacyCommand,
   ],
 })
 export class BotCommandModule {}

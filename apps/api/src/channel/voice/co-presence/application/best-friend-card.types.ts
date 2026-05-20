@@ -34,22 +34,3 @@ export interface BestFriendCardData {
   /** 통계 제외 채널 목록 (푸터 표기용, 옵션) */
   excludedChannels?: { name: string }[];
 }
-
-/** 친밀도 카드 입력 데이터 */
-export interface AffinityCardData {
-  /** 사용자 A */
-  userA: { displayName: string; avatarUrl: string | null };
-  /** 사용자 B */
-  userB: { displayName: string; avatarUrl: string | null };
-  /** 집계 기간(일) */
-  // eslint-disable-next-line no-magic-numbers -- 도메인 허용 기간(일) union 타입
-  period: 7 | 30 | 90;
-  /** 기간 내 총 동시접속 시간(분) */
-  totalMinutes: number;
-  /** 기간 내 총 세션 수 */
-  sessionCount: number;
-  /** 마지막 함께한 날짜 (YYYY-MM-DD). 데이터 없으면 null */
-  lastDate: string | null;
-  /** 일별 동시접속 시간 목록 */
-  dailyData: { date: string; minutes: number }[];
-}

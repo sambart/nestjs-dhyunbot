@@ -1,4 +1,3 @@
-import { SlashCommandPipe } from '@discord-nestjs/common';
 import { Command, Handler, InteractionEvent } from '@discord-nestjs/core';
 import { Injectable, Logger } from '@nestjs/common';
 import type { BestFriendCardResponse } from '@onyu/bot-api-client';
@@ -12,25 +11,13 @@ import {
   GuildMember,
 } from 'discord.js';
 
-import { BestFriendDto } from './best-friend.dto';
-
-// 기간 기본값 (일)
-const DEFAULT_PERIOD = 30;
-// TOP N 기본값
-const DEFAULT_LIMIT = 5;
-// 최소 limit
-const MIN_LIMIT = 3;
-// 최대 limit
-const MAX_LIMIT = 5;
-// 대시보드 URL
-const WEB_URL = process.env['WEB_URL'] ?? 'https://onyu.app';
-// 지원하는 기간 선택지
-const VALID_PERIODS: ReadonlyArray<7 | 30 | 90> = [7, 30, 90];
-
-// period choices 타입 가드
-function isValidPeriod(value: number): value is 7 | 30 | 90 {
-  return (VALID_PERIODS as readonly number[]).includes(value);
-}
+// 집계 기간 (일) — 30일 고정.
+// getMyBestFriends period 파라미터가 7 | 30 | 90 리터럴 유니온이므로 as const 필수
+const PERIOD = 30 as const;
+// TOP N — 5명 고정
+const LIMIT = 5;
+// 대시보드 기본 URL (WEB_URL 미설정 시 prod 도메인)
+const DEFAULT_WEB_URL = 'https://onyu.dev';
 
 @Command({
   name: 'best-friend',
@@ -45,23 +32,14 @@ export class BestFriendCommand {
   constructor(private readonly apiClient: BotApiClientService) {}
 
   @Handler()
-  async onBestFriend(
-    @InteractionEvent() interaction: ChatInputCommandInteraction,
-    @InteractionEvent(SlashCommandPipe) dto: BestFriendDto,
-  ): Promise<void> {
+  async onBestFriend(@InteractionEvent() interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guildId) {
       await interaction.reply({ content: '서버에서만 사용 가능한 명령어입니다.', ephemeral: true });
       return;
     }
 
-    const isEphemeral = dto.private ?? false;
-    await interaction.deferReply({ ephemeral: isEphemeral });
-
-    const rawPeriod = dto.period ?? DEFAULT_PERIOD;
-    const period = isValidPeriod(rawPeriod) ? rawPeriod : DEFAULT_PERIOD;
-    const rawLimit = dto.limit ?? DEFAULT_LIMIT;
-    // minValue/maxValue는 Discord가 검증하지만 런타임 안전망 추가
-    const limit = Math.min(MAX_LIMIT, Math.max(MIN_LIMIT, rawLimit));
+    // 공개 응답 고정 (ephemeral 없음)
+    await interaction.deferReply();
 
     try {
       // GuildMember 캐스팅 — discord-nestjs CommandInteraction.member는 APIInteractionGuildMember | GuildMember 유니온
@@ -74,8 +52,8 @@ export class BestFriendCommand {
         interaction.user.id,
         displayName,
         avatarUrl,
-        period,
-        limit,
+        PERIOD,
+        LIMIT,
       );
 
       const linkButtonRow = this.buildLinkButtonRow(interaction.guildId);
@@ -118,10 +96,12 @@ export class BestFriendCommand {
   }
 
   private buildLinkButtonRow(guildId: string): ActionRowBuilder<ButtonBuilder> {
+    // WEB_URL은 런타임에 읽는다 — 모듈 import 시점에 평가하면 ConfigModule의 .env 로드 전이라 fallback이 굳을 수 있다
+    const webUrl = process.env['WEB_URL'] ?? DEFAULT_WEB_URL;
     const button = new ButtonBuilder()
       .setLabel('대시보드에서 그래프 보기')
       .setStyle(ButtonStyle.Link)
-      .setURL(`${WEB_URL}/dashboard/guild/${guildId}/co-presence`);
+      .setURL(`${webUrl}/dashboard/guild/${guildId}/co-presence`);
 
     return new ActionRowBuilder<ButtonBuilder>().addComponents(button);
   }

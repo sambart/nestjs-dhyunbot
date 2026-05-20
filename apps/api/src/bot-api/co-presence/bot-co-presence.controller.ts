@@ -12,14 +12,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { VoiceExcludedChannelService } from '../../channel/voice/application/voice-excluded-channel.service';
 import { VoiceGameService } from '../../channel/voice/application/voice-game.service';
-import { AffinityCardRenderer } from '../../channel/voice/co-presence/application/affinity-card-renderer';
 import { BestFriendCardCacheService } from '../../channel/voice/co-presence/application/best-friend-card.cache';
-import type {
-  AffinityCardData,
-  BestFriendCardData,
-} from '../../channel/voice/co-presence/application/best-friend-card.types';
+import type { BestFriendCardData } from '../../channel/voice/co-presence/application/best-friend-card.types';
 import { BestFriendCardRenderer } from '../../channel/voice/co-presence/application/best-friend-card-renderer';
-import { GuildCoPresenceConfigService } from '../../channel/voice/co-presence/application/guild-co-presence-config.service';
 import {
   CO_PRESENCE_TICK,
   CoPresenceTickEvent,
@@ -27,7 +22,6 @@ import {
 } from '../../channel/voice/co-presence/co-presence.events';
 import { CoPresenceService } from '../../channel/voice/co-presence/co-presence.service';
 import { CoPresenceAnalyticsService } from '../../channel/voice/co-presence/co-presence-analytics.service';
-import { UserPrivacyConfigService } from '../../user-privacy/application/user-privacy-config.service';
 import type { BestFriendAiContext } from '../../voice-analytics/application/voice-ai-analysis.service';
 import { VoiceAiAnalysisService } from '../../voice-analytics/application/voice-ai-analysis.service';
 import { BotApiAuthGuard } from '../bot-api-auth.guard';
@@ -48,12 +42,13 @@ function buildCardCacheKey(
 // eslint-disable-next-line no-magic-numbers -- 도메인 허용 기간(일) 상수
 const VALID_PERIODS = [7, 30, 90] as const;
 type ValidPeriod = (typeof VALID_PERIODS)[number];
+const DEFAULT_PERIOD: ValidPeriod = 30;
 
 function parsePeriod(raw: string | undefined): ValidPeriod {
   const n = Number(raw);
   // VALID_PERIODS.includes의 타입은 readonly tuple이라 일반 number를 받지 않으므로 캐스팅이 필요하다
   const found = VALID_PERIODS.find((p) => p === n);
-  return found ?? 30;
+  return found ?? DEFAULT_PERIOD;
 }
 
 const MIN_LIMIT = 3;
@@ -69,7 +64,6 @@ interface CanvasCardResponse {
   ok: boolean;
   data: { imageBase64: string } | null;
   days: number;
-  errorCode?: 'PRIVATE' | 'FORBIDDEN';
 }
 
 /**
@@ -87,10 +81,7 @@ export class BotCoPresenceController {
     private readonly eventEmitter: EventEmitter2,
     private readonly voiceGameService: VoiceGameService,
     private readonly coPresenceAnalyticsService: CoPresenceAnalyticsService,
-    private readonly guildCoPresenceConfigService: GuildCoPresenceConfigService,
-    private readonly userPrivacyConfigService: UserPrivacyConfigService,
     private readonly bestFriendCardRenderer: BestFriendCardRenderer,
-    private readonly affinityCardRenderer: AffinityCardRenderer,
     private readonly bestFriendCardCacheService: BestFriendCardCacheService,
     private readonly voiceAiAnalysisService: VoiceAiAnalysisService,
   ) {}
@@ -260,126 +251,5 @@ export class BotCoPresenceController {
       })),
     };
     return this.voiceAiAnalysisService.generateBestFriendComment(context);
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // F-COPRESENCE-015: 친밀도 카드
-  // ──────────────────────────────────────────────────────────────────────────
-
-  @Post('affinity')
-  @HttpCode(HttpStatus.OK)
-  async getAffinity(
-    @Query('guildId') guildId: string,
-    @Query('userAId') userAId: string,
-    @Query('userBId') userBId: string,
-    @Query('period') periodRaw: string,
-    @Query('requestUserId') requestUserId: string,
-    @Query('hasManageGuild') hasManageGuildRaw: string,
-  ): Promise<CanvasCardResponse> {
-    const period = parsePeriod(periodRaw);
-    const hasManageGuild = hasManageGuildRaw === '1';
-
-    const permissionResult = await this.checkAffinityPermission({
-      guildId,
-      userAId,
-      userBId,
-      requestUserId,
-      hasManageGuild,
-      period,
-    });
-    if (permissionResult !== null) return permissionResult;
-
-    const privacyResult = await this.checkAffinityPrivacy({
-      guildId,
-      userAId,
-      userBId,
-      requestUserId,
-      period,
-    });
-    if (privacyResult !== null) return privacyResult;
-
-    return this.renderAffinityCard(guildId, userAId, userBId, period);
-  }
-
-  private async checkAffinityPermission(params: {
-    guildId: string;
-    userAId: string;
-    userBId: string;
-    requestUserId: string;
-    hasManageGuild: boolean;
-    period: ValidPeriod;
-  }): Promise<CanvasCardResponse | null> {
-    const { guildId, userAId, userBId, requestUserId, hasManageGuild, period } = params;
-
-    const isSelfPair = requestUserId === userAId || requestUserId === userBId;
-    if (isSelfPair) return null;
-
-    if (hasManageGuild) return null;
-
-    const config = await this.guildCoPresenceConfigService.getConfig(guildId);
-    if (config.allowPublicAffinityQuery) return null;
-
-    return { ok: true, data: null, errorCode: 'FORBIDDEN', days: period };
-  }
-
-  private async checkAffinityPrivacy(params: {
-    guildId: string;
-    userAId: string;
-    userBId: string;
-    requestUserId: string;
-    period: ValidPeriod;
-  }): Promise<CanvasCardResponse | null> {
-    const { guildId, userAId, userBId, requestUserId, period } = params;
-
-    const [isAPrivate, isBPrivate] = await Promise.all([
-      this.userPrivacyConfigService.isPrivate(guildId, userAId),
-      this.userPrivacyConfigService.isPrivate(guildId, userBId),
-    ]);
-
-    const isABlocked = isAPrivate && requestUserId !== userAId;
-    const isBBlocked = isBPrivate && requestUserId !== userBId;
-
-    if (isABlocked || isBBlocked) {
-      return { ok: true, data: null, errorCode: 'PRIVATE', days: period };
-    }
-
-    return null;
-  }
-
-  private async renderAffinityCard(
-    guildId: string,
-    userAId: string,
-    userBId: string,
-    period: ValidPeriod,
-  ): Promise<CanvasCardResponse> {
-    try {
-      const affinity = await this.coPresenceAnalyticsService.getAffinity(
-        guildId,
-        userAId,
-        userBId,
-        period,
-      );
-
-      const cardData: AffinityCardData = {
-        userA: { displayName: affinity.userA.displayName, avatarUrl: affinity.userA.avatarUrl },
-        userB: { displayName: affinity.userB.displayName, avatarUrl: affinity.userB.avatarUrl },
-        period,
-        totalMinutes: affinity.totalMinutes,
-        sessionCount: affinity.sessionCount,
-        lastDate: affinity.lastDate,
-        dailyData: affinity.dailyData,
-      };
-
-      const buffer = await this.affinityCardRenderer.render(cardData);
-      const imageBase64 = buffer.toString('base64');
-
-      return { ok: true, data: { imageBase64 }, days: period };
-    } catch (error) {
-      this.logger.error(
-        '[Affinity] 카드 렌더 실패',
-        error instanceof Error ? error.stack : String(error),
-      );
-      return { ok: true, data: null, days: period };
-    }
   }
 }

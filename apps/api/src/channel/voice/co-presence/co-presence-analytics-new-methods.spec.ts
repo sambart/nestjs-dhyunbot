@@ -1,12 +1,12 @@
 /**
  * CoPresenceAnalyticsService 신규 메서드 단위 테스트
- * 대상: getMyTopPeers (T-MYP), getAffinity (T-AFF)
+ * 대상: getMyTopPeers (T-MYP)
  *
  * 외부 의존성(Repository, GuildMemberService, UserPrivacyConfigService)은 vi.fn()으로 대체한다.
  */
 
 import type { Repository } from 'typeorm';
-import type { Mock } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
 
 import type { GuildMemberService } from '../../../guild-member/application/guild-member.service';
 import type { UserPrivacyConfigService } from '../../../user-privacy/application/user-privacy-config.service';
@@ -65,24 +65,24 @@ function makeDailyRepo(): DailyRepoMock {
   };
 }
 
-function makeGuildMemberService(): jest.Mocked<GuildMemberService> {
+function makeGuildMemberService(): Mocked<GuildMemberService> {
   return {
     findByUserIds: vi.fn().mockResolvedValue(new Map()),
-  } as unknown as jest.Mocked<GuildMemberService>;
+  } as unknown as Mocked<GuildMemberService>;
 }
 
-function makeUserPrivacyService(): jest.Mocked<UserPrivacyConfigService> {
+function makeUserPrivacyService(): Mocked<UserPrivacyConfigService> {
   return {
     filterPeers: vi.fn().mockResolvedValue(new Map()),
     isPrivate: vi.fn().mockResolvedValue(false),
-  } as unknown as jest.Mocked<UserPrivacyConfigService>;
+  } as unknown as Mocked<UserPrivacyConfigService>;
 }
 
 function buildService(
   pairRepo: PairDailyRepoMock,
   dailyRepo: DailyRepoMock,
-  memberSvc: jest.Mocked<GuildMemberService>,
-  privacySvc: jest.Mocked<UserPrivacyConfigService>,
+  memberSvc: Mocked<GuildMemberService>,
+  privacySvc: Mocked<UserPrivacyConfigService>,
 ): CoPresenceAnalyticsService {
   return new CoPresenceAnalyticsService(
     pairRepo as unknown as Repository<VoiceCoPresencePairDailyOrm>,
@@ -97,8 +97,8 @@ function buildService(
 describe('CoPresenceAnalyticsService.getMyTopPeers', () => {
   let pairRepo: PairDailyRepoMock;
   let dailyRepo: DailyRepoMock;
-  let memberSvc: jest.Mocked<GuildMemberService>;
-  let privacySvc: jest.Mocked<UserPrivacyConfigService>;
+  let memberSvc: Mocked<GuildMemberService>;
+  let privacySvc: Mocked<UserPrivacyConfigService>;
   let service: CoPresenceAnalyticsService;
 
   beforeEach(() => {
@@ -220,111 +220,5 @@ describe('CoPresenceAnalyticsService.getMyTopPeers', () => {
 
     // 폴백: 'Member-' + peerId.slice(0, 6) = 'Member-abc123'
     expect(result[0].displayName).toBe('Member-abc123');
-  });
-});
-
-// ─── T-AFF: getAffinity ───────────────────────────────────────────────────────
-
-describe('CoPresenceAnalyticsService.getAffinity', () => {
-  let pairRepo: PairDailyRepoMock;
-  let dailyRepo: DailyRepoMock;
-  let memberSvc: jest.Mocked<GuildMemberService>;
-  let privacySvc: jest.Mocked<UserPrivacyConfigService>;
-  let service: CoPresenceAnalyticsService;
-
-  beforeEach(() => {
-    pairRepo = makePairDailyRepo();
-    dailyRepo = makeDailyRepo();
-    memberSvc = makeGuildMemberService();
-    privacySvc = makeUserPrivacyService();
-    service = buildService(pairRepo, dailyRepo, memberSvc, privacySvc);
-    vi.clearAllMocks();
-  });
-
-  it('T-AFF-01: 정상 — dailyData/totalMinutes/sessionCount/lastDate 모두 포함', async () => {
-    const dailyRows = [
-      { date: '2026-04-28', minutes: '60' },
-      { date: '2026-04-29', minutes: '90' },
-    ];
-    const aggRow = { sessionCount: '4', lastDate: '2026-04-29' };
-
-    // 첫 번째 createQueryBuilder 호출 → dailyData, 두 번째 → agg
-    let callCount = 0;
-    pairRepo.createQueryBuilder = vi.fn().mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) return makeQbChain(dailyRows, 'getRawMany');
-      return makeQbChain(aggRow, 'getRawOne');
-    });
-
-    memberSvc.findByUserIds = vi.fn().mockResolvedValue(
-      new Map([
-        ['userA', { displayName: '동현', avatarUrl: null }],
-        ['userB', { displayName: '민수', avatarUrl: null }],
-      ]),
-    );
-
-    const result = await service.getAffinity('guild-1', 'userA', 'userB', 30);
-
-    expect(result.totalMinutes).toBe(150); // 60+90
-    expect(result.sessionCount).toBe(4);
-    expect(result.lastDate).toBe('2026-04-29');
-    expect(result.dailyData).toHaveLength(2);
-    expect(result.userA.userId).toBe('userA');
-    expect(result.userB.userId).toBe('userB');
-  });
-
-  it('T-AFF-02: 데이터 0건 시 totalMinutes=0, sessionCount=0, lastDate=null, dailyData=[]', async () => {
-    pairRepo.createQueryBuilder = vi
-      .fn()
-      .mockReturnValueOnce(makeQbChain([], 'getRawMany'))
-      .mockReturnValueOnce(makeQbChain(null, 'getRawOne'));
-
-    memberSvc.findByUserIds = vi.fn().mockResolvedValue(new Map());
-
-    const result = await service.getAffinity('guild-1', 'userA', 'userB', 30);
-
-    expect(result.totalMinutes).toBe(0);
-    expect(result.sessionCount).toBe(0);
-    expect(result.lastDate).toBeNull();
-    expect(result.dailyData).toHaveLength(0);
-  });
-
-  it('T-AFF-03: userA > userB 입력 시 sortedA < sortedB 정렬로 단방향 키 조회', async () => {
-    // 'userB' < 'userA' 문자열 비교 시 sortedA='userA'이 작은지 확인
-    // 'userA' < 'userB' → sortedA='userA', sortedB='userB'
-    // 반대로 입력해도 동일한 정렬 결과를 얻어야 한다
-    const dailyQb = makeQbChain([], 'getRawMany');
-    const aggQb = makeQbChain(null, 'getRawOne');
-
-    pairRepo.createQueryBuilder = vi.fn().mockReturnValueOnce(dailyQb).mockReturnValueOnce(aggQb);
-
-    memberSvc.findByUserIds = vi.fn().mockResolvedValue(new Map());
-
-    // userB, userA 순서로 전달 (역순)
-    await service.getAffinity('guild-1', 'userB', 'userA', 30);
-
-    // 내부에서 정렬 후 sortedA='userA'(작은 것), sortedB='userB'(큰 것) 방향으로 조회해야 한다
-    // dailyQb.andWhere에 sortedA='userA', sortedB='userB'가 전달되어야 함
-    const calls = (dailyQb.andWhere as Mock).mock.calls;
-    // userId = :sortedA 조건이 포함되어야 한다
-    const hasUserIdCondition = calls.some(
-      (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('sortedA'),
-    );
-    expect(hasUserIdCondition).toBe(true);
-  });
-
-  it('T-AFF-04: userA === userB 시 데이터 없음 (PairDaily에는 자기 자신 페어 미저장)', async () => {
-    pairRepo.createQueryBuilder = vi
-      .fn()
-      .mockReturnValueOnce(makeQbChain([], 'getRawMany'))
-      .mockReturnValueOnce(makeQbChain(null, 'getRawOne'));
-
-    memberSvc.findByUserIds = vi.fn().mockResolvedValue(new Map());
-
-    const result = await service.getAffinity('guild-1', 'sameUser', 'sameUser', 30);
-
-    // 자기 자신과의 데이터는 없으므로 0건
-    expect(result.dailyData).toHaveLength(0);
-    expect(result.totalMinutes).toBe(0);
   });
 });
