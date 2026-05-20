@@ -92,7 +92,7 @@ function HeroSection({
         <div className="text-center md:text-left">
           <h1 className="flex items-center justify-center gap-4 text-5xl sm:text-6xl font-bold text-gray-900 mb-6 leading-tight">
             <Image
-              src="/discord_onyu_logo_03.png"
+              src="/brand/img_onyu_cat.png"
               alt="Onyu 로고"
               width={HERO_LOGO_SIZE}
               height={HERO_LOGO_SIZE}
@@ -360,7 +360,7 @@ function LandingFooter({ t }: { t: Awaited<ReturnType<typeof getTranslations>> }
           <div>
             <div className="flex items-center gap-2 mb-3">
               <Image
-                src="/discord_onyu_logo_03.png"
+                src="/brand/img_onyu_cat.png"
                 alt="Onyu 로고"
                 width={FOOTER_LOGO_SIZE}
                 height={FOOTER_LOGO_SIZE}
