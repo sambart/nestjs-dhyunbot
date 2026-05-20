@@ -48,9 +48,7 @@
     "voice": "음성 설정",
     "inactiveMember": "비활동 회원 설정",
     "voiceHealth": "자가진단 설정",
-    "music": "음악 설정",
     "diagnosis": "서버 진단",
-    "coPresence": "Co-Presence 설정",
     "privacy": "사생활 설정",
     "sectionTitle": "설정"
   },

@@ -252,9 +252,13 @@ export interface LlmSummaryResponse {
   reason?: 'quota_exhausted';
 }
 
+/** 베스트 프렌드 집계 허용 기간(일) */
+// eslint-disable-next-line no-magic-numbers -- 도메인 허용 기간(일) 상수
+export type ValidBestFriendPeriod = 7 | 30 | 90;
+
 /**
  * Bot ↔ API 캔버스 PNG 응답 공통 형식.
- * /me, /best-friend, /affinity 모두 동일한 응답 셰이프를 사용한다.
+ * /me, /best-friend 모두 동일한 응답 셰이프를 사용한다.
  */
 export interface CanvasCardResponse {
   ok: boolean;
@@ -268,23 +272,6 @@ export interface CanvasCardResponse {
 export type MeProfileResponse = CanvasCardResponse;
 
 export type BestFriendCardResponse = CanvasCardResponse;
-export type AffinityCardResponse = CanvasCardResponse;
-
-// ── User Privacy ──
-
-export interface UpsertUserPrivacyDto {
-  /** true: 친밀도/베프 노출 비공개 (opt-out 활성). false: 공개. */
-  disableRelationshipShare: boolean;
-}
-
-export interface UserPrivacyResponse {
-  ok: boolean;
-  data: {
-    guildId: string;
-    userId: string;
-    disableRelationshipShare: boolean;
-  } | null;
-}
 
 // ── Voice Sync (봇 시작 시 기존 음성 채널 사용자 동기화) ──
 
@@ -330,29 +317,6 @@ export interface CoPresenceMemberActivity {
   userId: string;
   gameName: string | null;
   applicationId: string | null;
-}
-
-// ── Music Channel ──
-
-export interface MusicButtonConfigItem {
-  type: string;
-  label: string;
-  emoji: string;
-  enabled: boolean;
-  row: number;
-}
-
-export interface MusicChannelConfigResponse {
-  id: number;
-  guildId: string;
-  channelId: string;
-  messageId: string | null;
-  embedTitle: string | null;
-  embedDescription: string | null;
-  embedColor: string | null;
-  embedThumbnailUrl: string | null;
-  buttonConfig: { buttons: MusicButtonConfigItem[] };
-  enabled: boolean;
 }
 
 // ── Moco Canvas ──

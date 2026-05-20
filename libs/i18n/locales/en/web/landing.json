@@ -1,7 +1,7 @@
 {
   "hero": {
     "badge": "Completely Free",
-    "description": "A Discord bot that supports voice channel statistics, automatic channel creation, music playback, and more",
+    "description": "A Discord bot that supports voice channel statistics, automatic channel creation, AI voice analysis, and more",
     "cta": {
       "invite": "Add to Server",
       "features": "Features"
@@ -18,10 +18,6 @@
       "title": "Auto Channel Creation",
       "description": "A personal channel is automatically created when you join a designated voice channel, and deleted when everyone leaves",
       "detail": "Joining a designated waiting channel instantly creates a personal channel, optionally via a selection screen. Channels are automatically deleted when everyone leaves."
-    },
-    "music": {
-      "title": "Music Playback",
-      "description": "Play YouTube music in a voice channel with the /play command"
     },
     "gemini": {
       "title": "Gemini Voice Analysis",

@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, Hash, Loader2, Mic, Music } from 'lucide-react';
+import { Bot, Hash, Loader2, Mic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -9,7 +9,6 @@ import { fetchGuildCommands } from '../../../lib/discord-api';
 import { useSettings } from '../../SettingsContext';
 
 function getCommandIcon(name: string): React.ElementType {
-  if (['play', 'stop', 'skip'].includes(name)) return Music;
   if (name.startsWith('voice-') || name === 'my-voice-stats') return Mic;
   if (name === 'community-health') return Bot;
   return Hash;
@@ -46,9 +45,7 @@ export default function SettingsPage() {
               <Hash className="w-5 h-5 text-gray-400" />
               <span className="text-sm text-gray-700">{t('general.commandPrefix')}</span>
             </div>
-            <span className="text-sm font-mono bg-gray-100 px-3 py-1 rounded">
-              !
-            </span>
+            <span className="text-sm font-mono bg-gray-100 px-3 py-1 rounded">!</span>
           </div>
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center space-x-3">
@@ -64,9 +61,7 @@ export default function SettingsPage() {
 
       {/* 슬래시 커맨드 목록 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          {t('general.slashCommands')}
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('general.slashCommands')}</h2>
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
@@ -85,9 +80,7 @@ export default function SettingsPage() {
                   className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <Icon className="w-4 h-4 text-indigo-500" />
-                  <span className="text-sm font-mono font-medium text-gray-900">
-                    /{cmd.name}
-                  </span>
+                  <span className="text-sm font-mono font-medium text-gray-900">/{cmd.name}</span>
                   <span className="text-sm text-gray-500">{cmd.description}</span>
                 </div>
               );

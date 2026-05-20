@@ -763,7 +763,7 @@ PRD F-WEB-015에 따라 사이드바는 그룹 기반 구조로 구성되며, F-
 
 **관련 영역**: 인프라 + monitoring 도메인(API) + bot 프로세스
 
-`docker-compose.yml`은 현재 api, bot, web, lavalink, db, redis 서비스를 정의한다. monitoring 전환에서 Prometheus, Grafana, Alertmanager, Node Exporter, postgres-exporter, redis-exporter 6개 서비스를 추가한다. 동시에 api와 bot 서비스의 포트 노출 설정이 Prometheus scrape과 관련된다.
+`docker-compose.yml`은 현재 api, bot, web, db, redis 서비스를 정의한다. monitoring 전환에서 Prometheus, Grafana, Alertmanager, Node Exporter, postgres-exporter, redis-exporter 6개 서비스를 추가한다. 동시에 api와 bot 서비스의 포트 노출 설정이 Prometheus scrape과 관련된다.
 
 #### 추가 서비스
 

@@ -71,7 +71,7 @@
 [redis-exporter :9121]  ───────────►  Prometheus
 
 [Docker 컨테이너 로그]
-  API / Bot / Web / Lavalink 컨테이너
+  API / Bot / Web 컨테이너
        │ (Docker 소켓)
        ▼
   [Promtail]
@@ -246,7 +246,7 @@ scrape_configs:
 #### Promtail 구성
 
 - Docker 소켓(`/var/run/docker.sock`) 마운트 방식으로 컨테이너 로그 자동 수집
-- 수집 대상: `api`, `bot`, `web`, `lavalink` 컨테이너 (`prometheus`, `grafana`, `alertmanager`, `node-exporter`, `postgres-exporter`, `redis-exporter`, `loki`, `promtail` 제외)
+- 수집 대상: `api`, `bot`, `web` 컨테이너 (`prometheus`, `grafana`, `alertmanager`, `node-exporter`, `postgres-exporter`, `redis-exporter`, `loki`, `promtail` 제외)
 - 라벨링:
 
   | 라벨 | 소스 | 예시 값 |

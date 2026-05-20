@@ -47,26 +47,6 @@
       },
       "status": "implemented"
     },
-    "music": {
-      "description": "디스코드 음성 채널 음악 재생/제어 (Lavalink + Kazagumo, 음악채널 설정)",
-      "prd": "/docs/specs/prd/music.md",
-      "userflow": "/docs/specs/userflow/music.md",
-      "database": "/docs/specs/database/_index.md",
-      "code": {
-        "api": "apps/api/src/music/",
-        "bot": "apps/bot/src/music/",
-        "web": "apps/web/app/settings/guild/[guildId]/music/",
-        "migrations": [
-          "apps/api/src/migrations/1776100000000-AddMusicChannelConfig.ts"
-        ],
-        "tests": [
-          "apps/bot/src/music/**/*.spec.ts",
-          "apps/api/src/music/**/*.spec.ts",
-          "apps/web/app/settings/guild/[guildId]/music/__tests__/**"
-        ]
-      },
-      "status": "implemented"
-    },
     "auth": {
       "description": "Discord OAuth2 인증, JWT 세션 관리",
       "prd": "/docs/specs/prd/auth.md",

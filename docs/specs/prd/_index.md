@@ -2,7 +2,7 @@
 
 ## 프로젝트 개요
 
-Onyu은 디스코드 서버의 음성 채널 활동을 실시간 추적하고, AI 기반 분석 리포트를 제공하며, 음악 재생 기능을 갖춘 다목적 디스코드 봇이다.
+Onyu은 디스코드 서버의 음성 채널 활동을 실시간 추적하고, AI 기반 분석 리포트를 제공하는 다목적 디스코드 봇이다.
 
 ### 기술 스택
 | 계층 | 기술 |
@@ -26,7 +26,6 @@ libs/shared/  → 공유 타입 및 상수
 |--------|------|----------|
 | voice | 음성 채널 접속 추적, 세션 관리, 일별 통계 집계, 자동방 생성 | [voice.md](voice.md) |
 | gemini | AI 기반 음성 활동 분석 및 리포트 생성 | [gemini.md](gemini.md) |
-| music | 디스코드 음성 채널 음악 재생/제어 | [music.md](music.md) |
 | auth | Discord OAuth2 인증, JWT 세션 관리 | [auth.md](auth.md) |
 | web | 웹 대시보드 UI (음성 통계, 서버 관리, 자동방 설정) | [web.md](web.md) |
 | newbie | 신규사용자 관리 (환영인사, 미션 추적, 모코코 사냥, 신입기간 역할) | [newbie.md](newbie.md) |
@@ -55,20 +54,11 @@ libs/shared/  → 공유 타입 및 상수
 - 주간 자동 리포트 — 관리자가 설정한 채널에 매주 서버 건강도 요약 Embed 자동 전송
 - ~~`/voice-stats`, `/my-voice-stats`, `/community-health`, `/voice-leaderboard`~~ — 사용률 저조로 삭제, 웹 대시보드로 이관
 
-### 3. 음악 재생 (music)
-- `/play` — YouTube · Spotify · SoundCloud URL 및 검색어 기반 음악 재생 (플레이리스트 일괄 큐 추가 포함)
-- `/skip` — 현재 곡 건너뛰기
-- `/stop` — 재생 중지 및 채널 퇴장
-- `/pause` — 일시정지
-- `/resume` — 재개
-- 모든 커맨드 응답에 Now Playing Embed (트랙 제목, 아티스트, 진행바, 현재시간/총시간) 포함
-- 오디오 처리: Lavalink v4(Docker) + Kazagumo v3(Shoukaku v4 래퍼)
-
-### 4. 인증 (auth)
+### 3. 인증 (auth)
 - Discord OAuth2 로그인
 - JWT 토큰 발급 (1시간 만료)
 
-### 5. 웹 대시보드 (web)
+### 4. 웹 대시보드 (web)
 - 랜딩 페이지 (기능 소개)
 - Discord OAuth 로그인 흐름
 - 대시보드 (프로토타입 단계)
@@ -78,51 +68,51 @@ libs/shared/  → 공유 타입 및 상수
 - 개인정보처리방침/이용약관
 - 에러 바운더리
 
-### 6. 자동방 생성 (auto-channel)
+### 5. 자동방 생성 (auto-channel)
 - 트리거 채널 입장 시 대기방 자동 생성 및 사용자 이동
 - 안내 메시지 + Discord Button Component로 확정방 선택
 - 하위 선택지 Ephemeral 버튼으로 세부 유형 선택
 - 확정방 전환 시 voice 세션 추적 통합
 - 모든 사용자 퇴장 시 채널 즉시 삭제
 
-### 7. 신규사용자 관리 (newbie)
+### 6. 신규사용자 관리 (newbie)
 - `guildMemberAdd` 이벤트 기반 환영 Embed 메시지 자동 전송 (템플릿 변수 지원)
 - 신규 가입 시 음성 채널 플레이타임(채널 접속 시간 또는 마이크 ON 시간 선택 가능) 기반 미션 자동 생성 및 완료/실패 상태 추적
 - 기존 멤버가 신규사용자와 동시 음성 채널 접속한 시간·횟수·다양성을 점수 기반으로 집계 (모코코 사냥) 및 TOP N 순위 채널 Embed 표시
 - 신입기간 만료 시 Discord 역할 자동 제거 (미션 완료 여부와 독립)
 
-### 8. 게임방 상태 접두사 (status-prefix)
+### 7. 게임방 상태 접두사 (status-prefix)
 - 관리자가 웹에서 접두사 버튼 목록, Embed 안내 메시지, 표시 채널, 접두사 형식 템플릿 설정
 - 설정 저장 시 지정 텍스트 채널에 Embed + 버튼 메시지 전송/갱신
 - 사용자가 버튼 클릭 시 닉네임이 템플릿 형식으로 변경 (예: `[관전] 동현`)
 - 다른 접두사 버튼 클릭 시 기존 접두사가 새 접두사로 교체
 - 음성 채널 퇴장 시 원래 닉네임으로 자동 복원 (voice 도메인 연계)
 
-### 9. 일반설정 (general)
+### 8. 일반설정 (general)
 - discord-nestjs `ExplorerService` 기반 슬래시 커맨드 자동 탐색 및 등록 (`discord.config.ts` 수동 배열 제거)
 - `GET /api/guilds/:guildId/commands` — Discord API에서 실제 등록된 슬래시 커맨드 목록 조회
 - 일반설정 페이지에서 하드코딩 커맨드 목록을 제거하고 API 기반 동적 렌더링으로 전환
 
-### 10. 고정메세지 (sticky-message)
+### 9. 고정메세지 (sticky-message)
 - 등록된 텍스트 채널에 새 메시지가 올라오면 기존 고정메세지를 삭제하고 재전송하여 항상 채널 최하단 유지
 - 디바운스(3초) 적용으로 연속 메시지 시 불필요한 재전송 방지
 - `/고정메세지등록`, `/고정메세지목록`, `/고정메세지삭제` 슬래시 커맨드 (관리자 전용)
 - 웹 대시보드에서 채널·Embed 설정(제목, 설명, 색상, 이모지 피커) 및 실시간 미리보기 제공
 - 채널당 여러 개 고정메세지 등록 가능, Redis 캐시 기반 고속 처리
 
-### 11. 봇 모니터링 (monitoring)
+### 10. 봇 모니터링 (monitoring)
 - 실시간 봇 상태 조회 (온라인/오프라인, 업타임, 핑, 메모리, 음성 접속자)
 - 1분 간격 메트릭 수집 및 PostgreSQL 시계열 저장
 - 웹 대시보드에서 업타임 히스토리, 핑 추이, 메모리 추이, 시간대별 접속자 차트 제공
 - 30일 보존 정책 자동 삭제
 
-### 12. 비활동 회원 관리 (inactive-member)
+### 11. 비활동 회원 관리 (inactive-member)
 - `VoiceDailyEntity` 기반 매일 자정 비활동 분류 스케줄러 (FULLY_INACTIVE / LOW_ACTIVE / DECLINING)
 - 웹 대시보드에서 비활동 회원 목록 조회, 등급/기간/닉네임 필터 및 검색
 - DM 알림 전송, 역할 부여/제거 일괄 조치 및 자동 조치 규칙 설정
 - 활동률 파이 차트 및 최근 30일 비활동 추이 라인 차트 (`InactiveMemberTrendDaily` 스냅샷 기반)
 
-### 13. 친밀도 그래프 + 베스트 프렌드 (voice-co-presence Phase 5)
+### 12. 친밀도 그래프 + 베스트 프렌드 (voice-co-presence Phase 5)
 
 - `/best-friend` (`친한친구`) — 본인 베스트 프렌드 TOP 5 Canvas PNG 카드. 아바타·친밀도 바·AI 한 줄 코멘트 포함 (F-COPRESENCE-014)
 - `/affinity` (`친밀도`) — 두 사람 사이 동시접속 통계 Canvas PNG 카드. 일별 추이 미니 차트 포함 (F-COPRESENCE-015)
@@ -130,12 +120,12 @@ libs/shared/  → 공유 타입 및 상수
 - opt-out 사생활 설정 (`/privacy` 커맨드 + 웹 설정 페이지) — 기본 공개, 비공개 전환 시 타인 조회에서 익명화(`???`) (F-COPRESENCE-017)
 - Gemini `LlmProvider` 활용 AI 한 줄 코멘트 — 길드 일일 한도 + 인메모리 LRU 5분 캐시 (F-COPRESENCE-018)
 
-### 14. 데이터 보존 및 삭제
+### 13. 데이터 보존 및 삭제
 - 90일 자동 삭제 스케줄러 (매일 04:00 KST, `DATA_RETENTION_DAYS` 환경변수)
 - 삭제 대상: `VoiceDailyEntity`, `VoiceChannelHistory`, `VoiceCoPresencePairDaily`, `VoiceGameActivity`
 - 사용자 데이터 삭제 API (`DELETE /api/users/me/data`) — 본인 음성 활동 데이터 전 길드 삭제
 
-### 15. API 보안
+### 14. API 보안
 - Rate Limiting: 전역 60 req/min, auth 5 req/min, voice-analytics 10 req/min (`@nestjs/throttler`)
 - 보안 헤더: `helmet` 미들웨어 (CSP, X-Frame-Options, HSTS 등)
 - Guild 접근 제어: `GuildMembershipGuard` — JWT guilds 목록과 요청 guildId 대조, `/api/guilds/:guildId/*` 전역 적용

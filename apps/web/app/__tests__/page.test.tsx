@@ -4,10 +4,9 @@
  * 유저 관점 검증 항목:
  * 1. 6개 섹션(네비/Hero/Features/SetupGuide/CtaBand/Footer) 모두 렌더링
  * 2. 기능 카드 6개 (음성통계, 자동채널, AI분석, 신규멤버, 대시보드, 비활동회원) 렌더링
- * 3. 음악(music) 기능 카드 미렌더링 확인
- * 4. DISCORD_CLIENT_ID 없을 때 Hero 초대 버튼 숨김, 있을 때 표시
- * 5. 주요 이미지 alt 속성 존재
- * 6. 랜드마크 구조 존재
+ * 3. DISCORD_CLIENT_ID 없을 때 Hero 초대 버튼 숨김, 있을 때 표시
+ * 4. 주요 이미지 alt 속성 존재
+ * 5. 랜드마크 구조 존재
  *
  * page.tsx는 async 서버 컴포넌트이므로 await Home() 후 render 패턴을 사용한다.
  */
@@ -226,17 +225,6 @@ describe('랜딩 페이지 통합 테스트', () => {
       featureTitles.forEach((title) => {
         expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
       });
-    });
-  });
-
-  describe('음악 카드 미렌더링', () => {
-    it('음악 재생(music) 기능 카드가 렌더링되지 않는다', async () => {
-      delete process.env.DISCORD_CLIENT_ID;
-      await renderLandingPage();
-      // ko landing.json에 features.music.title = "음악 재생"이 존재하지만
-      // FEATURE_BLOCKS에는 music 키가 없으므로 렌더링되어서는 안 된다
-      expect(screen.queryByRole('heading', { name: '음악 재생' })).not.toBeInTheDocument();
-      expect(screen.queryByText('/play 명령어')).not.toBeInTheDocument();
     });
   });
 
