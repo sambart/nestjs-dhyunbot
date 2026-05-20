@@ -31,7 +31,8 @@ import { GuildCoPresenceConfigController } from './presentation/guild-co-presenc
       VoiceCoPresencePairDailyOrm,
       GuildCoPresenceConfigOrm,
     ]),
-    VoiceChannelModule,
+    // VoiceChannelModule ↔ VoiceAnalyticsModule ↔ CoPresenceModule 순환 — forwardRef로 해소
+    forwardRef(() => VoiceChannelModule),
     UserPrivacyModule,
     CanvasModule,
     GuildMemberModule,
