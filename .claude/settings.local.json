@@ -2,6 +2,7 @@
   "permissions": {
     "allow": [
       "Bash(*)",
+      "PowerShell(*)",
       "WebSearch",
       "WebFetch(domain:ai.google.dev)"
     ]

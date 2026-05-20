@@ -23,6 +23,19 @@ color: red
 
 ---
 
+## 코드 표면적 제약 (manifest `code.*`)
+
+파이프라인 호출 시 prompt에 `[코드 표면적]` 블록(`code.api`/`code.bot`/`code.web`/`code.tests` 등)이 전달된다. 다음 규칙을 따른다.
+
+* 테스트 작성 위치는 `[코드 표면적]`의 `code.tests` 패턴 + 대상 코드(`code.web` — `@onyu/web`) 옆 해당 앱 컨벤션(`__tests__/` 또는 colocated)을 따른다.
+* 테스트 대상 코드는 `[코드 표면적]`에 명시된 경로(`code.web`) 안의 것만으로 한정한다. 그 밖의 도메인/모듈 코드를 테스트 대상으로 임의 확장하지 않는다.
+* import하는 컴포넌트·훅·유틸도 `[코드 표면적]` 안쪽 또는 공유 패키지(`@onyu/*`)로 한정한다.
+* `[코드 표면적]` 밖의 코드는 분석을 위해 읽되, 테스트 작성 대상에는 포함하지 않는다.
+* `[코드 표면적]` 블록이 prompt에 없다면(레거시 호출) 본 규칙은 best-effort로만 적용하고, 범위가 모호하면 질문한다.
+* **(재확인)** 본 규칙은 「구현을 추측·수정하지 않는다」는 핵심 룰을 대체하지 않는다. 테스터는 구현 코드를 수정하지 않는다.
+
+---
+
 ## 1단계: 문서 분석 (Specification Analysis)
 
 ### 분석 순서 (강제)
@@ -38,7 +51,7 @@ color: red
 * 공통 모듈: `/docs/specs/common-modules.md`
 * `/docs/plans/pages/N-name/{plan,state}.md`
 * `/docs/external/*.md`
-* {domain}: evaluation, weight, question, participant, department, admin-results, user-auth, user-assessment, user-results
+* {domain} 목록: `/docs/specs/feature-manifest.json` 의 `domains` 키를 진실의 소스로 사용 (하드코딩 금지)
 
 ### 문서에서 반드시 추출할 것
 
@@ -58,7 +71,7 @@ color: red
 | --- | --- | --- | --- |
 | Unit | 순수 유틸 함수, 복잡한 커스텀 훅 | 선별적 | 계산 로직, 데이터 변환, 조건 분기 등 순수 로직만 |
 | **Integration** | **페이지 단위** | **주력** | **유저 시나리오 기반 + API mocking + 전체 흐름 검증** |
-| E2E | 핵심 플로우 | 선택적 | 로그인→평가→제출 같은 크로스 페이지 시나리오 |
+| E2E | 핵심 플로우 | 선택적 | 로그인→음성 기록 조회 같은 크로스 페이지 시나리오 |
 
 ### Unit 테스트 작성 대상 (이것만)
 
@@ -120,11 +133,11 @@ color: red
 ### 통합 테스트 템플릿 (유저 시나리오 중심)
 
 ```
-describe('평가 제출 페이지', () => {
-  it('사용자가 모든 항목을 채우고 제출하면 성공 메시지가 표시된다', async () => {
-    // Given: 페이지 렌더 + API mock
-    // When: 유저가 항목 입력 → 제출 버튼 클릭
-    // Then: 성공 메시지 표시, 목록 페이지로 이동
+describe('음성 활동 대시보드 페이지', () => {
+  it('로그인한 사용자가 페이지에 진입하면 음성 활동 통계가 표시된다', async () => {
+    // Given: 페이지 렌더 + API mock (음성 통계 응답)
+    // When: 유저가 기간 필터를 선택
+    // Then: 선택 기간의 음성 활동 차트/목록이 갱신되어 표시
   })
 
   it('API 실패 시 에러 메시지가 표시된다', async () => {

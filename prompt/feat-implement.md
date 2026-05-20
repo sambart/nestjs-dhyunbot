@@ -7,14 +7,23 @@
 ## 실행 모드: 자율 연속 실행
 
 > **이 프롬프트는 참조 문서가 아닌 실행 명령이다.**
-> Phase 0부터 Phase 7까지 사용자 개입 없이 자율적으로 끝까지 실행한다.
+> Phase 0(도메인 결정) → Phase 0.5(규모 판단) → 규모에 따라 필요한 Phase만 자율 실행한다.
 
 ### 자율 실행 규칙
 1. **중단 금지**: 에이전트 호출 결과를 받은 즉시 다음 단계를 호출한다. 사용자에게 "결과를 보고하고 대기"하지 않는다.
 2. **Phase 자동 전환**: 현재 Phase의 모든 단계가 완료되면, 사용자 확인 없이 다음 Phase로 진행한다.
 3. **중간 보고 생략**: Phase 간 전환 시 사용자에게 "다음 단계로 진행할까요?"라고 묻지 않는다. TodoWrite로 진행 상황을 업데이트하는 것으로 충분하다.
-4. **멈춰야 하는 경우**: (1) 3회 연속 실패 시, (2) Phase 3.5(계획 확인) 단계에서 사용자 승인 대기 시.
+4. **멈춰야 하는 경우 (HITL 게이트 — 강제)**:
+   - (a) 회귀 규칙에 따른 **3회 연속 실패** 시
+   - (b) **Phase 3.5(계획 확인)** 단계에서 사용자 승인 대기 시 (단, 아래 P0-1 게이트 발동 시 우선 정지)
+   - (c) 산출물에 **법무 / 결제 / 권한 / DB 파괴적 변경** 4 분야 결정이 `🔴` 마커로 포함된 경우
+     - DB 파괴적 변경 예시: `DROP TABLE` / `DELETE FROM` / 컬럼 제거 / TypeORM destructive 마이그레이션 (`dropColumn` / `dropTable` / `down()` 강제 적용 등)
+     - 권한: 인증/인가 정책 변경, 역할/스코프 신설·확대, 토큰 발급 정책 변경
+     - 결제: 과금/환불/구독 상태 전이, 외부 결제 연동 호출
+     - 법무: 약관/개인정보/데이터 보관·삭제 정책에 영향을 주는 결정
+   - 4 분야 `🔴` 마커 발견 시 메인 세션이 사용자에게 **명시 답변을 받기 전까지 후속 Phase 진행 금지**.
 5. **진행 추적**: 파이프라인 시작 시 TodoWrite로 전체 Phase를 등록하고, 각 단계 완료마다 상태를 갱신한다.
+6. **산출물 마커 grep (각 Phase 끝 — 강제)**: 각 Phase 종료 직후 메인 세션은 해당 Phase 산출물 (`/docs/specs/prd/*.md`, `/docs/specs/database/*.md`, `/docs/plans/**/*.md`) 을 `🔴` 키워드로 grep 한다. 매치 발견 시 4항(c) 게이트 발동 — 후속 Phase 진행 정지 + 사용자 보고 (해당 마커 라인 + 분야 분류 첨부).
 
 ### 에이전트 호출 패턴
 ```
@@ -35,67 +44,146 @@
 - 단계 실패 시 에러를 보고하고 해당 단계를 재시도한다. (최대 3회)
 - 3회 재시도 후에도 실패하면 사용자에게 보고하고 대기한다.
 
-## 도메인 결정 (Phase 0)
-파이프라인 시작 전, 작업 대상 기능이 속하는 **도메인**을 결정한다.
-- 도메인 목록: `voice`, `music`, `member`, `channel`, `auth`, `gemini`, `web`, `newbie`, `status-prefix`, `general`, `sticky-message`, `monitoring`, `voice-co-presence`, `inactive-member`
-- 결정된 도메인에 해당하는 문서만 각 에이전트에 전달하여 컨텍스트를 최소화한다.
+## Phase 0: 도메인 결정 & 코드 표면적 resolve
+파이프라인 시작 전, 작업 대상 기능이 속하는 **도메인**을 결정하고 **코드 위치**를 함께 resolve 한다.
 
 ### 프로젝트 구조
 ```
 onyu/
 ├── apps/
 │   ├── api/          # NestJS Backend (TypeORM + PostgreSQL + Redis + Discord.js)
+│   ├── bot/          # Discord.js 봇
 │   └── web/          # Next.js Frontend Dashboard (React 19 + Tailwind CSS)
 ├── libs/
 │   └── shared/       # 공유 타입 및 상수
 ├── docs/
-│   └── specs/        # 기능 명세 문서
-│       ├── prd/      # PRD 문서
-│       └── database/ # DB 스키마 문서
+│   ├── specs/        # 기능 명세 문서 (prd/ , database/ , feature-manifest.json)
+│   └── plans/        # 구현 계획 문서
 └── prompt/           # AI 워크플로우 프롬프트
 ```
 
-### 문서 참조 규칙
-| 문서 유형 | 전역 (항상 읽음) | 기능별 (도메인에 따라 선택) |
+### Phase 0-A. 도메인 결정 (매니페스트 기반 동적 resolve)
+
+- **도메인 목록은 `/docs/specs/feature-manifest.json` 의 `domains` 키를 진실의 소스로 사용한다.** 매니페스트가 변경되면 새 도메인이 자동으로 사용 가능하므로, **본 문서나 에이전트에 도메인을 하드코딩하지 않는다.**
+- 매니페스트에서 작업 대상 도메인을 식별한 뒤, 도메인별 관련 문서 경로(`prd`, `userflow`, `database`)를 resolve 한다.
+- resolve된 문서 경로만 각 에이전트 호출 시 prompt에 전달하여 컨텍스트를 최소화한다.
+
+#### 문서 참조 규칙
+| 문서 유형 | 전역 (항상 읽음) | 기능별 (manifest resolve) |
 |-----------|-----------------|---------------------------|
-| PRD | `/docs/specs/prd/_index.md` | `/docs/specs/prd/{domain}.md` |
-| DB 스키마 | `/docs/specs/database/_index.md` | — |
+| PRD | `/docs/specs/prd/_index.md` | `domains.{domain}.prd` |
+| Userflow | — | `domains.{domain}.userflow` |
+| DB 스키마 | `/docs/specs/database/_index.md` | `domains.{domain}.database` |
+
+### Phase 0-B. 코드 표면적 resolve (manifest `code` / `status`)
+
+각 도메인 항목의 `code.*` 경로와 `status` 값을 함께 resolve 한다. 이후 모든 에이전트 prompt에 코드 위치를 함께 전달하여, 에이전트가 Glob/Grep으로 코드를 재탐색하지 않도록 한다.
+
+**매니페스트 스키마** (B/C 에이전트와 합의):
+```
+domains.{도메인}.{ prd, userflow, database,
+                   code.{ api, bot, web, migrations, tests },
+                   status }
+```
+
+#### Resolve 절차
+
+1. manifest에서 도메인의 `code` 객체와 `status` 값을 읽는다.
+2. `code.*`의 각 경로가 **실재하는지** 검증한다 (디렉토리/파일 존재 확인).
+3. 검증 결과에 따라 분기:
+
+| 경우 | 처리 |
+|---|---|
+| `code` 키가 존재하고 모든 경로 실재 | 정상. `code.*` 경로를 그대로 후속 Phase에 전달 |
+| `code` 키가 존재하나 일부 경로 누락 | **warning** 출력 + 누락 경로 제외하고 진행. status는 유지 |
+| `code` 키 자체가 없음 | status를 `not-started`로 **자동 다운그레이드** + warning |
+
+4. status별 작업 모드:
+
+| status | 모드 |
+|---|---|
+| `not-started` | **신규 생성 모드**. plan-writer에 "신규 디렉토리 생성 필요" 플래그 전달 |
+| `scaffolded` | **부분 구현 모드**. 기존 자산(예: 마이그레이션)은 유지, 미존재 영역만 신규 생성 |
+| `implemented` | **수정 모드**. 모든 변경은 `code.*` 안으로 한정 |
+
+**신규 path 결정 주체** (`status: not-started` / 부분 entry 케이스):
+1. **plan-writer 가 1차 제안** — manifest 의 기존 도메인 path 패턴 (예: `apps/api/src/modules/{도메인}/`, `apps/bot/src/{도메인}/`, `apps/web/src/{도메인}/`) 을 기반으로 신규 path 제안
+2. **메인 세션이 Phase 3.5 에서 사용자 확인** — plan.md "manifest 갱신 필요" § 의 신규 경로를 사용자에게 확인 (자동 진행 X — 도메인 구조 결정은 후속 사이클에 영향)
+3. **사용자 확정 후 implementer 가 그 경로로 코드 생성** — Phase 4 implementer 는 plan-writer 가 명시한 경로만 사용. 임의 변경 금지
+
+#### 에이전트 prompt 주입 룰
+
+각 에이전트 호출 시 다음 블록을 prompt에 자동 삽입한다 (해당하는 키만):
+
+```
+[코드 표면적]
+- BE (api): {code.api}
+- Bot: {code.bot}
+- Web: {code.web}
+- Migrations: {code.migrations}
+- Tests: {code.tests}
+- Status: {status}
+
+위 경로 밖으로 코드를 만들거나 수정하지 말 것. 새 위치가 필요하면 보고하고 manifest 갱신을 요청할 것.
+```
+
+#### Phase 7과의 연계
+- 신규 도메인을 만들었거나 `status`가 변경되었으면, **Phase 7 완료 단계에서 manifest를 갱신**한다.
+- 갱신 누락은 다음 사이클의 Phase 0 진입 비용 증가로 직결되므로 Phase 7 체크리스트의 필수 항목이다.
+
+## Phase 0.5: 작업 규모 판단
+
+도메인/코드 표면적 resolve 직후, 요구사항의 규모를 판단하여 **불필요한 Phase를 스킵**한다.
+
+| 규모  | 조건 (하나 이상 해당)                                              | 실행 Phase                                | 스킵 세부 규칙                                                                        |
+| ----- | ----------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| **S** | 버그 수정, 텍스트/스타일 변경, 설정값 수정, 기존 API 파라미터 추가 | 0 → 0.5 → 3.5(요약) → 4 → 5 → 6 → 7        | Phase 1·2 스킵. 기존 plan이 있으면 Phase 3도 스킵. DB 변경 없음 전제                   |
+| **M** | 기존 기능 수정/개선, 새 엔드포인트 1~2개, 기존 페이지에 컴포넌트 추가 | 0 → 0.5 → 1(선택) → 2(조건부) → 3 → 3.5 → 4 → 5 → 6 → 7 | Phase 1: PRD/userflow 변경 필요 시만. Phase 2: DB 변경 없으면 critic+migration 스킵    |
+| **L** | 신규 기능 추가, DB 스키마 변경, 새 모듈/도메인 생성               | 0 → 0.5 → 1 → 2 → 3 → 3.5 → 4 → 5 → 6 → 7  | 전체 실행                                                                              |
+
+- **판단 불가 시**: M으로 시작하고, Phase 진행 중 DB 변경이나 신규 모듈이 필요하면 L로 격상한다.
+- **사용자가 규모를 명시한 경우** 해당 규모를 따른다.
+- Phase 3.5(사용자 승인)는 **모든 규모에서 유지**한다 (단, S는 변경 요약만 짧게 제시).
 
 ## 실행 파이프라인
 
-### Phase 1: 문서 작성
-1. [prd-writer] → 입력: 요구사항 / 출력: `/docs/specs/prd/{domain}.md` 갱신
+### Phase 1: 문서 작성 (M 선택적 / L 필수)
+1. [prd-writer] → 입력: 요구사항 + resolve된 도메인 문서 경로 / 출력: `domains.{domain}.prd` 갱신
 
-### Phase 2: 설계
+### Phase 2: 설계 (M 조건부 / L 필수)
 2. [database-architect] → 입력: PRD diff / 출력: `/docs/specs/database/_index.md` (변경 시)
-3. [database-critic] → 입력: database/_index.md diff / 출력: 리뷰 반영된 database/_index.md
-4. **[Migration 생성]** → 조건: database/_index.md 변경 시 또는 신규 Entity 추가 시
-    - **Entity 파일이 이미 존재하는 경우**: Entity 파일 수정
-    - **Entity 파일이 없는 경우**: PRD/DB 스키마 문서를 기반으로 Entity 파일 신규 작성 후 모듈에 등록
-    - 자동 생성 시도: 컨테이너 내에서 `docker exec -w //workspace/apps/api nest-api sh -c "TS_NODE_TRANSPILE_ONLY=1 TS_NODE_COMPILER_OPTIONS='{\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strict\":false,\"useDefineForClassFields\":false}' ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate src/migrations/{timestamp}-{Name} -d src/data-source.ts"` 실행
-    - **자동 생성 결과 검토**: TypeORM `migration:generate`는 현재 Entity와 DB 스키마의 **전체 diff**를 출력하므로, 불필요한 변경(기존 인덱스/FK 재생성, 컬럼 타입 재정의 등)이 포함될 수 있다. 이 경우 **해당 기능에 필요한 변경만 포함하도록 마이그레이션 파일을 수동으로 정리**한다.
-    - **수동 작성이 필요한 경우**: 자동 생성 실패 또는 결과가 지나치게 복잡할 때, PRD의 데이터 모델 정의를 기반으로 `CREATE TABLE`, `CREATE INDEX` SQL을 직접 작성한다.
-    - 마이그레이션 실행: `docker exec -w //workspace/apps/api nest-api sh -c "TS_NODE_TRANSPILE_ONLY=1 TS_NODE_COMPILER_OPTIONS='{\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true,\"strict\":false,\"useDefineForClassFields\":false}' ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts"` 로 실행하여 테이블 생성 확인
-    - 출력: `/apps/api/src/migrations/*.ts`
+3. [database-critic] → 조건: DB 변경 있을 때만 / 입력: database/_index.md diff / 출력: 리뷰 반영된 database/_index.md
+4. **[Migration 계획 작성]** → 조건: database/_index.md 변경 시 또는 신규 Entity 추가 시
+    - 본 Phase에서는 **계획만 작성**한다. Entity 파일 편집·`migration:generate`·`migration:run` 실행은 **Phase 4 implementer 가 단독 수행**한다 (TypeORM/docker 실행 명령은 implementer.md "마이그레이션 실행" § 참조 — 본 문서에 docker 명령 하드코딩하지 않음).
+    - 출력: `/docs/specs/database/_index.md` 안에 "마이그레이션 변경 계획" § 작성
+      - 현재 스키마와 diff, 신규/변경 Entity·컬럼·인덱스·관계
+      - 예상 migration 이름 (영문, 타임스탬프-Name 형식)
+      - **DB 파괴적 변경(컬럼/테이블 제거, destructive 옵션) 포함 시 해당 항목에 `🔴` 마커를 붙인다** → Phase 2 종료 시 grep 게이트 발동
+    - **자동 생성 결과 정리 지침** (implementer에 전달): TypeORM `migration:generate`는 전체 diff를 출력하므로 불필요한 변경(기존 인덱스/FK 재생성 등)이 포함될 수 있다. 해당 기능에 필요한 변경만 남기도록 정리한다. 자동 생성이 실패하거나 과도하게 복잡하면 PRD 데이터 모델 기반으로 `CREATE TABLE`/`CREATE INDEX` SQL을 직접 작성한다.
 
-### Phase 3: 계획
+### Phase 3: 계획 (S 조건부 / M·L 필수)
 5. [common-task-planner] → 조건: **다중 도메인 변경 시에만** 실행 / 입력: PRD (도메인별) / 출력: 공통 모듈 판단 결과
-6. [plan-writer] × N (병렬, 모듈 단위) → 출력: 각 모듈별 구현 계획
+6. [plan-writer] × N (병렬, 모듈 단위) → 출력: 각 모듈별 구현 계획 (`/docs/plans/*.md`)
+    - `status: not-started` / 부분 entry 도메인의 경우 신규 코드 path를 plan.md "manifest 갱신 필요" §에 1차 제안한다.
 
 ### Phase 3.5: 계획 확인 (사용자 승인)
-> **이 단계에서만 사용자 개입이 발생한다.**
+> **계획된 사용자 개입 지점이다.** (자율 실행 규칙 4항(b))
 
-- Phase 1~3의 산출물(PRD, DB 스키마, 마이그레이션, 구현 계획)을 요약하여 사용자에게 제시한다.
+- Phase 1~3의 산출물(PRD, DB 스키마, 마이그레이션 계획, 구현 계획)을 요약하여 사용자에게 제시한다.
 - 요약 항목:
   - 변경/추가된 PRD 내용
   - DB 스키마 변경 사항 (있는 경우)
-  - 생성된 마이그레이션 (있는 경우)
+  - 마이그레이션 변경 계획 (있는 경우)
   - 모듈별 구현 계획 목록
+  - **신규 도메인/코드 path 제안** (`not-started`·부분 entry 케이스 — 사용자 확정 필요)
+- **HITL 게이트 연계**: Phase 1~3 산출물에 `🔴` 마커(법무/결제/권한/DB 파괴적 변경)가 있으면, 일반 계획 승인과 **별도로 해당 결정을 명시적으로 짚어** 사용자 답변을 받는다. 마커가 없으면 통상 계획 승인 흐름으로 진행한다.
 - 사용자가 **승인**하면 Phase 4로 진행한다.
 - 사용자가 **수정 요청**하면 해당 Phase로 돌아가 반영 후 다시 Phase 3.5로 복귀한다.
 
 ### Phase 4: 구현
 7. [implementer] × N (병렬, 계획 단위) → 출력: 변경된 코드
+   - 마이그레이션이 있으면 implementer가 Entity 작성/수정 + `migration:generate`/`migration:run` 실행까지 단독 수행한다 (실행 명령은 implementer.md 참조).
+   - **권한 fallback (필수)**: sub-agent(implementer 등) 디스패치 시 Edit/Write 거부가 발생하면 (Claude Code sub-agent 권한 모델 한계 — implementer.md "실행 환경 주의" § 참조), **즉시 재시도하지 말고 메인 세션이 implementer 역할을 직접 수행**한다. 동일 sub-agent 재호출은 비결정성만 증가시킨다.
 
 ### Phase 5: 검증
 8. [quality-enforcer] × N (병렬, 구현 단위) → 입력: 변경된 코드 / 출력: 코드 품질 검수 결과 및 수정
@@ -146,27 +234,34 @@ onyu/
     - 주요 변경 사항 요약
     - 테스트 커버리지 요약 (추가된 테스트 수, 통과 현황)
 
+12. **manifest 갱신 (필수, Phase 4 implementer 단독 수행)**: 다음 중 하나라도 해당하면 `/docs/specs/feature-manifest.json`을 갱신한다.
+    - 신규 도메인이 생성됨 → 도메인 항목 추가 + `code.*`(api/bot/web/migrations/tests) + `status` 설정
+    - 기존 도메인의 `status`가 변경됨 (예: `not-started` → `scaffolded` → `implemented`)
+    - `code.*` 경로가 새로 생기거나 이동함 (예: BE 모듈 신설, 봇 핸들러/웹 페이지 추가)
+
+    manifest 갱신 누락은 다음 사이클 Phase 0 진입 비용 증가로 직결되므로, **본 단계가 끝나기 전 반드시 갱신 여부를 확인**한다. 갱신 주체는 implementer, **메인 세션은 결과 JSON 유효성 검증만** 수행한다 (직접 Edit X).
+
 ---
 
 ## 파이프라인 시각화
 
 ```
-[도메인 결정] ──AUTO──► [문서] ──AUTO──► [설계] ──AUTO──► [계획] ──STOP──► [계획 확인] ──AUTO──► [구현] ──AUTO──► [검증] ──AUTO──► [테스트] ──AUTO──► [완료]
-     │                   │                │                │                │                  │                │                │                │
-     │                   │                │                │                │                  │                │                │                │
-  0. 도메인 결정      1. prd-writer    2. db-architect  5. common-task   3.5 사용자 승인    7. implementer   8. quality-      9. tester  ──┐  11. 변경 요약
-                                        3. db-critic        planner?        (요약 제시 →       × N (병렬)      enforcer                 ├ Barrier  + 테스트
-                                        4. migration?    6. plan-writer     승인/수정)                         × N (병렬)  10. fe-tester?┘    커버리지
-                                                            × N (병렬)
-                                                                                                                             │
-                                                                                                                   실패 시 Phase 4 회귀
-                                                                                                                   (implementer 1회 호출)
-                                                                                                                   → Phase 5+6 전체 재실행
+[도메인+코드 resolve] → [규모 판단] ──► [문서] ──► [설계] ──► [계획] ──STOP──► [계획 확인] ──► [구현] ──► [검증] ──► [테스트] ──► [완료]
+        │                   │            │          │          │              │                │           │           │            │
+     Phase 0           Phase 0.5     Phase 1    Phase 2    Phase 3        Phase 3.5        Phase 4     Phase 5     Phase 6      Phase 7
+  manifest에서          S/M/L 판단    prd-writer db-architect common-task   사용자 승인 +     implementer quality-    tester ─┐    변경 요약
+  도메인+문서+code      → Phase 스킵             db-critic?   planner?      🔴 마커 결정 짚기  × N (병렬)  enforcer    fe-tester┘   + manifest
+  +status resolve                                migration계획 plan-writer×N (요약→승인/수정)  +권한fallback × N (병렬)  Barrier      갱신
+                                                                                                                       │
+                                                                                                             실패 시 Phase 4 회귀
+                                                                                                             (implementer 1회)
+                                                                                                             → Phase 5+6 전체 재실행
 
-  ※ AUTO = 사용자 확인 없이 자동 전환
+  ※ AUTO = 사용자 확인 없이 자동 전환 (Phase 간 기본)
   ※ STOP = 사용자 승인 후 진행 (Phase 3.5)
+  ※ HITL 게이트: 각 Phase 끝 산출물 🔴 grep → 법무/결제/권한/DB파괴적 마커 발견 시 후속 Phase 정지 + 사용자 보고
+  ※ 규모: S = Phase 1·2 스킵 / M = Phase 1 선택·Phase 2 조건부 / L = 전체 실행 (Phase 0.5 표 참조)
+  ※ 권한 fallback: implementer 등 sub-agent Edit/Write 거부 시 메인 세션이 직접 수행
   ※ 실패 시: 각 단계 최대 3회 재시도, 초과 시 사용자 보고
-  ※ common-task-planner는 다중 도메인 변경 시에만 실행
-  ※ 테스트(Phase 6): tester + fe-tester 병렬 실행 → Barrier → 합산 판정
-  ※ 테스트 실패 시: 실패 보고서 합산 → Phase 4 회귀 → Phase 5+6 전체 재실행 (최대 3사이클)
+  ※ 테스트(Phase 6): tester + fe-tester 병렬 → Barrier → 합산 판정 → 실패 시 Phase 4 회귀 → Phase 5+6 전체 재실행 (최대 3사이클)
 ```

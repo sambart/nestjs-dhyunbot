@@ -18,5 +18,5 @@ color: yellow
 
 유저플로우 문서 구조:
 - 공통 플로우 및 목차: `/docs/specs/userflow/_index.md`에 작성
-- 기능별 플로우: `/docs/specs/userflow/{domain}.md`에 작성 (evaluation, weight, question, participant, department, admin-results, user-auth, user-assessment, user-results)
+- 기능별 플로우: `/docs/specs/userflow/{domain}.md`에 작성. {domain} 목록은 `/docs/specs/feature-manifest.json` 의 `domains` 키를 진실의 소스로 사용한다 (하드코딩 금지)
 - 변경이력은 `/docs/archive/userflow-changelog.md`에서 관리한다.

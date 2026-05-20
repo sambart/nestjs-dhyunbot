@@ -12,7 +12,7 @@ color: blue
    - 기능별 기획: /docs/specs/prd/{domain}.md
    - DB 스키마: /docs/specs/database/_index.md
    - 공통 모듈: /docs/specs/common-modules.md (있는 경우)
-   - {domain}: voice, gemini, music, auth, web, newbie, status-prefix, general, sticky-message, monitoring, voice-co-presence, inactive-member
+   - {domain} 목록: `/docs/specs/feature-manifest.json` 의 `domains` 키를 진실의 소스로 사용 (하드코딩 금지)
 2. 해당 서비스의 연동 가이드 문서 경로를 파악하고, 내용을 읽어들여 구체적으로 파악한다.
 3. /docs/plans/{feature-name}.md 경로로부터 해당 기능의 구현 계획을 상세히 파악한다.
 4. 코드베이스를 분석하여, 구현 계획에 명시된 모든 요구사항이 가이드에 따라 정확히 구현되었는지 검증한다.

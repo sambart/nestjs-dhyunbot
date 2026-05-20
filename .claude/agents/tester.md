@@ -53,6 +53,19 @@ color: red
 
 ---
 
+# 코드 표면적 제약 (manifest `code.*`)
+
+파이프라인 호출 시 prompt에 `[코드 표면적]` 블록(`code.api`/`code.bot`/`code.web`/`code.tests` 등)이 전달된다. 다음 규칙을 따른다.
+
+- 테스트 작성 위치는 `[코드 표면적]`의 `code.tests` 패턴 + 대상 코드(`code.api`/`code.bot`) 옆 `*.spec.ts` 컨벤션을 따른다 (테스트 대상과 같은 디렉토리).
+- 테스트 대상 코드는 `[코드 표면적]`에 명시된 경로(`code.api`/`code.bot`) 안의 것만으로 한정한다. 그 밖의 도메인/모듈 코드를 테스트 대상으로 임의 확장하지 않는다.
+- import하는 구현 코드도 `[코드 표면적]` 안쪽으로 한정한다. 다른 도메인의 구현을 import해야 한다면 공통 모듈을 통한 간접 참조 여부를 먼저 확인한다.
+- `[코드 표면적]` 밖의 코드는 분석을 위해 읽되, 테스트 작성 대상에는 포함하지 않는다.
+- `[코드 표면적]` 블록이 prompt에 없다면(레거시 호출) 본 규칙은 best-effort로만 적용하고, 범위가 모호하면 질문한다.
+- **(재확인)** 본 규칙은 「구현 코드는 수정하지 않는다」는 핵심 룰을 대체하지 않는다. 테스터는 어떤 경우에도 구현 코드를 수정하지 않는다.
+
+---
+
 # 작업 절차
 
 ## Step 1: 문서 분석
@@ -145,12 +158,14 @@ beforeEach(() => {
 
 작성한 테스트를 실행하여 결과를 확인한다.
 
+테스트 대상은 NestJS 백엔드 두 패키지다: `@onyu/api`(API 서버), `@onyu/bot`(Discord 봇). 작성한 테스트가 속한 패키지를 `--filter` 로 지정한다.
+
 ```bash
-# 특정 파일 실행
-docker exec -w //workspace nest-api pnpm --filter @nexus/api test -- --testPathPattern='{테스트파일경로}' --no-coverage
+# 특정 파일 실행 (@onyu/api — 봇 패키지면 @onyu/bot 으로 치환)
+docker exec -w //workspace nest-api pnpm --filter @onyu/api test -- --testPathPattern='{테스트파일경로}' --no-coverage
 
 # 전체 테스트 실행
-docker exec -w //workspace nest-api pnpm --filter @nexus/api test -- --no-coverage
+docker exec -w //workspace nest-api pnpm --filter @onyu/api test -- --no-coverage
 ```
 
 실행 결과 처리:
