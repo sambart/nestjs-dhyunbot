@@ -47,7 +47,7 @@ export class MeCommand {
 
       await interaction.editReply({ files: [attachment] });
     } catch (error) {
-      this.logger.error('Me command error:', error);
+      this.logger.error('Me command error', error instanceof Error ? error.stack : String(error));
       await interaction.editReply({ content: '프로필 조회 중 오류가 발생했습니다.' });
     }
   }

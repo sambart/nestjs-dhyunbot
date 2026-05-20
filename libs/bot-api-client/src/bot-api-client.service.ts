@@ -4,9 +4,11 @@ import type { AxiosRequestConfig } from 'axios';
 import { firstValueFrom } from 'rxjs';
 
 import type {
+  AffinityCardResponse,
   AutoChannelButtonClickDto,
   AutoChannelButtonResult,
   AutoChannelSubOptionDto,
+  BestFriendCardResponse,
   BotApiResponse,
   CoPresenceSnapshot,
   GuildMemberBulkUpsertDto,
@@ -34,6 +36,8 @@ import type {
   StatusPrefixResetDto,
   StatusPrefixResetResult,
   StickyMessageConfigItem,
+  UpsertUserPrivacyDto,
+  UserPrivacyResponse,
   VoiceStateUpdateDto,
   VoiceSyncDto,
 } from './types';
@@ -174,6 +178,55 @@ export class BotApiClientService {
 
   async pushCoPresenceFlush(): Promise<void> {
     await this.post('/bot-api/co-presence/flush', {});
+  }
+
+  // ── Co-Presence (Phase 5: 베스트 프렌드 / 친밀도) ──
+
+  async getMyBestFriends(
+    guildId: string,
+    userId: string,
+    displayName: string,
+    avatarUrl: string,
+    period: 7 | 30 | 90,
+    limit: number,
+  ): Promise<BestFriendCardResponse> {
+    const params = new URLSearchParams({
+      guildId,
+      userId,
+      displayName,
+      avatarUrl,
+      period: String(period),
+      limit: String(limit),
+    });
+    return this.post(`/bot-api/co-presence/best-friends?${params.toString()}`, {});
+  }
+
+  async getAffinity(
+    guildId: string,
+    userAId: string,
+    userBId: string,
+    period: 7 | 30 | 90,
+    requestUserId: string,
+  ): Promise<AffinityCardResponse> {
+    const params = new URLSearchParams({
+      guildId,
+      userAId,
+      userBId,
+      period: String(period),
+      requestUserId,
+    });
+    return this.post(`/bot-api/co-presence/affinity?${params.toString()}`, {});
+  }
+
+  // ── User Privacy ──
+
+  async upsertUserPrivacy(
+    guildId: string,
+    userId: string,
+    dto: UpsertUserPrivacyDto,
+  ): Promise<UserPrivacyResponse> {
+    const params = new URLSearchParams({ guildId, userId });
+    return this.post(`/bot-api/user-privacy/upsert?${params.toString()}`, dto);
   }
 
   // ── Me ──

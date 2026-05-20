@@ -7,6 +7,7 @@ import { MusicModule } from '../music/music.module';
 import { NewbieModule } from '../newbie/newbie.module';
 import { StatusPrefixModule } from '../status-prefix/status-prefix.module';
 import { StickyMessageModule } from '../sticky-message/sticky-message.module';
+import { UserPrivacyModule } from '../user-privacy/user-privacy.module';
 import { VoiceAnalyticsModule } from '../voice-analytics/voice-analytics.module';
 import { BotAutoChannelController } from './auto-channel/bot-auto-channel.controller';
 import { BotApiAuthGuard } from './bot-api-auth.guard';
@@ -18,6 +19,7 @@ import { BotMusicController } from './music/bot-music.controller';
 import { BotNewbieController } from './newbie/bot-newbie.controller';
 import { BotStatusPrefixController } from './status-prefix/bot-status-prefix.controller';
 import { BotStickyMessageController } from './sticky-message/bot-sticky-message.controller';
+import { BotUserPrivacyController } from './user-privacy/bot-user-privacy.controller';
 import { BotVoiceController } from './voice/bot-voice.controller';
 import { BotVoiceEventListener } from './voice/bot-voice-event.listener';
 import { BotVoiceAnalyticsController } from './voice-analytics/bot-voice-analytics.controller';
@@ -36,6 +38,7 @@ import { BotVoiceAnalyticsController } from './voice-analytics/bot-voice-analyti
     NewbieModule,
     StickyMessageModule,
     VoiceAnalyticsModule,
+    UserPrivacyModule,
   ],
   controllers: [
     BotVoiceController,
@@ -49,6 +52,7 @@ import { BotVoiceAnalyticsController } from './voice-analytics/bot-voice-analyti
     BotMusicController,
     BotGuildMemberController,
     BotHealthController,
+    BotUserPrivacyController,
   ],
   providers: [BotApiAuthGuard, BotVoiceEventListener],
   exports: [BotApiAuthGuard],

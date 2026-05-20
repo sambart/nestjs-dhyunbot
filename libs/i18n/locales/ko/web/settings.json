@@ -374,6 +374,27 @@
     "validationChannelRequired": "리포트를 활성화하려면 채널을 선택해야 합니다.",
     "saveSuccess": "저장되었습니다."
   },
+  "coPresence": {
+    "title": "Co-Presence 설정",
+    "policySection": "/affinity 권한 정책",
+    "allowPublicAffinityQuery": "타인↔타인 친밀도 조회 허용",
+    "allowPublicAffinityQueryDesc": "이 설정을 켜면 일반 사용자도 /affinity 명령어로 자신이 포함되지 않은 페어의 친밀도를 조회할 수 있습니다. OFF인 경우 ManageGuild 권한자만 가능합니다.",
+    "saveButton": "저장",
+    "savedToast": "설정이 저장되었습니다."
+  },
+  "privacy": {
+    "title": "사생활 설정",
+    "guildSelectLabel": "적용 대상 서버",
+    "guildSelectDesc": "선택한 서버에서의 노출 정책만 변경됩니다.",
+    "noGuilds": "Onyu 봇이 설치된 서버가 없습니다.",
+    "relationshipShareSection": "친밀도 / 베스트 프렌드 노출",
+    "disableRelationshipShare": "공개 여부",
+    "disableRelationshipShareDesc": "OFF로 변경하면 다른 사용자가 /best-friend, /affinity 명령어로 당신의 정보를 조회할 때 ???로 익명화됩니다.",
+    "publicLabel": "공개",
+    "privateLabel": "비공개",
+    "saveButton": "저장",
+    "savedToast": "설정이 저장되었습니다."
+  },
   "inactiveMember": {
     "title": "비활동 회원 설정",
     "criteria": "비활동 판정 기준",

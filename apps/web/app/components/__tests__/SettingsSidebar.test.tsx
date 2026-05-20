@@ -305,4 +305,101 @@ describe('SettingsSidebar 통합 테스트', () => {
       expect(screen.getByText('sidebar.switchServer')).toBeInTheDocument();
     });
   });
+
+  // ─── 신규 메뉴 검증 (Co-Presence + 개인 설정) ──────────────────────────────
+
+  describe('신규 Co-Presence 메뉴', () => {
+    it('회원 관리 그룹에 Co-Presence 항목이 포함된다', () => {
+      renderSidebar();
+
+      expect(screen.getByText('settings.coPresence')).toBeInTheDocument();
+    });
+
+    it('Co-Presence 링크가 /settings/guild/:id/co-presence 경로를 가진다', () => {
+      renderSidebar();
+
+      const coPresenceLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('settings.coPresence') &&
+            el.getAttribute('href') === `/settings/guild/${GUILD_ID}/co-presence`,
+        );
+
+      expect(coPresenceLink).toBeDefined();
+    });
+
+    it('현재 경로가 /settings/guild/:id/co-presence이면 Co-Presence 링크에 활성 클래스가 적용된다', () => {
+      renderSidebar(`/settings/guild/${GUILD_ID}/co-presence`);
+
+      const coPresenceLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('settings.coPresence') &&
+            el.getAttribute('href') === `/settings/guild/${GUILD_ID}/co-presence`,
+        );
+
+      expect(coPresenceLink).toBeDefined();
+      expect(coPresenceLink?.className).toContain('bg-indigo-50');
+    });
+  });
+
+  describe('신규 개인 설정 그룹 + 사생활 메뉴', () => {
+    it('개인 설정 그룹 헤더(personal)가 렌더링된다', () => {
+      renderSidebar();
+
+      expect(screen.getByText('sidebar.settingsGroup.personal')).toBeInTheDocument();
+    });
+
+    it('개인 설정 그룹에 사생활 설정(privacy) 항목이 포함된다', () => {
+      renderSidebar();
+
+      expect(screen.getByText('settings.privacy')).toBeInTheDocument();
+    });
+
+    it('사생활 설정 링크가 /settings/me/privacy 경로를 가진다 (guildId 없음)', () => {
+      renderSidebar();
+
+      const privacyLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('settings.privacy') &&
+            el.getAttribute('href') === '/settings/me/privacy',
+        );
+
+      expect(privacyLink).toBeDefined();
+    });
+
+    it('현재 경로가 /settings/me/privacy이면 사생활 링크에 활성 클래스가 적용된다', () => {
+      renderSidebar('/settings/me/privacy');
+
+      const privacyLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('settings.privacy') &&
+            el.getAttribute('href') === '/settings/me/privacy',
+        );
+
+      expect(privacyLink).toBeDefined();
+      expect(privacyLink?.className).toContain('bg-indigo-50');
+    });
+
+    it('현재 경로가 /settings/guild/:id이면 사생활 링크에 활성 클래스가 적용되지 않는다', () => {
+      renderSidebar(`/settings/guild/${GUILD_ID}`);
+
+      const privacyLink = screen
+        .getAllByRole('link')
+        .find(
+          (el) =>
+            el.textContent?.includes('settings.privacy') &&
+            el.getAttribute('href') === '/settings/me/privacy',
+        );
+
+      expect(privacyLink).toBeDefined();
+      expect(privacyLink?.className).not.toContain('bg-indigo-50');
+    });
+  });
 });

@@ -30,6 +30,7 @@ import { OverviewModule } from './overview/overview.module';
 import { RedisModule } from './redis/redis.module';
 import { StatusPrefixModule } from './status-prefix/status-prefix.module';
 import { StickyMessageModule } from './sticky-message/sticky-message.module';
+import { UserPrivacyModule } from './user-privacy/user-privacy.module';
 import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
 
 @Module({
@@ -71,6 +72,7 @@ import { VoiceAnalyticsModule } from './voice-analytics/voice-analytics.module';
     OverviewModule,
     BotApiModule,
     MonitoringModule,
+    UserPrivacyModule,
   ],
   controllers: [AppController],
   providers: [

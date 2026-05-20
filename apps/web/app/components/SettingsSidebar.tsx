@@ -5,7 +5,9 @@ import {
   ArrowLeftRight,
   BarChart3,
   BrainCircuit,
+  Heart,
   HeartPulse,
+  Lock,
   Mic,
   Music,
   Pin,
@@ -106,6 +108,11 @@ export default function SettingsSidebar({ guilds, selectedGuildId }: SettingsSid
           label: t('settings.stickyMessage'),
           icon: Pin,
         },
+        {
+          href: `/settings/guild/${selectedGuildId}/co-presence`,
+          label: t('settings.coPresence'),
+          icon: Heart,
+        },
       ],
     },
     {
@@ -115,6 +122,16 @@ export default function SettingsSidebar({ guilds, selectedGuildId }: SettingsSid
           href: `/settings/guild/${selectedGuildId}/diagnosis`,
           label: t('settings.diagnosis'),
           icon: BrainCircuit,
+        },
+      ],
+    },
+    {
+      label: t('sidebar.settingsGroup.personal'),
+      items: [
+        {
+          href: `/settings/me/privacy`,
+          label: t('settings.privacy'),
+          icon: Lock,
         },
       ],
     },

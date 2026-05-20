@@ -1,6 +1,27 @@
-import { createCanvas, GlobalFonts, loadImage, SKRSContext2D } from '@napi-rs/canvas';
+import { createCanvas, loadImage, SKRSContext2D } from '@napi-rs/canvas';
 import { Injectable, Logger } from '@nestjs/common';
 
+import {
+  ACCENT,
+  BG,
+  BLURPLE,
+  BORDER,
+  CARD_BG,
+  DIVIDER,
+  drawBarChart,
+  drawStatCardWithSub,
+  formatTime,
+  MIC_OFF_COLOR,
+  MIC_ON_COLOR,
+  normalizeDisplayName,
+  RANK_BG,
+  RANK_BORDER,
+  roundRect,
+  TEXT_MUTED,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY,
+  truncateName,
+} from '../../../common/canvas';
 import type { BadgeCode } from '../../../voice-analytics/self-diagnosis/application/badge.constants';
 import {
   BADGE_DISPLAY,
@@ -10,28 +31,11 @@ import {
 import { VoiceExcludedChannelType } from '../domain/voice-excluded-channel.types';
 import type { DailyChartEntry, ExcludedChannelEntry, MeProfileData } from './me-profile.service';
 
-// ── 레이아웃 상수 ──
+// ── 레이아웃 상수 (/me 전용 — common/canvas 추출 범위 외) ──
 const W = 800;
 const H = 650;
 const PADDING = 32;
 const CARD_RADIUS = 16;
-
-// ── 색상 팔레트 ──
-const BG = '#f0f0f0';
-const CARD_BG = '#ffffff';
-const ACCENT = '#f5f5f5';
-const BLURPLE = '#5B8DEF';
-const BLURPLE_DIM = '#c4d7f7';
-const TEXT_PRIMARY = '#1a1a1a';
-const TEXT_SECONDARY = '#6b6b6b';
-const TEXT_MUTED = '#9a9a9a';
-const BAR_EMPTY = '#e8e8e8';
-const DIVIDER = '#e5e5e5';
-const BORDER = '#e0e0e0';
-const RANK_BG = '#EEF2FF';
-const RANK_BORDER = '#C7D7FE';
-const MIC_ON_COLOR = '#34D399';
-const MIC_OFF_COLOR = '#F87171';
 
 // ── 뱃지 pill 레이아웃 상수 ──
 const PILL_H = 22;
@@ -47,40 +51,7 @@ const MAX_EXCLUDED_DISPLAY = 5;
 export class ProfileCardRenderer {
   private readonly logger = new Logger(ProfileCardRenderer.name);
 
-  constructor() {
-    this.registerFonts();
-  }
-
-  private registerFonts(): void {
-    const cjkPaths = [
-      '/usr/share/fonts/noto/NotoSansCJK-Regular.ttc',
-      '/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc',
-      '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
-    ];
-    for (const path of cjkPaths) {
-      try {
-        GlobalFonts.registerFromPath(path, 'NotoSansCJK');
-        this.logger.log(`CJK font registered: ${path}`);
-        break;
-      } catch {
-        // try next path
-      }
-    }
-
-    const emojiPaths = [
-      '/usr/share/fonts/noto/NotoColorEmoji.ttf',
-      '/usr/share/fonts/noto-emoji/NotoColorEmoji.ttf',
-    ];
-    for (const path of emojiPaths) {
-      try {
-        GlobalFonts.registerFromPath(path, 'NotoColorEmoji');
-        this.logger.log(`Emoji font registered: ${path}`);
-        break;
-      } catch {
-        // try next path
-      }
-    }
-  }
+  // 폰트 등록은 CanvasModule.onModuleInit()에서 1회 수행하므로 생성자에서 별도 처리 불필요
 
   async render(profile: MeProfileData, displayName: string, avatarUrl: string): Promise<Buffer> {
     const normalizedName = normalizeDisplayName(displayName);
@@ -97,7 +68,17 @@ export class ProfileCardRenderer {
     await this.drawHeader(ctx, { displayName: normalizedName, avatarUrl, badges: profile.badges });
     this.drawRankCard(ctx, profile, badgeOffset);
     this.drawStatCards(ctx, profile, badgeOffset);
-    this.drawBarChart(ctx, profile.dailyChart, badgeOffset);
+    drawBarChart(ctx, {
+      x: PADDING + 16,
+      y: 398 + badgeOffset,
+      w: W - PADDING * 2 - 32,
+      h: 170,
+      entries: profile.dailyChart.map((d: DailyChartEntry) => ({
+        date: d.date,
+        value: d.durationSec,
+      })),
+      title: '📅 최근 15일 활동',
+    });
     this.drawFooter(ctx, canvasH, profile.excludedChannels);
 
     return canvas.toBuffer('image/png');
@@ -107,7 +88,7 @@ export class ProfileCardRenderer {
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W, canvasH);
 
-    this.roundRect(ctx, PADDING / 2, PADDING / 2, W - PADDING, canvasH - PADDING, CARD_RADIUS);
+    roundRect(ctx, PADDING / 2, PADDING / 2, W - PADDING, canvasH - PADDING, CARD_RADIUS);
     ctx.fillStyle = CARD_BG;
     ctx.fill();
     ctx.strokeStyle = BORDER;
@@ -152,7 +133,7 @@ export class ProfileCardRenderer {
     ctx.fillStyle = TEXT_PRIMARY;
     ctx.font = 'bold 28px "NotoSansCJK", "NotoColorEmoji", sans-serif';
     const maxNameWidth = maxRight - nameX;
-    const truncatedName = this.truncateName(ctx, displayName, maxNameWidth);
+    const truncatedName = truncateName(ctx, displayName, maxNameWidth);
     ctx.fillText(truncatedName, nameX, nameY);
 
     ctx.fillStyle = TEXT_SECONDARY;
@@ -171,16 +152,6 @@ export class ProfileCardRenderer {
     ctx.strokeStyle = DIVIDER;
     ctx.lineWidth = 1;
     ctx.stroke();
-  }
-
-  private truncateName(ctx: SKRSContext2D, name: string, maxWidth: number): string {
-    if (ctx.measureText(name).width <= maxWidth) return name;
-
-    let truncated = name;
-    while (truncated.length > 0 && ctx.measureText(truncated + '...').width > maxWidth) {
-      truncated = truncated.slice(0, -1);
-    }
-    return truncated + '...';
   }
 
   private drawBadgePills(
@@ -204,7 +175,7 @@ export class ProfileCardRenderer {
       const textWidth = ctx.measureText(text).width;
       const pillW = textWidth + PILL_PX * 2;
 
-      this.roundRect(ctx, x, centerY - PILL_H / 2, pillW, PILL_H, PILL_R);
+      roundRect(ctx, x, centerY - PILL_H / 2, pillW, PILL_H, PILL_R);
       ctx.fillStyle = display.bgColor;
       ctx.fill();
 
@@ -221,7 +192,7 @@ export class ProfileCardRenderer {
     const cardW = W - PADDING * 2 - 32;
     const cardH = 56;
 
-    this.roundRect(ctx, cardX, y, cardW, cardH, 10);
+    roundRect(ctx, cardX, y, cardW, cardH, 10);
     ctx.fillStyle = RANK_BG;
     ctx.fill();
     ctx.strokeStyle = RANK_BORDER;
@@ -246,7 +217,7 @@ export class ProfileCardRenderer {
     const barW = cardW - 32;
     const barH = 8;
 
-    this.roundRect(ctx, barX, barY, barW, barH, 4);
+    roundRect(ctx, barX, barY, barW, barH, 4);
     ctx.fillStyle = '#E0E7FF';
     ctx.fill();
 
@@ -254,7 +225,7 @@ export class ProfileCardRenderer {
       profile.totalUsers > 0 ? (profile.totalUsers - profile.rank + 1) / profile.totalUsers : 0;
     if (fillRatio > 0) {
       const fillW = Math.max(barW * fillRatio, 10);
-      this.roundRect(ctx, barX, barY, fillW, barH, 4);
+      roundRect(ctx, barX, barY, fillW, barH, 4);
       ctx.fillStyle = BLURPLE;
       ctx.fill();
     }
@@ -280,7 +251,7 @@ export class ProfileCardRenderer {
       const x = startX + i * (cardW + gap);
       const y = startY;
 
-      this.roundRect(ctx, x, y, cardW, cardH, 8);
+      roundRect(ctx, x, y, cardW, cardH, 8);
       ctx.fillStyle = ACCENT;
       ctx.fill();
       ctx.strokeStyle = BORDER;
@@ -305,7 +276,7 @@ export class ProfileCardRenderer {
     // 카드 2: 혼자 비율
     const alonePercent =
       profile.totalSec > 0 ? Math.round((profile.aloneSec / profile.totalSec) * 1000) / 10 : 0;
-    this.drawStatCardWithSub(ctx, {
+    drawStatCardWithSub(ctx, {
       x: startX + cardW + gap,
       y: row2Y,
       w: cardW,
@@ -317,7 +288,7 @@ export class ProfileCardRenderer {
 
     // 카드 3: 주평균 + 피크요일 통합
     const peakText = profile.peakDayOfWeek ? `피크: ${profile.peakDayOfWeek}요일` : '';
-    this.drawStatCardWithSub(ctx, {
+    drawStatCardWithSub(ctx, {
       x: startX + (cardW + gap) * 2,
       y: row2Y,
       w: cardW,
@@ -334,7 +305,7 @@ export class ProfileCardRenderer {
     params: { x: number; y: number; w: number; h: number; profile: MeProfileData },
   ): void {
     const { x, y, w, h, profile } = params;
-    this.roundRect(ctx, x, y, w, h, 8);
+    roundRect(ctx, x, y, w, h, 8);
     ctx.fillStyle = ACCENT;
     ctx.fill();
     ctx.strokeStyle = BORDER;
@@ -369,7 +340,7 @@ export class ProfileCardRenderer {
     const barH = 14;
     const totalMic = profile.micOnSec + profile.micOffSec;
 
-    this.roundRect(ctx, barX, barY, barW, barH, 4);
+    roundRect(ctx, barX, barY, barW, barH, 4);
     ctx.fillStyle = MIC_OFF_COLOR;
     ctx.fill();
 
@@ -377,7 +348,7 @@ export class ProfileCardRenderer {
       const onRatio = profile.micOnSec / totalMic;
       const onW = Math.max(barW * onRatio, onRatio > 0 ? 6 : 0);
       if (onW > 0) {
-        this.roundRect(ctx, barX, barY, onW, barH, 4);
+        roundRect(ctx, barX, barY, onW, barH, 4);
         ctx.fillStyle = MIC_ON_COLOR;
         ctx.fill();
       }
@@ -391,100 +362,6 @@ export class ProfileCardRenderer {
     ctx.textAlign = 'right';
     ctx.fillText('OFF', barX + barW, barY + barH + 12);
     ctx.textAlign = 'left';
-  }
-
-  private drawStatCardWithSub(
-    ctx: SKRSContext2D,
-    params: {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      label: string;
-      value: string;
-      subText: string;
-    },
-  ): void {
-    const { x, y, w, h, label, value, subText } = params;
-    this.roundRect(ctx, x, y, w, h, 8);
-    ctx.fillStyle = ACCENT;
-    ctx.fill();
-    ctx.strokeStyle = BORDER;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.fillStyle = TEXT_SECONDARY;
-    ctx.font = '13px "NotoSansCJK", "NotoColorEmoji", sans-serif';
-    ctx.fillText(label, x + 14, y + 24);
-
-    ctx.fillStyle = TEXT_PRIMARY;
-    ctx.font = 'bold 22px "NotoSansCJK", "NotoColorEmoji", sans-serif';
-    ctx.fillText(value, x + 14, y + 54);
-
-    if (subText) {
-      const valueWidth = ctx.measureText(value).width;
-      ctx.fillStyle = TEXT_MUTED;
-      ctx.font = '12px "NotoSansCJK", "NotoColorEmoji", sans-serif';
-      ctx.fillText(subText, x + 14 + valueWidth + 8, y + 54);
-    }
-  }
-
-  private drawBarChart(
-    ctx: SKRSContext2D,
-    dailyChart: DailyChartEntry[],
-    badgeOffset: number,
-  ): void {
-    const chartX = PADDING + 16;
-    const chartY = 398 + badgeOffset;
-    const chartW = W - PADDING * 2 - 32;
-    const chartH = 170;
-
-    ctx.fillStyle = TEXT_SECONDARY;
-    ctx.font = 'bold 14px "NotoSansCJK", "NotoColorEmoji", sans-serif';
-    ctx.fillText('📅 최근 15일 활동', chartX, chartY - 8);
-
-    this.roundRect(ctx, chartX, chartY, chartW, chartH, 8);
-    ctx.fillStyle = ACCENT;
-    ctx.fill();
-    ctx.strokeStyle = BORDER;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    const maxSec = Math.max(...dailyChart.map((d) => d.durationSec), 1);
-    const barCount = dailyChart.length;
-    const barGap = 6;
-    const barAreaW = chartW - 40;
-    const barW = (barAreaW - barGap * (barCount - 1)) / barCount;
-    const barMaxH = chartH - 50;
-    const baseY = chartY + chartH - 16;
-
-    dailyChart.forEach((entry, idx) => {
-      const x = chartX + 20 + idx * (barW + barGap);
-      const barH = entry.durationSec > 0 ? Math.max((entry.durationSec / maxSec) * barMaxH, 4) : 4;
-
-      this.roundRect(ctx, x, baseY - barMaxH, barW, barMaxH, 3);
-      ctx.fillStyle = BAR_EMPTY;
-      ctx.fill();
-
-      if (entry.durationSec > 0) {
-        this.roundRect(ctx, x, baseY - barH, barW, barH, 3);
-        ctx.fillStyle = BLURPLE;
-        ctx.fill();
-      } else {
-        this.roundRect(ctx, x, baseY - 4, barW, 4, 3);
-        ctx.fillStyle = BLURPLE_DIM;
-        ctx.fill();
-      }
-
-      if (idx % 2 === 0) {
-        const dd = entry.date.slice(6, 8);
-        ctx.fillStyle = TEXT_MUTED;
-        ctx.font = '10px "NotoSansCJK", "NotoColorEmoji", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(dd, x + barW / 2, baseY + 12);
-        ctx.textAlign = 'left';
-      }
-    });
   }
 
   private drawFooter(
@@ -517,42 +394,4 @@ export class ProfileCardRenderer {
     }
     return text;
   }
-
-  // eslint-disable-next-line max-params
-  private roundRect(
-    ctx: SKRSContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    r: number,
-  ): void {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-  }
-}
-
-/**
- * 디스코드 닉네임에 자주 쓰이는 특수 유니코드 문자(Mathematical Alphanumeric Symbols 등)를
- * 일반 ASCII/기본 문자로 정규화한다. 폰트에 글리프가 없어 깨지는 문제를 방지한다.
- */
-function normalizeDisplayName(name: string): string {
-  return name.normalize('NFKC');
-}
-
-function formatTime(sec: number): string {
-  if (sec === 0) return '0분';
-  const hours = Math.floor(sec / 3600);
-  const minutes = Math.floor((sec % 3600) / 60);
-  if (hours > 0) return `${hours}시간 ${minutes}분`;
-  return `${minutes}분`;
 }
