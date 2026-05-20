@@ -16,8 +16,12 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Discord Bot Dashboard',
-  description: 'Manage your Discord server smarter',
+  title: {
+    default: 'Onyu · 디스코드 음성 채널 봇',
+    template: '%s · Onyu',
+  },
+  description:
+    '디스코드 음성 채널 활동을 추적하고 Gemini AI로 분석하는 봇 — 음성 통계 · 자동 채널 · 신규 멤버 관리를 한 봇으로',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

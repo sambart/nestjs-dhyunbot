@@ -1,6 +1,7 @@
 {
   "hero": {
-    "badge": "Completely Free",
+    "badge": "Ready in 5 min",
+    "headline": "Bring your voice channels to life",
     "description": "A Discord bot that supports voice channel statistics, automatic channel creation, AI voice analysis, and more",
     "cta": {
       "invite": "Add to Server",
@@ -63,7 +64,7 @@
   },
   "ctaBand": {
     "title": "Get Started Right Now",
-    "description": "Onyu is completely free. Check voice statistics within 5 minutes of installation.",
+    "description": "Check voice statistics within 5 minutes of installation.",
     "button": "Add to Server Now"
   },
   "nav": {
