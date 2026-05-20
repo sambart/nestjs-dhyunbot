@@ -8,6 +8,7 @@
     "experimentalDecorators": true,
     "target": "ES2021",
     "outDir": "dist",
+    "rootDir": "./src",
     "baseUrl": "./",
     "skipLibCheck": true,
     "strictNullChecks": false

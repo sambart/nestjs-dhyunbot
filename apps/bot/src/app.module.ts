@@ -18,7 +18,8 @@ const METRICS_PATH = '/metrics';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // 네이티브 실행 시 cwd가 apps/bot이므로 모노레포 루트의 .env를 명시적으로 지정
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env' }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {

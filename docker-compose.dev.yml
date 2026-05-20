@@ -1,82 +1,9 @@
+# 네이티브 dev 환경용 인프라 전용 compose.
+# 앱(api/bot/web)은 호스트에서 `pnpm dev`로 직접 실행하고, DB/Redis만 컨테이너로 띄운다.
+# 사용법:
+#   docker compose -f docker-compose.dev.yml up -d   (= pnpm infra:up)
+#   pnpm dev                                          (api/bot/web 동시 watch 실행)
 services:
-  api:
-    container_name: onyu-api
-    image: onyu-api
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    ports:
-      - "3000:3000"
-    env_file:
-      - .env
-    volumes:
-      - .:/workspace
-      - root_node_modules:/workspace/node_modules
-      - api_node_modules:/workspace/apps/api/node_modules
-      - shared_node_modules:/workspace/libs/shared/node_modules
-    working_dir: /workspace/apps/api
-    depends_on:
-      - db
-      - redis
-    restart: unless-stopped
-
-  bot:
-    container_name: onyu-bot
-    image: onyu-bot
-    build:
-      context: .
-      dockerfile: apps/bot/Dockerfile
-    env_file:
-      - .env
-    environment:
-      - API_BASE_URL=http://api:3000
-    volumes:
-      - .:/workspace
-      - root_node_modules:/workspace/node_modules
-      - shared_node_modules:/workspace/libs/shared/node_modules
-    working_dir: /workspace/apps/bot
-    depends_on:
-      - api
-    restart: unless-stopped
-
-  web:
-    container_name: onyu-web
-    image: onyu-web
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    ports:
-      - "4000:4000"
-    env_file:
-      - .env
-    environment:
-      - TURBOPACK_ROOT=/workspace
-      - WATCHPACK_POLLING=true
-    volumes:
-      - .:/workspace
-      - root_node_modules:/workspace/node_modules
-      - web_node_modules:/workspace/apps/web/node_modules
-      - shared_node_modules:/workspace/libs/shared/node_modules
-      - next_cache:/workspace/apps/web/.next
-    working_dir: /workspace/apps/web
-    depends_on:
-      - api
-    restart: unless-stopped
-
-  # lavalink: 음악 기능 일시 중단 (YouTube API 정책 변경)
-  # 복구 시 주석 해제
-  # lavalink:
-  #   container_name: lavalink
-  #   image: ghcr.io/lavalink-devs/lavalink:4
-  #   ports:
-  #     - "2333:2333"
-  #   volumes:
-  #     - ./lavalink/application.yml:/opt/Lavalink/application.yml
-  #   environment:
-  #     - _JAVA_OPTIONS=-Xmx128m
-  #     - YOUTUBE_OAUTH_REFRESH_TOKEN=${YOUTUBE_OAUTH_REFRESH_TOKEN:-}
-  #   restart: unless-stopped
-
   db:
     image: postgres:15
     container_name: postgres
@@ -86,142 +13,21 @@ services:
       POSTGRES_USER: ${DATABASE_USER}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: ${DATABASE_NAME}
-      NODE_ENV: production
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
 
   redis:
     image: redis:7
     container_name: redis
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes
+    # .env의 REDIS_PASSWORD와 일치시켜 네이티브 앱의 AUTH가 통과되도록 함
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
-    restart: unless-stopped
-
-  # ─── Monitoring Stack ─────────────────────────────────────
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./infra/prometheus:/etc/prometheus
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-    depends_on:
-      - api
-      - bot
-    restart: unless-stopped
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3002:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
-      - GF_SERVER_ROOT_URL=http://localhost:3002
-      - GF_UNIFIED_ALERTING_ENABLED=true
-      - GF_ALERTING_ENABLED=false
-      - DISCORD_ALERT_WEBHOOK_URL=${DISCORD_ALERT_WEBHOOK_URL:-http://localhost/placeholder}
-    volumes:
-      - ./infra/grafana/provisioning:/etc/grafana/provisioning
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-      - loki
-    restart: unless-stopped
-
-  alertmanager:
-    image: prom/alertmanager:latest
-    container_name: alertmanager
-    ports:
-      - "9093:9093"
-    environment:
-      - DISCORD_ALERT_WEBHOOK_URL=${DISCORD_ALERT_WEBHOOK_URL:-http://localhost/placeholder}
-    volumes:
-      - ./infra/alertmanager:/etc/alertmanager-tmpl
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        cat /etc/alertmanager-tmpl/alertmanager.yml | sed "s|\$${DISCORD_ALERT_WEBHOOK_URL}|$$DISCORD_ALERT_WEBHOOK_URL|g" > /tmp/alertmanager.yml && \
-        /bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
-    restart: unless-stopped
-
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: node-exporter
-    ports:
-      - "9100:9100"
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - '--path.rootfs=/rootfs'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
-    restart: unless-stopped
-
-  postgres-exporter:
-    image: prometheuscommunity/postgres-exporter
-    container_name: postgres-exporter
-    ports:
-      - "9187:9187"
-    environment:
-      DATA_SOURCE_NAME: "postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/${DATABASE_NAME}?sslmode=disable"
-    depends_on:
-      - db
-    restart: unless-stopped
-
-  redis-exporter:
-    image: oliver006/redis_exporter
-    container_name: redis-exporter
-    ports:
-      - "9121:9121"
-    environment:
-      REDIS_ADDR: "redis://redis:6379"
-    depends_on:
-      - redis
-    restart: unless-stopped
-
-  loki:
-    image: grafana/loki:latest
-    container_name: loki
-    ports:
-      - "3100:3100"
-    volumes:
-      - ./infra/loki/loki-config.yaml:/etc/loki/local-config.yaml
-      - loki_data:/loki
-    command: -config.file=/etc/loki/local-config.yaml
-    restart: unless-stopped
-
-  promtail:
-    image: grafana/promtail:latest
-    container_name: promtail
-    volumes:
-      - ./infra/promtail/promtail-config.yaml:/etc/promtail/config.yaml
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    command: -config.file=/etc/promtail/config.yaml
-    depends_on:
-      - loki
     restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
-  root_node_modules:
-  api_node_modules:
-  web_node_modules:
-  shared_node_modules:
-  next_cache:
-  prometheus_data:
-  grafana_data:
-  loki_data:

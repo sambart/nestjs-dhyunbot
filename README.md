@@ -235,30 +235,47 @@ cp .env.example .env
 # Edit .env with your credentials (Discord token, DB, Redis, Gemini API key, JWT secret)
 ```
 
-### Run with Docker Compose
+### Run Locally (Development) — 권장
+
+빠른 핫리로드를 위해 **DB/Redis만 컨테이너로 띄우고, 앱(api/bot/web)은 호스트에서 네이티브로 실행**합니다. `.env`의 `DATABASE_HOST`·`REDIS_HOST`는 `localhost` 기준입니다.
 
 ```bash
-docker compose up --build
+# 1. 인프라(PostgreSQL + Redis) 컨테이너 기동 — 최초 1회
+pnpm infra:up
+
+# 2. api + bot + web 동시 watch 실행
+pnpm dev
+
+# 인프라 기동 + 앱 실행을 한 번에:
+pnpm dev:all
+
+# 인프라 종료 / 로그 확인
+pnpm infra:down
+pnpm infra:logs
+```
+
+개별 실행도 가능합니다.
+
+```bash
+pnpm api:dev   # API 서버만 (port 3000)
+pnpm bot:dev   # Discord 봇만 (port 3001)
+pnpm web:dev   # 웹 대시보드만 (port 4000)
 ```
 
 | Service | URL |
 |---------|-----|
 | API Server | `http://localhost:3000` |
+| Discord Bot | `http://localhost:3001` (health/metrics) |
 | Web Dashboard | `http://localhost:4000` |
 | PostgreSQL | `localhost:5432` |
 | Redis | `localhost:6379` |
 
-### Run Locally (Development)
+### Run with Docker Compose (전체 컨테이너)
+
+앱까지 모두 컨테이너로 실행합니다. 컨테이너 내부에서는 compose가 `DATABASE_HOST`/`REDIS_HOST`를 서비스명(`db`/`redis`)으로 자동 override합니다.
 
 ```bash
-# Start database & cache
-docker compose up db redis
-
-# API server (terminal 1)
-pnpm --filter @nexus/api dev
-
-# Web dashboard (terminal 2)
-pnpm --filter @nexus/web dev
+docker compose up --build
 ```
 
 ## Data Pipeline
