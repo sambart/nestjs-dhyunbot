@@ -23,7 +23,12 @@
      - 법무: 약관/개인정보/데이터 보관·삭제 정책에 영향을 주는 결정
    - 4 분야 `🔴` 마커 발견 시 메인 세션이 사용자에게 **명시 답변을 받기 전까지 후속 Phase 진행 금지**.
 5. **진행 추적**: 파이프라인 시작 시 TodoWrite로 전체 Phase를 등록하고, 각 단계 완료마다 상태를 갱신한다.
-6. **산출물 마커 grep (각 Phase 끝 — 강제)**: 각 Phase 종료 직후 메인 세션은 해당 Phase 산출물 (`/docs/specs/prd/*.md`, `/docs/specs/database/*.md`, `/docs/plans/**/*.md`) 을 `🔴` 키워드로 grep 한다. 매치 발견 시 4항(c) 게이트 발동 — 후속 Phase 진행 정지 + 사용자 보고 (해당 마커 라인 + 분야 분류 첨부).
+6. **산출물 마커 grep (각 Phase 끝 — 강제)**: 각 Phase 종료 직후 메인 세션은 해당 Phase 산출물 (`/docs/specs/prd/*.md`, `/docs/specs/userflow/*.md`, `/docs/usecases/**/*.md`, `/docs/specs/endpoint-spec/*.md`, `/docs/specs/edge-cases/*.md`, `/docs/specs/qa-checklist/*.md`, `/docs/specs/database/*.md`, `/docs/plans/**/*.md`) 을 `🔴` 키워드로 grep 한다. 매치 발견 시 4항(c) 게이트 발동 — 후속 Phase 진행 정지 + 사용자 보고 (해당 마커 라인 + 분야 분류 첨부).
+
+   #### 마커 컨벤션 (🔴 게이트 vs 🔒 정보성)
+   - **🔴 = 결정 대기 (게이트)**: 법무/결제/권한/DB파괴적 4분야에서 **사용자 답변이 필요한 미결 사항**. grep 매치 시 후속 Phase 정지.
+   - **🔒 = 정보성 민감 영역 (비게이트)**: 이미 구현·결정된 PII/권한/결제/DB 영역을 독자에게 알리는 표기. **게이트 대상 아님** — grep 은 🔴 만 본다.
+   - 판단: 신규 기능에서 미결 결정이면 🔴, 기존 동작·민감 영역 설명이면 🔒. backfill(기존 구현 문서화)은 원칙적으로 🔒.
 
 ### 에이전트 호출 패턴
 ```
@@ -72,8 +77,11 @@ onyu/
 | 문서 유형 | 전역 (항상 읽음) | 기능별 (manifest resolve) |
 |-----------|-----------------|---------------------------|
 | PRD | `/docs/specs/prd/_index.md` | `domains.{domain}.prd` |
-| Userflow | — | `domains.{domain}.userflow` |
+| Userflow | — | `domains.{domain}.userflow` (있을 때만 — 선택적 산출물) |
+| Usecase | — | `domains.{domain}.usecases` (있을 때만 — 선택적 산출물) |
 | DB 스키마 | `/docs/specs/database/_index.md` | `domains.{domain}.database` |
+
+> **Userflow / Usecase 는 선택적(조건부) 산출물이다** (Phase 1·2 의 조건부 단계 참조). 모든 도메인에 강제 생성하지 않는다 — user-facing / cross-app 기능에서만 생성·갱신한다. 백그라운드/스케줄러/이벤트 전용 작업은 스킵.
 
 ### Phase 0-B. 코드 표면적 resolve (manifest `code` / `status`)
 
@@ -144,11 +152,16 @@ domains.{도메인}.{ prd, userflow, database,
 - **판단 불가 시**: M으로 시작하고, Phase 진행 중 DB 변경이나 신규 모듈이 필요하면 L로 격상한다.
 - **사용자가 규모를 명시한 경우** 해당 규모를 따른다.
 - Phase 3.5(사용자 승인)는 **모든 규모에서 유지**한다 (단, S는 변경 요약만 짧게 제시).
+- **userflow(1-b) / usecase(4-u) 는 규모와 무관하게 각자의 조건부 규칙을 우선 적용한다**: 규모가 L이어도 user-facing 표면이 아니면 userflow 스킵, cross-app 통합이 아니면 usecase 스킵. 반대로 M이라도 조건을 충족하면 실행한다.
 
 ## 실행 파이프라인
 
 ### Phase 1: 문서 작성 (M 선택적 / L 필수)
 1. [prd-writer] → 입력: 요구사항 + resolve된 도메인 문서 경로 / 출력: `domains.{domain}.prd` 갱신
+1-b. [userflow-writer] → **조건부 실행** (prd-writer 완료 후 순차) / 출력: `domains.{domain}.userflow` 갱신
+   - **실행 조건 (하나 이상 해당 시에만)**: 기능이 **user-facing 표면**을 포함 — ① `code.web` 변경(웹 대시보드 페이지/흐름) 또는 ② **인터랙티브 Discord 커맨드/상호작용**(슬래시 커맨드, 버튼, 모달 등 사용자 입력→봇 응답 흐름)
+   - **스킵 조건**: 순수 백그라운드/스케줄러/이벤트 리스너 작업(예: 동시접속 집계 스케줄러, 비활동 스윕, 내부 동기화) — 사용자 상호작용 흐름이 없으면 userflow 산출물이 저가치이므로 생성하지 않는다
+   - 입력: 갱신된 PRD + resolve된 도메인 문서 경로
 
 ### Phase 2: 설계 (M 조건부 / L 필수)
 2. [database-architect] → 입력: PRD diff / 출력: `/docs/specs/database/_index.md` (변경 시)
@@ -160,11 +173,25 @@ domains.{도메인}.{ prd, userflow, database,
       - 예상 migration 이름 (영문, 타임스탬프-Name 형식)
       - **DB 파괴적 변경(컬럼/테이블 제거, destructive 옵션) 포함 시 해당 항목에 `🔴` 마커를 붙인다** → Phase 2 종료 시 grep 게이트 발동
     - **자동 생성 결과 정리 지침** (implementer에 전달): TypeORM `migration:generate`는 전체 diff를 출력하므로 불필요한 변경(기존 인덱스/FK 재생성 등)이 포함될 수 있다. 해당 기능에 필요한 변경만 남기도록 정리한다. 자동 생성이 실패하거나 과도하게 복잡하면 PRD 데이터 모델 기반으로 `CREATE TABLE`/`CREATE INDEX` SQL을 직접 작성한다.
+4-u. [usecase-writer] → **조건부 실행** (database-architect 와 **병렬**) / 출력: `domains.{domain}.usecases` 디렉토리에 `UC-NN-{slug}.md` + `_index.md`
+   - **실행 조건 (해당 시에만)**: 변경이 **2개 이상 앱에 걸치는 cross-app 통합 기능** — `code.api` + `code.web` 또는 + `code.bot` 등 다면 연동. 단일 앱(api만 / web만 / bot만)에 한정된 변경은 스킵
+   - 목적: API + 페이지 + 외부연동(Discord/Gemini 등)이 맞물리는 통합 시나리오를 명세해 Phase 6 테스트의 통합 검증 기준으로 사용
+   - 입력: PRD + userflow(있으면) + DB 스키마 + resolve된 코드 표면적
+   - 단일 도메인·단일 앱 작업이면 본 단계 스킵 (usecase 산출물이 plan 과 중복되어 한계효용 낮음)
+4-e. **[Skill: `planner-endpoint-spec-draft`]** → **조건부** (전역 템플릿 스킬, 메인 세션이 `Skill()` 호출) / 출력: `docs/specs/endpoint-spec/{domain}.md`
+   - **실행 조건**: BE 엔드포인트(api/bot-api controller)가 **신규/변경**될 때만. 엔드포인트 변경 없으면 스킵
+   - 입력 매핑: 스킬의 "feature-spec" ↔ onyu 의 PRD + usecase(있으면). method/path/auth/query/body/response 표 + 🔴/🟨/❓ 마커 산출 → 이후 implementer 가 Swagger 정합 검증에 사용
 
 ### Phase 3: 계획 (S 조건부 / M·L 필수)
 5. [common-task-planner] → 조건: **다중 도메인 변경 시에만** 실행 / 입력: PRD (도메인별) / 출력: 공통 모듈 판단 결과
 6. [plan-writer] × N (병렬, 모듈 단위) → 출력: 각 모듈별 구현 계획 (`/docs/plans/*.md`)
     - `status: not-started` / 부분 entry 도메인의 경우 신규 코드 path를 plan.md "manifest 갱신 필요" §에 1차 제안한다.
+6-edge. **[Skill: `planner-edge-cases`]** → **조건부** (전역 템플릿 스킬) / 출력: `docs/specs/edge-cases/{domain}.md`
+    - **실행 조건**: 비자명 분기·예외가 있는 기능 (입력검증/권한/동시성/외부의존 실패/데이터부재). 단순 CRUD·설정 토글은 스킵
+    - 입력: PRD + endpoint-spec(있으면) + usecase(있으면). 예외 케이스 분류 산출 → Phase 6 테스트의 실패/경계 케이스 기준
+6-qa. **[Skill: `planner-qa-checklist`]** → **조건부 (L 규모 권장)** (전역 템플릿 스킬) / 출력: `docs/specs/qa-checklist/{domain}.md`
+    - **실행 조건**: L 규모(신규 기능/도메인) 또는 QA 검증이 필요한 변경. S/단순 M 은 스킵
+    - 입력: 선행 산출물 종합 (PRD / usecase / endpoint-spec / edge-cases). 시나리오별 체크박스 + 우선순위 → Phase 6 tester/fe-tester 입력으로 전달
 
 ### Phase 3.5: 계획 확인 (사용자 승인)
 > **계획된 사용자 개입 지점이다.** (자율 실행 규칙 4항(b))
@@ -213,7 +240,7 @@ domains.{도메인}.{ prd, userflow, database,
 #### Phase 6 상세
 
 9. [tester] → BE 테스트 작성 및 실행 (병렬)
-   - 입력: 변경된 코드 + PRD + 구현 계획
+   - 입력: 변경된 코드 + PRD + 구현 계획 + (있으면) usecase 문서(`domains.{domain}.usecases`) + (있으면) edge-cases / qa-checklist(`docs/specs/edge-cases|qa-checklist/{domain}.md`) — 통합 시나리오·예외·QA 검증 기준
    - 작업:
      1. 기존 테스트 실행 → 기존 동작 보존 확인
      2. 신규 기능에 대한 테스트 코드 작성 (Unit / Integration)
@@ -224,7 +251,7 @@ domains.{도메인}.{ prd, userflow, database,
    - 출력: 테스트 코드 + 실행 결과 (실패 시 실패 보고서)
    - 성공 조건: 기존 + 신규 테스트 전체 통과
 10. [fe-tester] → FE 테스트 작성 및 실행 (병렬, 조건: `apps/web` 변경 시에만)
-    - 입력: 변경된 프론트엔드 코드
+    - 입력: 변경된 프론트엔드 코드 + (있으면) userflow 문서(`domains.{domain}.userflow`) + usecase 문서(`domains.{domain}.usecases`) + (있으면) edge-cases / qa-checklist — 유저 시나리오·예외·QA 검증 기준
     - 작업: Testing Trophy 전략 기반 테스트 작성 및 실행
     - 출력: 테스트 코드 + 실행 결과 (실패 시 실패 보고서)
 
@@ -262,6 +289,9 @@ domains.{도메인}.{ prd, userflow, database,
   ※ HITL 게이트: 각 Phase 끝 산출물 🔴 grep → 법무/결제/권한/DB파괴적 마커 발견 시 후속 Phase 정지 + 사용자 보고
   ※ 규모: S = Phase 1·2 스킵 / M = Phase 1 선택·Phase 2 조건부 / L = 전체 실행 (Phase 0.5 표 참조)
   ※ 권한 fallback: implementer 등 sub-agent Edit/Write 거부 시 메인 세션이 직접 수행
+  ※ userflow(Phase 1, 1-b): user-facing 표면(웹 페이지/인터랙티브 봇 커맨드)일 때만 조건부 실행 — 백그라운드/스케줄러 스킵
+  ※ usecase(Phase 2, 4-u): 2개 이상 앱(api/bot/web) 걸치는 cross-app 통합일 때만 조건부 실행 (db-architect와 병렬) — 단일 앱 작업 스킵
+  ※ 전역 템플릿 스킬(조건부, 메인 세션이 Skill() 호출): endpoint-spec-draft(Phase 2, 4-e — BE 엔드포인트 변경 시) / edge-cases(Phase 3, 6-edge — 비자명 분기) / qa-checklist(Phase 3, 6-qa — L 규모) → 산출물은 docs/specs/{endpoint-spec,edge-cases,qa-checklist}/, Phase 6 테스트 입력
   ※ 실패 시: 각 단계 최대 3회 재시도, 초과 시 사용자 보고
   ※ 테스트(Phase 6): tester + fe-tester 병렬 → Barrier → 합산 판정 → 실패 시 Phase 4 회귀 → Phase 5+6 전체 재실행 (최대 3사이클)
 ```
