@@ -374,6 +374,27 @@
     "validationChannelRequired": "You must select a channel to enable the report.",
     "saveSuccess": "Saved successfully."
   },
+  "coPresence": {
+    "title": "Co-Presence Settings",
+    "policySection": "/affinity Permission Policy",
+    "allowPublicAffinityQuery": "Allow Third-Party Affinity Queries",
+    "allowPublicAffinityQueryDesc": "When enabled, regular users can use the /affinity command to query the affinity of pairs they are not part of. When disabled, only users with ManageGuild permission can do so.",
+    "saveButton": "Save",
+    "savedToast": "Settings saved successfully."
+  },
+  "privacy": {
+    "title": "Privacy Settings",
+    "guildSelectLabel": "Target Server",
+    "guildSelectDesc": "Only the exposure policy for the selected server will be changed.",
+    "noGuilds": "No servers with the Onyu bot installed.",
+    "relationshipShareSection": "Affinity / Best Friend Exposure",
+    "disableRelationshipShare": "Public Visibility",
+    "disableRelationshipShareDesc": "When turned OFF, your information will be anonymized (???) when other users query it via the /best-friend or /affinity commands.",
+    "publicLabel": "Public",
+    "privateLabel": "Private",
+    "saveButton": "Save",
+    "savedToast": "Settings saved successfully."
+  },
   "inactiveMember": {
     "title": "Inactive Member Settings",
     "criteria": "Inactivity Criteria",

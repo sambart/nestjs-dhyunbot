@@ -1,0 +1,55 @@
+// ────────────────────────────────────────────────────────────────────────────
+// 베스트 프렌드 / 친밀도 카드 렌더러 입력 타입 정의
+// ────────────────────────────────────────────────────────────────────────────
+
+/** 단일 peer 항목 */
+export interface TopPeerItem {
+  /** peer의 Discord userId */
+  userId: string;
+  /** GuildMember.displayName. 익명화 시 '???' */
+  displayName: string;
+  /** 아바타 URL. 익명화 시 null */
+  avatarUrl: string | null;
+  /** 기간 내 총 동시접속 시간(분) */
+  totalMinutes: number;
+  /** 기간 내 세션 수 */
+  sessionCount: number;
+  /** UserPrivacyConfig.disableRelationshipShare = true */
+  isAnonymous: boolean;
+}
+
+/** 베스트 프렌드 카드 입력 데이터 */
+export interface BestFriendCardData {
+  /** 본인 닉네임 */
+  selfDisplayName: string;
+  /** 본인 아바타 URL */
+  selfAvatarUrl: string;
+  /** 집계 기간(일) */
+  // eslint-disable-next-line no-magic-numbers -- 도메인 허용 기간(일) union 타입
+  period: 7 | 30 | 90;
+  /** 상위 peer 목록 */
+  peers: TopPeerItem[];
+  /** AI 한 줄 코멘트. null 이면 카드에서 생략 */
+  aiComment: string | null;
+  /** 통계 제외 채널 목록 (푸터 표기용, 옵션) */
+  excludedChannels?: { name: string }[];
+}
+
+/** 친밀도 카드 입력 데이터 */
+export interface AffinityCardData {
+  /** 사용자 A */
+  userA: { displayName: string; avatarUrl: string | null };
+  /** 사용자 B */
+  userB: { displayName: string; avatarUrl: string | null };
+  /** 집계 기간(일) */
+  // eslint-disable-next-line no-magic-numbers -- 도메인 허용 기간(일) union 타입
+  period: 7 | 30 | 90;
+  /** 기간 내 총 동시접속 시간(분) */
+  totalMinutes: number;
+  /** 기간 내 총 세션 수 */
+  sessionCount: number;
+  /** 마지막 함께한 날짜 (YYYY-MM-DD). 데이터 없으면 null */
+  lastDate: string | null;
+  /** 일별 동시접속 시간 목록 */
+  dailyData: { date: string; minutes: number }[];
+}

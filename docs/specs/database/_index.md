@@ -1,4 +1,4 @@
-# Onyu Database Schema
+﻿# Onyu Database Schema
 
 ## 개요
 
@@ -392,6 +392,33 @@ Onyu은 PostgreSQL을 영구 저장소로, Redis를 실시간 세션 캐싱 및 
 └────────────────────────────────────────────────────────────┘
   (독립 테이블 — FK 없음, Discord ID 직접 저장)
   IDX_weekly_report_config_enabled: IDX(isEnabled)
+
+┌────────────────────────────────────────────────────────────┐
+│      UserPrivacyConfig (user_privacy_config)                │
+│      Phase 5 — F-COPRESENCE-014/015/016/017                 │
+├────────────────────────────────────────────────────────────┤
+│ PK guildId + userId                                         │
+│ disableRelationshipShare (boolean, default false)           │
+│ updatedAt (timestamp, default now())                        │
+└────────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  PK: (guildId, userId)
+  Redis 캐시: friend:privacy:{guildId}:{userId}, TTL 30분
+  ※ userId 단독 인덱스 없음 — DELETE /api/users/me/data 삭제 대상에
+    user_privacy_config 미포함(PRD §14). userId 단독 스캔 유스케이스 없음.
+
+┌────────────────────────────────────────────────────────────┐
+│      GuildCoPresenceConfig (guild_co_presence_config)       │
+│      Phase 5 — F-COPRESENCE-015                             │
+├────────────────────────────────────────────────────────────┤
+│ PK guildId                                                  │
+│ allowPublicAffinityQuery (boolean, default false)           │
+│ updatedAt (timestamp, default now())                        │
+└────────────────────────────────────────────────────────────┘
+  (독립 테이블 — FK 없음, Discord ID 직접 저장)
+  PK: guildId (단일 컬럼)
+  ※ InactiveMemberConfig 등 기존 도메인별 설정 테이블과 병합하지 않음.
+    도메인 경계 위반 방지. 향후 추가 콜럼은 이 테이블에서 수용.
 ```
 
 ---
@@ -1630,6 +1657,98 @@ COMMENT ON COLUMN weekly_report_config."timezone"   IS 'IANA 타임존 문자열
 COMMENT ON COLUMN weekly_report_config."updatedAt"  IS '마지막 설정 변경 시각';
 ```
 
+
+### 31. UserPrivacyConfig (user_privacy_config)
+
+> Phase 5 — F-COPRESENCE-017. 사용자별 길드 단위 친밀도·베프 노출 opt-out 설정을 저장한다. 기본값은 공개(공개 opt-out). 레코드가 없으면 공개로 간주하며 INSERT하지 않는다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `userId` | `varchar` | PK | 사용자 디스코드 ID |
+| `disableRelationshipShare` | `boolean` | NOT NULL, DEFAULT `false` | `true` = 친밀도·베프 노출 비공개(opt-out) |
+| `updatedAt` | `timestamptz` | NOT NULL, DEFAULT now() | 마지막 변경 시각 |
+
+- **복합 PK**: `(guildId, userId)`
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/channel/voice/co-presence/infrastructure/user-privacy-config.orm-entity.ts`
+- **보존 정책**: 영구 보존 (삭제 안 함). `DELETE /api/users/me/data` 대상에 미포함.
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| PK | `(guildId, userId)` | 단건 조회·upsert ON CONFLICT 키 |
+
+#### 인덱스 설계 근거
+
+`userId` 단독 인덱스를 추가하지 않는다. `DELETE /api/users/me/data`(PRD §14) 삭제 대상 테이블 목록에 `user_privacy_config`가 명시되지 않았으므로 userId 단독 스캔 유스케이스가 없다. 일반적인 조회 패턴은 `(guildId, userId)` 둘 다 조건으로 사용하며, PK로 완전히 커버된다.
+
+#### 캐시 전략
+
+| 키 | TTL | 자료구조 | 설명 |
+|----|-----|----------|------|
+| `friend:privacy:{guildId}:{userId}` | 30분 (1,800초) | String (`"0"` or `"1"`) | `"1"` = 비공개. 설정 변경 시 DEL로 즉시 무효화 |
+
+TTL 30분은 안전 장치 역할이다. 설정 변경 시 즉시 `DEL`이 호출되므로 반영 지연은 없다. TTL 연장(예: 1시간)은 DEL 실패 시 stale 상태 유지 시간을 늘리므로 채택하지 않는다.
+
+F-COPRESENCE-014에서 peer 5명의 opt-out 확인은 Redis `MGET` 단일 왕복으로 처리한다. 5개 키를 개별 GET하지 않고 `MGET friend:privacy:{guildId}:{peer1} ... {peer5}`로 배치 조회한다. 길드 전체 opt-out Set 캐시(`friend:privacy:{guildId}:set`)는 추가하지 않는다 — MGET 5회와 Set SISMEMBER 5회의 Redis 왕복 비용이 동일하고, Set 관리(SADD/SREM) 복잡도가 추가되어 오버엔지니어링이다.
+
+#### DDL
+
+`sql
+CREATE TABLE user_privacy_config (
+  "guildId"                    varchar      NOT NULL,
+  "userId"                     varchar      NOT NULL,
+  "disableRelationshipShare"   boolean      NOT NULL DEFAULT false,
+  "updatedAt"                  timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT "PK_user_privacy_config" PRIMARY KEY ("guildId", "userId")
+);
+`
+
+---
+
+### 32. GuildCoPresenceConfig (guild_co_presence_config)
+
+> Phase 5 — F-COPRESENCE-015. 길드 단위 Co-Presence 공개 정책을 저장한다. 타인↔타인 `/affinity` 조회 허용 여부(P-2 정책)를 관리한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `allowPublicAffinityQuery` | `boolean` | NOT NULL, DEFAULT `false` | `true` = 일반 사용자도 타인↔타인 `/affinity` 조회 가능 |
+| `updatedAt` | `timestamptz` | NOT NULL, DEFAULT now() | 마지막 변경 시각 |
+
+- **PK**: `guildId` (단일 컬럼)
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/channel/voice/co-presence/infrastructure/guild-co-presence-config.orm-entity.ts`
+- **보존 정책**: 영구 보존.
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 용도 |
+|--------|------|------|
+| PK | `guildId` | 단건 조회 |
+
+#### 설계 결정 근거
+
+`InactiveMemberConfig` 등 기존 도메인별 설정 테이블에 `allowPublicAffinityQuery` 컬럼을 추가하지 않는다. co-presence 정책이 비활동 관리 설정에 혼입되면 도메인 경계가 무너진다. 현재 컬럼이 1개이더라도 별도 테이블로 분리하여, 향후 co-presence 관련 길드 설정(베프 조회 일일 한도, 집계 최소 시간 임계 등)이 추가될 경우 이 테이블에서 수용한다.
+
+설정 경로: 웹 대시보드 관리자 설정 페이지. `InactiveMemberConfig` 설정 페이지와 동일 패턴(길드당 단건 upsert).
+
+#### DDL
+
+`sql
+CREATE TABLE guild_co_presence_config (
+  "guildId"                   varchar      NOT NULL,
+  "allowPublicAffinityQuery"  boolean      NOT NULL DEFAULT false,
+  "updatedAt"                 timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT "PK_guild_co_presence_config" PRIMARY KEY ("guildId")
+);
+`
+
+---
 ---
 
 ## Redis 데이터 구조
@@ -1847,6 +1966,36 @@ SET sticky_message:debounce:{channelId} 1 EX 3
 - **삭제 시점**: TTL 만료 (1시간) 후 자동 삭제
 - **파일**: `apps/bot/src/music/application/chart-crawler.service.ts`
 
+### friend 키 정의 (Phase 5)
+
+Co-Presence 친밀도·베스트 프렌드 기능(F-COPRESENCE-014~018)의 사생활 캐시 및 LLM 한도 카운터를 저장한다.
+
+| 키 패턴 | TTL | 자료구조 | 설명 |
+|---------|-----|----------|------|
+| `friend:privacy:{guildId}:{userId}` | 30분 (1,800초) | String (`"0"` 또는 `"1"`) | 사용자 opt-out 설정 캐시. `"1"` = 비공개, `"0"` = 공개. `UserPrivacyConfigService` 캐시 레이어. 설정 변경 시 DEL로 즉시 무효화 |
+| `friend:llm:quota:{guildId}:{YYYYMMDD}` | 24시간 (86,400초) | String (숫자, INCR) | 길드별 일일 LLM 호출 카운터. INCR 후 한도(예: 50) 초과 시 AI 코멘트 생략. EXPIRE 86400 설정으로 다음 날 자동 만료 |
+
+#### friend:privacy 구조
+
+```
+SET friend:privacy:{guildId}:{userId} {0|1} EX 1800
+```
+
+- `0` = `disableRelationshipShare = false` (공개, 기본값)
+- `1` = `disableRelationshipShare = true` (비공개, opt-out)
+- 캐시 미스 시 `user_privacy_config` → PostgreSQL SELECT. 레코드 없으면 기본값 `0` 반환 (INSERT 하지 않음)
+- TTL 30분은 안전 장치다. 설정 변경 시 즉시 DEL 호출로 실시간 반영. TTL 연장은 DEL 실패 시 stale 유지 시간을 늘리므로 채택 안 함.
+- F-COPRESENCE-014 peer 5명 opt-out 확인: `MGET friend:privacy:{guildId}:{peer1} ... {peer5}` 단일 왕복으로 처리. 길드 전체 opt-out Set 별도 캐시는 추가하지 않음(MGET 대비 관리 복잡도만 증가).
+
+#### friend:llm:quota 구조
+
+```
+INCR friend:llm:quota:{guildId}:{YYYYMMDD}
+EXPIRE friend:llm:quota:{guildId}:{YYYYMMDD} 86400
+```
+
+키가 존재하지 않으면 INCR 명령이 자동 생성 후 1을 반환한다. EXPIRE는 키 첫 생성 시 1회만 설정한다. 한도 초과 여부는 INCR 반환값으로 판정 (반환값 > 한도이면 코멘트 생략).
+
 ---
 
 ### TTL 정책
@@ -1870,6 +2019,8 @@ SET sticky_message:debounce:{channelId} 1 EX 3
 | sticky_message 설정 캐시 | 1시간 (3,600초) | 설정 변경 빈도 낮음. 저장/삭제 시 명시적 갱신 또는 무효화 |
 | sticky_message 디바운스 타이머 | 3초 | 연속 메시지 수신 시 마지막 메시지 기준으로 3초 후 재전송. 수신마다 TTL 리셋 |
 | music 차트 캐시 (멜론/빌보드) | 1시간 (3,600초) | 크롤링 부하 최소화. TTL 만료 시 다음 버튼 클릭에서 재크롤링 |
+| friend:privacy:{guildId}:{userId} | 30분 (1,800초) | opt-out 빠른 확인용. 설정 변경 시 DEL로 즉시 무효화 |
+| friend:llm:quota:{guildId}:{YYYYMMDD} | 24시간 (86,400초) | 길드별 일일 LLM 호출 카운터. INCR + EXPIRE 패턴. 다음 날 자동 만료 |
 
 ---
 
@@ -2320,6 +2471,191 @@ Redis 누적 데이터 ──► VoiceDailyEntity (voice_daily)
   1. inactive_member_config → PostgreSQL select WHERE guildId = ?
      - 레코드 없음: 기본값으로 INSERT 후 반환
      - 레코드 있음: 전체 필드 반환
+```
+
+---
+
+### 31. UserPrivacyConfig (`user_privacy_config`)
+
+> Voice Co-Presence Phase 5 — F-COPRESENCE-014/015/016/017 대응. 사용자별 길드 단위 친밀도·베스트 프렌드 노출 opt-out 설정을 저장한다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `userId` | `varchar` | PK | 사용자 디스코드 ID |
+| `disableRelationshipShare` | `boolean` | NOT NULL, DEFAULT `false` | `true` = 친밀도·베스트 프렌드 데이터 노출 비공개(opt-out). 타인의 `/best-friend`, `/affinity`, 주간 리포트에서 익명화(`???`) 처리됨 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT `now()` | 마지막 설정 변경 시각 |
+
+- **복합 PK**: `(guildId, userId)`
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/channel/voice/co-presence/infrastructure/user-privacy-config.orm-entity.ts`
+- **캐시**: `friend:privacy:{guildId}:{userId}` — Redis, TTL 30분. 설정 변경(`upsert`) 시 `DEL` 즉시 무효화
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 종류 | 용도 |
+|--------|------|------|------|
+| PK `PK_user_privacy_config` | `(guildId, userId)` | PRIMARY KEY | `UserPrivacyConfigService.findOne(guildId, userId)` 단건 조회. upsert `ON CONFLICT` 키 |
+| `IDX_user_privacy_config_user` | `(userId)` | INDEX | 사용자가 탈퇴하거나 전체 길드에서 opt-out 상태를 일괄 조회할 경우의 `WHERE userId = ?` 스캔 커버. PK 선두가 `guildId`이므로 `userId` 단독 조회는 커버되지 않아 별도 인덱스 필요 |
+
+#### 인덱스 설계 근거
+
+일반적인 조회 패턴은 `WHERE guildId = ? AND userId IN (...)` (베스트 프렌드 peer 목록 opt-out 일괄 확인)이며, 이는 PK `(guildId, userId)`로 커버된다. 단, 향후 사용자 탈퇴 처리 또는 개인정보 삭제 API(`DELETE /api/users/me/data`)에서 `WHERE userId = ?` 전체 길드 삭제가 발생할 경우를 대비하여 `IDX_user_privacy_config_user (userId)` 인덱스를 추가한다. FK가 없는 기존 패턴(`voice_co_presence_*` 테이블과 동일)을 따른다.
+
+#### SQL DDL
+
+```sql
+CREATE TABLE user_privacy_config (
+  "guildId"                   varchar     NOT NULL,
+  "userId"                    varchar     NOT NULL,
+  "disableRelationshipShare"  boolean     NOT NULL DEFAULT false,
+  "updatedAt"                 timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT "PK_user_privacy_config" PRIMARY KEY ("guildId", "userId")
+);
+
+CREATE INDEX "IDX_user_privacy_config_user" ON user_privacy_config ("userId");
+
+COMMENT ON TABLE  user_privacy_config                                IS '사용자별 길드 단위 친밀도·베스트 프렌드 노출 opt-out 설정 (Phase 5)';
+COMMENT ON COLUMN user_privacy_config."guildId"                     IS '디스코드 서버 ID (복합 PK 선두)';
+COMMENT ON COLUMN user_privacy_config."userId"                      IS '사용자 디스코드 ID (복합 PK 후미)';
+COMMENT ON COLUMN user_privacy_config."disableRelationshipShare"    IS 'true = 친밀도·베프 노출 비공개(opt-out). 타인 조회 시 익명화(???) 처리됨. 기본값 false(공개)';
+COMMENT ON COLUMN user_privacy_config."updatedAt"                   IS '마지막 설정 변경 시각';
+```
+
+---
+
+### 32. GuildCoPresenceConfig (`guild_co_presence_config`)
+
+> Voice Co-Presence Phase 5 — F-COPRESENCE-015 대응. 길드 단위 `/affinity` 타인↔타인 페어 조회 허용 여부를 저장한다. `InactiveMemberConfig`와 동일한 길드 단위 설정 패턴을 따른다.
+
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|-------|------|----------|------|
+| `guildId` | `varchar` | PK | 디스코드 서버 ID |
+| `allowPublicAffinityQuery` | `boolean` | NOT NULL, DEFAULT `false` | `true` = 일반 사용자도 본인 미포함 타인↔타인 `/affinity` 조회 허용. `false`(기본) = `ManageGuild` 권한 보유자만 허용 |
+| `updatedAt` | `timestamp` | NOT NULL, DEFAULT `now()` | 마지막 설정 변경 시각 |
+
+- **PK**: `guildId` (단일 컬럼)
+- **스키마**: `public`
+- **관계**: 독립 테이블 (FK 없음, Discord ID 직접 저장)
+- **파일**: `apps/api/src/channel/voice/co-presence/infrastructure/guild-co-presence-config.orm-entity.ts`
+- **설정 경로**: 웹 대시보드 관리자 설정 페이지에서 토글. `InactiveMemberConfig` 패턴 동일.
+
+#### 인덱스
+
+| 인덱스 | 컬럼 | 종류 | 용도 |
+|--------|------|------|------|
+| PK `PK_guild_co_presence_config` | `(guildId)` | PRIMARY KEY | 길드 단건 조회 (`WHERE guildId = ?`) 및 upsert `ON CONFLICT` 키 |
+
+#### 인덱스 설계 근거
+
+조회 패턴은 항상 `WHERE guildId = ?` 단건 조회(F-COPRESENCE-015 권한 검증 시 1회)이며, PK 인덱스만으로 완전히 커버된다. 추가 인덱스 불필요. 레코드가 없는 길드는 기본값(`allowPublicAffinityQuery = false`)으로 처리하므로 레코드가 없는 경우 INSERT하지 않고 기본값을 코드 레벨에서 반환한다.
+
+#### SQL DDL
+
+```sql
+CREATE TABLE guild_co_presence_config (
+  "guildId"                    varchar     NOT NULL,
+  "allowPublicAffinityQuery"   boolean     NOT NULL DEFAULT false,
+  "updatedAt"                  timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT "PK_guild_co_presence_config" PRIMARY KEY ("guildId")
+);
+
+COMMENT ON TABLE  guild_co_presence_config                                   IS '길드 단위 Co-Presence 공개 설정 — 타인↔타인 /affinity 조회 허용 여부 (Phase 5)';
+COMMENT ON COLUMN guild_co_presence_config."guildId"                         IS '디스코드 서버 ID (PK)';
+COMMENT ON COLUMN guild_co_presence_config."allowPublicAffinityQuery"        IS 'true = 일반 사용자도 본인 미포함 타인↔타인 /affinity 조회 허용. false(기본) = ManageGuild 권한 보유자만 허용';
+COMMENT ON COLUMN guild_co_presence_config."updatedAt"                       IS '마지막 설정 변경 시각';
+```
+
+---
+
+### Phase 5 Co-Presence 사생활 정책 데이터 흐름
+
+```
+[사용자 opt-out 설정 — /privacy 슬래시 커맨드 또는 웹 설정 페이지]
+  1. UserPrivacyConfigService.upsert(guildId, userId, { disableRelationshipShare })
+  2. user_privacy_config → PostgreSQL
+       INSERT INTO user_privacy_config ("guildId", "userId", "disableRelationshipShare", "updatedAt")
+       VALUES ($1, $2, $3, now())
+       ON CONFLICT ("guildId", "userId") DO UPDATE SET
+         "disableRelationshipShare" = EXCLUDED."disableRelationshipShare",
+         "updatedAt" = now()
+  3. friend:privacy:{guildId}:{userId} → Redis DEL (캐시 즉시 무효화)
+  4. Discord: ephemeral 확인 메시지 응답
+
+[/best-friend 슬래시 커맨드 — F-COPRESENCE-014]
+  1. Bot: interaction.deferReply()
+  2. Bot → API: POST /bot-api/co-presence/best-friends (guildId, userId, displayName, avatarUrl, period, limit)
+  3. API:
+     a. voice_co_presence_pair_daily → PostgreSQL
+          SELECT "peerId", SUM(minutes) AS totalMin
+          FROM voice_co_presence_pair_daily
+          WHERE "guildId" = $1 AND "userId" = $2
+            AND date >= CURRENT_DATE - INTERVAL '$3 days'
+          GROUP BY "peerId"
+          ORDER BY totalMin DESC
+          LIMIT $4
+        인덱스: IDX_copresence_pair_guild_user_date (guildId, userId, date)
+     b. UserPrivacyConfigService.filterPeers(guildId, peerIds):
+          - friend:privacy:{guildId}:{peerId} → Redis GET (캐시 조회, 미스 시 DB)
+          - 캐시 미스: user_privacy_config → PostgreSQL
+               SELECT "userId", "disableRelationshipShare"
+               WHERE "guildId" = $1 AND "userId" = ANY($2)
+            → Redis SET friend:privacy:{guildId}:{peerId} {value} EX 1800
+          - disableRelationshipShare = true인 peer → 익명화 (name:'???', avatarUrl:null, isAnonymous:true)
+     c. GuildMemberService.findByUserIds(guildId, peerIds) → 닉네임/아바타 일괄 조회
+     d. (선택) VoiceAiAnalysisService.generateBestFriendComment() → LLM 코멘트
+          - friend:llm:quota:{guildId}:{YYYYMMDD} → Redis INCR + EXPIRE 86400 (일일 한도 체크)
+     e. BestFriendCardRenderer.render() → PNG Buffer → base64
+  4. Bot: AttachmentBuilder + Link 버튼 → interaction.editReply()
+
+[/affinity 슬래시 커맨드 — F-COPRESENCE-015]
+  1. Bot: interaction.deferReply()
+  2. Bot → API: POST /bot-api/co-presence/affinity (guildId, userAId, userBId, period)
+  3. API:
+     a. 권한 검증:
+          - user2 생략(실행자↔대상): 자기 자신 포함 → 허용
+          - user2 지정(타인↔타인): guild_co_presence_config → PostgreSQL SELECT WHERE "guildId" = $1
+             → allowPublicAffinityQuery = false이고 실행자 ManageGuild 권한 없으면 ephemeral 에러 분기
+     b. opt-out 검증:
+          - user_privacy_config → PostgreSQL
+               SELECT "userId", "disableRelationshipShare"
+               WHERE "guildId" = $1 AND "userId" = ANY(ARRAY[$2, $3])
+            (또는 Redis 캐시 조회)
+          - 한쪽이라도 disableRelationshipShare = true이고 실행자가 해당 사용자 본인이 아니면 ephemeral 분기
+     c. CoPresenceAnalyticsService.getPairDetail(guildId, userA, userB, period) → 일별 데이터 포함
+          SELECT date, SUM(minutes) AS minutes, SUM("sessionCount") AS "sessionCount"
+          FROM voice_co_presence_pair_daily
+          WHERE "guildId" = $1
+            AND (("userId" = $2 AND "peerId" = $3) OR ("userId" = $3 AND "peerId" = $2))
+            AND date >= CURRENT_DATE - INTERVAL '$4 days'
+          GROUP BY date ORDER BY date ASC
+     d. AffinityCardRenderer.render() → PNG Buffer → base64
+  4. Bot: AttachmentBuilder + Link 버튼 → interaction.editReply()
+
+[주간 리포트 친밀도 섹션 — F-COPRESENCE-016]
+  1. WeeklyReportScheduler (기존 매시간 정각 Cron, 변경 없음)
+  2. CoPresenceAnalyticsService.getTopPairs(guildId, 7, 5):
+       SELECT "userId", "peerId", SUM(minutes) AS totalMin, SUM("sessionCount") AS cnt
+       FROM voice_co_presence_pair_daily
+       WHERE "guildId" = $1 AND "userId" < "peerId"
+         AND date >= CURRENT_DATE - INTERVAL '7 days'
+       GROUP BY "userId", "peerId"
+       ORDER BY totalMin DESC
+       LIMIT 5
+  3. UserPrivacyConfigService.filterPeers() (위 동일 패턴):
+       - 양측 모두 disableRelationshipShare = true → 해당 페어 섹션에서 제외
+       - 한쪽만 true → 비공개 측 익명화(???) 후 포함
+  4. WeeklyReportService.buildPayload()에 친밀도 섹션 삽입 (기존 Embed 형식 유지)
+
+[길드 Co-Presence 설정 변경 — 웹 대시보드 관리자]
+  1. guild_co_presence_config → PostgreSQL
+       INSERT INTO guild_co_presence_config ("guildId", "allowPublicAffinityQuery", "updatedAt")
+       VALUES ($1, $2, now())
+       ON CONFLICT ("guildId") DO UPDATE SET
+         "allowPublicAffinityQuery" = EXCLUDED."allowPublicAffinityQuery",
+         "updatedAt" = now()
+  2. 캐시 무효화 불필요 (Redis 캐시 미사용 — 설정 조회 빈도 낮고 레코드 건수 적음)
 ```
 
 ### 게임 활동 라이프사이클 (Phase 2)
